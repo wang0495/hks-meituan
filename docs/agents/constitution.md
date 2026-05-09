@@ -1,20 +1,12 @@
 # hks-meituan Constitution
 
-> ⚠️ **Replace `hks-meituan` and `2026-05-08` with actual project name and date.**
-
 Core principles and technical decision guidelines for this project.
-All development decisions are based on this document.
-
-> **📌 Document Scope**
->
-> - **This document**: Tech stack, architecture principles, code quality, security principles
-> - **PRD**: Product requirements, business logic, user stories → `prd/*.md`
 
 ---
 
 ## Project Mission
 
-> (Write your project mission here)
+构建基于 Mock 数据的 3D 可视化展示平台，作为后续产品的基础设施。
 
 ---
 
@@ -22,47 +14,54 @@ All development decisions are based on this document.
 
 ### Backend
 
-| Tech          | Version   | Reason   |
-| ------------- | --------- | -------- |
-| (e.g. NestJS) | (version) | (reason) |
+| Tech | Version | Reason |
+|------|---------|--------|
+| Python | 3.12 | 生态成熟，异步支持好 |
+| FastAPI | latest | 异步高性能，自动 OpenAPI 文档 |
+| Uvicorn | latest | ASGI 服务器 |
 
 ### Frontend
 
-| Tech         | Version   | Reason   |
-| ------------ | --------- | -------- |
-| (e.g. React) | (version) | (reason) |
+| Tech | Version | Reason |
+|------|---------|--------|
+| Three.js | r170+ (CDN) | 轻量级 3D 渲染引擎 |
+| 原生 HTML/CSS/JS | - | 零依赖，快速开发 |
 
 ### Common
 
-| Tech              | Version | Reason       |
-| ----------------- | ------- | ------------ |
-| TypeScript        | strict  | Type safety  |
-| ESLint + Prettier | -       | Code quality |
-| pnpm              | -       | Package mgmt |
+| Tech | Version | Reason |
+|------|---------|--------|
+| JSON | - | 数据存储格式 |
+| Git | - | 版本控制 |
 
 ---
 
 ## Architecture Principles
 
-> (Write project-specific architecture principles here. e.g., layer structure, dependency rules)
+1. **前后端分离**：后端 API + 前端静态页面，独立部署
+2. **统一 LLM 接口**：抽象 LLM 调用层，支持 OpenAI 和国产模型无缝切换
+3. **数据驱动**：JSON 文件 → 内存缓存 → API 查询 → 3D 渲染
+4. **渐进增强**：先跑通核心流程，再优化细节
 
 ---
 
 ## Code Quality Standards
 
-> (Write project code quality standards here. e.g., test coverage, lint rules)
+- Python: black 格式化 + ruff 检查
+- 前端: 无 lint 强制要求（原生 JS）
+- API: RESTful 风格，统一响应格式
 
 ---
 
 ## Security Principles
 
-> (Write project security principles here. e.g., authentication method, data encryption)
+- API Key 不硬编码，使用环境变量
+- LLM API 调用不暴露密钥到前端
 
 ---
 
 ## Language/Code Rules
 
-- **Responses**: English
+- **Responses**: 中文
 - **Code/Filenames**: English
-- **Comments/Commits**: English
-- **Date/Time**: User's local system time (e.g., `2026-05-08`)
+- **Comments**: 中文/English 均可

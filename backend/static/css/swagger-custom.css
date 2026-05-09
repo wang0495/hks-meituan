@@ -1,0 +1,416 @@
+/* CityFlow Swagger UI Custom Theme */
+
+/* ---- 品牌色变量 ---- */
+:root {
+    --cf-primary: #3b82f6;
+    --cf-primary-dark: #2563eb;
+    --cf-accent: #06b6d4;
+    --cf-bg: #f8fafc;
+    --cf-surface: #ffffff;
+    --cf-text: #1e293b;
+    --cf-text-muted: #64748b;
+    --cf-border: #e2e8f0;
+    --cf-success: #10b981;
+    --cf-warning: #f59e0b;
+    --cf-danger: #ef4444;
+}
+
+/* ---- 隐藏默认顶部栏 ---- */
+.swagger-ui .topbar {
+    display: none;
+}
+
+/* ---- 整体字体与背景 ---- */
+.swagger-ui {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+        "Helvetica Neue", Arial, "Noto Sans SC", sans-serif;
+    background: var(--cf-bg);
+    color: var(--cf-text);
+}
+
+/* ---- 品牌标题区 ---- */
+.swagger-ui .info {
+    margin: 30px 0;
+}
+
+.swagger-ui .info .title {
+    font-size: 2.2em;
+    font-weight: 700;
+    color: var(--cf-primary);
+    border-bottom: 3px solid var(--cf-primary);
+    padding-bottom: 12px;
+    margin-bottom: 8px;
+}
+
+.swagger-ui .info .title small {
+    background: var(--cf-primary);
+    color: #fff;
+    font-size: 0.45em;
+    padding: 4px 10px;
+    border-radius: 4px;
+    vertical-align: middle;
+    margin-left: 12px;
+}
+
+.swagger-ui .info .title small pre {
+    margin: 0;
+    color: inherit;
+}
+
+.swagger-ui .info .description p,
+.swagger-ui .info .description li {
+    color: var(--cf-text);
+    line-height: 1.7;
+}
+
+.swagger-ui .info .description h2 {
+    color: var(--cf-primary-dark);
+    font-size: 1.3em;
+    margin-top: 24px;
+    border-bottom: 1px solid var(--cf-border);
+    padding-bottom: 6px;
+}
+
+.swagger-ui .info .description h3 {
+    color: var(--cf-text);
+    font-size: 1.1em;
+}
+
+.swagger-ui .info .description code {
+    background: #eef2ff;
+    color: var(--cf-primary-dark);
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 0.9em;
+}
+
+.swagger-ui .info .description pre {
+    background: #1e293b;
+    color: #e2e8f0;
+    border-radius: 8px;
+    padding: 16px;
+}
+
+.swagger-ui .info .description pre code {
+    background: none;
+    color: inherit;
+    padding: 0;
+}
+
+.swagger-ui .info .description table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 12px 0;
+}
+
+.swagger-ui .info .description table th {
+    background: var(--cf-primary);
+    color: #fff;
+    padding: 10px 14px;
+    text-align: left;
+    font-weight: 600;
+}
+
+.swagger-ui .info .description table td {
+    padding: 8px 14px;
+    border-bottom: 1px solid var(--cf-border);
+}
+
+.swagger-ui .info .description table tr:nth-child(even) td {
+    background: #f1f5f9;
+}
+
+/* ---- 联系信息 & 链接 ---- */
+.swagger-ui .info a {
+    color: var(--cf-primary);
+}
+
+.swagger-ui .info a:hover {
+    color: var(--cf-primary-dark);
+}
+
+/* ---- Server 选择栏 ---- */
+.swagger-ui .scheme-container {
+    background: var(--cf-surface);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+    border-radius: 8px;
+    padding: 16px 20px;
+    margin: 0 0 20px;
+}
+
+/* ---- Authorize 按钮 ---- */
+.swagger-ui .btn.authorize {
+    background-color: var(--cf-primary);
+    border-color: var(--cf-primary);
+    color: #fff;
+    border-radius: 6px;
+    font-weight: 600;
+    transition: background-color 0.2s;
+}
+
+.swagger-ui .btn.authorize:hover {
+    background-color: var(--cf-primary-dark);
+    border-color: var(--cf-primary-dark);
+}
+
+.swagger-ui .btn.authorize svg {
+    fill: #fff;
+}
+
+/* ---- Tag 分组 ---- */
+.swagger-ui .opblock-tag {
+    font-size: 1.2em;
+    font-weight: 600;
+    color: var(--cf-text);
+    border-bottom: 2px solid var(--cf-border);
+    padding: 12px 0;
+}
+
+.swagger-ui .opblock-tag:hover {
+    color: var(--cf-primary);
+}
+
+.swagger-ui .opblock-tag small {
+    color: var(--cf-text-muted);
+    font-weight: 400;
+}
+
+/* ---- 端点块 ---- */
+.swagger-ui .opblock {
+    border-radius: 8px;
+    border: 1px solid var(--cf-border);
+    margin-bottom: 8px;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.swagger-ui .opblock .opblock-summary {
+    border-radius: 8px;
+}
+
+/* GET */
+.swagger-ui .opblock.opblock-get {
+    border-color: #bfdbfe;
+    background: #eff6ff;
+}
+
+.swagger-ui .opblock.opblock-get .opblock-summary-method {
+    background: var(--cf-primary);
+}
+
+/* POST */
+.swagger-ui .opblock.opblock-post {
+    border-color: #a7f3d0;
+    background: #ecfdf5;
+}
+
+.swagger-ui .opblock.opblock-post .opblock-summary-method {
+    background: var(--cf-success);
+}
+
+/* PUT */
+.swagger-ui .opblock.opblock-put {
+    border-color: #fde68a;
+    background: #fffbeb;
+}
+
+.swagger-ui .opblock.opblock-put .opblock-summary-method {
+    background: var(--cf-warning);
+}
+
+/* DELETE */
+.swagger-ui .opblock.opblock-delete {
+    border-color: #fecaca;
+    background: #fef2f2;
+}
+
+.swagger-ui .opblock.opblock-delete .opblock-summary-method {
+    background: var(--cf-danger);
+}
+
+/* 方法标签 */
+.swagger-ui .opblock .opblock-summary-method {
+    border-radius: 6px;
+    font-size: 0.85em;
+    font-weight: 700;
+    min-width: 70px;
+    text-align: center;
+    padding: 6px 12px;
+}
+
+/* 路径 */
+.swagger-ui .opblock .opblock-summary-path {
+    color: var(--cf-text);
+    font-weight: 500;
+}
+
+.swagger-ui .opblock .opblock-summary-description {
+    color: var(--cf-text-muted);
+}
+
+/* ---- 展开的端点详情 ---- */
+.swagger-ui .opblock-body {
+    background: var(--cf-surface);
+}
+
+.swagger-ui .opblock-description-wrapper p {
+    color: var(--cf-text);
+    line-height: 1.6;
+}
+
+/* ---- 参数表格 ---- */
+.swagger-ui table thead tr th {
+    color: var(--cf-text);
+    font-weight: 600;
+    border-bottom: 2px solid var(--cf-border);
+}
+
+.swagger-ui table tbody tr td {
+    border-bottom: 1px solid var(--cf-border);
+    color: var(--cf-text);
+}
+
+/* ---- 输入框 ---- */
+.swagger-ui input[type="text"],
+.swagger-ui textarea,
+.swagger-ui select {
+    border: 1px solid var(--cf-border);
+    border-radius: 6px;
+    padding: 8px 12px;
+    font-size: 0.95em;
+    transition: border-color 0.2s;
+}
+
+.swagger-ui input[type="text"]:focus,
+.swagger-ui textarea:focus,
+.swagger-ui select:focus {
+    border-color: var(--cf-primary);
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+}
+
+/* ---- Try it out 按钮 ---- */
+.swagger-ui .btn.try-out__btn {
+    background: var(--cf-primary);
+    border-color: var(--cf-primary);
+    color: #fff;
+    border-radius: 6px;
+    font-weight: 600;
+}
+
+.swagger-ui .btn.try-out__btn:hover {
+    background: var(--cf-primary-dark);
+}
+
+.swagger-ui .btn.cancel {
+    background: transparent;
+    border-color: var(--cf-text-muted);
+    color: var(--cf-text-muted);
+    border-radius: 6px;
+}
+
+/* Execute 按钮 */
+.swagger-ui .btn.execute {
+    background: var(--cf-success);
+    border-color: var(--cf-success);
+    color: #fff;
+    border-radius: 6px;
+    font-weight: 600;
+    padding: 8px 24px;
+}
+
+.swagger-ui .btn.execute:hover {
+    background: #059669;
+    border-color: #059669;
+}
+
+/* ---- 响应区域 ---- */
+.swagger-ui .responses-inner {
+    color: var(--cf-text);
+}
+
+.swagger-ui .responses-inner h4,
+.swagger-ui .responses-inner h5 {
+    color: var(--cf-text);
+}
+
+/* 响应码 */
+.swagger-ui td.response-col_status {
+    font-weight: 600;
+    color: var(--cf-text);
+}
+
+.swagger-ui td.response-col_description {
+    color: var(--cf-text-muted);
+}
+
+/* ---- 模型（Schema） ---- */
+.swagger-ui section.models {
+    border: 1px solid var(--cf-border);
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.swagger-ui section.models h4 {
+    color: var(--cf-text);
+    font-weight: 600;
+}
+
+.swagger-ui .model-title {
+    color: var(--cf-primary);
+    font-weight: 600;
+}
+
+.swagger-ui .model {
+    color: var(--cf-text);
+}
+
+.swagger-ui .prop-type {
+    color: var(--cf-accent);
+}
+
+.swagger-ui .prop-format {
+    color: var(--cf-text-muted);
+}
+
+/* ---- 滚动条美化 ---- */
+.swagger-ui ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+.swagger-ui ::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.swagger-ui ::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 3px;
+}
+
+.swagger-ui ::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+}
+
+/* ---- 响应示例代码块 ---- */
+.swagger-ui .highlight-code .microlight {
+    border-radius: 8px;
+    padding: 16px;
+    font-size: 0.9em;
+}
+
+/* ---- 页脚隐藏（如有） ---- */
+.swagger-ui .footer {
+    display: none;
+}
+
+/* ---- 通用按钮样式 ---- */
+.swagger-ui .btn {
+    border-radius: 6px;
+    font-weight: 500;
+    transition: all 0.2s;
+}
+
+/* ---- 加载动画 ---- */
+.swagger-ui .loading-container .loading::after {
+    color: var(--cf-primary);
+}

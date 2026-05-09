@@ -1,0 +1,77 @@
+# CityFlow 优化版 Dockerfile
+# 多阶段构建，减小镜像体积，提升安全性
+
+# ============================================================================
+# Stage 1: 依赖安装（builder）
+# ============================================================================
+FROM python:3.10-slim AS builder
+
+WORKDIR /app
+
+# 安装编译依赖（部分 Python 包需要 C 编译器）
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gcc \
+    libpq-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# 先复制依赖文件，利用 Docker 层缓存
+COPY requirements.txt .
+RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
+
+# ============================================================================
+# Stage 2: 生产镜像（最小化）
+# ============================================================================
+FROM python:3.10-slim
+
+# 安装运行时依赖（仅 curl 用于健康检查）
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    tini \
+    && rm -rf /var/lib/apt/lists/*
+
+# 创建非 root 用户
+RUN groupadd -r cityflow && useradd -r -g cityflow -d /app -s /sbin/nologin cityflow
+
+WORKDIR /app
+
+# 从 builder 复制已安装的 Python 包
+COPY --from=builder /install /usr/local
+
+# 复制应用代码
+COPY backend/ ./backend/
+COPY frontend/ ./frontend/
+COPY data/ ./data/
+COPY alembic/ ./alembic/
+COPY alembic.ini .
+
+# 创建数据目录并设置权限
+RUN mkdir -p /app/data /app/logs && \
+    chown -R cityflow:cityflow /app
+
+# 环境变量
+ENV PATH="/app:${PATH}" \
+    PYTHONPATH=/app \
+    PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1
+
+# 切换到非 root 用户
+USER cityflow
+
+# 健康检查（使用应用自身的 /health 端点）
+HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
+    CMD curl -sf http://localhost:8000/health || exit 1
+
+# 暴露端口
+EXPOSE 8000
+
+# 使用 tini 作为 PID 1，正确处理信号
+ENTRYPOINT ["tini", "--"]
+
+# 启动命令（生产模式：多 worker，无 reload）
+CMD ["python", "-m", "uvicorn", "backend.main:app", \
+     "--host", "0.0.0.0", \
+     "--port", "8000", \
+     "--workers", "4", \
+     "--access-log", \
+     "--proxy-headers", \
+     "--forwarded-allow-ips", "*"]

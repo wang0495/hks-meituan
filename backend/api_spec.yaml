@@ -1,0 +1,547 @@
+openapi: "3.0.3"
+
+info:
+  title: CityFlow POI API
+  description: |
+    城市出行路线规划系统 — POI（兴趣点）查询与距离计算接口。
+
+    ## 数据来源
+    POI 数据存储在 `backend/data/city_poi_db.json`，覆盖广州、珠海、湛江三座城市，
+    包含文化、餐饮、购物、运动、酒店、其他六个品类，共 3689 条记录。
+
+    ## 距离计算
+    距离矩阵基于 Haversine 公式计算球面直线距离，乘以 1.3 系数估算实际道路距离。
+    出行时间按平均城市道路速度 4.5 km/h（步行）和 30 km/h（驾车）的加权值估算。
+
+    ## 错误格式
+    所有错误响应统一为：
+    ```json
+    { "error": "描述信息", "code": 400 }
+    ```
+  version: "1.0.0"
+  contact:
+    name: CityFlow Team
+
+servers:
+  - url: http://localhost:8000
+    description: 本地开发环境
+
+tags:
+  - name: poi
+    description: POI 兴趣点相关接口
+
+paths:
+  # ──────────────────────────────────────────────
+  # 1. POI 搜索
+  # ──────────────────────────────────────────────
+  /api/poi/search:
+    post:
+      operationId: searchPois
+      tags: [poi]
+      summary: 搜索 POI
+      description: |
+        根据城市、品类、标签等条件搜索 POI 列表。
+        返回结果包含情感标签（emotion_tags）和约束信息（constraints），
+        供路线规划引擎做偏好匹配和可行性校验。
+
+        支持通过可选的 `lat` / `lng` 查询参数限定地理范围（圆形区域，半径 10km）。
+      parameters:
+        - $ref: "#/components/parameters/LatParam"
+        - $ref: "#/components/parameters/LngParam"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SearchRequest"
+            example:
+              region: "珠海"
+              categories: ["文化", "美食"]
+              tags: ["免费"]
+              exclude_ids: ["poi_00001"]
+      responses:
+        "200":
+          description: 搜索成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SearchResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  # ──────────────────────────────────────────────
+  # 2. POI 详情
+  # ──────────────────────────────────────────────
+  /api/poi/detail/{id}:
+    get:
+      operationId: getPoiDetail
+      tags: [poi]
+      summary: 获取 POI 详情
+      description: |
+        根据 POI ID 返回完整信息，包含基础属性、情感标签、约束信息和用户评论。
+        若 POI 不存在返回 404。
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: POI 唯一标识符
+          schema:
+            type: string
+            example: "poi_00001"
+        - $ref: "#/components/parameters/LatParam"
+        - $ref: "#/components/parameters/LngParam"
+      responses:
+        "200":
+          description: 查询成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PoiDetailResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  # ──────────────────────────────────────────────
+  # 3. 距离矩阵
+  # ──────────────────────────────────────────────
+  /api/poi/distance-matrix:
+    post:
+      operationId: getDistanceMatrix
+      tags: [poi]
+      summary: 计算距离矩阵
+      description: |
+        给定一组 POI ID，返回两两之间的距离（米）和预估出行时间（分钟）。
+
+        **计算规则：**
+        - 使用 Haversine 公式计算球面直线距离
+        - 乘以 **1.3** 系数得到实际道路距离估算
+        - 出行时间 = 道路距离 / 平均速度（默认 30 km/h）
+        - 对角线元素 distance_m = 0, time_min = 0
+
+        **限制：**
+        - 最多传入 50 个 POI ID（2500 个矩阵单元）
+        - 所有 ID 必须在数据库中存在，否则返回 400
+      parameters:
+        - $ref: "#/components/parameters/LatParam"
+        - $ref: "#/components/parameters/LngParam"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DistanceMatrixRequest"
+            example:
+              poi_ids: ["poi_00001", "poi_00002"]
+      responses:
+        "200":
+          description: 计算成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DistanceMatrixResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+# ═══════════════════════════════════════════════
+# Components
+# ═══════════════════════════════════════════════
+components:
+
+  # ── 公共参数 ──────────────────────────────────
+  parameters:
+    LatParam:
+      name: lat
+      in: query
+      required: false
+      description: 纬度，与 lng 配合使用限定地理范围（圆形区域，半径约 10km）
+      schema:
+        type: number
+        format: double
+        minimum: -90
+        maximum: 90
+        example: 22.26
+
+    LngParam:
+      name: lng
+      in: query
+      required: false
+      description: 经度，与 lat 配合使用限定地理范围（圆形区域，半径约 10km）
+      schema:
+        type: number
+        format: double
+        minimum: -180
+        maximum: 180
+        example: 113.58
+
+  # ── Schema 定义 ──────────────────────────────
+  schemas:
+
+    # === 请求体 ===
+
+    SearchRequest:
+      type: object
+      required: []
+      properties:
+        region:
+          type: string
+          description: 城市名称（如 "珠海"、"广州"、"湛江"）
+          example: "珠海"
+        categories:
+          type: array
+          description: 品类列表，支持多选。可选值：文化、餐饮、购物、运动、酒店、其他
+          items:
+            type: string
+            enum: [文化, 餐饮, 购物, 运动, 酒店, 其他]
+          example: ["文化", "餐饮"]
+        tags:
+          type: array
+          description: 标签过滤，POI 须包含列表中所有标签（AND 语义）
+          items:
+            type: string
+          example: ["免费", "值得去"]
+        exclude_ids:
+          type: array
+          description: 排除的 POI ID 列表（已访问或不感兴趣）
+          items:
+            type: string
+          example: ["poi_00001"]
+        keyword:
+          type: string
+          description: 名称关键词模糊搜索
+          example: "博物馆"
+        min_rating:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 5
+          description: 最低评分筛选
+          example: 3.5
+        max_price:
+          type: integer
+          minimum: 0
+          description: 最高人均价格筛选
+          example: 100
+
+    DistanceMatrixRequest:
+      type: object
+      required: [poi_ids]
+      properties:
+        poi_ids:
+          type: array
+          description: POI ID 列表，最少 2 个，最多 50 个
+          minItems: 2
+          maxItems: 50
+          items:
+            type: string
+          example: ["poi_00001", "poi_00002", "poi_00003"]
+
+    # === 响应体 ===
+
+    SearchResponse:
+      type: object
+      properties:
+        pois:
+          type: array
+          description: 匹配的 POI 列表
+          items:
+            $ref: "#/components/schemas/PoiSearchItem"
+        total:
+          type: integer
+          description: 匹配总数
+          example: 42
+
+    PoiSearchItem:
+      type: object
+      description: 搜索结果中的单个 POI（精简版，不含 UGC 评论）
+      properties:
+        id:
+          type: string
+          example: "poi_00002"
+        name:
+          type: string
+          example: "珠海渔女"
+        category:
+          type: string
+          example: "文化"
+        lat:
+          type: number
+          format: double
+          example: 22.2650277
+        lng:
+          type: number
+          format: double
+          example: 113.5830398
+        rating:
+          type: number
+          format: float
+          example: 3.9
+        price_range:
+          type: string
+          description: |
+            价格区间，由 avg_price 映射：
+            - 免费: avg_price = 0
+            - 便宜: 1-50
+            - 中等: 51-150
+            - 较贵: 151-500
+            - 高端: > 500
+          enum: [免费, 便宜, 中等, 较贵, 高端]
+          example: "便宜"
+        emotion_tags:
+          $ref: "#/components/schemas/EmotionTags"
+        constraints:
+          $ref: "#/components/schemas/PoiConstraints"
+
+    PoiDetailResponse:
+      type: object
+      description: POI 完整详情（含 UGC 评论）
+      properties:
+        id:
+          type: string
+          example: "poi_00001"
+        name:
+          type: string
+          example: "珠海渔女"
+        city:
+          type: string
+          example: "珠海"
+        category:
+          type: string
+          example: "文化"
+        rating:
+          type: number
+          format: float
+          example: 3.9
+        avg_price:
+          type: integer
+          description: 人均消费（元）
+          example: 27
+        price_range:
+          type: string
+          enum: [免费, 便宜, 中等, 较贵, 高端]
+          example: "便宜"
+        lat:
+          type: number
+          format: double
+          example: 22.2650277
+        lng:
+          type: number
+          format: double
+          example: 113.5830398
+        business_hours:
+          type: string
+          description: 营业时间
+          example: "09:00-17:00"
+        tags:
+          type: array
+          description: 用户标签
+          items:
+            type: string
+          example: ["免费", "值得去", "涨知识"]
+        queue_prone:
+          type: boolean
+          description: 是否容易排队
+          example: false
+        avg_stay_min:
+          type: integer
+          description: 平均停留时间（分钟）
+          example: 75
+        emotion_tags:
+          $ref: "#/components/schemas/EmotionTags"
+        constraints:
+          $ref: "#/components/schemas/PoiConstraints"
+        ugc_comments:
+          type: array
+          description: 用户评论列表
+          items:
+            $ref: "#/components/schemas/UgcComment"
+
+    EmotionTags:
+      type: object
+      description: |
+        情感标签，由路线规划引擎用于偏好匹配。
+        各维度取值 0.0-1.0，由 POI 品类、标签、评分等字段综合计算得出。
+      properties:
+        excitement:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+          description: 兴奋感 / 刺激度
+          example: 0.3
+        tranquility:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+          description: 宁静感 / 放松度
+          example: 0.8
+        sociability:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+          description: 社交属性
+          example: 0.2
+        culture_depth:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+          description: 文化深度
+          example: 0.9
+        surprise:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+          description: 惊喜感 / 探索性
+          example: 0.1
+        physical_demand:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+          description: 体力需求
+          example: 0.2
+
+    PoiConstraints:
+      type: object
+      description: POI 约束信息，供路线规划做可行性校验
+      properties:
+        accessible:
+          type: boolean
+          description: 是否无障碍友好
+          example: true
+        pet_friendly:
+          type: boolean
+          description: 是否允许携带宠物
+          example: false
+        queue_time_min:
+          type: integer
+          minimum: 0
+          description: 预估排队时间（分钟），由 queue_prone 和历史数据推算
+          example: 15
+        opening_hours:
+          type: string
+          description: 营业时间（同 business_hours，用于约束检查）
+          example: "09:00-17:00"
+        has_restroom:
+          type: boolean
+          description: 是否有洗手间
+          example: true
+
+    UgcComment:
+      type: object
+      description: 用户生成评论
+      properties:
+        user:
+          type: string
+          example: "鲁健"
+        text:
+          type: string
+          example: "展品很丰富"
+        rating:
+          type: integer
+          minimum: 1
+          maximum: 5
+          example: 5
+
+    DistanceMatrixResponse:
+      type: object
+      properties:
+        matrix:
+          type: array
+          description: |
+            N x N 距离矩阵。matrix[i][j] 表示第 i 个 POI 到第 j 个 POI 的距离和时间。
+            对角线元素 distance_m = 0, time_min = 0。
+          items:
+            type: array
+            items:
+              $ref: "#/components/schemas/DistanceCell"
+        poi_ids:
+          type: array
+          description: 对应矩阵行列的 POI ID 顺序
+          items:
+            type: string
+          example: ["poi_00001", "poi_00002"]
+
+    DistanceCell:
+      type: object
+      description: 距离矩阵中的单个单元格
+      properties:
+        distance_m:
+          type: integer
+          minimum: 0
+          description: 实际道路距离估算（米），Haversine 直线距离 x 1.3
+          example: 1500
+        time_min:
+          type: integer
+          minimum: 0
+          description: 预估出行时间（分钟），按平均 30 km/h 计算
+          example: 20
+
+    # === 错误响应 ===
+
+    ErrorResponse:
+      type: object
+      description: 统一错误响应格式
+      properties:
+        error:
+          type: string
+          description: 人类可读的错误描述
+          example: "POI not found: poi_99999"
+        code:
+          type: integer
+          description: HTTP 状态码
+          example: 404
+
+  # ── 公共响应 ──────────────────────────────────
+  responses:
+    BadRequest:
+      description: 请求参数错误
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            error: "poi_ids must contain at least 2 items"
+            code: 400
+
+    ValidationError:
+      description: 请求体校验失败（Pydantic validation error）
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            error: "field required: region"
+            code: 422
+
+    NotFound:
+      description: 资源不存在
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            error: "POI not found: poi_99999"
+            code: 404
+
+    InternalServerError:
+      description: 服务器内部错误
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            error: "Internal server error"
+            code: 500

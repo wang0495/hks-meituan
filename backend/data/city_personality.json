@@ -1,0 +1,50 @@
+{
+  "珠海": {
+    "personality": "慢生活·海滨城市",
+    "keywords": ["悠闲", "海滨", "宜居", "浪漫", "花园城市"],
+    "vibe": "relaxed",
+    "recommended_categories": ["自然", "文化", "餐饮"],
+    "specialties": ["海鲜", "早茶", "海岛游"],
+    "pace_default": "闲逛型",
+    "emotion_bias": {
+      "tranquility": 0.7,
+      "excitement": 0.3
+    }
+  },
+  "广州": {
+    "personality": "食在广州·千年商都",
+    "keywords": ["美食", "繁华", "历史", "包容", "烟火气"],
+    "vibe": "lively",
+    "recommended_categories": ["餐饮", "购物", "文化"],
+    "specialties": ["粤菜", "早茶", "老城漫步", "珠江夜游"],
+    "pace_default": "平衡型",
+    "emotion_bias": {
+      "excitement": 0.6,
+      "sociability": 0.6
+    }
+  },
+  "湛江": {
+    "personality": "隐秘角落·海鲜天堂",
+    "keywords": ["海鲜", "质朴", "原生态", "慢节奏", "海岛"],
+    "vibe": "rustic",
+    "recommended_categories": ["餐饮", "自然", "运动"],
+    "specialties": ["生蚝", "海鲜大餐", "海岛探险"],
+    "pace_default": "闲逛型",
+    "emotion_bias": {
+      "surprise": 0.5,
+      "tranquility": 0.6
+    }
+  },
+  "深圳": {
+    "personality": "创新之都·年轻活力",
+    "keywords": ["创新", "科技", "年轻", "快节奏", "多元"],
+    "vibe": "energetic",
+    "recommended_categories": ["购物", "运动", "文化"],
+    "specialties": ["主题公园", "科技体验", "滨海栈道"],
+    "pace_default": "特种兵型",
+    "emotion_bias": {
+      "excitement": 0.7,
+      "surprise": 0.5
+    }
+  }
+}

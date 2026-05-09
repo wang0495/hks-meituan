@@ -1,0 +1,75 @@
+# =============================================================================
+# CityFlow Prometheus 配置
+# =============================================================================
+# 采集后端实例指标、Node Exporter 系统指标、Redis 指标和 Nginx 指标
+# =============================================================================
+
+global:
+  scrape_interval: 15s         # 默认采集间隔
+  evaluation_interval: 15s     # 告警规则评估间隔
+  scrape_timeout: 10s          # 采集超时
+
+# -----------------------------------------------------------------------------
+# 告警管理器
+# -----------------------------------------------------------------------------
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+            - alertmanager:9093
+      timeout: 10s
+
+# -----------------------------------------------------------------------------
+# 告警规则文件
+# -----------------------------------------------------------------------------
+rule_files:
+  - "/etc/prometheus/alert_rules.yml"
+
+# -----------------------------------------------------------------------------
+# 采集目标
+# -----------------------------------------------------------------------------
+scrape_configs:
+
+  # --- CityFlow 后端实例 -------------------------------------------------------
+  - job_name: "cityflow"
+    metrics_path: "/metrics"
+    scrape_interval: 5s
+    static_configs:
+      - targets:
+          - "backend1:8000"
+          - "backend2:8000"
+          - "backend3:8000"
+        labels:
+          service: "cityflow"
+          env: "production"
+
+  # --- Prometheus 自身 ---------------------------------------------------------
+  - job_name: "prometheus"
+    static_configs:
+      - targets: ["localhost:9090"]
+
+  # --- Node Exporter（系统级指标：CPU / 内存 / 磁盘 / 网络）--------------------
+  - job_name: "node"
+    static_configs:
+      - targets: ["node-exporter:9100"]
+        labels:
+          service: "system"
+
+  # --- Redis Exporter ----------------------------------------------------------
+  - job_name: "redis"
+    static_configs:
+      - targets: ["redis-exporter:9121"]
+        labels:
+          service: "redis"
+
+  # --- Nginx Exporter ----------------------------------------------------------
+  - job_name: "nginx"
+    static_configs:
+      - targets: ["nginx-exporter:9113"]
+        labels:
+          service: "nginx"
+
+  # --- Alertmanager ------------------------------------------------------------
+  - job_name: "alertmanager"
+    static_configs:
+      - targets: ["alertmanager:9093"]

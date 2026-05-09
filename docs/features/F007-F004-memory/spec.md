@@ -1,0 +1,62 @@
+# Feature Spec: F004-memory
+
+> Tech stack is covered in plan.md.
+
+---
+
+## Overview
+
+- **Feature ID**: F007
+- **Feature Name**: F004-memory
+- **Target Repo**: hks-meituan
+- **Created**: 2026-05-09
+- **Status**: -
+  - Values: Draft | Review | Approved
+
+---
+
+## Purpose
+
+三层记忆系统 (D1)
+
+(Why is this feature needed? What problem does it solve?)
+
+---
+
+## User Stories
+
+### US-1: {Story Title}
+
+**As a** {user type}
+**I want** {desired action}
+**So that** {reason/value}
+
+**Acceptance Criteria:**
+
+- [ ] (verification condition)
+
+---
+
+## Functional Requirements
+
+### FR-1: {Requirement Title}
+
+(Detailed description)
+
+---
+
+## Non-Functional Requirements
+
+- **Performance**:
+- **Security**:
+
+---
+
+## Related Documents
+
+- PRD: `../../prd/`
+- PRD Refs: - (e.g. `PRD-FR-001`, `PRD-US-002`, `PRD-SCOPE-V1-DESKTOP-EDITOR`)
+  - Only list IDs that already exist in the source requirements doc. Do not invent PRD IDs in `spec.md` or `tasks.md`.
+  - If this is a legacy requirements doc without PRD IDs yet, backfill IDs in the source first, then update this field and the `tasks.md` task tags together.
+  - When requirements/scope change, update PRD docs + this field + `tasks.md` task tags together.
+  - If implementation discovers a better user-facing behavior and the shipped requirement changes, treat that as a PRD update, not a permanent `[NON-PRD]` exception.

@@ -1,0 +1,48 @@
+"""CityFlow 配置包。
+
+向后兼容：``from backend.config import settings`` 仍然可用。
+新增：
+- ``from backend.config.pool_config import pool_settings``
+- ``from backend.config.hot_reload import ConfigHotReloader``
+- ``from backend.config.manager import ConfigManager``
+"""
+
+from __future__ import annotations
+
+from backend.config.hot_reload import (ConfigHotReloader, ConfigReloadError,
+                                       ConfigRollbackError, ConfigSnapshot)
+from backend.config.manager import ConfigManager, ConfigManagerError
+from backend.config.pool_config import PoolSettings, pool_settings
+from backend.config.settings import (DatabaseSettings, Environment,
+                                     LLMSettings, RedisSettings,
+                                     SecuritySettings, Settings, get_settings,
+                                     settings)
+from backend.config.validator import (ConfigValidationError, ConfigValidator,
+                                      ValidationResult)
+
+__all__ = [
+    # 原 config.py 导出
+    "DatabaseSettings",
+    "Environment",
+    "LLMSettings",
+    "RedisSettings",
+    "SecuritySettings",
+    "Settings",
+    "get_settings",
+    "settings",
+    # pool_config
+    "PoolSettings",
+    "pool_settings",
+    # hot_reload
+    "ConfigHotReloader",
+    "ConfigReloadError",
+    "ConfigRollbackError",
+    "ConfigSnapshot",
+    # manager
+    "ConfigManager",
+    "ConfigManagerError",
+    # validator
+    "ConfigValidationError",
+    "ConfigValidator",
+    "ValidationResult",
+]

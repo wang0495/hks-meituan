@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title | default("路线规划") }}</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; line-height: 1.6; color: #333; max-width: 800px; margin: 0 auto; padding: 24px; }
+        h1 { font-size: 1.8rem; margin-bottom: 16px; }
+        h2 { font-size: 1.3rem; margin: 24px 0 12px; color: #555; }
+        .opening { font-size: 1.1rem; color: #666; margin-bottom: 24px; }
+        .steps { list-style: none; counter-reset: step-counter; }
+        .steps li { counter-increment: step-counter; padding: 16px 0; border-bottom: 1px solid #eee; display: flex; gap: 12px; }
+        .steps li::before { content: counter(step-counter); background: #4a90d9; color: #fff; width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.85rem; flex-shrink: 0; }
+        .step-content { flex: 1; }
+        .step-content .poi-name { font-weight: 600; font-size: 1.05rem; }
+        .step-content .time { color: #999; font-size: 0.9rem; margin-left: 8px; }
+        .step-content .narrative { margin-top: 4px; color: #555; }
+        .closing { margin-top: 24px; font-size: 1.1rem; color: #666; }
+        .highlights { margin-top: 24px; padding: 16px; background: #f8f9fa; border-radius: 8px; }
+        .highlights h3 { font-size: 1rem; margin-bottom: 8px; }
+        .highlights ul { padding-left: 20px; }
+        .highlights li { margin-bottom: 4px; }
+    </style>
+</head>
+<body>
+    <h1>{{ title | default("路线规划") }}</h1>
+
+    {% if opening %}
+    <p class="opening">{{ opening }}</p>
+    {% endif %}
+
+    <h2>路线详情</h2>
+    <ol class="steps">
+    {% for step in steps %}
+        <li>
+            <div class="step-content">
+                <span class="poi-name">{{ step.poi.name }}</span>
+                {% if step.arrival_time %}
+                <span class="time">{{ step.arrival_time }}
+                {%- if step.departure_time %} - {{ step.departure_time }}{% endif %}
+                </span>
+                {% endif %}
+                {% if step.narrative %}
+                <p class="narrative">{{ step.narrative }}</p>
+                {% endif %}
+            </div>
+        </li>
+    {% endfor %}
+    </ol>
+
+    {% if closing %}
+    <p class="closing">{{ closing }}</p>
+    {% endif %}
+
+    {% if emotion_highlights %}
+    <div class="highlights">
+        <h3>亮点时刻</h3>
+        <ul>
+        {% for h in emotion_highlights %}
+            <li><strong>{{ h.poi }}</strong> -- {{ h.description }}</li>
+        {% endfor %}
+        </ul>
+    </div>
+    {% endif %}
+</body>
+</html>

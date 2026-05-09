@@ -1,0 +1,148 @@
+version: '3.8'
+
+# ============================================================================
+# CityFlow 生产环境配置
+# 架构: Nginx 负载均衡 + 3 后端实例 + Redis 缓存
+# 优化: 资源限制 / 日志管理 / 使用优化版 Dockerfile
+# ============================================================================
+
+x-backend-common: &backend-common
+  build:
+    context: .
+    dockerfile: Dockerfile.optimized
+  volumes:
+    - ./backend/data:/app/data
+  restart: unless-stopped
+  logging:
+    driver: json-file
+    options:
+      max-size: "10m"
+      max-file: "3"
+  healthcheck:
+    test: ["CMD", "curl", "-sf", "http://localhost:8000/health"]
+    interval: 15s
+    timeout: 5s
+    retries: 3
+    start_period: 20s
+  deploy:
+    resources:
+      limits:
+        cpus: "1.0"
+        memory: 512M
+      reservations:
+        cpus: "0.25"
+        memory: 128M
+
+services:
+  # -------------------------------------------------------------------
+  # Nginx 负载均衡器
+  # -------------------------------------------------------------------
+  nginx:
+    image: nginx:alpine
+    container_name: cityflow-nginx
+    ports:
+      - "${NGINX_HTTP_PORT:-80}:80"
+      - "${NGINX_HTTPS_PORT:-443}:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+      - ./frontend/dist:/usr/share/nginx/html:ro
+    depends_on:
+      backend1:
+        condition: service_healthy
+      backend2:
+        condition: service_healthy
+      backend3:
+        condition: service_healthy
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/nginx-health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 128M
+
+  # -------------------------------------------------------------------
+  # 后端实例 1
+  # -------------------------------------------------------------------
+  backend1:
+    <<: *backend-common
+    container_name: cityflow-backend1
+    environment:
+      - INSTANCE_ID=1
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - OPENAI_BASE_URL=${OPENAI_BASE_URL:-https://api.openai.com/v1}
+      - REDIS_HOST=redis
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - SECURITY_ENCRYPTION_KEY=${SECURITY_ENCRYPTION_KEY:-}
+      - SENTRY_DSN=${SENTRY_DSN:-}
+
+  # -------------------------------------------------------------------
+  # 后端实例 2
+  # -------------------------------------------------------------------
+  backend2:
+    <<: *backend-common
+    container_name: cityflow-backend2
+    environment:
+      - INSTANCE_ID=2
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - OPENAI_BASE_URL=${OPENAI_BASE_URL:-https://api.openai.com/v1}
+      - REDIS_HOST=redis
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - SECURITY_ENCRYPTION_KEY=${SECURITY_ENCRYPTION_KEY:-}
+      - SENTRY_DSN=${SENTRY_DSN:-}
+
+  # -------------------------------------------------------------------
+  # 后端实例 3
+  # -------------------------------------------------------------------
+  backend3:
+    <<: *backend-common
+    container_name: cityflow-backend3
+    environment:
+      - INSTANCE_ID=3
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - OPENAI_BASE_URL=${OPENAI_BASE_URL:-https://api.openai.com/v1}
+      - REDIS_HOST=redis
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - SECURITY_ENCRYPTION_KEY=${SECURITY_ENCRYPTION_KEY:-}
+      - SENTRY_DSN=${SENTRY_DSN:-}
+
+  # -------------------------------------------------------------------
+  # Redis（会话共享 + 缓存）
+  # -------------------------------------------------------------------
+  redis:
+    image: redis:7-alpine
+    container_name: cityflow-redis
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "5m"
+        max-file: "2"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 512M
+
+volumes:
+  redis_data:

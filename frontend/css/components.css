@@ -1,0 +1,154 @@
+/**
+ * components.css - CityFlow 组件补充样式
+ *
+ * 供 poi-list.js 和 timeline.js 使用的新 UI 元素样式。
+ * 与 index.html 内联样式互补，不覆盖已有样式。
+ */
+
+/* ===== POI 卡片增强 ===== */
+
+.poi-subheader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+  font-size: 12px;
+}
+
+.poi-rating {
+  color: #f1c40f;
+  font-weight: 600;
+}
+
+.poi-hours {
+  color: #777;
+  font-size: 11px;
+}
+
+/* 选中态增强 */
+.poi-card[aria-selected="true"] {
+  border-color: #e94560;
+  box-shadow: 0 0 0 1px #e94560, 0 4px 16px rgba(233, 69, 96, 0.2);
+}
+
+/* 焦点态（键盘导航） */
+.poi-card:focus {
+  outline: 2px solid #e94560;
+  outline-offset: 2px;
+}
+
+.poi-card:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* ===== 时间轴速度按钮 ===== */
+
+.speed-btn {
+  padding: 4px 10px;
+  border-radius: 12px;
+  background: #0f3460;
+  border: 1px solid #1a4a80;
+  color: #aaa;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+  flex-shrink: 0;
+  min-width: 36px;
+  text-align: center;
+}
+
+.speed-btn:hover {
+  background: #1a4a80;
+  color: #fff;
+}
+
+.speed-btn:disabled {
+  background: #333;
+  color: #555;
+  cursor: not-allowed;
+  border-color: #444;
+}
+
+/* ===== 时间轴进度条 ===== */
+
+.timeline-progress-bar {
+  height: 3px;
+  background: #0f3460;
+  border-radius: 2px;
+  margin-top: 6px;
+  overflow: hidden;
+}
+
+.timeline-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #e94560, #f39c12);
+  border-radius: 2px;
+  width: 0%;
+  transition: width 0.05s linear;
+}
+
+/* ===== 时间轴 POI 标记 ===== */
+
+.timeline-poi-marker {
+  position: absolute;
+  font-size: 10px;
+  color: #555;
+  transform: translateX(-50%);
+  max-width: 60px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+  pointer-events: auto;
+  transition: color 0.2s, transform 0.2s;
+  padding-bottom: 2px;
+  border-bottom: 2px solid transparent;
+}
+
+.timeline-poi-marker:hover {
+  color: #e94560;
+  transform: translateX(-50%) translateY(-1px);
+}
+
+.timeline-poi-marker.active {
+  color: #e94560;
+  font-weight: 600;
+  border-bottom-color: #e94560;
+}
+
+/* ===== 流式追加动画 ===== */
+
+@keyframes poi-slide-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.poi-card.entering {
+  animation: poi-slide-in 0.3s ease-out forwards;
+}
+
+/* ===== 路线统计增强 ===== */
+
+.route-stats {
+  font-size: 12px;
+  color: #888;
+  font-weight: 400;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.route-stats .stat-badge {
+  background: #0f3460;
+  color: #aaa;
+  padding: 1px 6px;
+  border-radius: 8px;
+  font-size: 11px;
+}

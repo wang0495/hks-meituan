@@ -1,0 +1,51 @@
+# Implementation Plan: F006-economy
+
+> Write after spec is approved.
+> If unmanaged docs artifacts exist outside the canonical docs surface (for example `docs/plans/*` or `docs/superpowers/*`), absorb their architecture/file/test content here and treat this file as the final feature-local SSOT.
+
+---
+
+## Overview
+
+- **Feature ID**: F005
+- **Target Repo**: hks-meituan
+- **Created**: 2026-05-09
+- **Status**: -
+  - Values: Draft | Review | Approved
+
+---
+
+## Tech Stack
+
+| Category | Choice | Reason |
+| -------- | ------ | ------ |
+
+---
+
+## Architecture
+
+(Component structure, data flow)
+
+---
+
+## File Structure
+
+```
+src/
+├── ...
+```
+
+---
+
+## Test Strategy
+
+- **Unit Tests**:
+- **Integration Tests**:
+- **E2E Tests**:
+
+---
+
+## Related Documents
+
+- Spec: [spec.md](./spec.md)
+- Decisions: [decisions.md](./decisions.md)

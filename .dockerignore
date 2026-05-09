@@ -1,0 +1,68 @@
+# Git
+.git
+.gitignore
+
+# Python
+__pycache__
+*.pyc
+*.pyo
+*.egg-info
+.mypy_cache
+.pytest_cache
+.ruff_cache
+.coverage
+coverage.xml
+coverage_html/
+
+# Virtual environment
+venv/
+.venv/
+
+# IDE
+.vscode/
+.idea/
+
+# Environment files (contain secrets)
+.env
+.env.prod
+.env.dev
+.env.test
+
+# Test files
+tests/
+test_*.html
+test_*.xml
+
+# Documentation (not needed in image)
+docs/
+*.md
+!README.md
+
+# Docker files (avoid recursive copy)
+Dockerfile*
+docker-compose*.yml
+
+# Nginx config (mounted as volume)
+nginx/
+
+# Build artifacts
+dist/
+build/
+*.egg
+
+# Monitoring config (mounted externally)
+prometheus.yml
+alerts.yml
+filebeat.yml
+grafana_dashboard.json
+
+# Backups
+backups/
+
+# Logs
+logs/
+*.log
+
+# Temporary files
+tmp/
+temp/

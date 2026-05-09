@@ -1,0 +1,50 @@
+{
+  "common": {
+    "success": "Success",
+    "error": "Error",
+    "loading": "Loading...",
+    "not_found": "Not found",
+    "timeout": "Request timed out",
+    "rate_limited": "Too many requests, please try again later",
+    "unauthorized": "Unauthorized, please log in first",
+    "forbidden": "Access denied",
+    "internal_error": "Internal server error",
+    "invalid_request": "Invalid request"
+  },
+  "route": {
+    "planning": "Planning route...",
+    "complete": "Route planning complete",
+    "adjust": "Adjusting route...",
+    "solving_failed": "Route solving failed",
+    "distance": "Distance: {km} km",
+    "duration": "Estimated time: {minutes} min",
+    "waypoints": "Via {count} stops"
+  },
+  "poi": {
+    "search": "Search POI",
+    "not_found": "No matching POI found",
+    "invalid_data": "Invalid POI data",
+    "around": "{count} results for {name} nearby"
+  },
+  "intent": {
+    "parse_failed": "Failed to understand your intent, please rephrase",
+    "unknown": "Sorry, I didn't understand that"
+  },
+  "narrative": {
+    "generating": "Generating narrative...",
+    "failed": "Narrative generation failed",
+    "complete": "Narrative generation complete"
+  },
+  "dialogue": {
+    "failed": "Dialogue processing failed, please try again",
+    "greeting": "Hello! I'm CityFlow smart travel assistant. How can I help you?",
+    "farewell": "Thanks for using CityFlow. Have a great trip!"
+  },
+  "auth": {
+    "login_success": "Login successful",
+    "login_failed": "Login failed",
+    "logout_success": "Logged out",
+    "token_expired": "Session expired, please log in again",
+    "invalid_credentials": "Invalid username or password"
+  }
+}

@@ -1,0 +1,89 @@
+[
+  {
+    "id": "scenario_001",
+    "name": "社恐独居周末",
+    "user_input": "周末想一个人安静走走，不想去人多的地方",
+    "expected_profile": "P1",
+    "expected_pace": "闲逛型",
+    "expected_social_max": 0.3,
+    "expected_constraints": ["排队容忍度<5min", "避开人流高峰"],
+    "validation_rules": [
+      "route_length >= 2",
+      "route_length <= 4",
+      "no_high_queue_pois",
+      "high_tranquility_ratio > 0.5"
+    ]
+  },
+  {
+    "id": "scenario_002",
+    "name": "情侣浪漫约会",
+    "user_input": "和女朋友约会，想找有氛围的地方",
+    "expected_profile": "P2",
+    "expected_pace": "平衡型",
+    "expected_social_min": 0.4,
+    "expected_constraints": ["有氛围感", "可拍照"],
+    "validation_rules": [
+      "route_length >= 3",
+      "has_romantic_pois",
+      "has_food_pois",
+      "budget_per_person >= 200"
+    ]
+  },
+  {
+    "id": "scenario_003",
+    "name": "亲子周末出游",
+    "user_input": "周末一家人带娃出去，让他消耗体力",
+    "expected_profile": "P3",
+    "expected_pace": "平衡型",
+    "expected_social_min": 0.5,
+    "expected_constraints": ["儿童友好", "有教育意义", "有休息区"],
+    "validation_rules": [
+      "route_length >= 3",
+      "has_child_friendly_pois",
+      "has_rest_spots",
+      "physical_demand_avg > 0.5"
+    ]
+  },
+  {
+    "id": "scenario_004",
+    "name": "朋友聚会",
+    "user_input": "想找便宜好玩的地方，和朋友一起",
+    "expected_profile": "P16",
+    "expected_pace": "特种兵型",
+    "expected_social_min": 0.7,
+    "expected_constraints": ["免费或低价", "交通便利"],
+    "validation_rules": [
+      "route_length >= 4",
+      "budget_per_person <= 100",
+      "high_sociability_ratio > 0.6"
+    ]
+  },
+  {
+    "id": "scenario_005",
+    "name": "带宠物出行",
+    "user_input": "带狗子出去转转",
+    "expected_profile": "P12",
+    "expected_pace": "闲逛型",
+    "expected_social_min": 0.3,
+    "expected_constraints": ["宠物友好", "有户外空间"],
+    "validation_rules": [
+      "all_pois_pet_friendly",
+      "has_outdoor_pois",
+      "physical_demand_avg < 0.6"
+    ]
+  },
+  {
+    "id": "scenario_006",
+    "name": "退休休闲",
+    "user_input": "退休了想找地方散散步",
+    "expected_profile": "P5",
+    "expected_pace": "闲逛型",
+    "expected_social_max": 0.4,
+    "expected_constraints": ["无障碍通行", "有休息区", "不需长时间步行"],
+    "validation_rules": [
+      "all_pois_accessible",
+      "has_rest_spots",
+      "physical_demand_avg < 0.4"
+    ]
+  }
+]

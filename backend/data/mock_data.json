@@ -1,0 +1,22 @@
+[
+  {"id": 1, "city": "北京", "category": "餐饮", "sales": 12500, "profit": 3200, "lat": 39.9042, "lng": 116.4074},
+  {"id": 2, "city": "上海", "category": "餐饮", "sales": 14800, "profit": 4100, "lat": 31.2304, "lng": 121.4737},
+  {"id": 3, "city": "深圳", "category": "餐饮", "sales": 11200, "profit": 2900, "lat": 22.5431, "lng": 114.0579},
+  {"id": 4, "city": "广州", "category": "餐饮", "sales": 9800, "profit": 2500, "lat": 23.1291, "lng": 113.2644},
+  {"id": 5, "city": "杭州", "category": "餐饮", "sales": 8700, "profit": 2200, "lat": 30.2741, "lng": 120.1551},
+  {"id": 6, "city": "成都", "category": "餐饮", "sales": 7600, "profit": 1900, "lat": 30.5728, "lng": 104.0668},
+  {"id": 7, "city": "武汉", "category": "餐饮", "sales": 6500, "profit": 1600, "lat": 30.5928, "lng": 114.3055},
+  {"id": 8, "city": "西安", "category": "餐饮", "sales": 5800, "profit": 1400, "lat": 34.3416, "lng": 108.9398},
+  {"id": 9, "city": "北京", "category": "零售", "sales": 22000, "profit": 5800, "lat": 39.9042, "lng": 116.4074},
+  {"id": 10, "city": "上海", "category": "零售", "sales": 25600, "profit": 7200, "lat": 31.2304, "lng": 121.4737},
+  {"id": 11, "city": "深圳", "category": "零售", "sales": 19800, "profit": 5100, "lat": 22.5431, "lng": 114.0579},
+  {"id": 12, "city": "广州", "category": "零售", "sales": 17200, "profit": 4400, "lat": 23.1291, "lng": 113.2644},
+  {"id": 13, "city": "杭州", "category": "零售", "sales": 14500, "profit": 3800, "lat": 30.2741, "lng": 120.1551},
+  {"id": 14, "city": "成都", "category": "零售", "sales": 12800, "profit": 3200, "lat": 30.5728, "lng": 104.0668},
+  {"id": 15, "city": "北京", "category": "酒店", "sales": 8900, "profit": 2100, "lat": 39.9042, "lng": 116.4074},
+  {"id": 16, "city": "上海", "category": "酒店", "sales": 10200, "profit": 2600, "lat": 31.2304, "lng": 121.4737},
+  {"id": 17, "city": "深圳", "category": "酒店", "sales": 7800, "profit": 1900, "lat": 22.5431, "lng": 114.0579},
+  {"id": 18, "city": "广州", "category": "酒店", "sales": 6500, "profit": 1500, "lat": 23.1291, "lng": 113.2644},
+  {"id": 19, "city": "杭州", "category": "酒店", "sales": 5900, "profit": 1300, "lat": 30.2741, "lng": 120.1551},
+  {"id": 20, "city": "成都", "category": "酒店", "sales": 5100, "profit": 1100, "lat": 30.5728, "lng": 104.0668}
+]

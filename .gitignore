@@ -1,0 +1,16 @@
+.env
+.env.*
+*.pyc
+__pycache__/
+node_modules/
+.git/
+=42.0.0
+amap-jsapi-skill.zip
+amap-jsapi-skill/
+coverage/
+htmlcov/
+.pytest_cache/
+*.egg-info/
+dist/
+build/
+.DS_Store

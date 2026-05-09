@@ -1,0 +1,638 @@
+{
+  "dashboard": {
+    "title": "CityFlow 监控仪表盘",
+    "uid": "cityflow-main",
+    "timezone": "browser",
+    "refresh": "30s",
+    "time": {
+      "from": "now-1h",
+      "to": "now"
+    },
+    "templating": {
+      "list": [
+        {
+          "name": "endpoint",
+          "type": "query",
+          "query": "label_values(cityflow_requests_total, endpoint)",
+          "refresh": 2,
+          "includeAll": true,
+          "allValue": ".*"
+        },
+        {
+          "name": "method",
+          "type": "query",
+          "query": "label_values(cityflow_requests_total, method)",
+          "refresh": 2,
+          "includeAll": true,
+          "allValue": ".*"
+        }
+      ]
+    },
+    "panels": [
+      {
+        "title": "概览",
+        "type": "row",
+        "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+        "collapsed": false
+      },
+      {
+        "title": "请求速率 (QPS)",
+        "type": "stat",
+        "gridPos": { "h": 4, "w": 4, "x": 0, "y": 1 },
+        "targets": [
+          {
+            "expr": "sum(rate(cityflow_requests_total[5m]))",
+            "legendFormat": "QPS"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "reqps",
+            "thresholds": {
+              "steps": [
+                { "value": null, "color": "green" },
+                { "value": 100, "color": "yellow" },
+                { "value": 500, "color": "red" }
+              ]
+            }
+          }
+        }
+      },
+      {
+        "title": "P50 延迟",
+        "type": "stat",
+        "gridPos": { "h": 4, "w": 4, "x": 4, "y": 1 },
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.50, sum(rate(cityflow_request_duration_seconds_bucket[5m])) by (le))",
+            "legendFormat": "P50"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "s",
+            "thresholds": {
+              "steps": [
+                { "value": null, "color": "green" },
+                { "value": 0.5, "color": "yellow" },
+                { "value": 2, "color": "red" }
+              ]
+            }
+          }
+        }
+      },
+      {
+        "title": "P95 延迟",
+        "type": "stat",
+        "gridPos": { "h": 4, "w": 4, "x": 8, "y": 1 },
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, sum(rate(cityflow_request_duration_seconds_bucket[5m])) by (le))",
+            "legendFormat": "P95"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "s",
+            "thresholds": {
+              "steps": [
+                { "value": null, "color": "green" },
+                { "value": 1, "color": "yellow" },
+                { "value": 5, "color": "red" }
+              ]
+            }
+          }
+        }
+      },
+      {
+        "title": "错误率",
+        "type": "stat",
+        "gridPos": { "h": 4, "w": 4, "x": 12, "y": 1 },
+        "targets": [
+          {
+            "expr": "sum(rate(cityflow_requests_total{status=~\"5..\"}[5m])) / sum(rate(cityflow_requests_total[5m])) * 100",
+            "legendFormat": "错误率"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent",
+            "thresholds": {
+              "steps": [
+                { "value": null, "color": "green" },
+                { "value": 1, "color": "yellow" },
+                { "value": 5, "color": "red" }
+              ]
+            }
+          }
+        }
+      },
+      {
+        "title": "P99 延迟",
+        "type": "stat",
+        "gridPos": { "h": 4, "w": 4, "x": 16, "y": 1 },
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.99, sum(rate(cityflow_request_duration_seconds_bucket[5m])) by (le))",
+            "legendFormat": "P99"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "s",
+            "thresholds": {
+              "steps": [
+                { "value": null, "color": "green" },
+                { "value": 2, "color": "yellow" },
+                { "value": 10, "color": "red" }
+              ]
+            }
+          }
+        }
+      },
+      {
+        "title": "活跃会话",
+        "type": "stat",
+        "gridPos": { "h": 4, "w": 4, "x": 20, "y": 1 },
+        "targets": [
+          {
+            "expr": "cityflow_active_sessions",
+            "legendFormat": "会话数"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "thresholds": {
+              "steps": [
+                { "value": null, "color": "green" },
+                { "value": 50, "color": "yellow" },
+                { "value": 200, "color": "red" }
+              ]
+            }
+          }
+        }
+      },
+      {
+        "title": "HTTP 请求",
+        "type": "row",
+        "gridPos": { "h": 1, "w": 24, "x": 0, "y": 5 },
+        "collapsed": false
+      },
+      {
+        "title": "请求速率（按端点）",
+        "type": "graph",
+        "gridPos": { "h": 8, "w": 12, "x": 0, "y": 6 },
+        "targets": [
+          {
+            "expr": "sum(rate(cityflow_requests_total{endpoint=~\"$endpoint\", method=~\"$method\"}[5m])) by (endpoint)",
+            "legendFormat": "{{endpoint}}"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": { "unit": "reqps" }
+        }
+      },
+      {
+        "title": "请求延迟分布",
+        "type": "graph",
+        "gridPos": { "h": 8, "w": 12, "x": 12, "y": 6 },
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.50, sum(rate(cityflow_request_duration_seconds_bucket{endpoint=~\"$endpoint\"}[5m])) by (le))",
+            "legendFormat": "P50"
+          },
+          {
+            "expr": "histogram_quantile(0.95, sum(rate(cityflow_request_duration_seconds_bucket{endpoint=~\"$endpoint\"}[5m])) by (le))",
+            "legendFormat": "P95"
+          },
+          {
+            "expr": "histogram_quantile(0.99, sum(rate(cityflow_request_duration_seconds_bucket{endpoint=~\"$endpoint\"}[5m])) by (le))",
+            "legendFormat": "P99"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": { "unit": "s" }
+        }
+      },
+      {
+        "title": "状态码分布",
+        "type": "piechart",
+        "gridPos": { "h": 8, "w": 8, "x": 0, "y": 14 },
+        "targets": [
+          {
+            "expr": "sum(increase(cityflow_requests_total[1h])) by (status)",
+            "legendFormat": "{{status}}"
+          }
+        ]
+      },
+      {
+        "title": "请求 / 响应体大小",
+        "type": "graph",
+        "gridPos": { "h": 8, "w": 8, "x": 8, "y": 14 },
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, sum(rate(cityflow_request_size_bytes_bucket[5m])) by (le))",
+            "legendFormat": "请求 P95"
+          },
+          {
+            "expr": "histogram_quantile(0.95, sum(rate(cityflow_response_size_bytes_bucket[5m])) by (le))",
+            "legendFormat": "响应 P95"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": { "unit": "bytes" }
+        }
+      },
+      {
+        "title": "每端点错误率",
+        "type": "graph",
+        "gridPos": { "h": 8, "w": 8, "x": 16, "y": 14 },
+        "targets": [
+          {
+            "expr": "sum(rate(cityflow_requests_total{status=~\"5..\"}[5m])) by (endpoint) / sum(rate(cityflow_requests_total[5m])) by (endpoint) * 100",
+            "legendFormat": "{{endpoint}}"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": { "unit": "percent" }
+        }
+      },
+      {
+        "title": "业务流程",
+        "type": "row",
+        "gridPos": { "h": 1, "w": 24, "x": 0, "y": 22 },
+        "collapsed": false
+      },
+      {
+        "title": "路线规划速率",
+        "type": "graph",
+        "gridPos": { "h": 8, "w": 8, "x": 0, "y": 23 },
+        "targets": [
+          {
+            "expr": "sum(rate(cityflow_routes_total[5m])) by (status)",
+            "legendFormat": "{{status}}"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": { "unit": "short" }
+        }
+      },
+      {
+        "title": "路线规划端到端延迟",
+        "type": "graph",
+        "gridPos": { "h": 8, "w": 8, "x": 8, "y": 23 },
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.50, sum(rate(cityflow_route_planning_duration_seconds_bucket[5m])) by (le))",
+            "legendFormat": "P50"
+          },
+          {
+            "expr": "histogram_quantile(0.95, sum(rate(cityflow_route_planning_duration_seconds_bucket[5m])) by (le))",
+            "legendFormat": "P95"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": { "unit": "s" }
+        }
+      },
+      {
+        "title": "路线规划各阶段耗时",
+        "type": "graph",
+        "gridPos": { "h": 8, "w": 8, "x": 16, "y": 23 },
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, sum(rate(cityflow_route_phase_duration_seconds_bucket[5m])) by (le, phase))",
+            "legendFormat": "{{phase}} P95"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": { "unit": "s" }
+        }
+      },
+      {
+        "title": "每条路线的 POI 数量分布",
+        "type": "histogram",
+        "gridPos": { "h": 8, "w": 8, "x": 0, "y": 31 },
+        "targets": [
+          {
+            "expr": "sum(increase(cityflow_route_steps_bucket[1h])) by (le)",
+            "legendFormat": "{{le}}"
+          }
+        ]
+      },
+      {
+        "title": "POI 查询速率",
+        "type": "graph",
+        "gridPos": { "h": 8, "w": 8, "x": 8, "y": 31 },
+        "targets": [
+          {
+            "expr": "sum(rate(cityflow_poi_queries_total[5m])) by (query_type)",
+            "legendFormat": "{{query_type}}"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": { "unit": "short" }
+        }
+      },
+      {
+        "title": "POI 候选数量",
+        "type": "graph",
+        "gridPos": { "h": 8, "w": 8, "x": 16, "y": 31 },
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.50, sum(rate(cityflow_poi_candidates_bucket[5m])) by (le))",
+            "legendFormat": "P50"
+          },
+          {
+            "expr": "histogram_quantile(0.95, sum(rate(cityflow_poi_candidates_bucket[5m])) by (le))",
+            "legendFormat": "P95"
+          }
+        ]
+      },
+      {
+        "title": "LLM 与对话",
+        "type": "row",
+        "gridPos": { "h": 1, "w": 24, "x": 0, "y": 39 },
+        "collapsed": false
+      },
+      {
+        "title": "LLM 调用速率",
+        "type": "graph",
+        "gridPos": { "h": 8, "w": 8, "x": 0, "y": 40 },
+        "targets": [
+          {
+            "expr": "sum(rate(cityflow_llm_calls_total[5m])) by (model, status)",
+            "legendFormat": "{{model}} {{status}}"
+          }
+        ]
+      },
+      {
+        "title": "LLM 调用延迟",
+        "type": "graph",
+        "gridPos": { "h": 8, "w": 8, "x": 8, "y": 40 },
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, sum(rate(cityflow_llm_call_duration_seconds_bucket[5m])) by (le, model))",
+            "legendFormat": "{{model}} P95"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": { "unit": "s" }
+        }
+      },
+      {
+        "title": "LLM Token 用量（每分钟）",
+        "type": "graph",
+        "gridPos": { "h": 8, "w": 8, "x": 16, "y": 40 },
+        "targets": [
+          {
+            "expr": "sum(rate(cityflow_llm_tokens_total[5m])) by (model, type)",
+            "legendFormat": "{{model}} {{type}}"
+          }
+        ]
+      },
+      {
+        "title": "LLM Token 累计消耗（1h 窗口）",
+        "type": "graph",
+        "gridPos": { "h": 8, "w": 24, "x": 0, "y": 48 },
+        "targets": [
+          {
+            "expr": "sum(increase(cityflow_llm_tokens_total[1h])) by (model, type)",
+            "legendFormat": "{{model}} {{type}}"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": { "unit": "short" }
+        }
+      },
+      {
+        "title": "对话调整速率（按类型）",
+        "type": "graph",
+        "gridPos": { "h": 8, "w": 12, "x": 0, "y": 56 },
+        "targets": [
+          {
+            "expr": "sum(rate(cityflow_dialogue_total[5m])) by (instruction_type)",
+            "legendFormat": "{{instruction_type}}"
+          }
+        ]
+      },
+      {
+        "title": "对话调整延迟",
+        "type": "graph",
+        "gridPos": { "h": 8, "w": 12, "x": 12, "y": 56 },
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, sum(rate(cityflow_dialogue_duration_seconds_bucket[5m])) by (le, instruction_type))",
+            "legendFormat": "{{instruction_type}} P95"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": { "unit": "s" }
+        }
+      },
+      {
+        "title": "缓存与基础设施",
+        "type": "row",
+        "gridPos": { "h": 1, "w": 24, "x": 0, "y": 64 },
+        "collapsed": false
+      },
+      {
+        "title": "缓存命中率",
+        "type": "graph",
+        "gridPos": { "h": 8, "w": 8, "x": 0, "y": 65 },
+        "targets": [
+          {
+            "expr": "sum(rate(cityflow_cache_hits_total[5m])) by (cache_name) / (sum(rate(cityflow_cache_hits_total[5m])) by (cache_name) + sum(rate(cityflow_cache_misses_total[5m])) by (cache_name)) * 100",
+            "legendFormat": "{{cache_name}}"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent",
+            "min": 0,
+            "max": 100
+          }
+        }
+      },
+      {
+        "title": "缓存条目数",
+        "type": "graph",
+        "gridPos": { "h": 8, "w": 8, "x": 8, "y": 65 },
+        "targets": [
+          {
+            "expr": "cityflow_cache_entries",
+            "legendFormat": "{{cache_name}}"
+          }
+        ]
+      },
+      {
+        "title": "熔断器状态",
+        "type": "stat",
+        "gridPos": { "h": 8, "w": 8, "x": 16, "y": 65 },
+        "targets": [
+          {
+            "expr": "cityflow_circuit_breaker_state",
+            "legendFormat": "{{service}}"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "mappings": [
+              { "type": "value", "options": { "0": { "text": "CLOSED", "color": "green" } } },
+              { "type": "value", "options": { "1": { "text": "OPEN", "color": "red" } } },
+              { "type": "value", "options": { "2": { "text": "HALF_OPEN", "color": "yellow" } } }
+            ]
+          }
+        }
+      },
+      {
+        "title": "WebSocket 消息速率",
+        "type": "graph",
+        "gridPos": { "h": 8, "w": 8, "x": 0, "y": 73 },
+        "targets": [
+          {
+            "expr": "sum(rate(cityflow_ws_messages_total[5m])) by (direction)",
+            "legendFormat": "{{direction}}"
+          }
+        ]
+      },
+      {
+        "title": "后台任务队列",
+        "type": "graph",
+        "gridPos": { "h": 8, "w": 8, "x": 8, "y": 73 },
+        "targets": [
+          {
+            "expr": "cityflow_task_queue_size",
+            "legendFormat": "队列大小"
+          },
+          {
+            "expr": "sum(rate(cityflow_tasks_total[5m])) by (status)",
+            "legendFormat": "{{status}}"
+          }
+        ]
+      },
+      {
+        "title": "消息队列",
+        "type": "graph",
+        "gridPos": { "h": 8, "w": 8, "x": 16, "y": 73 },
+        "targets": [
+          {
+            "expr": "sum(rate(cityflow_mq_published_total[5m])) by (queue)",
+            "legendFormat": "{{queue}} 发布"
+          },
+          {
+            "expr": "sum(rate(cityflow_mq_consumed_total{status=\"success\"}[5m])) by (queue)",
+            "legendFormat": "{{queue}} 消费"
+          }
+        ]
+      },
+      {
+        "title": "系统资源",
+        "type": "row",
+        "gridPos": { "h": 1, "w": 24, "x": 0, "y": 81 },
+        "collapsed": false
+      },
+      {
+        "title": "CPU 使用率",
+        "type": "gauge",
+        "gridPos": { "h": 6, "w": 8, "x": 0, "y": 82 },
+        "targets": [
+          {
+            "expr": "cityflow_system_cpu_percent",
+            "legendFormat": "CPU"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent",
+            "min": 0,
+            "max": 100,
+            "thresholds": {
+              "steps": [
+                { "value": null, "color": "green" },
+                { "value": 70, "color": "yellow" },
+                { "value": 90, "color": "red" }
+              ]
+            }
+          }
+        }
+      },
+      {
+        "title": "内存使用率",
+        "type": "gauge",
+        "gridPos": { "h": 6, "w": 8, "x": 8, "y": 82 },
+        "targets": [
+          {
+            "expr": "cityflow_system_memory_percent",
+            "legendFormat": "内存"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent",
+            "min": 0,
+            "max": 100,
+            "thresholds": {
+              "steps": [
+                { "value": null, "color": "green" },
+                { "value": 75, "color": "yellow" },
+                { "value": 90, "color": "red" }
+              ]
+            }
+          }
+        }
+      },
+      {
+        "title": "磁盘使用率",
+        "type": "gauge",
+        "gridPos": { "h": 6, "w": 8, "x": 16, "y": 82 },
+        "targets": [
+          {
+            "expr": "cityflow_system_disk_percent",
+            "legendFormat": "磁盘"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent",
+            "min": 0,
+            "max": 100,
+            "thresholds": {
+              "steps": [
+                { "value": null, "color": "green" },
+                { "value": 80, "color": "yellow" },
+                { "value": 95, "color": "red" }
+              ]
+            }
+          }
+        }
+      },
+      {
+        "title": "系统资源趋势",
+        "type": "graph",
+        "gridPos": { "h": 6, "w": 24, "x": 0, "y": 88 },
+        "targets": [
+          {
+            "expr": "cityflow_system_cpu_percent",
+            "legendFormat": "CPU %"
+          },
+          {
+            "expr": "cityflow_system_memory_percent",
+            "legendFormat": "内存 %"
+          },
+          {
+            "expr": "cityflow_system_disk_percent",
+            "legendFormat": "磁盘 %"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent",
+            "min": 0,
+            "max": 100
+          }
+        }
+      }
+    ]
+  }
+}

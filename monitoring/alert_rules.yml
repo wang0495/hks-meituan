@@ -1,0 +1,614 @@
+# =============================================================================
+# CityFlow 告警规则
+# =============================================================================
+# 按严重程度分组：critical > warning > info
+# 所有告警均带有 instance 标签，方便定位具体实例
+# =============================================================================
+
+groups:
+
+  # ==========================================================================
+  # 应用层告警
+  # ==========================================================================
+  - name: cityflow_app
+    rules:
+
+      # --- 服务可用性 ---
+      - alert: ServiceDown
+        expr: up{job="cityflow"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          team: backend
+        annotations:
+          summary: "CityFlow 实例宕机"
+          description: "实例 {{ $labels.instance }} 已不可用超过 1 分钟"
+
+      # --- 错误率 ---
+      - alert: HighErrorRate
+        expr: >
+          sum by (instance) (rate(cityflow_requests_total{status=~"5.."}[5m]))
+          /
+          sum by (instance) (rate(cityflow_requests_total[5m]))
+          > 0.1
+        for: 5m
+        labels:
+          severity: critical
+          team: backend
+        annotations:
+          summary: "5xx 错误率过高"
+          description: "实例 {{ $labels.instance }} 5xx 错误率 {{ $value | humanizePercentage }}，超过 10% 阈值"
+
+      - alert: ElevatedErrorRate
+        expr: >
+          sum by (instance) (rate(cityflow_requests_total{status=~"4.."}[5m]))
+          /
+          sum by (instance) (rate(cityflow_requests_total[5m]))
+          > 0.3
+        for: 10m
+        labels:
+          severity: warning
+          team: backend
+        annotations:
+          summary: "4xx 错误率偏高"
+          description: "实例 {{ $labels.instance }} 4xx 错误率 {{ $value | humanizePercentage }}，超过 30% 阈值"
+
+      # --- 延迟 ---
+      - alert: HighLatencyP95
+        expr: >
+          histogram_quantile(0.95,
+            sum by (instance, le) (rate(cityflow_request_duration_seconds_bucket[5m]))
+          ) > 2
+        for: 5m
+        labels:
+          severity: warning
+          team: backend
+        annotations:
+          summary: "P95 延迟过高"
+          description: "实例 {{ $labels.instance }} P95 延迟 {{ $value | humanizeDuration }}，超过 2s 阈值"
+
+      - alert: HighLatencyP99
+        expr: >
+          histogram_quantile(0.99,
+            sum by (instance, le) (rate(cityflow_request_duration_seconds_bucket[5m]))
+          ) > 5
+        for: 5m
+        labels:
+          severity: critical
+          team: backend
+        annotations:
+          summary: "P99 延迟过高"
+          description: "实例 {{ $labels.instance }} P99 延迟 {{ $value | humanizeDuration }}，超过 5s 阈值"
+
+      # --- 请求量 ---
+      - alert: TrafficSpike
+        expr: >
+          sum(rate(cityflow_requests_total[5m])) > 100
+        for: 10m
+        labels:
+          severity: info
+          team: backend
+        annotations:
+          summary: "流量激增"
+          description: "当前请求速率 {{ $value | humanize }}/s，持续超过 10 分钟"
+
+      - alert: TrafficDrop
+        expr: >
+          sum(rate(cityflow_requests_total[5m])) < 0.1
+          and
+          sum(rate(cityflow_requests_total[30m] offset 1h)) > 1
+        for: 15m
+        labels:
+          severity: warning
+          team: backend
+        annotations:
+          summary: "流量骤降"
+          description: "当前请求速率接近 0，但 1 小时前同期有正常流量"
+
+      # --- 活跃会话 ---
+      - alert: HighActiveSessions
+        expr: cityflow_active_sessions > 500
+        for: 5m
+        labels:
+          severity: warning
+          team: backend
+        annotations:
+          summary: "活跃会话数过高"
+          description: "当前活跃会话 {{ $value }}，超过 500 阈值"
+
+      # --- 端点级错误率 ---
+      - alert: EndpointHighErrorRate
+        expr: >
+          sum by (endpoint) (rate(cityflow_requests_total{status=~"5.."}[5m]))
+          /
+          sum by (endpoint) (rate(cityflow_requests_total[5m]))
+          > 0.2
+        for: 5m
+        labels:
+          severity: warning
+          team: backend
+        annotations:
+          summary: "端点级 5xx 错误率过高"
+          description: "端点 {{ $labels.endpoint }} 5xx 错误率 {{ $value | humanizePercentage }}，超过 20%"
+
+      # --- 端点级延迟 ---
+      - alert: EndpointHighLatency
+        expr: >
+          histogram_quantile(0.95,
+            sum by (endpoint, le) (rate(cityflow_request_duration_seconds_bucket[5m]))
+          ) > 5
+        for: 5m
+        labels:
+          severity: warning
+          team: backend
+        annotations:
+          summary: "特定端点延迟过高"
+          description: "端点 {{ $labels.endpoint }} P95 延迟 {{ $value | humanizeDuration }}，超过 5s"
+
+      # --- 请求体过大 ---
+      - alert: LargeRequestBodySpike
+        expr: >
+          sum(rate(cityflow_requests_total{status="413"}[5m])) > 0.1
+        for: 5m
+        labels:
+          severity: info
+          team: backend
+        annotations:
+          summary: "大量请求体超限"
+          description: "出现频繁的 413 Payload Too Large 响应，速率 {{ $value }}/s"
+
+  # ==========================================================================
+  # 熔断器告警
+  # ==========================================================================
+  - name: cityflow_circuit_breaker
+    rules:
+
+      - alert: CircuitBreakerOpen
+        expr: increase(cityflow_circuit_breaker_.*{event="state_change"}[5m]) > 0
+        for: 0m
+        labels:
+          severity: critical
+          team: backend
+        annotations:
+          summary: "熔断器状态变更"
+          description: "熔断器 {{ $labels.circuit_breaker }} 状态发生变更，请立即检查下游服务"
+
+      - alert: CircuitBreakerHighRejectRate
+        expr: >
+          rate(cityflow_circuit_breaker_.*{event="rejected"}[5m]) > 0.5
+        for: 3m
+        labels:
+          severity: warning
+          team: backend
+        annotations:
+          summary: "熔断器拒绝率过高"
+          description: "熔断器 {{ $labels.circuit_breaker }} 拒绝速率 {{ $value }}/s"
+
+  # ==========================================================================
+  # 外部依赖告警
+  # ==========================================================================
+  - name: cityflow_dependencies
+    rules:
+
+      # --- 高德地图 API ---
+      - alert: AmapApiHighErrorRate
+        expr: >
+          rate(cityflow_amap_api_errors_total[5m]) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+          team: backend
+        annotations:
+          summary: "高德地图 API 错误率过高"
+          description: "高德地图 API 错误速率 {{ $value }}/s，可能影响路线规划和 POI 查询"
+
+      - alert: AmapApiHighLatency
+        expr: >
+          histogram_quantile(0.95,
+            rate(cityflow_amap_api_duration_seconds_bucket[5m])
+          ) > 5
+        for: 5m
+        labels:
+          severity: warning
+          team: backend
+        annotations:
+          summary: "高德地图 API 延迟过高"
+          description: "高德地图 API P95 延迟 {{ $value | humanizeDuration }}，超过 5s"
+
+      - alert: AmapApiQuotaExhausted
+        expr: >
+          rate(cityflow_amap_api_errors_total{error_type="quota_exceeded"}[5m]) > 0
+        for: 1m
+        labels:
+          severity: critical
+          team: backend
+        annotations:
+          summary: "高德地图 API 配额耗尽"
+          description: "高德地图 API 配额已用完，请检查用量或升级套餐"
+
+  # ==========================================================================
+  # 系统资源告警
+  # ==========================================================================
+  - name: cityflow_system
+    rules:
+
+      # --- CPU ---
+      - alert: HighCpuUsage
+        expr: 100 - (avg by(instance) (irate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 80
+        for: 5m
+        labels:
+          severity: warning
+          team: infra
+        annotations:
+          summary: "CPU 使用率过高"
+          description: "实例 {{ $labels.instance }} CPU 使用率 {{ $value | humanizePercentage }}"
+
+      - alert: CriticalCpuUsage
+        expr: 100 - (avg by(instance) (irate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 95
+        for: 2m
+        labels:
+          severity: critical
+          team: infra
+        annotations:
+          summary: "CPU 使用率危急"
+          description: "实例 {{ $labels.instance }} CPU 使用率 {{ $value | humanizePercentage }}"
+
+      # --- 内存 ---
+      - alert: HighMemoryUsage
+        expr: (1 - node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes) * 100 > 85
+        for: 5m
+        labels:
+          severity: warning
+          team: infra
+        annotations:
+          summary: "内存使用率过高"
+          description: "实例 {{ $labels.instance }} 内存使用率 {{ $value | humanizePercentage }}"
+
+      - alert: CriticalMemoryUsage
+        expr: (1 - node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes) * 100 > 95
+        for: 2m
+        labels:
+          severity: critical
+          team: infra
+        annotations:
+          summary: "内存使用率危急"
+          description: "实例 {{ $labels.instance }} 内存使用率 {{ $value | humanizePercentage }}"
+
+      # --- 磁盘 ---
+      - alert: HighDiskUsage
+        expr: (1 - node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"}) * 100 > 85
+        for: 10m
+        labels:
+          severity: warning
+          team: infra
+        annotations:
+          summary: "磁盘使用率过高"
+          description: "实例 {{ $labels.instance }} 磁盘使用率 {{ $value | humanizePercentage }}"
+
+      - alert: CriticalDiskUsage
+        expr: (1 - node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"}) * 100 > 95
+        for: 5m
+        labels:
+          severity: critical
+          team: infra
+        annotations:
+          summary: "磁盘使用率危急"
+          description: "实例 {{ $labels.instance }} 磁盘使用率 {{ $value | humanizePercentage }}"
+
+      - alert: DiskWillFillIn24h
+        expr: >
+          predict_linear(node_filesystem_avail_bytes{mountpoint="/"}[6h], 24*3600) < 0
+        for: 30m
+        labels:
+          severity: warning
+          team: infra
+        annotations:
+          summary: "磁盘预计 24 小时内耗尽"
+          description: "实例 {{ $labels.instance }} 按当前写入速率，磁盘将在 24 小时内写满"
+
+      # --- 网络 ---
+      - alert: HighNetworkErrors
+        expr: >
+          rate(node_network_receive_errs_total{device!~"lo|veth.*|docker.*"}[5m]) > 10
+          or
+          rate(node_network_transmit_errs_total{device!~"lo|veth.*|docker.*"}[5m]) > 10
+        for: 5m
+        labels:
+          severity: warning
+          team: infra
+        annotations:
+          summary: "网络错误率过高"
+          description: "实例 {{ $labels.instance }} 网络接口 {{ $labels.device }} 错误率过高"
+
+  # ==========================================================================
+  # Redis 告警
+  # ==========================================================================
+  - name: cityflow_redis
+    rules:
+
+      - alert: RedisDown
+        expr: redis_up == 0
+        for: 1m
+        labels:
+          severity: critical
+          team: infra
+        annotations:
+          summary: "Redis 不可用"
+          description: "Redis 实例已宕机超过 1 分钟"
+
+      - alert: RedisHighMemory
+        expr: redis_memory_used_bytes / redis_memory_max_bytes > 0.85
+        for: 5m
+        labels:
+          severity: warning
+          team: infra
+        annotations:
+          summary: "Redis 内存使用率过高"
+          description: "Redis 内存使用率 {{ $value | humanizePercentage }}"
+
+      - alert: RedisHighLatency
+        expr: redis_commands_duration_seconds_total / redis_commands_processed_total > 0.01
+        for: 5m
+        labels:
+          severity: warning
+          team: infra
+        annotations:
+          summary: "Redis 命令延迟过高"
+          description: "Redis 平均命令延迟超过 10ms"
+
+      - alert: RedisTooManyConnections
+        expr: redis_connected_clients > 200
+        for: 5m
+        labels:
+          severity: warning
+          team: infra
+        annotations:
+          summary: "Redis 连接数过多"
+          description: "Redis 当前连接数 {{ $value }}，超过 200 阈值"
+
+      - alert: RedisHighEvictionRate
+        expr: rate(redis_evicted_keys_total[5m]) > 10
+        for: 5m
+        labels:
+          severity: warning
+          team: infra
+        annotations:
+          summary: "Redis 淘汰率过高"
+          description: "Redis 键淘汰速率 {{ $value }}/s，内存可能不足"
+
+  # ==========================================================================
+  # Nginx 告警
+  # ==========================================================================
+  - name: cityflow_nginx
+    rules:
+
+      - alert: NginxHighErrorRate
+        expr: >
+          sum(rate(nginx_server_requests{code=~"5.."}[5m]))
+          /
+          sum(rate(nginx_server_requests[5m]))
+          > 0.05
+        for: 5m
+        labels:
+          severity: critical
+          team: infra
+        annotations:
+          summary: "Nginx 5xx 错误率过高"
+          description: "Nginx 5xx 错误率 {{ $value | humanizePercentage }}，超过 5%"
+
+      - alert: NginxHighConnectionCount
+        expr: nginx_connections_active > 1000
+        for: 5m
+        labels:
+          severity: warning
+          team: infra
+        annotations:
+          summary: "Nginx 活跃连接数过多"
+          description: "Nginx 当前活跃连接数 {{ $value }}，超过 1000 阈值"
+
+      - alert: NginxUpstreamHighLatency
+        expr: >
+          histogram_quantile(0.95,
+            rate(nginx_upstream_response_duration_seconds_bucket[5m])
+          ) > 3
+        for: 5m
+        labels:
+          severity: warning
+          team: infra
+        annotations:
+          summary: "Nginx 上游延迟过高"
+          description: "Nginx 上游 P95 响应时间 {{ $value | humanizeDuration }}，超过 3s"
+
+      - alert: NginxUpstreamUnavailable
+        expr: nginx_upstream_checks_fails > 0
+        for: 1m
+        labels:
+          severity: critical
+          team: infra
+        annotations:
+          summary: "Nginx 上游不可用"
+          description: "存在不可用的上游节点，可能影响负载均衡"
+
+  # ==========================================================================
+  # 定时任务 / 业务健康告警
+  # ==========================================================================
+  - name: cityflow_business
+    rules:
+
+      - alert: RoutePlanningFailureRateHigh
+        expr: >
+          rate(cityflow_route_planning_errors_total[10m])
+          /
+          rate(cityflow_routes_total[10m])
+          > 0.15
+        for: 10m
+        labels:
+          severity: warning
+          team: backend
+        annotations:
+          summary: "路线规划失败率过高"
+          description: "路线规划失败率 {{ $value | humanizePercentage }}，超过 15%"
+
+      - alert: PoiQueryFailureRateHigh
+        expr: >
+          rate(cityflow_poi_query_errors_total[10m])
+          /
+          rate(cityflow_poi_queries_total[10m])
+          > 0.15
+        for: 10m
+        labels:
+          severity: warning
+          team: backend
+        annotations:
+          summary: "POI 查询失败率过高"
+          description: "POI 查询失败率 {{ $value | humanizePercentage }}，超过 15%"
+
+      - alert: NoRoutesPlannedFor1Hour
+        expr: sum(increase(cityflow_routes_total[1h])) == 0
+        for: 1h
+        labels:
+          severity: info
+          team: backend
+        annotations:
+          summary: "1 小时内无路线规划"
+          description: "过去 1 小时内没有路线规划请求，可能服务异常或无流量"
+
+      # --- LLM 调用 ---
+      - alert: LlmHighErrorRate
+        expr: >
+          sum by (model) (rate(cityflow_llm_calls_total{status!="success"}[5m]))
+          /
+          sum by (model) (rate(cityflow_llm_calls_total[5m]))
+          > 0.2
+        for: 5m
+        labels:
+          severity: warning
+          team: backend
+        annotations:
+          summary: "LLM 调用错误率过高"
+          description: "模型 {{ $labels.model }} LLM 调用错误率 {{ $value | humanizePercentage }}，超过 20%"
+
+      - alert: LlmHighLatency
+        expr: >
+          histogram_quantile(0.95,
+            sum by (model, le) (rate(cityflow_llm_call_duration_seconds_bucket[5m]))
+          ) > 15
+        for: 5m
+        labels:
+          severity: warning
+          team: backend
+        annotations:
+          summary: "LLM 调用延迟过高"
+          description: "模型 {{ $labels.model }} P95 延迟 {{ $value | humanizeDuration }}，超过 15s"
+
+      - alert: LlmTokenUsageSpike
+        expr: >
+          sum by (model) (rate(cityflow_llm_tokens_total[5m])) > 50000
+        for: 10m
+        labels:
+          severity: warning
+          team: backend
+        annotations:
+          summary: "LLM Token 消耗速率异常"
+          description: "模型 {{ $labels.model }} Token 消耗速率 {{ $value }}/s，持续超过 10 分钟"
+
+  # ==========================================================================
+  # 缓存告警
+  # ==========================================================================
+  - name: cityflow_cache
+    rules:
+
+      - alert: CacheHitRateLow
+        expr: >
+          sum by (cache_name) (rate(cityflow_cache_hits_total[10m]))
+          /
+          (sum by (cache_name) (rate(cityflow_cache_hits_total[10m])) + sum by (cache_name) (rate(cityflow_cache_misses_total[10m])))
+          < 0.5
+        for: 10m
+        labels:
+          severity: warning
+          team: backend
+        annotations:
+          summary: "缓存命中率过低"
+          description: "缓存 {{ $labels.cache_name }} 命中率 {{ $value | humanizePercentage }}，低于 50%"
+
+      - alert: CacheHighEvictionRate
+        expr: >
+          sum by (cache_name) (rate(cityflow_cache_evictions_total[5m])) > 10
+        for: 5m
+        labels:
+          severity: warning
+          team: backend
+        annotations:
+          summary: "缓存逐出率过高"
+          description: "缓存 {{ $labels.cache_name }} 逐出速率 {{ $value }}/s，内存可能不足"
+
+  # ==========================================================================
+  # WebSocket 告警
+  # ==========================================================================
+  - name: cityflow_websocket
+    rules:
+
+      - alert: WsHighErrorRate
+        expr: >
+          rate(cityflow_ws_errors_total[5m]) > 1
+        for: 5m
+        labels:
+          severity: warning
+          team: backend
+        annotations:
+          summary: "WebSocket 错误率过高"
+          description: "WebSocket 错误速率 {{ $value }}/s，超过 1/s 阈值"
+
+      - alert: WsConnectionSpike
+        expr: cityflow_ws_connections > 300
+        for: 5m
+        labels:
+          severity: warning
+          team: backend
+        annotations:
+          summary: "WebSocket 连接数过高"
+          description: "当前 WebSocket 连接数 {{ $value }}，超过 300 阈值"
+
+  # ==========================================================================
+  # 后台任务告警
+  # ==========================================================================
+  - name: cityflow_tasks
+    rules:
+
+      - alert: TaskQueueBacklog
+        expr: cityflow_task_queue_size > 100
+        for: 5m
+        labels:
+          severity: warning
+          team: backend
+        annotations:
+          summary: "任务队列积压"
+          description: "任务队列积压 {{ $value }} 个任务，超过 100 阈值"
+
+      - alert: TaskHighFailureRate
+        expr: >
+          rate(cityflow_tasks_total{status="failed"}[10m])
+          /
+          rate(cityflow_tasks_total[10m])
+          > 0.2
+        for: 10m
+        labels:
+          severity: warning
+          team: backend
+        annotations:
+          summary: "后台任务失败率过高"
+          description: "后台任务失败率 {{ $value | humanizePercentage }}，超过 20%"
+
+      - alert: TaskHighLatency
+        expr: >
+          histogram_quantile(0.95,
+            sum by (le) (rate(cityflow_task_duration_seconds_bucket[5m]))
+          ) > 30
+        for: 5m
+        labels:
+          severity: warning
+          team: backend
+        annotations:
+          summary: "后台任务执行延迟过高"
+          description: "后台任务 P95 延迟 {{ $value | humanizeDuration }}，超过 30s"

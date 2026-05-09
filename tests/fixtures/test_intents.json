@@ -1,0 +1,67 @@
+[
+  {
+    "id": "intent_001",
+    "input": "周末想出去走走，不想去人多的地方",
+    "expected_profile": "P1",
+    "expected_intent": {
+      "time": {"period": "全天", "start": "09:00", "end": "18:00"},
+      "budget": {"per_person": 100, "type": "弹性"},
+      "group": {"size": 1, "type": "独居"},
+      "preferences": {"culture": 0.6, "food": 0.4, "nature": 0.7, "social": 0.1},
+      "pace": "闲逛型",
+      "hard_constraints": ["排队容忍度<5min", "避开人流高峰"]
+    }
+  },
+  {
+    "id": "intent_002",
+    "input": "周末一家人带娃出去，让他消耗体力",
+    "expected_profile": "P3",
+    "expected_intent": {
+      "time": {"period": "全天", "start": "09:00", "end": "18:00"},
+      "budget": {"per_person": 150, "type": "弹性"},
+      "group": {"size": 3, "type": "亲子"},
+      "preferences": {"culture": 0.4, "food": 0.5, "nature": 0.7, "social": 0.6},
+      "pace": "平衡型",
+      "hard_constraints": ["儿童友好", "有教育意义", "有休息区"]
+    }
+  },
+  {
+    "id": "intent_003",
+    "input": "和女朋友约会，想找有氛围的地方",
+    "expected_profile": "P2",
+    "expected_intent": {
+      "time": {"period": "下午", "start": "14:00", "end": "22:00"},
+      "budget": {"per_person": 300, "type": "弹性"},
+      "group": {"size": 2, "type": "情侣"},
+      "preferences": {"culture": 0.5, "food": 0.8, "nature": 0.6, "social": 0.5},
+      "pace": "平衡型",
+      "hard_constraints": ["有氛围感", "可拍照"]
+    }
+  },
+  {
+    "id": "intent_004",
+    "input": "带狗子出去转转",
+    "expected_profile": "P12",
+    "expected_intent": {
+      "time": {"period": "全天", "start": "09:00", "end": "18:00"},
+      "budget": {"per_person": 50, "type": "弹性"},
+      "group": {"size": 1, "type": "独居"},
+      "preferences": {"culture": 0.3, "food": 0.5, "nature": 0.8, "social": 0.4},
+      "pace": "闲逛型",
+      "hard_constraints": ["宠物友好", "有户外空间"]
+    }
+  },
+  {
+    "id": "intent_005",
+    "input": "想找便宜好玩的地方，和朋友一起",
+    "expected_profile": "P16",
+    "expected_intent": {
+      "time": {"period": "全天", "start": "09:00", "end": "22:00"},
+      "budget": {"per_person": 50, "type": "硬约束"},
+      "group": {"size": 4, "type": "朋友"},
+      "preferences": {"culture": 0.5, "food": 0.6, "nature": 0.5, "social": 0.7},
+      "pace": "特种兵型",
+      "hard_constraints": ["免费或低价", "交通便利"]
+    }
+  }
+]

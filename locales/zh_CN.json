@@ -1,0 +1,50 @@
+{
+  "common": {
+    "success": "成功",
+    "error": "错误",
+    "loading": "加载中...",
+    "not_found": "未找到",
+    "timeout": "请求超时",
+    "rate_limited": "请求过于频繁，请稍后再试",
+    "unauthorized": "未授权，请先登录",
+    "forbidden": "无权访问",
+    "internal_error": "服务器内部错误",
+    "invalid_request": "无效请求"
+  },
+  "route": {
+    "planning": "正在规划路线...",
+    "complete": "路线规划完成",
+    "adjust": "路线调整中...",
+    "solving_failed": "路线求解失败",
+    "distance": "距离: {km} 公里",
+    "duration": "预计耗时: {minutes} 分钟",
+    "waypoints": "途经 {count} 个站点"
+  },
+  "poi": {
+    "search": "搜索POI",
+    "not_found": "未找到符合条件的POI",
+    "invalid_data": "POI数据无效",
+    "around": "附近 {name} 共 {count} 个结果"
+  },
+  "intent": {
+    "parse_failed": "意图解析失败，请换个说法试试",
+    "unknown": "抱歉，我没有理解您的意思"
+  },
+  "narrative": {
+    "generating": "正在生成文案...",
+    "failed": "文案生成失败",
+    "complete": "文案生成完成"
+  },
+  "dialogue": {
+    "failed": "对话处理失败，请重试",
+    "greeting": "你好！我是 CityFlow 智能出行助手，有什么可以帮您的？",
+    "farewell": "感谢使用 CityFlow，祝您出行愉快！"
+  },
+  "auth": {
+    "login_success": "登录成功",
+    "login_failed": "登录失败",
+    "logout_success": "已退出登录",
+    "token_expired": "登录已过期，请重新登录",
+    "invalid_credentials": "用户名或密码错误"
+  }
+}

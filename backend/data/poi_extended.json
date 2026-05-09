@@ -1,0 +1,89 @@
+[
+  {
+    "id": "poi_1001",
+    "name": "珠海长隆海洋王国",
+    "city": "珠海",
+    "category": "娱乐",
+    "rating": 4.8,
+    "avg_price": 350,
+    "lat": 22.1025,
+    "lng": 113.5375,
+    "business_hours": "10:00-21:00",
+    "tags": ["亲子", "海洋", "表演", "刺激"],
+    "queue_prone": true,
+    "avg_stay_min": 480,
+    "emotion_tags": {
+      "excitement": 0.9,
+      "tranquility": 0.2,
+      "sociability": 0.7,
+      "culture_depth": 0.4,
+      "surprise": 0.8,
+      "physical_demand": 0.6
+    },
+    "constraints": {
+      "accessible": true,
+      "pet_friendly": false,
+      "queue_time_min": 60,
+      "opening_hours": "10:00-21:00",
+      "has_restroom": true
+    }
+  },
+  {
+    "id": "poi_1002",
+    "name": "外伶仃岛",
+    "city": "珠海",
+    "category": "自然",
+    "rating": 4.6,
+    "avg_price": 200,
+    "lat": 22.1833,
+    "lng": 113.9333,
+    "business_hours": "00:00-23:59",
+    "tags": ["海岛", "日出", "徒步", "露营"],
+    "queue_prone": false,
+    "avg_stay_min": 600,
+    "emotion_tags": {
+      "excitement": 0.6,
+      "tranquility": 0.9,
+      "sociability": 0.3,
+      "culture_depth": 0.2,
+      "surprise": 0.7,
+      "physical_demand": 0.8
+    },
+    "constraints": {
+      "accessible": false,
+      "pet_friendly": true,
+      "queue_time_min": 0,
+      "opening_hours": "00:00-23:59",
+      "has_restroom": true
+    }
+  },
+  {
+    "id": "poi_1003",
+    "name": "珠海博物馆",
+    "city": "珠海",
+    "category": "文化",
+    "rating": 4.3,
+    "avg_price": 0,
+    "lat": 22.2750,
+    "lng": 113.5800,
+    "business_hours": "09:00-17:00",
+    "tags": ["免费", "历史", "教育", "室内"],
+    "queue_prone": false,
+    "avg_stay_min": 120,
+    "emotion_tags": {
+      "excitement": 0.2,
+      "tranquility": 0.8,
+      "sociability": 0.3,
+      "culture_depth": 0.95,
+      "surprise": 0.4,
+      "physical_demand": 0.2
+    },
+    "constraints": {
+      "accessible": true,
+      "pet_friendly": false,
+      "queue_time_min": 5,
+      "opening_hours": "09:00-17:00",
+      "has_restroom": true
+    }
+  }
+]

@@ -1,0 +1,260 @@
+groups:
+  - name: cityflow-http
+    rules:
+      - alert: HighErrorRate
+        expr: sum(rate(cityflow_requests_total{status=~"5.."}[5m])) / sum(rate(cityflow_requests_total[5m])) > 0.1
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "高错误率"
+          description: "HTTP 5xx 错误率超过 10%，当前值 {{ $value | humanizePercentage }}"
+
+      - alert: HighLatencyP95
+        expr: histogram_quantile(0.95, sum(rate(cityflow_request_duration_seconds_bucket[5m])) by (le)) > 2
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "P95 延迟过高"
+          description: "P95 请求延迟超过 2 秒，当前值 {{ $value | humanizeDuration }}"
+
+      - alert: HighLatencyP99
+        expr: histogram_quantile(0.99, sum(rate(cityflow_request_duration_seconds_bucket[5m])) by (le)) > 10
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "P99 延迟过高"
+          description: "P99 请求延迟超过 10 秒，当前值 {{ $value | humanizeDuration }}"
+
+      - alert: ServiceDown
+        expr: up{job="cityflow"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "服务宕机"
+          description: "CityFlow 服务不可用"
+
+      - alert: EndpointHighErrorRate
+        expr: sum(rate(cityflow_requests_total{status=~"5.."}[5m])) by (endpoint) / sum(rate(cityflow_requests_total[5m])) by (endpoint) > 0.2
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "端点错误率过高"
+          description: "端点 {{ $labels.endpoint }} 错误率超过 20%"
+
+  - name: cityflow-business
+    rules:
+      - alert: RoutePlanningHighLatency
+        expr: histogram_quantile(0.95, sum(rate(cityflow_route_planning_duration_seconds_bucket[5m])) by (le)) > 10
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "路线规划延迟过高"
+          description: "路线规划 P95 延迟超过 10 秒，当前值 {{ $value | humanizeDuration }}"
+
+      - alert: RoutePlanningHighFallbackRate
+        expr: sum(rate(cityflow_routes_total{status="fallback"}[5m])) / sum(rate(cityflow_routes_total[5m])) > 0.3
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "路线规划兜底率过高"
+          description: "超过 30% 的路线规划使用了兜底方案，可能求解器存在问题"
+
+      - alert: RoutePlanningHighErrorRate
+        expr: sum(rate(cityflow_routes_total{status="error"}[5m])) / sum(rate(cityflow_routes_total[5m])) > 0.1
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "路线规划错误率过高"
+          description: "超过 10% 的路线规划失败"
+
+      - alert: LLMHighErrorRate
+        expr: sum(rate(cityflow_llm_calls_total{status="error"}[5m])) / sum(rate(cityflow_llm_calls_total[5m])) > 0.15
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "LLM 调用错误率过高"
+          description: "LLM API 调用错误率超过 15%"
+
+      - alert: LLMHighLatency
+        expr: histogram_quantile(0.95, sum(rate(cityflow_llm_call_duration_seconds_bucket[5m])) by (le)) > 15
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "LLM 调用延迟过高"
+          description: "LLM API P95 延迟超过 15 秒"
+
+      - alert: LLMTimeoutRate
+        expr: sum(rate(cityflow_llm_calls_total{status="timeout"}[5m])) / sum(rate(cityflow_llm_calls_total[5m])) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "LLM 调用超时率过高"
+          description: "超过 10% 的 LLM 调用超时"
+
+  - name: cityflow-infrastructure
+    rules:
+      - alert: CacheLowHitRate
+        expr: sum(rate(cityflow_cache_hits_total[5m])) by (cache_name) / (sum(rate(cityflow_cache_hits_total[5m])) by (cache_name) + sum(rate(cityflow_cache_misses_total[5m])) by (cache_name)) < 0.5
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "缓存命中率过低"
+          description: "缓存 {{ $labels.cache_name }} 命中率低于 50%，当前值 {{ $value | humanizePercentage }}"
+
+      - alert: CircuitBreakerOpen
+        expr: cityflow_circuit_breaker_state == 1
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "熔断器已打开"
+          description: "服务 {{ $labels.service }} 的熔断器已打开，该服务调用被拒绝"
+
+      - alert: CircuitBreakerHighRejections
+        expr: rate(cityflow_circuit_breaker_rejections_total[5m]) > 1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "熔断器拒绝率过高"
+          description: "服务 {{ $labels.service }} 熔断器拒绝速率超过 1/s"
+
+      - alert: WebSocketHighErrors
+        expr: rate(cityflow_ws_errors_total[5m]) > 0.5
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "WebSocket 错误率过高"
+          description: "WebSocket 错误速率超过 0.5/s"
+
+      - alert: TaskQueueBacklog
+        expr: cityflow_task_queue_size > 100
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "任务队列积压"
+          description: "后台任务队列积压超过 100 个，当前值 {{ $value }}"
+
+      - alert: HighSessionCount
+        expr: cityflow_active_sessions > 200
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "活跃会话数过高"
+          description: "活跃对话会话数超过 200，当前值 {{ $value }}"
+
+      - alert: SessionLeak
+        expr: sum(increase(cityflow_sessions_created_total[30m])) > 50 and sum(increase(cityflow_sessions_expired_total[30m])) < sum(increase(cityflow_sessions_created_total[30m])) * 0.3
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "疑似会话泄漏"
+          description: "30 分钟内创建了 {{ $value }} 个会话但过期数不足 30%，可能存在会话泄漏"
+
+      - alert: MQQueueBacklog
+        expr: cityflow_mq_queue_size > 500
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "消息队列积压"
+          description: "队列 {{ $labels.queue }} 积压超过 500 条消息，当前值 {{ $value }}"
+
+      - alert: MQConsumerHighErrorRate
+        expr: sum(rate(cityflow_mq_consumed_total{status="error"}[5m])) by (queue) / sum(rate(cityflow_mq_consumed_total[5m])) by (queue) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "消息消费错误率过高"
+          description: "队列 {{ $labels.queue }} 消费错误率超过 10%"
+
+      - alert: CacheEvictionStorm
+        expr: rate(cityflow_cache_evictions_total[5m]) > 10
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "缓存逐出风暴"
+          description: "缓存 {{ $labels.cache_name }} 逐出速率超过 10/s，可能缓存容量不足"
+
+      - alert: HighTokenUsage
+        expr: sum(increase(cityflow_llm_tokens_total[1h])) > 1000000
+        for: 5m
+        labels:
+          severity: info
+        annotations:
+          summary: "Token 用量激增"
+          description: "过去 1 小时 LLM Token 消耗超过 100 万，当前值 {{ $value }}"
+
+  - name: cityflow-resources
+    rules:
+      - alert: HighCPU
+        expr: cityflow_system_cpu_percent > 80
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "CPU 使用率过高"
+          description: "系统 CPU 使用率超过 80%，当前值 {{ $value }}%"
+
+      - alert: CriticalCPU
+        expr: cityflow_system_cpu_percent > 95
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "CPU 使用率危急"
+          description: "系统 CPU 使用率超过 95%，当前值 {{ $value }}%"
+
+      - alert: HighMemory
+        expr: cityflow_system_memory_percent > 85
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "内存使用率过高"
+          description: "系统内存使用率超过 85%，当前值 {{ $value }}%"
+
+      - alert: CriticalMemory
+        expr: cityflow_system_memory_percent > 95
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "内存使用率危急"
+          description: "系统内存使用率超过 95%，当前值 {{ $value }}%"
+
+      - alert: HighDisk
+        expr: cityflow_system_disk_percent > 90
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "磁盘使用率过高"
+          description: "系统磁盘使用率超过 90%，当前值 {{ $value }}%"
+
+      - alert: CriticalDisk
+        expr: cityflow_system_disk_percent > 95
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "磁盘使用率危急"
+          description: "系统磁盘使用率超过 95%，当前值 {{ $value }}%"
