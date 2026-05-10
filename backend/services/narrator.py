@@ -348,19 +348,81 @@ def _extract_emotion_highlights(route_result: dict[str, Any]) -> list[dict[str, 
     return highlights
 
 
-async def _llm_polish(text: str, context: str = "") -> str:
-    """调用 LLM 润色文案。超时或异常时返回原文。"""
+async def _llm_generate_description(step: dict, user_intent: dict, city: str = "") -> str:
+    """调用 LLM 为路线步骤生成生动的描述文案。
+
+    超时或异常时退回模板文案。
+    """
     from backend.services.llm_service import chat
 
-    prompt = f"请用1-2句话润色以下文案，保持原意但更生动：\n原文：{text}"
-    if context:
-        prompt += f"\n上下文：{context}"
+    poi = step["poi"]
+    poi_name = poi.get("name", "")
+    category = poi.get("category", "")
+    rating = poi.get("rating", 0)
+    tags = poi.get("tags", [])
+    et = poi.get("emotion_tags", {})
+    dominant_emotions = sorted(et.items(), key=lambda x: -x[1])[:2]
+    emotion_str = "、".join(f"{k}({v})" for k, v in dominant_emotions if v > 0.3)
+
+    group_type = user_intent.get("group", {}).get("type", "独居")
+    pace = user_intent.get("pace", "平衡型")
+
+    prompt = (
+        f'你是CityFlow的旅行文案写手。为以下路线站点写1-2句中文描述，'
+        f'要生动、有画面感，不要评价"不错/很好"：\n'
+        f'地点：{poi_name}\n'
+        f'类别：{category}\n'
+        f'评分：{rating}\n'
+        f'标签：{", ".join(tags[:4])}\n'
+        f'情绪氛围：{emotion_str}\n'
+        f'用户类型：{group_type}，节奏：{pace}\n'
+        f'城市：{city or "珠海"}\n'
+        f'要求：写一段让人身临其境的短描述，包含具体感官体验。'
+    )
 
     try:
-        result = await asyncio.wait_for(chat(prompt), timeout=1.0)
-        return result if result else text
+        result = await asyncio.wait_for(chat(prompt), timeout=5.0)
+        if result and len(result) > 10:
+            arrival = step.get("arrival_time", "")
+            return f"{arrival} {result.strip()}" if arrival else result.strip()
     except (asyncio.TimeoutError, Exception):
-        return text
+        pass
+
+    # 退回模板
+    return _template_step_description(step, user_intent, city)
+
+
+def _template_step_description(step: dict, user_intent: dict, city: str = "") -> str:
+    """模板生成步骤描述（LLM不可用时的降级方案）。"""
+    poi = step["poi"]
+    poi_name = poi["name"]
+    category = poi.get("category", "")
+
+    templates = CATEGORY_STEP_TEMPLATES.get(category, [
+        f"在{{poi_name}}，感受不一样的体验。",
+        f"{{poi_name}}，值得停留的地方。",
+    ])
+    import random
+    template = random.choice(templates)
+    description = template.format(poi_name=poi_name)
+
+    if city:
+        try:
+            from backend.services.city_personality import get_vibe_style_adjectives, get_city_personality
+            personality = get_city_personality(city)
+            if personality:
+                vibe = personality.get("vibe", "")
+                adj = get_vibe_style_adjectives(vibe)
+                if adj and random.random() < 0.5:
+                    inject = random.choice(adj)
+                    description = description.replace("。", f"，{inject}。")
+        except ImportError:
+            pass
+
+    arrival = step.get("arrival_time", "")
+    if arrival:
+        description = f"{arrival} {description}"
+    return description
 
 
 # ---------------------------------------------------------------------------
@@ -372,7 +434,7 @@ async def generate_narrative(
     route_result: dict[str, Any],
     user_intent: dict[str, Any],
     *,
-    enable_llm_polish: bool = False,
+    enable_llm_polish: bool = True,
     city: str = "",
 ) -> dict[str, Any]:
     """生成路线文案。
@@ -380,7 +442,7 @@ async def generate_narrative(
     Args:
         route_result: solver.solve_route() 的返回值，包含 route 列表。
         user_intent: 用户意图字典，包含 group、preferences 等。
-        enable_llm_polish: 是否启用 LLM 润色（默认关闭）。
+        enable_llm_polish: 是否启用 LLM 生成描述（默认开启）。
         city: 城市名（用于内容引擎城市性格文案风格）。
 
     Returns:
@@ -398,8 +460,7 @@ async def generate_narrative(
         step_data = _generate_step(step, i, len(route), city=city)
 
         if enable_llm_polish:
-            context = f"用户类型：{user_intent.get('group', {}).get('type', '独居')}"
-            step_data["description"] = await _llm_polish(step_data["description"], context)
+            step_data["description"] = await _llm_generate_description(step, user_intent, city)
 
         steps.append(step_data)
         total_cost += step_data["cost"]

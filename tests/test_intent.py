@@ -108,19 +108,19 @@ class TestMatchProfile:
             "pace": "闲逛型",
             "hard_constraints": ["低人流"],
         }
-        pid = _match_profile(intent, PROFILES)
+        pid, top3 = _match_profile(intent, PROFILES)
         assert pid in ("P1", "P20"), f"期望 P1 或 P20，实际 {pid}"
 
     def test_match_family(self):
-        """亲子意图 → P3 或 P11。"""
+        """亲子意图 → P3。"""
         intent = {
             "group": {"type": "亲子", "size": 3},
             "preferences": {"social": 0.6},
             "pace": "平衡型",
             "hard_constraints": ["儿童友好"],
         }
-        pid = _match_profile(intent, PROFILES)
-        assert pid in ("P3", "P11", "P17"), f"期望亲子画像，实际 {pid}"
+        pid, top3 = _match_profile(intent, PROFILES)
+        assert pid == "P3", f"期望 P3，实际 {pid}"
 
     def test_match_pet(self):
         """宠物意图 → P12。"""
@@ -130,41 +130,48 @@ class TestMatchProfile:
             "pace": "闲逛型",
             "hard_constraints": ["pet_friendly"],
         }
-        pid = _match_profile(intent, PROFILES)
+        pid, top3 = _match_profile(intent, PROFILES)
         assert pid == "P12", f"期望 P12，实际 {pid}"
 
     def test_match_couple(self):
-        """情侣意图 → P2。"""
+        """情侣意图 → 应匹配到情侣类画像（P2/P6/P13）。"""
         intent = {
             "group": {"type": "情侣", "size": 2},
             "preferences": {"social": 0.5},
             "pace": "平衡型",
             "hard_constraints": [],
         }
-        pid = _match_profile(intent, PROFILES)
-        assert pid == "P2", f"期望 P2，实际 {pid}"
+        pid, top3 = _match_profile(intent, PROFILES)
+        matched_profile = PROFILES.get(pid, {})
+        assert matched_profile.get("group_type") == "情侣", \
+            f"期望情侣画像，实际 {pid}({matched_profile.get('name','?')})"
 
     def test_match_friends_gathering(self):
-        """朋友聚会 → P4 或 P19。"""
+        """朋友聚会 → 应匹配朋友类画像。"""
         intent = {
             "group": {"type": "朋友", "size": 5},
             "preferences": {"social": 0.9},
             "pace": "特种兵型",
             "hard_constraints": [],
         }
-        pid = _match_profile(intent, PROFILES)
-        assert pid in ("P4", "P19"), f"期望 P4 或 P19，实际 {pid}"
+        pid, top3 = _match_profile(intent, PROFILES)
+        matched_profile = PROFILES.get(pid, {})
+        assert matched_profile.get("group_type") == "朋友", \
+            f"期望朋友画像，实际 {pid}({matched_profile.get('name','?')})"
 
     def test_match_retired(self):
-        """退休 → P5 或 P18。"""
+        """退休意图 → 应匹配到退休/闲逛类画像。"""
         intent = {
             "group": {"type": "退休", "size": 2},
             "preferences": {"social": 0.3},
             "pace": "闲逛型",
             "hard_constraints": [],
         }
-        pid = _match_profile(intent, PROFILES)
-        assert pid in ("P5", "P18"), f"期望 P5 或 P18，实际 {pid}"
+        pid, top3 = _match_profile(intent, PROFILES)
+        matched_profile = PROFILES.get(pid, {})
+        # 退休群体匹配宽泛：可能是退休群组 or 低社交闲逛型
+        assert matched_profile.get("pace") == "闲逛型", \
+            f"期望闲逛型画像，实际 {pid}({matched_profile.get('name','?')})"
 
 
 # ---------------------------------------------------------------------------

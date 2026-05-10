@@ -102,10 +102,21 @@ def parse_opening_hours(hours_str: str) -> tuple[str, str]:
     Raises:
         ValueError: 格式不合法时
     """
+    # 处理多种格式：多时段("11:00, 15:00, 19:00")、含文字("全天开放")等
+    hours_str = hours_str.strip()
+    if not hours_str or hours_str in ("全天开放", "全天", "24小时", "不定时"):
+        return "00:00", "23:59"
+    # 取第一个 "-" 分隔的部分
     parts = hours_str.split("-")
-    if len(parts) != 2:
-        raise ValueError(f"Invalid opening hours format: {hours_str}")
-    return parts[0].strip(), parts[1].strip()
+    if len(parts) >= 2:
+        return parts[0].strip(), parts[1].strip()
+    # 尝试逗号分隔（多时段，取第一个）
+    if "," in hours_str or "，" in hours_str:
+        first = hours_str.split(",")[0].split("，")[0].strip()
+        if "-" in first:
+            p = first.split("-")
+            return p[0].strip(), p[1].strip()
+    raise ValueError(f"Invalid opening hours format: {hours_str}")
 
 
 def get_poi_opening_hours(poi: dict[str, Any]) -> tuple[datetime, datetime]:
@@ -123,8 +134,12 @@ def get_poi_opening_hours(poi: dict[str, Any]) -> tuple[datetime, datetime]:
     hours_str = poi.get("constraints", {}).get("opening_hours") or poi.get(
         "business_hours", "00:00-23:59"
     )
-    start_str, end_str = parse_opening_hours(hours_str)
-    return parse_time(start_str), parse_time(end_str)
+    try:
+        start_str, end_str = parse_opening_hours(hours_str)
+        return parse_time(start_str), parse_time(end_str)
+    except Exception:
+        # 任何解析失败，返回全天开放
+        return parse_time("09:00"), parse_time("22:00")
 
 
 def parse_time_window(time_info: dict[str, str]) -> tuple[int, int]:

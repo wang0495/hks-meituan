@@ -300,6 +300,24 @@ class PlanRequest(BaseModel):
         examples=["周末想一个人安静走走", "和朋友一起吃喝玩乐，预算500以内"],
     )
 
+    user_id: str | None = Field(
+        None,
+        description="用户标识。如果提供，系统会读取该用户的长期记忆来个性化推荐。",
+    )
+
+    current_context: dict | None = Field(
+        None,
+        description=(
+            "当前上下文信息（天气/季节/节假日等）。"
+            "如果提供，系统会根据上下文模式匹配历史偏好。"
+        ),
+    )
+
+    start_location: str | None = Field(
+        None,
+        description="出发位置，如'香洲'、'拱北'、'唐家湾'。留空则默认市区中心。",
+    )
+
     model_config = {
         "json_schema_extra": {
             "examples": [
@@ -514,16 +532,22 @@ async def _with_timeout(coro, timeout_seconds: float = 12.0, fallback=None):
 
 
 def _generate_simplified_route(
-    pois: list[dict[str, Any]], count: int = 3
+    pois: list[dict[str, Any]], count: int = 3, start_time: str = "09:00"
 ) -> dict[str, Any]:
     """生成简化路线（兜底方案）。"""
     sorted_pois = sorted(pois, key=lambda p: p.get("rating", 0), reverse=True)[:count]
+    try:
+        sh, sm = start_time.split(":")
+        start_h = int(sh)
+        start_m = int(sm)
+    except:
+        start_h, start_m = 9, 0
     return {
         "route": [
             {
                 "poi": poi,
-                "arrival_time": f"{9 + i}:00",
-                "departure_time": f"{10 + i}:00",
+                "arrival_time": f"{(start_h + i) % 24:02d}:{start_m:02d}",
+                "departure_time": f"{(start_h + i + 1) % 24:02d}:{start_m:02d}",
                 "travel_from_prev": {"distance_m": 0, "time_min": 0},
             }
             for i, poi in enumerate(sorted_pois)
@@ -639,34 +663,329 @@ async def plan_route(request: PlanRequest):
 
             user_intent = await _with_timeout(
                 parse_intent(request.user_input, USER_PROFILES),
-                timeout_seconds=8.0,
+                timeout_seconds=35.0,
             )
             if user_intent is None:
                 yield _sse("error", {"error": "意图解析超时，请重试"})
                 return
 
-            # Phase 2: 搜索候选
-            yield _sse(
-                "phase", {"phase": "searching", "message": "正在为你寻找合适的地方..."}
-            )
+            # Debug: LLM 调用详情
+            llm_used = user_intent.get("_llm_used", False)
+            llm_err = user_intent.get("_llm_error", "")
+            llm_debug = {
+                "used": llm_used,
+                "method": "llm" if llm_used else f"rule（{llm_err or '未配置'}）",
+            }
+            if user_intent.get("_llm_raw_response"):
+                llm_debug["raw_response"] = user_intent["_llm_raw_response"][:300]
+            if user_intent.get("_llm_model"):
+                llm_debug["model"] = user_intent["_llm_model"]
+            yield _sse("debug_llm", llm_debug)
+
+            # Debug: 画像匹配 TOP3
+            top3 = user_intent.get("_profile_top3", [])
+            if top3:
+                yield _sse("debug_profile", {
+                    "top3": top3,
+                    "selected": user_intent.get("matched_profile_id", "?"),
+                })
+
+            # V2: PreferenceManager 偏好融合 + 权重计算
+            dynamic_weights = None
+            demand_vector = user_intent.get("_demand_vector", {})
+            pref_manager = None
+            if request.user_id:
+                yield _sse("phase", {"phase": "identifying", "message": "正在识别用户身份..."})
+                from backend.services.preference_manager import PreferenceManager
+                from backend.services.holiday_utils import build_context
+                from backend.services.perception import PerceptionService
+
+                pref_manager = PreferenceManager.from_user_id(request.user_id)
+
+                # 构建当前上下文
+                if request.current_context:
+                    current_context = request.current_context
+                else:
+                    # 自动采集
+                    perception = PerceptionService()
+                    pctx = await perception.get_context()
+                    current_context = build_context(
+                        weather=pctx.weather,
+                        temperature=pctx.temperature,
+                        hour_of_day=pctx.hour_of_day,
+                        day_of_week=pctx.day_of_week,
+                        season=pctx.season,
+                    )
+
+                # 获取用户状态用于调试
+                user_status = await pref_manager.get_user_status(current_context)
+                yield _sse("debug_preference", {
+                    "user_id": request.user_id,
+                    "is_new": user_status.get("is_new", True),
+                    "interaction_count": user_status.get("interaction_count", 0),
+                    "context_info": user_status.get("context_info", ""),
+                    "context_hints": user_status.get("context_hints", []),
+                    "greeting": user_status.get("greeting", ""),
+                })
+
+                # Phase: LTM 预测
+                yield _sse("phase", {"phase": "ltm_predict", "message": "正在根据历史预测偏好..."})
+
+                # 用 LTM 预测合并偏好
+                prediction = await pref_manager.ltm.predict_preferences(
+                    request.user_id, current_context
+                )
+                if prediction.get("data_points", 0) > 0:
+                    from backend.services.intent_parser import merge_user_preference
+                    user_intent = merge_user_preference(
+                        user_intent,
+                        user_stated_prefs=None,
+                        ltm_prediction=prediction,
+                    )
+
+                yield _sse("debug_ltm", {
+                    "data_points": prediction.get("data_points", 0),
+                    "confidence": prediction.get("confidence", 0.0),
+                    "predicted_pace": prediction.get("predicted_pace"),
+                    "predicted_budget": prediction.get("predicted_budget", 0),
+                    "predicted_categories": prediction.get("predicted_categories", []),
+                    "predicted_emotion_need": prediction.get("predicted_emotion_need"),
+                    "context_matched": prediction.get("data_points", 0) > 0,
+                })
+
+                # Phase: 权重映射
+                yield _sse("phase", {"phase": "weight_mapping", "message": "正在计算求解权重..."})
+
+                # 用 WeightMapper 算动态权重（demand_vector 已在 parse_intent 中提取）
+                demand_vector = user_intent.get("_demand_vector", {})
+                dynamic_weights = pref_manager.compute_solver_weights(demand_vector)
+                yield _sse("debug_weight_mapper", {
+                    "demand_vector": demand_vector,
+                    "computed_weights": dynamic_weights,
+                    "user_deltas": pref_manager.mapper._deltas if pref_manager.mapper else {},
+                    "summary": pref_manager.mapper.summary() if pref_manager.mapper else "默认（新用户）",
+                    "confidence": {},
+                })
+
+            # 在 user_intent 中保存动态权重、需求向量、用户ID和出发位置（供对话阶段使用）
+            user_intent["_dynamic_weights"] = dynamic_weights
+            user_intent["_demand_vector"] = demand_vector
+            if request.user_id:
+                user_intent["_user_id"] = request.user_id
+            if request.start_location:
+                user_intent["start_location"] = request.start_location
+            user_intent["_raw_input"] = request.user_input
+
+            # Phase 2: 搜索候选 + 城市过滤
+            yield _sse("phase", {"phase": "searching", "message": f"正在为你寻找合适的地方..."})
 
             all_pois = get_data("city_poi_db")
 
-            # Phase 3: 求解路线（solver内部处理category筛选和约束过滤）
+            # 按城市过滤
+            target_city = user_intent.get("city", "珠海")
+            city_pois = [p for p in all_pois if p.get("city", "").strip() == target_city]
+            if not city_pois:
+                city_pois = all_pois
+                logger.warning(f"城市 {target_city} 无 POI，使用全量数据")
+            yield _sse("debug_filter", {
+                "before": len(all_pois), "after": len(city_pois),
+                "city": target_city,
+            })
+
+            # 感知上下文（天气/时间/体力 + 城市特色）
+            from backend.services.perception import PerceptionService
+
+            perception = PerceptionService()
+            perception_ctx = await perception.get_context(city=target_city)
+            yield _sse("debug_perception", {
+                "weather": perception_ctx.weather,
+                "temperature": perception_ctx.temperature,
+                "hour": perception_ctx.hour_of_day,
+                "season": perception_ctx.season,
+                "fatigue": perception_ctx.fatigue_level,
+                "city": perception_ctx.city,
+                "city_vibe": perception_ctx.city_vibe,
+            })
+
+            # 异常检测
+            anomalies = await perception.detect_anomaly(perception_ctx)
+            for anom in anomalies:
+                yield _sse("anomaly", {
+                    "type": anom.type.value, "message": anom.message,
+                    "severity": "warning" if anom.severity > 0.5 else "information",
+                })
+
+            # 如果检测到异常，生成调整建议
+            if anomalies:
+                # 先生成一个初步路线（用于调整建议）
+                preliminary_plan = {"route": [], "user_intent": user_intent}
+                adjustment = await perception.adjust_suggestions(
+                    perception_ctx, preliminary_plan, anomalies
+                )
+                if adjustment.action_type:
+                    yield _sse("adjustment_suggestion", {
+                        "action_type": adjustment.action_type.value,
+                        "target_poi_ids": adjustment.target_poi_ids,
+                        "reasoning": adjustment.reasoning,
+                        "suggestions": adjustment.suggestions,
+                    })
+
+            # Phase 2.5: 矛盾需求检测
+            contradiction_warnings = []
+            budget = user_intent.get("budget", {})
+            time_info = user_intent.get("time", {})
+            group = user_intent.get("group", {})
+            raw_input = request.user_input
+
+            # 预算 vs 需求矛盾
+            if budget.get("per_person", 500) < 100:
+                if any(kw in raw_input for kw in ["五星", "豪华", "高端", "酒店", "住"]):
+                    contradiction_warnings.append(
+                        f"预算仅¥{budget.get('per_person', 0)}，无法满足高端住宿需求，建议调整预算或需求"
+                    )
+                if any(kw in raw_input for kw in ["长隆", "海洋王国"]):
+                    contradiction_warnings.append(
+                        "长隆门票约¥300+，当前预算可能不足"
+                    )
+
+            # 时间 vs 需求矛盾
+            start_str = time_info.get("start", "09:00")
+            end_str = time_info.get("end", "22:00")
+            try:
+                sh, sm = start_str.split(":")
+                eh, em = end_str.split(":")
+                total_hours = (int(eh) * 60 + int(em) - int(sh) * 60 - int(sm)) / 60
+                if total_hours <= 3 and any(kw in raw_input for kw in ["遍", "吃遍", "玩遍", "打卡"]):
+                    contradiction_warnings.append(
+                        f"仅{total_hours:.0f}小时，可能无法覆盖所有想去的地方，建议减少景点数量"
+                    )
+            except:
+                pass
+
+            # 群体 vs 需求矛盾
+            if group.get("type") == "亲子" and any(kw in raw_input for kw in ["蹦迪", "酒吧", "夜店", "喝酒"]):
+                contradiction_warnings.append("带孩子去酒吧/夜店可能不适合，建议选择亲子友好的娱乐场所")
+
+            if contradiction_warnings:
+                user_intent["_contradiction_warnings"] = contradiction_warnings
+                yield _sse("contradiction", {"warnings": contradiction_warnings})
+
+            # Phase 2.6: LLM智能路线策划
+            try:
+                from backend.services.llm_planner import plan_route as llm_plan_route
+
+                llm_plan = await _with_timeout(
+                    llm_plan_route(request.user_input, user_intent, city_pois, perception_ctx),
+                    timeout_seconds=10.0,
+                )
+                if llm_plan:
+                    user_intent["_llm_plan"] = llm_plan
+                    yield _sse("llm_plan", {
+                        "recommended_pois": llm_plan.get("recommended_pois", []),
+                        "reasoning": llm_plan.get("reasoning", ""),
+                        "warnings": llm_plan.get("warnings", []),
+                    })
+                    logger.info("LLM Planner: %d POIs recommended", len(llm_plan.get("recommended_pois", [])))
+                else:
+                    logger.info("LLM Planner: no plan returned")
+            except Exception as e:
+                logger.warning("LLM Planner error: %s", e)
+
+            # Phase 3: 求解路线
             yield _sse("phase", {"phase": "solving", "message": "正在编排最佳路线..."})
 
             from backend.services.solver import solve_route
 
-            start_time = user_intent.get("time", {}).get("start", "09:00")
+            start_time = user_intent.get("time", {}).get("start")
+            if not start_time:
+                # 深夜场景默认22:00，其他默认09:00
+                if "late_night" in user_intent.get("hard_constraints", []):
+                    start_time = "22:00"
+                else:
+                    start_time = "09:00"
+            # 收集求解器阶段事件（通过线程安全列表在线程中收集）
+            solver_events: list[dict] = []
+            def _on_solver_progress(stage: str, data: dict) -> None:
+                solver_events.append({"stage": stage, **data})
+
             route_result = await _with_timeout(
-                asyncio.to_thread(solve_route, all_pois, user_intent, start_time),
+                asyncio.to_thread(
+                    solve_route, city_pois, user_intent, start_time, perception_ctx,
+                    dynamic_weights,
+                    progress_callback=_on_solver_progress,
+                ),
                 timeout_seconds=15.0,
             )
+
+            # 发射求解器阶段事件
+            for evt in solver_events:
+                yield _sse("solver_stage", evt)
 
             # 兜底：求解失败或超时
             if route_result is None or not route_result.get("route"):
                 logger.warning("路线求解失败/超时，使用简化路线")
-                route_result = _generate_simplified_route(all_pois)
+                route_result = _generate_simplified_route(all_pois, start_time=start_time)
+
+            # Debug: 求解器阶段 + 路线审核
+            solver_route = route_result.get("route", [])
+            audit_issues = route_result.get("audit_issues", [])
+            yield _sse("debug_solver", {
+                "total_candidates": len(all_pois),
+                "selected_count": len(solver_route),
+                "unused_count": len(route_result.get("unused_candidates", [])),
+                "total_time_min": route_result.get("total_cost", {}).get("time_min", 0),
+                "total_budget": route_result.get("total_cost", {}).get("budget_used", 0),
+                "stages": [
+                    {"name": "TW-NN贪心初始化", "status": "done", "result": f"初始路线 {len(solver_route)} 站"},
+                    {"name": "2-opt局部优化", "status": "done", "result": f"优化完成"},
+                    {"name": "呼吸空间插入", "status": "done", "result": f"插入 {len(route_result.get('breathing_spots', []))} 个休息点"},
+                    {"name": "高潮收尾", "status": "done", "result": f"末站: {solver_route[-1]['poi']['name'] if solver_route else '-'}"},
+                ],
+                "audit_issues": audit_issues,
+                "start_location": route_result.get("start_location", "未指定"),
+            })
+
+            # Debug: POI 筛选详情
+            excluded = route_result.get("unused_candidates", [])
+            yield _sse("debug_filter", {
+                "before": len(all_pois),
+                "after": len(solver_route) + len(excluded),
+                "selected": len(solver_route),
+                "top_excluded": [
+                    {"name": p.get("name", "?"), "category": p.get("category", "?"),
+                     "price": p.get("avg_price", 0), "rating": p.get("rating", 0)}
+                    for p in excluded[:5]
+                ],
+            })
+
+            # 路线求解后：基于情绪曲线的异常检测
+            emotion_curve = route_result.get("emotion_curve", [])
+            if emotion_curve:
+                post_anomalies = await perception.detect_anomaly(
+                    perception_ctx, emotion_curve
+                )
+                for anom in post_anomalies:
+                    # 只推送新发现的异常（避免重复）
+                    if anom.type.value not in [a.type.value for a in anomalies]:
+                        yield _sse("anomaly", {
+                            "type": anom.type.value,
+                            "message": anom.message,
+                            "severity": "warning" if anom.severity > 0.5 else "information",
+                        })
+                        anomalies.append(anom)
+
+                # 如果有新异常，生成调整建议
+                if post_anomalies:
+                    adjustment = await perception.adjust_suggestions(
+                        perception_ctx, route_result, post_anomalies
+                    )
+                    if adjustment.action_type:
+                        yield _sse("adjustment_suggestion", {
+                            "action_type": adjustment.action_type.value,
+                            "target_poi_ids": adjustment.target_poi_ids,
+                            "reasoning": adjustment.reasoning,
+                            "suggestions": adjustment.suggestions,
+                        })
 
             # Phase 4: 生成文案
             yield _sse(
@@ -675,9 +994,11 @@ async def plan_route(request: PlanRequest):
 
             from backend.services.narrator import generate_narrative
 
+            city = user_intent.get("city", "")
+
             narrative = await _with_timeout(
-                generate_narrative(route_result, user_intent),
-                timeout_seconds=5.0,
+                generate_narrative(route_result, user_intent, city=city),
+                timeout_seconds=30.0,
                 fallback={
                     "opening": "",
                     "steps": [],
@@ -702,9 +1023,15 @@ async def plan_route(request: PlanRequest):
                     "design_intent": ns.get("design_intent", "") if isinstance(ns, dict) else "",
                     "leverage": ns.get("leverage", "中") if isinstance(ns, dict) else "中",
                     "cost": ns.get("cost", 0) if isinstance(ns, dict) else 0,
+                    "scene_tags": step["poi"].get("_scene_tags", []),
                 }
                 yield _sse("step", step_data)
+                # 发送 step_update 事件（含叙事详情）
+                yield _sse("step_update", {"index": i + 1, "description": step_data["narrative"]})
                 await asyncio.sleep(0.05)
+
+            # 文案生成完成
+            yield _sse("polish_done", {"message": "路线描述已生成"})
 
             # 生成路由 ID 并缓存
             route_id = uuid.uuid4().hex[:8]
@@ -712,10 +1039,78 @@ async def plan_route(request: PlanRequest):
             route_result["user_intent"] = user_intent
             route_cache.set(route_id, route_result)
 
-            # 发送预算汇总事件
+            # 创建对话会话（用于后续调整）
+            try:
+                from backend.services.dialogue import dialogue_engine
+                await dialogue_engine.create_session(route_id, route_result, user_intent)
+            except Exception as de_err:
+                logger.warning(f"创建对话会话失败（不影响主流程）: {de_err}")
+
+            # 发送预算汇总事件（含额外开销估算）
             budget = narrative.get("budget_breakdown", {})
             if budget:
+                # 估算额外开销：餐饮/饮品/文创
+                steps_list = route_result.get("route", [])
+                meal_count = sum(1 for s in steps_list if s.get("poi", {}).get("category") == "餐饮")
+                extra_costs = {
+                    "meals": meal_count * 50,       # 每餐预估 ¥50
+                    "drinks": len(steps_list) * 8,   # 每站饮品 ¥8
+                    "souvenirs": len(steps_list) * 15,  # 每站文创 ¥15
+                    "total_extra": meal_count * 50 + len(steps_list) * 23,
+                }
+                budget["extra_costs"] = extra_costs
                 yield _sse("budget", budget)
+
+            # 记忆系统：保存行程到工作记忆
+            try:
+                from backend.services.memory import MemoryOrchestrator
+
+                memory = MemoryOrchestrator()
+                wm = await memory.get_working(route_id)
+                await wm.set(route_id, "user_input", request.user_input)
+                await wm.set(route_id, "user_intent", json.dumps(user_intent, ensure_ascii=False))
+                await wm.set(route_id, "target_city", target_city)
+                await wm.set(route_id, "poi_count", len(steps_list))
+                await wm.set(route_id, "weather", perception_ctx.weather)
+            except Exception as mem_err:
+                logger.warning(f"记忆系统写入失败（不影响主流程）: {mem_err}")
+
+            # V2: 通过 PreferenceManager 保存行程到 LTM
+            if pref_manager:
+                yield _sse("phase", {"phase": "saving", "message": "正在保存偏好记忆..."})
+                try:
+                    from backend.services.holiday_utils import build_context
+
+                    # 构建上下文
+                    context = build_context(
+                        weather=perception_ctx.weather,
+                        temperature=perception_ctx.temperature,
+                        hour_of_day=perception_ctx.hour_of_day,
+                        day_of_week=perception_ctx.day_of_week,
+                        season=perception_ctx.season,
+                        source="user_initiated",
+                    )
+                    await pref_manager.save_trip_to_memory(
+                        route_result, user_intent, context
+                    )
+                    trip_history = user_status.get("interaction_count", 0) + 1
+                    yield _sse("memory_saved", {
+                        "message": f"已记住{pref_manager.user_id}的偏好，下次会更懂你！",
+                        "trip_count": trip_history,
+                        "route_summary": route_result.get("route", [])[:1],
+                        "user_id": pref_manager.user_id,
+                    })
+                    yield _sse("debug_ltm", {
+                        "action": "saved",
+                        "user_id": pref_manager.user_id,
+                        "trip_count": trip_history,
+                        "categories": list(dict.fromkeys(
+                            s.get("poi", {}).get("category", "") for s in route_result.get("route", [])
+                        )),
+                        "mapper_deltas": pref_manager.mapper.summary() if pref_manager.mapper else "未调整",
+                    })
+                except Exception as mem_err2:
+                    logger.warning(f"LTM 写入失败（不影响主流程）: {mem_err2}")
 
             # 完成
             yield _sse(
@@ -847,15 +1242,30 @@ async def adjust_route(route_id: str, instruction: str):
     from backend.services.dialogue import dialogue_engine
 
     # 确保有会话
-    session = dialogue_engine.get_session(route_id)
+    session = await dialogue_engine.get_session(route_id)
     if not session:
-        session = dialogue_engine.create_session(route_id, route, user_intent)
+        session = await dialogue_engine.create_session(route_id, route, user_intent)
 
     result = await dialogue_engine.process_instruction(route_id, instruction)
 
     # 更新缓存
     if "route" in result:
         route_cache.set(route_id, result["route"])
+
+    # 记录反馈到 LTM
+    if result.get("changes_made") and user_intent.get("_user_id"):
+        try:
+            from backend.services.preference_manager import PreferenceManager
+            pref_mgr = PreferenceManager.from_user_id(user_intent["_user_id"])
+            await pref_mgr._ensure_init()
+            await pref_mgr.record_feedback(
+                demand_vector=user_intent.get("_demand_vector", {}),
+                applied_weights=user_intent.get("_dynamic_weights", {}),
+                feedback="modified",
+                modification_hint=instruction,
+            )
+        except Exception as fb_err:
+            logger.warning(f"反馈记录失败（不影响主流程）: {fb_err}")
 
     return result
 
@@ -982,6 +1392,23 @@ async def dialogue(session_id: str, request: AdjustRequest):
     # 同步更新路线缓存
     if "route" in result:
         route_cache.set(session_id, result["route"])
+
+    # 记录反馈到 LTM
+    if result.get("changes_made"):
+        try:
+            session = await dialogue_engine.get_session(session_id)
+            if session and session.user_intent.get("_user_id"):
+                from backend.services.preference_manager import PreferenceManager
+                pref_mgr = PreferenceManager.from_user_id(session.user_intent["_user_id"])
+                await pref_mgr._ensure_init()
+                await pref_mgr.record_feedback(
+                    demand_vector=session.user_intent.get("_demand_vector", {}),
+                    applied_weights=session.user_intent.get("_dynamic_weights", {}),
+                    feedback="modified",
+                    modification_hint=request.instruction,
+                )
+        except Exception as fb_err:
+            logger.warning(f"反馈记录失败（不影响主流程）: {fb_err}")
 
     return result
 

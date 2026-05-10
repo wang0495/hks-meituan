@@ -1,0 +1,1 @@
+{"scores":{"intent_match":4,"poi_quality":6,"geo_continuity":7,"budget_fit":3,"scene_diversity":5,"overall":5},"bad_points":["预算严重超支（餐饮170元+景点80元=250元，超出200元限制）","包含亲子标签的农科奇观不符合独处游客偏好安静的需求","路线中未体现‘自然风光’和‘休闲放松’核心场景，且包含应避免的餐饮消费"],"verdict":"fail"}

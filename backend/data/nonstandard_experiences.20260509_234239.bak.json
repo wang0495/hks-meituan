@@ -1,0 +1,178 @@
+[
+  {
+    "id": "nse_001",
+    "name": "清晨菜市场漫步",
+    "city": "广州",
+    "category": "文化",
+    "description": "清晨6点的老城菜市场，感受最地道的广州烟火气",
+    "best_time": "06:00-08:00",
+    "season": ["spring", "summer", "autumn"],
+    "emotion_tags": {
+      "excitement": 0.3,
+      "tranquility": 0.4,
+      "sociability": 0.6,
+      "culture_depth": 0.9,
+      "surprise": 0.7,
+      "physical_demand": 0.2
+    },
+    "experience_value": 8.5,
+    "avg_price": 15,
+    "avg_stay_min": 60,
+    "tags": ["在地体验", "早起限定", "摄影友好"],
+    "city_personality": "食在广州·千年商都"
+  },
+  {
+    "id": "nse_002",
+    "name": "老城巷弄探秘",
+    "city": "广州",
+    "category": "文化",
+    "description": "穿行在荔湾区的老街巷，发现隐藏的壁画和小店",
+    "best_time": "09:00-11:00",
+    "season": ["spring", "autumn", "winter"],
+    "emotion_tags": {
+      "excitement": 0.5,
+      "tranquility": 0.6,
+      "sociability": 0.3,
+      "culture_depth": 0.8,
+      "surprise": 0.8,
+      "physical_demand": 0.4
+    },
+    "experience_value": 7.5,
+    "avg_price": 0,
+    "avg_stay_min": 90,
+    "tags": ["免费", "探索", "拍照"],
+    "city_personality": "食在广州·千年商都"
+  },
+  {
+    "id": "nse_003",
+    "name": "情侣路晨跑",
+    "city": "珠海",
+    "category": "运动",
+    "description": "沿着情侣路晨跑，看日出海景，感受海滨城市的苏醒",
+    "best_time": "06:00-08:00",
+    "season": ["spring", "summer", "autumn"],
+    "emotion_tags": {
+      "excitement": 0.6,
+      "tranquility": 0.7,
+      "sociability": 0.2,
+      "culture_depth": 0.1,
+      "surprise": 0.3,
+      "physical_demand": 0.8
+    },
+    "experience_value": 9.0,
+    "avg_price": 0,
+    "avg_stay_min": 45,
+    "tags": ["免费", "健康", "日出"],
+    "city_personality": "慢生活·海滨城市"
+  },
+  {
+    "id": "nse_004",
+    "name": "周末创意市集",
+    "city": "深圳",
+    "category": "购物",
+    "description": "华侨城创意园的周末市集，独立设计师和手工艺品",
+    "best_time": "14:00-18:00",
+    "season": ["spring", "summer", "autumn", "winter"],
+    "emotion_tags": {
+      "excitement": 0.7,
+      "tranquility": 0.3,
+      "sociability": 0.8,
+      "culture_depth": 0.6,
+      "surprise": 0.9,
+      "physical_demand": 0.3
+    },
+    "experience_value": 8.0,
+    "avg_price": 100,
+    "avg_stay_min": 120,
+    "tags": ["创意", "周末限定", "手作"],
+    "city_personality": "创新之都·年轻活力"
+  },
+  {
+    "id": "nse_005",
+    "name": "渔港日落海鲜市场",
+    "city": "湛江",
+    "category": "餐饮",
+    "description": "傍晚渔港归来，直接在码头挑选最新鲜的海鲜",
+    "best_time": "16:00-18:30",
+    "season": ["summer", "autumn"],
+    "emotion_tags": {
+      "excitement": 0.6,
+      "tranquility": 0.5,
+      "sociability": 0.7,
+      "culture_depth": 0.7,
+      "surprise": 0.6,
+      "physical_demand": 0.2
+    },
+    "experience_value": 9.5,
+    "avg_price": 80,
+    "avg_stay_min": 90,
+    "tags": ["在地体验", "海鲜", "日落"],
+    "city_personality": "隐秘角落·海鲜天堂"
+  },
+  {
+    "id": "nse_006",
+    "name": "凌晨茶楼叹早茶",
+    "city": "广州",
+    "category": "餐饮",
+    "description": "凌晨5点的老式茶楼，和一盅两件一起迎接清晨",
+    "best_time": "05:00-07:00",
+    "season": ["spring", "summer", "autumn", "winter"],
+    "emotion_tags": {
+      "excitement": 0.4,
+      "tranquility": 0.6,
+      "sociability": 0.7,
+      "culture_depth": 0.9,
+      "surprise": 0.4,
+      "physical_demand": 0.1
+    },
+    "experience_value": 9.0,
+    "avg_price": 35,
+    "avg_stay_min": 90,
+    "tags": ["在地体验", "早茶", "老字号"],
+    "city_personality": "食在广州·千年商都"
+  },
+  {
+    "id": "nse_007",
+    "name": "海岛环岛骑行",
+    "city": "珠海",
+    "category": "运动",
+    "description": "租一辆自行车环岛骑行，海风拂面，自由自在",
+    "best_time": "08:00-11:00",
+    "season": ["spring", "autumn"],
+    "emotion_tags": {
+      "excitement": 0.7,
+      "tranquility": 0.6,
+      "sociability": 0.3,
+      "culture_depth": 0.2,
+      "surprise": 0.5,
+      "physical_demand": 0.7
+    },
+    "experience_value": 8.5,
+    "avg_price": 30,
+    "avg_stay_min": 120,
+    "tags": ["户外", "骑行", "免费"],
+    "city_personality": "慢生活·海滨城市"
+  },
+  {
+    "id": "nse_008",
+    "name": "科技公司开放日",
+    "city": "深圳",
+    "category": "文化",
+    "description": "参观科技公司展厅，体验最新黑科技产品",
+    "best_time": "10:00-16:00",
+    "season": ["spring", "autumn"],
+    "emotion_tags": {
+      "excitement": 0.8,
+      "tranquility": 0.2,
+      "sociability": 0.5,
+      "culture_depth": 0.7,
+      "surprise": 0.9,
+      "physical_demand": 0.3
+    },
+    "experience_value": 8.0,
+    "avg_price": 0,
+    "avg_stay_min": 90,
+    "tags": ["免费", "科技", "体验"],
+    "city_personality": "创新之都·年轻活力"
+  }
+]

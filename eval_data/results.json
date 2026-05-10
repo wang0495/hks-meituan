@@ -1,0 +1,282 @@
+[
+  {
+    "scenario_id": "S01",
+    "status": "ok",
+    "scores": {
+      "intent_match": 0,
+      "poi_quality": 0,
+      "geo_continuity": 0,
+      "budget_fit": 0,
+      "scene_diversity": 0,
+      "overall": 0
+    },
+    "bad_points": [],
+    "elapsed": 15.586917877197266
+  },
+  {
+    "scenario_id": "S02",
+    "status": "ok",
+    "scores": {
+      "intent_match": 0,
+      "poi_quality": 0,
+      "geo_continuity": 0,
+      "budget_fit": 0,
+      "scene_diversity": 0,
+      "overall": 0
+    },
+    "bad_points": [],
+    "elapsed": 27.28827929496765
+  },
+  {
+    "scenario_id": "S03",
+    "status": "ok",
+    "scores": {
+      "intent_match": 0,
+      "poi_quality": 0,
+      "geo_continuity": 0,
+      "budget_fit": 0,
+      "scene_diversity": 0,
+      "overall": 0
+    },
+    "bad_points": [],
+    "elapsed": 15.254256963729858
+  },
+  {
+    "scenario_id": "S04",
+    "status": "ok",
+    "scores": {
+      "intent_match": 0,
+      "poi_quality": 0,
+      "geo_continuity": 0,
+      "budget_fit": 0,
+      "scene_diversity": 0,
+      "overall": 0
+    },
+    "bad_points": [],
+    "elapsed": 19.484001874923706
+  },
+  {
+    "scenario_id": "S05",
+    "status": "ok",
+    "scores": {
+      "intent_match": 0,
+      "poi_quality": 0,
+      "geo_continuity": 0,
+      "budget_fit": 0,
+      "scene_diversity": 0,
+      "overall": 0
+    },
+    "bad_points": [],
+    "elapsed": 15.982967138290405
+  },
+  {
+    "scenario_id": "S06",
+    "status": "ok",
+    "scores": {
+      "intent_match": 0,
+      "poi_quality": 0,
+      "geo_continuity": 0,
+      "budget_fit": 0,
+      "scene_diversity": 0,
+      "overall": 0
+    },
+    "bad_points": [],
+    "elapsed": 15.602805852890015
+  },
+  {
+    "scenario_id": "S07",
+    "status": "ok",
+    "scores": {
+      "intent_match": 0,
+      "poi_quality": 0,
+      "geo_continuity": 0,
+      "budget_fit": 0,
+      "scene_diversity": 0,
+      "overall": 0
+    },
+    "bad_points": [],
+    "elapsed": 16.993353605270386
+  },
+  {
+    "scenario_id": "S08",
+    "status": "ok",
+    "scores": {
+      "intent_match": 0,
+      "poi_quality": 0,
+      "geo_continuity": 0,
+      "budget_fit": 0,
+      "scene_diversity": 0,
+      "overall": 0
+    },
+    "bad_points": [],
+    "elapsed": 15.19923448562622
+  },
+  {
+    "scenario_id": "S09",
+    "status": "ok",
+    "scores": {
+      "intent_match": 0,
+      "poi_quality": 0,
+      "geo_continuity": 0,
+      "budget_fit": 0,
+      "scene_diversity": 0,
+      "overall": 0
+    },
+    "bad_points": [],
+    "elapsed": 15.076300859451294
+  },
+  {
+    "scenario_id": "S10",
+    "status": "ok",
+    "scores": {
+      "intent_match": 0,
+      "poi_quality": 0,
+      "geo_continuity": 0,
+      "budget_fit": 0,
+      "scene_diversity": 0,
+      "overall": 0
+    },
+    "bad_points": [],
+    "elapsed": 15.822868347167969
+  },
+  {
+    "scenario_id": "S11",
+    "status": "ok",
+    "scores": {
+      "intent_match": 0,
+      "poi_quality": 0,
+      "geo_continuity": 0,
+      "budget_fit": 0,
+      "scene_diversity": 0,
+      "overall": 0
+    },
+    "bad_points": [],
+    "elapsed": 15.346078395843506
+  },
+  {
+    "scenario_id": "S12",
+    "status": "ok",
+    "scores": {
+      "intent_match": 0,
+      "poi_quality": 0,
+      "geo_continuity": 0,
+      "budget_fit": 0,
+      "scene_diversity": 0,
+      "overall": 0
+    },
+    "bad_points": [],
+    "elapsed": 15.757670402526855
+  },
+  {
+    "scenario_id": "S13",
+    "status": "ok",
+    "scores": {
+      "intent_match": 0,
+      "poi_quality": 0,
+      "geo_continuity": 0,
+      "budget_fit": 0,
+      "scene_diversity": 0,
+      "overall": 0
+    },
+    "bad_points": [],
+    "elapsed": 16.984651565551758
+  },
+  {
+    "scenario_id": "S14",
+    "status": "ok",
+    "scores": {
+      "intent_match": 0,
+      "poi_quality": 0,
+      "geo_continuity": 0,
+      "budget_fit": 0,
+      "scene_diversity": 0,
+      "overall": 0
+    },
+    "bad_points": [],
+    "elapsed": 14.893446207046509
+  },
+  {
+    "scenario_id": "S15",
+    "status": "ok",
+    "scores": {
+      "intent_match": 0,
+      "poi_quality": 0,
+      "geo_continuity": 0,
+      "budget_fit": 0,
+      "scene_diversity": 0,
+      "overall": 0
+    },
+    "bad_points": [],
+    "elapsed": 15.245857000350952
+  },
+  {
+    "scenario_id": "S16",
+    "status": "ok",
+    "scores": {
+      "intent_match": 0,
+      "poi_quality": 0,
+      "geo_continuity": 0,
+      "budget_fit": 0,
+      "scene_diversity": 0,
+      "overall": 0
+    },
+    "bad_points": [],
+    "elapsed": 8.20418095588684
+  },
+  {
+    "scenario_id": "S17",
+    "status": "ok",
+    "scores": {
+      "intent_match": 0,
+      "poi_quality": 0,
+      "geo_continuity": 0,
+      "budget_fit": 0,
+      "scene_diversity": 0,
+      "overall": 0
+    },
+    "bad_points": [],
+    "elapsed": 12.44194507598877
+  },
+  {
+    "scenario_id": "S18",
+    "status": "ok",
+    "scores": {
+      "intent_match": 0,
+      "poi_quality": 0,
+      "geo_continuity": 0,
+      "budget_fit": 0,
+      "scene_diversity": 0,
+      "overall": 0
+    },
+    "bad_points": [],
+    "elapsed": 27.867122173309326
+  },
+  {
+    "scenario_id": "S19",
+    "status": "ok",
+    "scores": {
+      "intent_match": 0,
+      "poi_quality": 0,
+      "geo_continuity": 0,
+      "budget_fit": 0,
+      "scene_diversity": 0,
+      "overall": 0
+    },
+    "bad_points": [],
+    "elapsed": 15.97119402885437
+  },
+  {
+    "scenario_id": "S20",
+    "status": "ok",
+    "scores": {
+      "intent_match": 0,
+      "poi_quality": 0,
+      "geo_continuity": 0,
+      "budget_fit": 0,
+      "scene_diversity": 0,
+      "overall": 0
+    },
+    "bad_points": [],
+    "elapsed": 15.644632577896118
+  }
+]

@@ -22,6 +22,7 @@ from datetime import datetime, timedelta
 from typing import Any
 
 from backend.errors import DialogueError
+from backend.services.solver import _GAMMA, _BETA  # V2: 权重基线常量
 from backend.services.time_utils import format_time, parse_time
 
 logger = logging.getLogger(__name__)
@@ -290,6 +291,8 @@ class DialogueEngine:
             "budget": self._handle_budget,
             "time": self._handle_time,
             "retry": self._handle_retry,
+            "emotion_weight": self._handle_emotion_weight,
+            "mood": self._handle_mood_adjust,
         }.get(instruction_type)
 
         if handler:
@@ -302,6 +305,8 @@ class DialogueEngine:
                     "- 调整节奏（太赶了/想轻松点）\n"
                     "- 调整预算（太贵了/便宜一点）\n"
                     "- 调整时间（早一点/晚一点）\n"
+                    "- 太累了换个轻松的\n"
+                    "- 想放松一下\n"
                     "- 重新规划"
                 ),
                 "route": state.route,
@@ -310,6 +315,25 @@ class DialogueEngine:
 
         # 记录系统回复
         state.add_message("assistant", result.get("reply", ""))
+
+        # 注入调试信息（不持久化，仅用于响应）
+        changes = result.get("changes_made", [])
+        result["_debug"] = {
+            "instruction_type": instruction_type,
+            "turn": state.turn_count,
+            "max_turns": state.max_turns,
+            "history_len": len(state.history),
+            "pace": state.user_intent.get("pace", ""),
+            "emotion_need": state.user_intent.get("emotion_need"),
+            "budget_per_person": state.user_intent.get("budget", {}).get("per_person", 0),
+            "time_range": {
+                "start": state.user_intent.get("time", {}).get("start", "09:00"),
+                "end": state.user_intent.get("time", {}).get("end", "18:00"),
+            },
+            "change_count": len(changes),
+            "change_types": [c.get("type") for c in changes],
+        }
+
         # 持久化到 Redis（不影响主流程）
         await self._persist_state(state)
         return result
@@ -317,22 +341,33 @@ class DialogueEngine:
     # ---- 指令分类 --------------------------------------------------------
 
     def _classify_instruction(self, instruction: str) -> str:
-        """基于关键词将用户指令分类。"""
+        """基于关键词将用户指令分类。
+
+        V2 新增类型: emotion_weight（情绪/精力调整）, mood（情感需求）
+        """
         text = instruction.lower()
 
-        # 替换（优先匹配，因为"换一个"也可能触发 retry）
+        # V2: 情绪/精力调整（优先匹配，因为"累"也可能触发 pace）
+        if any(kw in text for kw in ["太累", "累", "疲惫", "换个轻松", "精力", "体力", "强度"]):
+            return "emotion_weight"
+
+        # V2: 情感需求（"烦"也可能触发情绪调整，但属于不同处理）
+        if any(kw in text for kw in ["烦", "放松", "治愈", "平静", "焦虑", "压抑"]):
+            return "mood"
+
+        # 替换
         if any(kw in text for kw in ["换", "替换", "不喜欢", "不要", "去掉"]):
             return "replace"
 
         # 节奏
-        if any(kw in text for kw in ["赶", "累", "轻松", "慢", "快", "紧凑"]):
+        if any(kw in text for kw in ["赶", "轻松", "慢", "快", "紧凑"]):
             return "pace"
 
         # 预算
         if any(kw in text for kw in ["贵", "便宜", "省钱", "预算"]):
             return "budget"
 
-        # 时间（"N点" 或 "N时" 模式也要识别）
+        # 时间
         if any(kw in text for kw in ["早", "晚", "时间", "点之前", "之前结束"]):
             return "time"
         if re.search(r"\d{1,2}[点时:：]", text):
@@ -493,19 +528,19 @@ class DialogueEngine:
         self, state: DialogueState, instruction: str
     ) -> dict[str, Any]:
         """处理节奏调整指令。"""
-        # 优先匹配 "太慢了" → 加快（抱怨太慢）
-        # "太赶了" / "太累了" → 放慢（抱怨太快/太累）
-        # "紧凑" / "快" → 加快
-        # "轻松" → 放慢
+        current_pace = state.user_intent.get("pace", "平衡型")
+
         if any(kw in instruction for kw in ["太慢", "紧凑", "快"]):
-            new_pace = "特种兵型"
-            reply = "好的，我帮你调整为紧凑型行程。"
+            # 加快：闲逛型 → 平衡型 → 特种兵型
+            new_pace = {"闲逛型": "平衡型", "平衡型": "特种兵型", "特种兵型": "特种兵型"}.get(current_pace, "特种兵型")
+            reply = "好的，我帮你调整为%s行程。" % {"闲逛型": "更紧凑的", "平衡型": "紧凑型", "特种兵型": "更紧凑的"}.get(current_pace, "紧凑型")
         elif any(kw in instruction for kw in ["太赶", "太累", "轻松"]):
-            new_pace = "闲逛型"
-            reply = "好的，我帮你调整为轻松型行程，增加休息时间。"
+            # 放慢：特种兵型 → 平衡型 → 闲逛型
+            new_pace = {"特种兵型": "平衡型", "平衡型": "闲逛型", "闲逛型": "闲逛型"}.get(current_pace, "闲逛型")
+            reply = "好的，我帮你调整为%s行程。" % {"特种兵型": "更轻松的", "平衡型": "轻松型", "闲逛型": "更轻松的"}.get(current_pace, "轻松型")
         else:
-            new_pace = "闲逛型"
-            reply = "好的，我帮你调整为轻松型行程，增加休息时间。"
+            new_pace = "平衡型"
+            reply = "好的，我帮你调整为平衡型行程。"
 
         state.user_intent["pace"] = new_pace
 
@@ -516,7 +551,10 @@ class DialogueEngine:
 
         filtered = filter_candidates(all_candidates, state.user_intent)
         start_time = state.user_intent.get("time", {}).get("start", "09:00")
-        new_route = solve_route(filtered, state.user_intent, start_time)
+        new_route = solve_route(
+            filtered, state.user_intent, start_time,
+            dynamic_weights=state.user_intent.get("_dynamic_weights"),
+        )
         state.route = new_route
 
         logger.info("[Dialogue] 节奏调整 -> %s", new_pace)
@@ -533,6 +571,7 @@ class DialogueEngine:
     ) -> dict[str, Any]:
         """处理预算调整指令。"""
         current_budget = state.user_intent.get("budget", {}).get("per_person", 500)
+        original_budget = current_budget
 
         if any(kw in instruction for kw in ["便宜", "省钱", "少", "降"]):
             new_budget = int(current_budget * 0.8)
@@ -540,6 +579,9 @@ class DialogueEngine:
         else:
             new_budget = int(current_budget * 1.3)
             reply = f"好的，我帮你把预算调整到每人{new_budget}元。"
+
+        # 预算边界限制：不低于20，不高于原始预算的10倍
+        new_budget = max(20, min(new_budget, max(original_budget * 10, 5000)))
 
         state.user_intent.setdefault("budget", {})["per_person"] = new_budget
 
@@ -550,7 +592,10 @@ class DialogueEngine:
 
         filtered = filter_candidates(all_candidates, state.user_intent)
         start_time = state.user_intent.get("time", {}).get("start", "09:00")
-        new_route = solve_route(filtered, state.user_intent, start_time)
+        new_route = solve_route(
+            filtered, state.user_intent, start_time,
+            dynamic_weights=state.user_intent.get("_dynamic_weights"),
+        )
         state.route = new_route
 
         logger.info("[Dialogue] 预算调整 -> %d", new_budget)
@@ -565,7 +610,7 @@ class DialogueEngine:
     async def _handle_time(
         self, state: DialogueState, instruction: str
     ) -> dict[str, Any]:
-        """处理时间调整指令。"""
+        """处理时间调整指令（增量调整，不重新规划）。"""
         # 尝试提取具体时间
         time_match = re.search(r"(\d{1,2})[点时:：](\d{2})?", instruction)
 
@@ -592,30 +637,48 @@ class DialogueEngine:
                 state.user_intent.setdefault("time", {})["start"] = new_time
                 reply = f"好的，我把出发时间提前到{new_time}。"
             elif "晚" in instruction:
-                current_start = state.user_intent.get("time", {}).get("start", "09:00")
-                hour = min(12, int(current_start.split(":")[0]) + 1)
+                # 修正：推迟结束时间而非出发时间
+                current_end = state.user_intent.get("time", {}).get("end", "22:00")
+                hour = min(23, int(current_end.split(":")[0]) + 1)
                 new_time = f"{hour:02d}:00"
-                state.user_intent.setdefault("time", {})["start"] = new_time
-                reply = f"好的，我把出发时间推迟到{new_time}。"
+                state.user_intent.setdefault("time", {})["end"] = new_time
+                reply = f"好的，我把结束时间推迟到{new_time}。"
             else:
                 reply = "好的，我会注意时间安排。"
 
-        # 重新过滤 + 求解
-        all_candidates = self._collect_all_candidates(state)
-        from backend.services.filters import filter_candidates
-        from backend.services.solver import solve_route
+        # ── 增量调整：只偏移时间窗，不重新规划 ─────────────────────
+        # 计算时间偏移量
+        old_start = state.user_intent.get("time", {}).get("start", "09:00")
+        new_start = state.user_intent.get("time", {}).get("start", "09:00")
 
-        filtered = filter_candidates(all_candidates, state.user_intent)
-        start_time = state.user_intent.get("time", {}).get("start", "09:00")
-        new_route = solve_route(filtered, state.user_intent, start_time)
-        state.route = new_route
+        try:
+            old_h, old_m = map(int, old_start.split(":"))
+            new_h, new_m = map(int, new_start.split(":"))
+            offset_min = (new_h * 60 + new_m) - (old_h * 60 + old_m)
+        except Exception:
+            offset_min = 0
 
-        logger.info("[Dialogue] 时间调整 -> %s", state.user_intent.get("time", {}))
+        # 如果有偏移，调整路线中所有时间
+        if offset_min != 0 and state.route.get("route"):
+            for step in state.route["route"]:
+                # 偏移 arrival_time 和 departure_time
+                for key in ["arrival_time", "departure_time"]:
+                    if key in step:
+                        try:
+                            h, m = map(int, step[key].split(":"))
+                            new_m = h * 60 + m + offset_min
+                            # 边界检查
+                            new_m = max(0, min(24 * 60 - 1, new_m))
+                            step[key] = f"{new_m // 60:02d}:{new_m % 60:02d}"
+                        except Exception:
+                            pass
+
+        logger.info("[Dialogue] 时间调整（增量） -> %s", state.user_intent.get("time", {}))
         return {
             "reply": reply,
-            "route": new_route,
+            "route": state.route,
             "changes_made": [
-                {"type": "time", "new_time": state.user_intent.get("time", {})}
+                {"type": "time", "new_time": state.user_intent.get("time", {}), "incremental": True}
             ],
         }
 
@@ -625,13 +688,19 @@ class DialogueEngine:
         self, state: DialogueState, instruction: str
     ) -> dict[str, Any]:
         """处理重新规划指令。"""
+        import random
         all_candidates = self._collect_all_candidates(state)
         from backend.services.filters import filter_candidates
         from backend.services.solver import solve_route
 
         filtered = filter_candidates(all_candidates, state.user_intent)
+        # 打乱候选顺序，增加结果多样性
+        random.shuffle(filtered)
         start_time = state.user_intent.get("time", {}).get("start", "09:00")
-        new_route = solve_route(filtered, state.user_intent, start_time)
+        new_route = solve_route(
+            filtered, state.user_intent, start_time,
+            dynamic_weights=state.user_intent.get("_dynamic_weights"),
+        )
         state.route = new_route
 
         logger.info("[Dialogue] 重新规划路线")
@@ -639,6 +708,116 @@ class DialogueEngine:
             "reply": "好的，我重新为你规划了一条路线。",
             "route": new_route,
             "changes_made": [{"type": "retry"}],
+        }
+
+    # ---- V2: 情绪/精力权重调整 ---------------------------------------------------
+
+    async def _handle_emotion_weight(
+        self, state: DialogueState, instruction: str
+    ) -> dict[str, Any]:
+        """处理情绪/精力调整指令：如"太累了换个轻松的""太兴奋了"。
+
+        调整 dynamic_weights 中的 gamma（疲劳惩罚）和 beta（情绪收益），
+        然后全量重算。
+        """
+        text = instruction.lower()
+
+        # 分析调整方向
+        gamma_delta = 0.0
+        beta_delta = 0.0
+        reply_parts = []
+
+        if any(kw in text for kw in ["累", "轻松", "精力"]):
+            gamma_delta = 1.0  # gamma 翻倍（更在意疲劳）
+            reply_parts.append("降低体力消耗权重")
+        if any(kw in text for kw in ["兴奋", "刺激", "嗨"]):
+            beta_delta = 0.3  # beta 提高（更在意情绪体验）
+            reply_parts.append("提高兴奋感权重")
+
+        if not reply_parts:
+            reply_parts.append("调整精力分配")
+
+        # 构建动态权重（保留原有的 alpha/delta/budget_strictness）
+        current_weights = dict(state.user_intent.get("_dynamic_weights", {}))
+        current_weights["gamma"] = max(0.1, current_weights.get("gamma", _GAMMA) + gamma_delta * 0.5)
+        current_weights["beta"] = max(0.1, current_weights.get("beta", _BETA) + beta_delta * 0.5)
+        # 上限保护
+        current_weights["gamma"] = min(3.0, current_weights["gamma"])
+        current_weights["beta"] = min(3.0, current_weights["beta"])
+        state.user_intent["_dynamic_weights"] = current_weights
+
+        reply = "好的，" + "，".join(reply_parts) + "，插入更多休息点。已重新规划。"
+
+        # 全量重算
+        all_candidates = self._collect_all_candidates(state)
+        from backend.services.filters import filter_candidates
+        from backend.services.solver import solve_route
+
+        filtered = filter_candidates(all_candidates, state.user_intent)
+        start_time = state.user_intent.get("time", {}).get("start", "09:00")
+        new_route = solve_route(
+            filtered, state.user_intent, start_time,
+            dynamic_weights=current_weights,
+        )
+        state.route = new_route
+
+        logger.info("[Dialogue] 情绪权重调整: gamma=%.2f beta=%.2f",
+                     current_weights.get("gamma", _GAMMA),
+                     current_weights.get("beta", _BETA))
+        return {
+            "reply": reply,
+            "route": new_route,
+            "changes_made": [{"type": "emotion_weight", "new_weights": current_weights}],
+        }
+
+    # ---- V2: 情感需求调整 -------------------------------------------------------
+
+    async def _handle_mood_adjust(
+        self, state: DialogueState, instruction: str
+    ) -> dict[str, Any]:
+        """处理情感需求指令：如"最近有点烦，想放松一下"。
+
+        设置 emotion_need，调整偏好权重，然后全量重算。
+        """
+        text = instruction.lower()
+
+        # 识别情感需求
+        if any(kw in text for kw in ["烦", "焦虑", "压抑"]):
+            emotion_need = "放松"
+            reply = "好的，我帮你调整为治愈放松型路线，多安排安静舒缓的景点。"
+            # tranquility 权重提升
+            prefs = state.user_intent.setdefault("preferences", {})
+            prefs["tranquility"] = max(prefs.get("tranquility", 0.5), 0.8)
+        elif any(kw in text for kw in ["无聊", "没意思"]):
+            emotion_need = "新鲜感"
+            reply = "好的，我帮你找一些没去过的新地方，增加新鲜感。"
+            prefs = state.user_intent.setdefault("preferences", {})
+            prefs["novelty"] = 0.8
+        else:
+            emotion_need = "放松"
+            reply = "好的，我帮你调整路线氛围。"
+
+        state.user_intent["emotion_need"] = emotion_need
+
+        # 全量重算
+        all_candidates = self._collect_all_candidates(state)
+        from backend.services.filters import filter_candidates
+        from backend.services.solver import solve_route
+
+        filtered = filter_candidates(all_candidates, state.user_intent)
+        start_time = state.user_intent.get("time", {}).get("start", "09:00")
+        dynamic_weights = state.user_intent.get("_dynamic_weights")
+        new_route = solve_route(
+            filtered, state.user_intent, start_time,
+            dynamic_weights=dynamic_weights,
+        )
+        state.route = new_route
+
+        logger.info("[Dialogue] 情感需求调整: %s", emotion_need)
+        return {
+            "reply": reply,
+            "route": new_route,
+            "changes_made": [{"type": "mood_adjust", "emotion_need": emotion_need}],
         }
 
     # ---- 通用工具 --------------------------------------------------------

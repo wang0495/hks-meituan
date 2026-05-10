@@ -1,0 +1,1 @@
+{"scores":{"intent_match":4,"poi_quality":7,"geo_continuity":6,"budget_fit":8,"scene_diversity":5,"overall":5},"bad_points":["包含运动健身类景点（石景山公园、板樟山森林公园），不符合用户对安静文化体验的需求","场景标签中缺少'安静'和'品质体验'，且部分景点偏向打卡热点而非深度文化体验","路线缺乏连贯的文化主题串联，景点间关联性弱"]},"verdict":"fail"}

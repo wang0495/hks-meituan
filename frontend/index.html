@@ -1,616 +1,1581 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CityFlow - 智能城市出行规划</title>
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            background: #0f0f1a; color: #e8e8f0; height: 100vh; overflow: hidden;
-        }
-        .app { display: flex; flex-direction: column; height: 100vh; }
-        .header { background: #1a1a2e; padding: 16px 24px; border-bottom: 1px solid #2a2a4a; }
-        .content { display: flex; flex: 1; overflow: hidden; }
-        .left-panel { width: 420px; display: flex; flex-direction: column; border-right: 1px solid #2a2a4a; background: #14142a; }
-        .right-panel { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CityFlow · 情绪驱动路线规划</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #070b16;
+      --sidebar: #0b1020;
+      --panel: rgba(22, 28, 50, 0.82);
+      --panel-strong: rgba(27, 34, 60, 0.95);
+      --line: rgba(145, 160, 205, 0.14);
+      --line-strong: rgba(145, 160, 205, 0.26);
+      --text: #f5f7ff;
+      --muted: #a8b0c9;
+      --faint: #69738f;
+      --red: #ff5368;
+      --blue: #51aef9;
+      --green: #7edc95;
+      --purple: #925cff;
+      --pink: #ff5a88;
+      --shadow: 0 22px 70px rgba(0, 0, 0, 0.35);
+    }
 
-        /* 顶部输入 */
-        .input-bar { display: flex; gap: 12px; max-width: 900px; margin: 0 auto; }
-        .intent-input { flex: 1; padding: 12px 16px; border: 1px solid #3a3a5a; border-radius: 8px; background: #0f0f1a; color: #e8e8f0; font-size: 14px; }
-        .intent-input:focus { outline: none; border-color: #e94560; }
-        .submit-btn { padding: 12px 28px; background: linear-gradient(135deg, #e94560, #c73e54); color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; }
-        .submit-btn:hover { filter: brightness(1.1); }
-        .submit-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    * {
+      box-sizing: border-box;
+    }
 
-        /* 左侧面板 */
-        .panel-header { padding: 14px 16px; border-bottom: 1px solid #2a2a4a; display: flex; justify-content: space-between; align-items: center; }
-        .panel-title { font-weight: 600; font-size: 15px; }
-        .route-stats { font-size: 12px; color: #888; }
-        .narrative-opening { padding: 16px; background: linear-gradient(135deg, #1a1a3a, #14142a); border-bottom: 1px solid #2a2a4a; font-size: 14px; line-height: 1.6; color: #b8b8d0; font-style: italic; }
-        .narrative-opening:empty { display: none; }
-        .poi-list { flex: 1; overflow-y: auto; padding: 12px; }
-        .poi-list::-webkit-scrollbar { width: 4px; }
-        .poi-list::-webkit-scrollbar-thumb { background: #3a3a5a; border-radius: 2px; }
+    html,
+    body {
+      min-height: 100%;
+    }
 
-        /* POI卡片 */
-        .poi-card { border: 1px solid #2a2a4a; border-radius: 12px; padding: 14px; margin-bottom: 10px; cursor: pointer; transition: all 0.2s; display: flex; gap: 12px; }
-        .poi-card:hover { border-color: #e94560; transform: translateX(4px); }
-        .poi-card.active { border-color: #e94560; box-shadow: 0 0 12px rgba(233,69,96,0.2); }
-        .poi-card.mood-exciting { background: linear-gradient(135deg, rgba(233,69,96,0.08), rgba(15,15,26,0.9)); }
-        .poi-card.mood-calm { background: linear-gradient(135deg, rgba(52,152,219,0.08), rgba(15,15,26,0.9)); }
-        .poi-card.mood-cultural { background: linear-gradient(135deg, rgba(155,89,182,0.08), rgba(15,15,26,0.9)); }
-        .poi-card.mood-nature { background: linear-gradient(135deg, rgba(46,204,113,0.08), rgba(15,15,26,0.9)); }
-        .poi-index { width: 28px; height: 28px; border-radius: 50%; background: #e94560; color: white; font-size: 12px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-        .poi-body { flex: 1; min-width: 0; }
-        .poi-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
-        .poi-name { font-weight: 600; font-size: 14px; }
-        .poi-time { font-size: 12px; color: #888; font-variant-numeric: tabular-nums; }
-        .poi-meta { display: flex; gap: 6px; margin-top: 6px; flex-wrap: wrap; }
-        .tag { font-size: 11px; padding: 2px 8px; border-radius: 10px; background: rgba(255,255,255,0.06); color: #aaa; }
-        .tag.category { background: rgba(233,69,96,0.15); color: #e94560; }
-        .tag.price { background: rgba(243,156,18,0.15); color: #f39c12; }
-        .tag.leverage-high { background: rgba(46,204,113,0.15); color: #2ecc71; }
-        .tag.leverage-low { background: rgba(231,76,60,0.15); color: #e74c3c; }
-        .poi-narrative { font-size: 12px; color: #999; margin-top: 6px; line-height: 1.5; }
-        .poi-design { font-size: 11px; color: #7f8c8d; margin-top: 4px; padding: 6px 8px; background: rgba(255,255,255,0.03); border-radius: 6px; }
-        .poi-design .label { color: #95a5a6; margin-right: 4px; }
-        .narrative-closing { padding: 16px; border-top: 1px solid #2a2a4a; font-size: 14px; color: #b8b8d0; font-style: italic; }
-        .narrative-closing:empty { display: none; }
+    body {
+      margin: 0;
+      overflow: hidden;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      background:
+        radial-gradient(circle at 24% 12%, rgba(95, 103, 255, 0.16), transparent 28rem),
+        radial-gradient(circle at 80% 10%, rgba(255, 83, 104, 0.12), transparent 26rem),
+        linear-gradient(135deg, #080c17 0%, #0a0f1f 45%, #0b1020 100%);
+      color: var(--text);
+    }
 
-        /* 右侧面板 */
-        .emotion-curve-container { height: 200px; padding: 16px; border-bottom: 1px solid #2a2a4a; background: #14142a; }
-        .curve-title { font-size: 13px; color: #888; margin-bottom: 8px; }
-        .emotion-curve { width: 100%; height: 150px; }
-        .budget-bar { display: flex; align-items: center; gap: 16px; padding: 12px 16px; background: #1a1a2e; border-bottom: 1px solid #2a2a4a; }
-        .budget-item { font-size: 13px; }
-        .budget-label { color: #888; margin-right: 4px; }
-        .budget-value { color: #f39c12; font-weight: 600; }
-        .timeline-container { padding: 12px 16px; background: #1a1a2e; border-bottom: 1px solid #2a2a4a; }
-        .timeline-controls { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
-        .play-btn { width: 32px; height: 32px; border-radius: 50%; background: #e94560; border: none; color: white; cursor: pointer; display: flex; align-items: center; justify-content: center; }
-        .play-btn:hover { filter: brightness(1.1); }
-        .timeline-slider { flex: 1; }
-        .timeline-slider input[type="range"] { width: 100%; -webkit-appearance: none; background: #2a2a4a; height: 4px; border-radius: 2px; outline: none; }
-        .timeline-slider input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; border-radius: 50%; background: #e94560; cursor: pointer; }
-        .timeline-time { font-size: 12px; color: #888; font-variant-numeric: tabular-nums; min-width: 50px; }
-        .timeline-steps { display: flex; gap: 4px; margin-top: 6px; }
-        .timeline-step-dot { flex: 1; height: 3px; border-radius: 2px; background: #2a2a4a; transition: background 0.2s; }
-        .timeline-step-dot.active { background: #e94560; }
-        .timeline-step-dot.passed { background: #5a5a7a; }
-        .map-area { flex: 1; position: relative; overflow: hidden; background: #0a0a1a; }
-        .map-placeholder { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 16px; color: #555; }
-        .map-placeholder-icon { font-size: 48px; opacity: 0.3; }
-        .map-placeholder-text { font-size: 14px; }
-        .dialogue-bar { padding: 12px 16px; background: #1a1a2e; border-top: 1px solid #2a2a4a; display: none; }
-        .dialogue-bar.active { display: flex; gap: 8px; align-items: center; }
-        .dialogue-input { flex: 1; padding: 10px 14px; border: 1px solid #3a3a5a; border-radius: 8px; background: #0f0f1a; color: #e8e8f0; font-size: 13px; }
-        .dialogue-input:focus { outline: none; border-color: #e94560; }
-        .dialogue-send { padding: 10px 16px; background: #3a3a5a; border: none; border-radius: 8px; color: #e8e8f0; cursor: pointer; }
-        .dialogue-send:hover { background: #4a4a6a; }
-        .loading-overlay { position: absolute; inset: 0; background: rgba(15,15,26,0.9); display: none; align-items: center; justify-content: center; flex-direction: column; gap: 16px; z-index: 10; }
-        .loading-overlay.active { display: flex; }
-        .loading-content { display: flex; flex-direction: column; align-items: center; gap: 16px; }
-        .loading-content .spinner { width: 40px; height: 40px; border: 3px solid #2a2a4a; border-top-color: #e94560; border-radius: 50%; animation: spin 0.8s linear infinite; }
-        @keyframes spin { to { transform: rotate(360deg); } }
-        .loading-text { font-size: 14px; color: #888; }
-        .empty-state { display: flex; align-items: center; justify-content: center; flex: 1; color: #555; font-size: 14px; }
-        .quick-actions { display: flex; gap: 8px; padding: 8px 16px; border-bottom: 1px solid #2a2a4a; flex-wrap: wrap; }
-        .quick-btn { padding: 6px 12px; border: 1px solid #3a3a5a; border-radius: 16px; background: transparent; color: #aaa; font-size: 12px; cursor: pointer; }
-        .quick-btn:hover { border-color: #e94560; color: #e94560; }
+    button,
+    input,
+    textarea {
+      font: inherit;
+    }
 
-        /* ======== 异常告警容器 ======== */
-        #anomaly-container { position: fixed; top: 16px; left: 50%; transform: translateX(-50%); z-index: 9999; display: flex; flex-direction: column; gap: 8px; pointer-events: none; min-width: 360px; max-width: 600px; }
-        .anomaly-alert { display: flex; align-items: center; gap: 10px; padding: 12px 16px; background: #1a1a2e; border: 1px solid #2a2a4a; border-left: 4px solid #f39c12; border-radius: 8px; color: #e8e8f0; font-size: 13px; box-shadow: 0 4px 20px rgba(0,0,0,0.4); pointer-events: auto; cursor: pointer; animation: anomaly-slide-in 0.3s ease-out; }
-        .anomaly-alert.anomaly-dismissing { animation: anomaly-slide-out 0.3s ease-in forwards; }
-        @keyframes anomaly-slide-in { from { transform: translateY(-20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
-        @keyframes anomaly-slide-out { from { transform: translateY(0); opacity: 1; } to { transform: translateY(-20px); opacity: 0; } }
-        .anomaly-icon { font-size: 20px; flex-shrink: 0; }
-        .anomaly-text { flex: 1; line-height: 1.4; }
-        .anomaly-close { background: none; border: none; color: #888; font-size: 18px; cursor: pointer; padding: 0 4px; flex-shrink: 0; }
-        .anomaly-close:hover { color: #e8e8f0; }
+    button {
+      border: 0;
+      color: inherit;
+      cursor: pointer;
+    }
 
-        /* ======== 阶段加载指示器 ======== */
-        .phase-indicator { display: inline-block; width: 16px; height: 16px; margin-right: 8px; vertical-align: middle; }
-        .phase-parsing::before { content: ''; display: inline-block; width: 12px; height: 12px; border-radius: 50%; background: #3498db; animation: phase-pulse 1s ease-in-out infinite; }
-        .phase-searching::before { content: '\1F4CD'; font-size: 16px; animation: phase-bounce 0.6s ease-in-out infinite alternate; }
-        .phase-solving::before { content: ''; display: inline-block; width: 14px; height: 14px; border: 2px solid #e94560; border-top-color: transparent; border-radius: 50%; animation: spin 0.6s linear infinite; }
-        .phase-narrating::after { content: ''; display: inline-block; animation: typing-dots 1.5s steps(4, end) infinite; }
-        @keyframes phase-pulse { 0%, 100% { opacity: 0.4; transform: scale(0.8); } 50% { opacity: 1; transform: scale(1.2); } }
-        @keyframes phase-bounce { from { transform: translateY(0); } to { transform: translateY(-4px); } }
-        @keyframes typing-dots { 0% { content: ''; } 25% { content: '.'; } 50% { content: '..'; } 75% { content: '...'; } 100% { content: ''; } }
+    .app {
+      display: grid;
+      grid-template-columns: 420px minmax(0, 1fr);
+      min-height: 100vh;
+    }
 
-        /* ======== 拖拽排序 ======== */
-        .drag-handle { display: flex; flex-direction: column; gap: 3px; padding: 4px 6px; cursor: grab; flex-shrink: 0; align-items: center; justify-content: center; opacity: 0.4; transition: opacity 0.2s; }
-        .drag-handle:hover { opacity: 0.8; }
-        .drag-handle span { display: block; width: 4px; height: 4px; border-radius: 50%; background: #888; }
-        .poi-card.dragging { opacity: 0.5; outline: 2px dashed #e94560; outline-offset: -2px; }
-        .poi-card.touch-dragging { opacity: 0.7; outline: 2px solid #e94560; }
-        .drop-indicator { height: 3px; background: linear-gradient(90deg, #e94560, transparent); border-radius: 2px; margin: 4px 0; transition: all 0.2s; }
+    .sidebar {
+      position: sticky;
+      top: 0;
+      display: grid;
+      grid-template-rows: auto auto auto 1fr auto;
+      gap: 2rem;
+      height: 100vh;
+      padding: 2.4rem 2.35rem;
+      background:
+        linear-gradient(180deg, rgba(17, 24, 46, 0.92), rgba(6, 10, 20, 0.98)),
+        var(--sidebar);
+      border-right: 1px solid rgba(255, 255, 255, 0.06);
+      box-shadow: inset -1px 0 rgba(255, 255, 255, 0.02);
+    }
 
-        /* ======== 卡片流式出现动画 ======== */
-        @keyframes card-appear { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
-        .poi-card.stream-appear { animation: card-appear 0.3s ease-out; }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 0.8rem;
+    }
 
-        /* ======== 加载阶段文案 ======== */
-        .loading-phase { display: inline-flex; align-items: center; gap: 6px; }
-        .loading-phase-text { font-size: 13px; color: #aaa; }
-        .loading-phase-text .highlight { color: #e94560; font-weight: 600; }
-        .loading-dots::after { content: ''; animation: typing-dots 1.5s steps(4, end) infinite; }
-    </style>
+    .brand-mark {
+      width: 2rem;
+      height: 2rem;
+      border-radius: 50%;
+      background:
+        radial-gradient(circle at 64% 32%, #8d6cff 0 22%, transparent 23%),
+        conic-gradient(from 30deg, #7e5cff, #4f7cff, #1b2143 42%, #8c5dff 76%, #7e5cff);
+      box-shadow: 0 0 22px rgba(126, 92, 255, 0.5);
+    }
+
+    .brand-title {
+      margin: 0;
+      font-size: 1.52rem;
+      line-height: 1;
+      font-weight: 900;
+      letter-spacing: 0;
+    }
+
+    .brand-subtitle {
+      grid-column: 2;
+      margin: 0.45rem 0 0;
+      color: var(--faint);
+      font-size: 0.86rem;
+      font-weight: 700;
+    }
+
+    .divider {
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(145, 160, 205, 0.16), transparent);
+    }
+
+    .prompt-block h2,
+    .tag-block h2 {
+      margin: 0 0 1rem;
+      font-size: 1.15rem;
+      font-weight: 800;
+      letter-spacing: 0;
+      color: #e9edff;
+    }
+
+    .prompt-card {
+      position: relative;
+      min-height: 10.3rem;
+      padding: 1.2rem;
+      border-radius: 18px;
+      background: linear-gradient(145deg, rgba(28, 35, 61, 0.96), rgba(20, 25, 45, 0.92));
+      border: 1px solid var(--line);
+      box-shadow: var(--shadow);
+    }
+
+    .prompt-card textarea {
+      width: 100%;
+      min-height: 6.9rem;
+      resize: none;
+      border: 0;
+      outline: none;
+      background: transparent;
+      color: var(--text);
+      font-size: 1.1rem;
+      line-height: 1.55;
+    }
+
+    .prompt-card textarea::placeholder {
+      color: #747f99;
+    }
+
+    .char-count {
+      position: absolute;
+      right: 4.35rem;
+      bottom: 1.25rem;
+      color: var(--faint);
+      font-size: 0.82rem;
+      font-weight: 800;
+    }
+
+    .send-circle {
+      position: absolute;
+      right: 1rem;
+      bottom: 0.95rem;
+      display: grid;
+      place-items: center;
+      width: 2.45rem;
+      height: 2.45rem;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #6f7dff, #8f5cff);
+      box-shadow: 0 12px 35px rgba(126, 92, 255, 0.45);
+      font-size: 1.4rem;
+      transition: transform 0.18s ease, opacity 0.18s ease;
+    }
+
+    .send-circle:hover {
+      transform: translateY(-2px) scale(1.02);
+    }
+
+    .send-circle:disabled {
+      opacity: 0.55;
+      transform: none;
+      cursor: not-allowed;
+    }
+
+    .tag-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 0.7rem;
+    }
+
+    .tag {
+      min-height: 3.2rem;
+      border-radius: 11px;
+      background: rgba(32, 39, 68, 0.82);
+      border: 1px solid transparent;
+      color: #c5cce0;
+      font-weight: 800;
+      transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease;
+    }
+
+    .tag:hover,
+    .tag.is-active {
+      border-color: rgba(126, 92, 255, 0.75);
+      background: rgba(83, 70, 170, 0.32);
+      color: #f3f6ff;
+      transform: translateY(-1px);
+    }
+
+    .about-card {
+      align-self: start;
+      min-height: 13.7rem;
+      padding: 1.45rem;
+      border-radius: 16px;
+      border: 1px solid var(--line);
+      background:
+        linear-gradient(145deg, rgba(25, 31, 58, 0.9), rgba(16, 21, 40, 0.9)),
+        radial-gradient(circle at 80% 70%, rgba(129, 92, 255, 0.36), transparent 10rem);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .about-card h3 {
+      margin: 0 0 1.1rem;
+      font-size: 0.98rem;
+    }
+
+    .about-card p {
+      margin: 0.5rem 0;
+      color: #c7cee2;
+      font-size: 0.9rem;
+      line-height: 1.65;
+    }
+
+    .bottom-nav {
+      display: grid;
+      grid-template-columns: 1fr 1fr auto;
+      gap: 1rem;
+      color: var(--faint);
+      font-size: 0.92rem;
+      font-weight: 800;
+    }
+
+    .bottom-nav span {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .workspace {
+      min-width: 0;
+      padding: 1.55rem 1.55rem 1.25rem;
+    }
+
+    .surface {
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr) auto;
+      gap: 1.35rem;
+      height: calc(100vh - 2.8rem);
+      min-height: 0;
+    }
+
+    .curve-card,
+    .planner-card,
+    .route-board,
+    .composer,
+    .budget-card {
+      border-radius: 16px;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(18px);
+    }
+
+    .curve-card {
+      position: relative;
+      min-height: 10.2rem;
+      padding: 1.15rem 1.25rem 0.75rem;
+      overflow: hidden;
+    }
+
+    .curve-title {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin: 0;
+      color: #dce4f8;
+      font-size: 0.98rem;
+      font-weight: 900;
+    }
+
+    .curve-title span {
+      display: grid;
+      place-items: center;
+      width: 1rem;
+      height: 1rem;
+      border-radius: 50%;
+      border: 1px solid var(--line-strong);
+      color: var(--faint);
+      font-size: 0.68rem;
+    }
+
+    .curve-legend {
+      position: absolute;
+      top: 1.2rem;
+      right: 1.4rem;
+      display: grid;
+      gap: 0.55rem;
+      color: #d9e0f1;
+      font-size: 0.82rem;
+      font-weight: 800;
+    }
+
+    .curve-legend span {
+      display: flex;
+      align-items: center;
+      gap: 0.55rem;
+    }
+
+    .dot {
+      width: 0.7rem;
+      height: 0.7rem;
+      border-radius: 50%;
+      display: inline-block;
+    }
+
+    .curve-svg {
+      width: calc(100% - 7.5rem);
+      height: 7.7rem;
+      margin-top: 0.3rem;
+      overflow: visible;
+    }
+
+    .curve-labels {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      width: calc(100% - 7.5rem);
+      margin-top: -0.4rem;
+      color: var(--faint);
+      font-weight: 900;
+      font-size: 0.86rem;
+    }
+
+    .curve-labels span:nth-child(1),
+    .curve-labels span:nth-child(2) {
+      color: var(--red);
+    }
+
+    .curve-labels span:nth-child(3) {
+      color: var(--blue);
+    }
+
+    .curve-labels span:nth-child(4) {
+      color: var(--green);
+    }
+
+    .curve-labels span:nth-child(5) {
+      color: var(--purple);
+    }
+
+    .content-grid {
+      display: grid;
+      grid-template-columns: minmax(280px, 0.92fr) minmax(0, 2.1fr);
+      gap: 1.05rem;
+      min-height: 0;
+      overflow: hidden;
+    }
+
+    .planner-card {
+      padding: 1.55rem;
+      align-self: stretch;
+      overflow: hidden;
+    }
+
+    .ai-status {
+      display: flex;
+      align-items: center;
+      gap: 0.55rem;
+      margin: 0 0 2rem;
+      color: #f1f5ff;
+      font-size: 0.96rem;
+      font-weight: 900;
+    }
+
+    .spark {
+      color: #b9c9ff;
+      text-shadow: 0 0 18px rgba(126, 92, 255, 0.7);
+    }
+
+    .planner-steps {
+      position: relative;
+      display: grid;
+      gap: 1.5rem;
+    }
+
+    .planner-steps::before {
+      content: "";
+      position: absolute;
+      top: 2rem;
+      bottom: 2rem;
+      left: 1.23rem;
+      width: 2px;
+      background: linear-gradient(180deg, var(--blue), var(--purple), rgba(145, 160, 205, 0.14));
+    }
+
+    .planner-step {
+      position: relative;
+      display: grid;
+      grid-template-columns: 2.55rem minmax(0, 1fr) auto;
+      gap: 1rem;
+      align-items: center;
+      color: var(--faint);
+    }
+
+    .step-icon {
+      position: relative;
+      z-index: 1;
+      display: grid;
+      place-items: center;
+      width: 2.55rem;
+      height: 2.55rem;
+      border-radius: 50%;
+      background: rgba(31, 38, 67, 0.96);
+      border: 1px solid var(--line-strong);
+      box-shadow: 0 0 0 5px rgba(10, 15, 29, 0.7);
+      font-size: 1.05rem;
+    }
+
+    .planner-step.is-active .step-icon {
+      border-color: var(--purple);
+      color: white;
+      box-shadow: 0 0 0 5px rgba(10, 15, 29, 0.7), 0 0 28px rgba(126, 92, 255, 0.68);
+    }
+
+    .planner-step.is-done .step-icon {
+      background: linear-gradient(135deg, #326ab4, #23375f);
+      color: white;
+    }
+
+    .planner-step h3 {
+      margin: 0 0 0.35rem;
+      color: #dce3f7;
+      font-size: 1rem;
+    }
+
+    .planner-step p {
+      margin: 0;
+      line-height: 1.45;
+      font-size: 0.84rem;
+    }
+
+    .step-time {
+      color: var(--faint);
+      font-size: 0.78rem;
+      font-weight: 800;
+    }
+
+    .planner-foot {
+      margin-top: 2rem;
+      padding-top: 1.2rem;
+      border-top: 1px solid rgba(145, 160, 205, 0.08);
+      color: var(--faint);
+      font-size: 0.78rem;
+      font-weight: 800;
+    }
+
+    .route-board {
+      min-width: 0;
+      padding: 0.55rem 0.9rem 0.75rem;
+      overflow: auto;
+      min-height: 0;
+    }
+
+    .route-list {
+      display: grid;
+      gap: 0.7rem;
+    }
+
+    .route-row {
+      display: grid;
+      grid-template-columns: 5rem minmax(0, 1fr);
+      gap: 0.8rem;
+      align-items: stretch;
+    }
+
+    .time-cell {
+      position: relative;
+      padding-top: 0.8rem;
+      color: #dfe6f8;
+      font-weight: 900;
+      font-size: 0.93rem;
+      text-align: right;
+    }
+
+    .time-cell small {
+      display: block;
+      margin-top: 0.45rem;
+      color: var(--faint);
+      font-size: 0.78rem;
+    }
+
+    .time-cell::after {
+      content: "";
+      position: absolute;
+      top: 1.3rem;
+      right: -0.5rem;
+      width: 0.68rem;
+      height: 0.68rem;
+      border-radius: 50%;
+      background: var(--row-color, var(--blue));
+      box-shadow: 0 0 0 6px rgba(11, 16, 32, 0.9);
+    }
+
+    .poi-card {
+      display: grid;
+      grid-template-columns: 8.1rem minmax(0, 1fr) auto;
+      gap: 1rem;
+      min-height: 7.25rem;
+      padding: 0.75rem 1.05rem 0.75rem 0.85rem;
+      border-radius: 12px;
+      border-left: 5px solid var(--row-color, var(--blue));
+      background: linear-gradient(135deg, rgba(27, 34, 60, 0.98), rgba(17, 23, 43, 0.96));
+      box-shadow: 0 14px 35px rgba(0, 0, 0, 0.22);
+      animation: fadeIn 0.28s ease both;
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(8px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .thumb {
+      min-width: 0;
+      border-radius: 8px;
+      background:
+        linear-gradient(135deg, rgba(255, 255, 255, 0.08), transparent),
+        radial-gradient(circle at 25% 30%, rgba(255, 255, 255, 0.16), transparent 28%),
+        linear-gradient(135deg, #2c344e, #151b2d);
+      overflow: hidden;
+      position: relative;
+    }
+
+    .thumb::before,
+    .thumb::after {
+      content: "";
+      position: absolute;
+      inset: auto 10% 14% 10%;
+      height: 30%;
+      border-radius: 999px 999px 0 0;
+      background: rgba(255, 255, 255, 0.14);
+      filter: blur(5px);
+    }
+
+    .thumb::after {
+      inset: 14% 12% auto 58%;
+      height: 55%;
+      border-radius: 4px;
+      background: rgba(255, 255, 255, 0.22);
+      filter: blur(1px);
+    }
+
+    .thumb.culture { background: linear-gradient(135deg, #ded5ca, #8c817a 45%, #222845); }
+    .thumb.food { background: linear-gradient(135deg, #3b221c, #a86a4e 48%, #17223f); }
+    .thumb.nature { background: linear-gradient(135deg, #173324, #5fa770 48%, #17223f); }
+    .thumb.hotel { background: linear-gradient(135deg, #1e2745, #a98563 46%, #0f1428); }
+    .thumb.shop { background: linear-gradient(135deg, #27304e, #5b6bd6 48%, #151b2d); }
+
+    .poi-info {
+      min-width: 0;
+      padding: 0.1rem 0;
+    }
+
+    .poi-title {
+      display: flex;
+      align-items: center;
+      gap: 0.55rem;
+      min-width: 0;
+      margin: 0 0 0.5rem;
+      font-size: 1.06rem;
+      font-weight: 900;
+      letter-spacing: 0;
+    }
+
+    .poi-title span:first-child {
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .emotion-chip {
+      flex: 0 0 auto;
+      padding: 0.18rem 0.48rem;
+      border-radius: 999px;
+      background: color-mix(in srgb, var(--row-color, var(--blue)) 34%, transparent);
+      color: var(--row-color, var(--blue));
+      font-size: 0.73rem;
+      font-weight: 900;
+    }
+
+    .poi-narrative {
+      margin: 0 0 0.58rem;
+      color: #dce3f4;
+      font-size: 0.88rem;
+      line-height: 1.45;
+    }
+
+    .poi-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.35rem 0.75rem;
+      color: #b8c1d8;
+      font-size: 0.8rem;
+      font-weight: 800;
+    }
+
+    .price {
+      padding-top: 0.25rem;
+      color: var(--row-color, var(--red));
+      font-size: 1rem;
+      font-weight: 950;
+      white-space: nowrap;
+    }
+
+    .empty-route {
+      display: grid;
+      min-height: 24rem;
+      place-items: center;
+      color: var(--faint);
+      text-align: center;
+      line-height: 1.7;
+    }
+
+    .closing-card {
+      display: grid;
+      grid-template-columns: 5rem minmax(0, 1fr);
+      gap: 0.8rem;
+      align-items: stretch;
+      color: var(--faint);
+      font-weight: 800;
+    }
+
+    .closing-card .poi-card {
+      grid-template-columns: minmax(0, 1fr) auto;
+      min-height: 3.8rem;
+      color: var(--muted);
+    }
+
+    .bottom-area {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 280px;
+      gap: 1rem;
+      align-items: stretch;
+    }
+
+    .composer {
+      padding: 1rem;
+    }
+
+    .composer-line {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) repeat(4, auto) 2.65rem;
+      gap: 0.65rem;
+      align-items: center;
+    }
+
+    .adjust-input {
+      min-height: 3.35rem;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 0 1.25rem;
+      outline: none;
+      background: rgba(34, 41, 70, 0.9);
+      color: var(--text);
+    }
+
+    .quick-adjust,
+    .send-adjust {
+      min-height: 2.85rem;
+      border-radius: 999px;
+      background: rgba(35, 42, 72, 0.95);
+      color: #e3e9f8;
+      padding: 0 1rem;
+      font-weight: 900;
+    }
+
+    .quick-adjust:hover,
+    .send-adjust:hover {
+      background: rgba(76, 88, 143, 0.9);
+    }
+
+    .send-adjust {
+      display: grid;
+      place-items: center;
+      width: 2.85rem;
+      padding: 0;
+      background: linear-gradient(135deg, #5e8cff, #8f5cff);
+      font-size: 1.2rem;
+    }
+
+    .reply {
+      min-height: 1.5rem;
+      margin: 0.75rem 0 0;
+      color: var(--muted);
+      font-size: 0.84rem;
+      font-weight: 800;
+    }
+
+    .reply[data-tone="error"] {
+      color: #ffb5be;
+    }
+
+    .reply[data-tone="ok"] {
+      color: #a9f2be;
+    }
+
+    .budget-card {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 4.2rem;
+      align-items: center;
+      gap: 1rem;
+      padding: 1rem 1.1rem;
+    }
+
+    .budget-card h3 {
+      margin: 0 0 0.55rem;
+      font-size: 0.92rem;
+    }
+
+    .budget-card strong {
+      display: block;
+      margin-bottom: 0.3rem;
+      font-size: 1.15rem;
+    }
+
+    .budget-card p {
+      margin: 0;
+      color: var(--faint);
+      font-size: 0.8rem;
+      font-weight: 800;
+    }
+
+    .budget-ring {
+      display: grid;
+      place-items: center;
+      width: 4.2rem;
+      height: 4.2rem;
+      border-radius: 50%;
+      background: conic-gradient(var(--purple) var(--budget-angle, 0deg), rgba(145, 160, 205, 0.15) 0);
+      position: relative;
+      font-weight: 950;
+    }
+
+    .budget-ring::before {
+      content: "";
+      position: absolute;
+      inset: 0.42rem;
+      border-radius: 50%;
+      background: #151b31;
+    }
+
+    .budget-ring span {
+      position: relative;
+      z-index: 1;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    @media (max-width: 1180px) {
+      .app {
+        grid-template-columns: 340px minmax(0, 1fr);
+      }
+
+      .tag-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .content-grid,
+      .bottom-area {
+        grid-template-columns: 1fr;
+      }
+
+      .composer-line {
+        grid-template-columns: minmax(0, 1fr) 2.85rem;
+      }
+
+      .quick-adjust {
+        display: none;
+      }
+    }
+
+    @media (max-width: 820px) {
+      body {
+        overflow: auto;
+      }
+
+      .app {
+        display: block;
+      }
+
+      .sidebar {
+        position: static;
+        height: auto;
+        width: 100%;
+        max-width: 100vw;
+        overflow: hidden;
+        padding: 1.25rem;
+        gap: 1.4rem;
+      }
+
+      .workspace {
+        width: 100%;
+        max-width: 100vw;
+        overflow: hidden;
+        padding: 1rem;
+      }
+
+      .prompt-block,
+      .tag-block,
+      .prompt-card,
+      .about-card,
+      .tag-grid {
+        width: 100%;
+        max-width: 100%;
+      }
+
+      .surface {
+        height: auto;
+        min-height: 0;
+      }
+
+      .curve-svg,
+      .curve-labels {
+        width: 100%;
+      }
+
+      .curve-legend {
+        position: static;
+        display: flex;
+        flex-wrap: wrap;
+        margin-top: 0.65rem;
+      }
+
+      .route-row,
+      .closing-card {
+        grid-template-columns: 3.8rem minmax(0, 1fr);
+      }
+
+      .poi-card {
+        grid-template-columns: 5.2rem minmax(0, 1fr);
+      }
+
+      .price {
+        grid-column: 2;
+        padding-top: 0;
+      }
+
+      .bottom-nav {
+        display: none;
+      }
+    }
+
+    @media (max-width: 520px) {
+      .prompt-card {
+        min-height: 8.8rem;
+      }
+
+      .tag-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .planner-card,
+      .curve-card,
+      .route-board,
+      .composer,
+      .budget-card {
+        border-radius: 14px;
+      }
+
+      .route-board {
+        padding: 0.5rem;
+      }
+
+      .poi-card {
+        grid-template-columns: 1fr;
+      }
+
+      .thumb {
+        min-height: 7rem;
+      }
+
+      .price {
+        grid-column: 1;
+      }
+    }
+  </style>
 </head>
 <body>
-<div class="app" id="app">
-    <div id="anomaly-container"></div>
-    <header class="header">
-        <div class="input-bar">
-            <input type="text" class="intent-input" id="intentInput" placeholder="描述你的出行需求，例如：周末想一个人安静走走...">
-            <button class="submit-btn" id="submitBtn" onclick="submitIntent()">规划路线</button>
+  <div class="app">
+    <aside class="sidebar">
+      <header>
+        <div class="brand">
+          <div class="brand-mark" aria-hidden="true"></div>
+          <div>
+            <h1 class="brand-title">CityFlow</h1>
+            <p class="brand-subtitle">情绪驱动的城市体验编排系统</p>
+          </div>
         </div>
-    </header>
-    <div class="content">
-        <div class="left-panel">
-            <div class="panel-header">
-                <span class="panel-title">路线规划</span>
-                <span class="route-stats" id="routeStats"></span>
-            </div>
-            <div class="quick-actions">
-                <button class="quick-btn" onclick="quickInput('周末想一个人安静走走，不想去人多的地方')">社恐独居</button>
-                <button class="quick-btn" onclick="quickInput('和女朋友约会，想找有氛围的地方')">情侣约会</button>
-                <button class="quick-btn" onclick="quickInput('周末带娃出去玩，让他消耗体力')">亲子出游</button>
-                <button class="quick-btn" onclick="quickInput('带狗子出去转转')">宠物友好</button>
-            </div>
-            <div class="narrative-opening" id="narrativeOpening"></div>
-            <div class="poi-list" id="poiList">
-                <div class="empty-state">输入出行需求，开始规划路线</div>
-            </div>
-            <div class="narrative-closing" id="narrativeClosing"></div>
+      </header>
+
+      <div class="divider"></div>
+
+      <section class="prompt-block" aria-label="出行需求">
+        <h2>今天想怎么过？</h2>
+        <div class="prompt-card">
+          <textarea id="userInput" maxlength="50" placeholder="周末想一个人安静走走">周末想一个人安静走走</textarea>
+          <span class="char-count" id="charCount">10/50</span>
+          <button class="send-circle" id="submitBtn" type="button" aria-label="开始规划">→</button>
         </div>
-        <div class="right-panel">
-            <div class="emotion-curve-container" id="curveContainer" style="display:none">
-                <div class="curve-title">情绪曲线</div>
-                <canvas class="emotion-curve" id="emotionCurve"></canvas>
-            </div>
-            <div class="budget-bar" id="budgetBar" style="display:none">
-                <div class="budget-item"><span class="budget-label">总时间</span><span class="budget-value" id="budgetTime">-</span></div>
-                <div class="budget-item"><span class="budget-label">预算消耗</span><span class="budget-value" id="budgetCost">-</span></div>
-                <div class="budget-item"><span class="budget-label">预估步数</span><span class="budget-value" id="budgetSteps">-</span></div>
-                <div class="budget-item"><span class="budget-label">高杠杆</span><span class="budget-value" id="budgetLeverage">-</span></div>
-            </div>
-            <div class="timeline-container" id="timelineContainer" style="display:none">
-                <div class="timeline-controls">
-                    <button class="play-btn" id="playBtn" onclick="togglePlayback()">▶</button>
-                    <span class="timeline-time" id="timelineCurrentTime">09:00</span>
-                    <div class="timeline-slider"><input type="range" id="timelineSlider" min="0" max="100" value="0" oninput="onTimelineSlide(this.value)"></div>
-                    <span class="timeline-time" id="timelineEndTime">18:00</span>
-                </div>
-                <div class="timeline-steps" id="timelineSteps"></div>
-            </div>
-            <div class="map-area" id="chart-container">
-                <div class="map-placeholder" id="mapPlaceholder">
-                    <div class="map-placeholder-icon">🗺️</div>
-                    <div class="map-placeholder-text">路线规划完成后显示地图</div>
-                </div>
-                <div class="loading-overlay" id="loadingOverlay">
-                    <div class="loading-content">
-                        <div class="spinner"></div>
-                        <div class="loading-phase">
-                            <span class="phase-indicator" id="phaseIndicator"></span>
-                            <span class="loading-phase-text" id="loadingText">正在规划路线...</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="dialogue-bar" id="dialogueBar">
-                <input type="text" class="dialogue-input" id="dialogueInput" placeholder="输入调整指令，如：换掉第二个景点、太赶了想轻松点...">
-                <button class="dialogue-send" onclick="sendDialogue()">发送</button>
-            </div>
+      </section>
+
+      <section class="tag-block" aria-label="快捷标签">
+        <h2>快捷标签</h2>
+        <div class="tag-grid">
+          <button class="tag is-active" type="button" data-input="周末想一个人安静走走，偏独处、安静、放松、探索">⌂ 独处</button>
+          <button class="tag" type="button" data-input="情侣约会浪漫一点，想拍照、喝咖啡、慢慢逛">♡ 约会</button>
+          <button class="tag" type="button" data-input="带孩子出去玩，少排队、轻松、安全、有休息点">☻ 亲子</button>
+          <button class="tag" type="button" data-input="带宠物散步，优先户外、公园、宠物友好">♣ 宠物</button>
         </div>
-    </div>
-</div>
-<script src="js/chart3d.js"></script>
-<script src="js/llm-chat.js"></script>
-<script src="components/poi-list.js"></script>
-<script src="components/timeline.js"></script>
-<script src="js/l7-renderer.js"></script>
-<script src="js/app.js"></script>
-<script>
-// ================================================================
-// CityFlow 前端 — 内联脚本（SSE 读取 + 回退渲染）
-// appState 和 handleSSEEvent 由 app.js 提供
-// ================================================================
+      </section>
 
-// 确保 appState 存在（从 app.js 获取，失败时创建本地）
-const __state = typeof appState !== 'undefined' ? appState : (window.appState = {
-  chart: null, chat: null, poiList: null, timeline: null,
-  route: null, routeId: null, steps: [], narrative: null, selectedIndex: -1,
-  isPlaying: false, playTimer: null, playProgress: 0
-});
+      <section class="about-card" aria-label="CityFlow 简介">
+        <h3>✦ CityFlow 是什么？</h3>
+        <p>我们不靠你找最热的路，而是帮你找到最对的感受。</p>
+        <p>告诉我们你想要的情绪，AI 为你编排独一无二的城市体验。</p>
+      </section>
 
-function quickInput(text) { document.getElementById('intentInput').value = text; submitIntent(); }
+      <nav class="bottom-nav" aria-label="底部导航">
+        <span>♧ 我的行程</span>
+        <span>♡ 收藏夹</span>
+        <span>⚙</span>
+      </nav>
+    </aside>
 
-// ================================================================
-// SSE 读取（fetch + ReadableStream）
-// ================================================================
+    <main class="workspace">
+      <div class="surface">
+        <section class="curve-card" aria-label="情绪节奏曲线">
+          <h2 class="curve-title">情绪节奏曲线 <span>i</span></h2>
+          <div class="curve-legend">
+            <span><i class="dot" style="background:var(--red)"></i>兴奋</span>
+            <span><i class="dot" style="background:var(--blue)"></i>宁静</span>
+            <span><i class="dot" style="background:var(--green)"></i>自然</span>
+            <span><i class="dot" style="background:var(--purple)"></i>文化</span>
+          </div>
+          <svg class="curve-svg" viewBox="0 0 940 112" preserveAspectRatio="none" aria-hidden="true">
+            <defs>
+              <linearGradient id="curveStroke" x1="0" x2="1" y1="0" y2="0">
+                <stop offset="0%" stop-color="#ff5368"/>
+                <stop offset="36%" stop-color="#ff5368"/>
+                <stop offset="52%" stop-color="#51aef9"/>
+                <stop offset="72%" stop-color="#7edc95"/>
+                <stop offset="100%" stop-color="#925cff"/>
+              </linearGradient>
+              <linearGradient id="curveFill" x1="0" x2="1" y1="0" y2="0">
+                <stop offset="0%" stop-color="#ff5368" stop-opacity=".24"/>
+                <stop offset="50%" stop-color="#51aef9" stop-opacity=".15"/>
+                <stop offset="78%" stop-color="#7edc95" stop-opacity=".16"/>
+                <stop offset="100%" stop-color="#925cff" stop-opacity=".22"/>
+              </linearGradient>
+            </defs>
+            <path d="M34 80 C112 72 126 22 210 18 C286 15 330 57 416 76 C505 96 563 72 638 28 C726 -24 780 50 862 22 C900 9 918 14 936 18" fill="none" stroke="rgba(145,160,205,.12)" stroke-width="1"/>
+            <path d="M34 80 C112 72 126 22 210 18 C286 15 330 57 416 76 C505 96 563 72 638 28 C726 -24 780 50 862 22 C900 9 918 14 936 18 L936 96 L34 96 Z" fill="url(#curveFill)"/>
+            <path d="M34 80 C112 72 126 22 210 18 C286 15 330 57 416 76 C505 96 563 72 638 28 C726 -24 780 50 862 22 C900 9 918 14 936 18" fill="none" stroke="url(#curveStroke)" stroke-width="3"/>
+            <g fill="none" stroke="rgba(145,160,205,.11)">
+              <path d="M34 22 H936"/><path d="M34 80 H936"/>
+              <path d="M90 20 V100"/><path d="M330 20 V100"/><path d="M570 20 V100"/><path d="M810 20 V100"/>
+            </g>
+            <circle cx="210" cy="18" r="5" fill="#ff5368"/>
+            <circle cx="416" cy="76" r="5" fill="#51aef9"/>
+            <circle cx="638" cy="28" r="5" fill="#7edc95"/>
+            <circle cx="862" cy="22" r="5" fill="#925cff"/>
+          </svg>
+          <div class="curve-labels">
+            <span>启程</span>
+            <span>探索</span>
+            <span>沉静</span>
+            <span>自然</span>
+            <span>回味</span>
+          </div>
+        </section>
 
-async function submitIntent() {
-    const input = document.getElementById('intentInput').value.trim();
-    if (!input) return;
-    const btn = document.getElementById('submitBtn');
-    const loading = document.getElementById('loadingOverlay');
-    const loadingText = document.getElementById('loadingText');
-    const phaseIndicator = document.getElementById('phaseIndicator');
-    btn.disabled = true; loading.classList.add('active');
-    loadingText.textContent = '正在理解你的需求...';
-    if (phaseIndicator) phaseIndicator.className = 'phase-indicator phase-parsing';
-    clearRoute();
-    try {
-        const response = await fetch('/api/plan', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ user_input: input })
+        <div class="content-grid">
+          <section class="planner-card" aria-label="规划状态">
+            <p class="ai-status"><span class="spark">✦</span> AI 正在为你规划中</p>
+            <div class="planner-steps">
+              <article class="planner-step is-active" data-phase="parsing">
+                <span class="step-icon">✓</span>
+                <div>
+                  <h3>解析你的意图</h3>
+                  <p id="intentHint">已识别：独处、安静、放松、探索</p>
+                </div>
+                <span class="step-time" id="phaseParsingTime">00:02</span>
+              </article>
+              <article class="planner-step" data-phase="identifying">
+                <span class="step-icon">◉</span>
+                <div>
+                  <h3>识别用户身份</h3>
+                  <p>匹配历史偏好与画像</p>
+                </div>
+                <span class="step-time" id="phaseIdentifyingTime">--:--</span>
+              </article>
+              <article class="planner-step" data-phase="ltm_predict">
+                <span class="step-icon">◎</span>
+                <div>
+                  <h3>LTM 预测</h3>
+                  <p>长短期记忆分析</p>
+                </div>
+                <span class="step-time" id="phaseLtmPredictTime">--:--</span>
+              </article>
+              <article class="planner-step" data-phase="weight_mapping">
+                <span class="step-icon">⚖</span>
+                <div>
+                  <h3>权重分析</h3>
+                  <p>需求向量转求解权重</p>
+                </div>
+                <span class="step-time" id="phaseWeightMappingTime">--:--</span>
+              </article>
+              <article class="planner-step" data-phase="searching">
+                <span class="step-icon">⌕</span>
+                <div>
+                  <h3>搜索合适的地点</h3>
+                  <p>正在寻找契合情绪的城市角落</p>
+                </div>
+                <span class="step-time" id="phaseSearchingTime">--:--</span>
+              </article>
+              <article class="planner-step" data-phase="solving">
+                <span class="step-icon">◌</span>
+                <div>
+                  <h3>编排体验路线</h3>
+                  <p>平衡时间、情绪与体验密度</p>
+                </div>
+                <span class="step-time" id="phaseSolvingTime">--:--</span>
+              </article>
+              <article class="planner-step" data-phase="narrating">
+                <span class="step-icon">✎</span>
+                <div>
+                  <h3>生成路线文案</h3>
+                  <p>为你的旅程注入文字与温度</p>
+                </div>
+                <span class="step-time" id="phaseNarratingTime">--:--</span>
+              </article>
+              <article class="planner-step" data-phase="saving">
+                <span class="step-icon">💾</span>
+                <div>
+                  <h3>记忆保存</h3>
+                  <p>记录偏好用于下次优化</p>
+                </div>
+                <span class="step-time" id="phaseSavingTime">--:--</span>
+              </article>
+            </div>
+            <p class="planner-foot" id="statusMessage">ⓘ AI 会综合天气、人流、你过往的偏好来为你优化</p>
+          </section>
+
+          <section class="route-board" aria-label="路线结果">
+            <div class="route-list" id="routeList">
+              <div class="empty-route">
+                <p>点击左侧箭头开始规划。<br>路线会按时间线逐站出现。</p>
+              </div>
+            </div>
+          </section>
+        </div>
+
+        <div class="bottom-area">
+          <section class="composer" aria-label="对话调整">
+            <div class="composer-line">
+              <input class="adjust-input" id="dialogueInput" type="text" placeholder="对行程有什么想法？告诉我吧">
+              <button class="quick-adjust" type="button" data-adjust="换一个">换一个</button>
+              <button class="quick-adjust" type="button" data-adjust="太赶了">太赶了</button>
+              <button class="quick-adjust" type="button" data-adjust="多些自然">多些自然</button>
+              <button class="quick-adjust" type="button" data-adjust="预算控制在100元内">预算控制在100元</button>
+              <button class="send-adjust" id="adjustBtn" type="button" aria-label="发送调整">↗</button>
+            </div>
+            <p class="reply" id="adjustReply">AI 已匹配画像：杜弱独居青年　<span style="color:#6f7dff">重新匹配</span></p>
+          </section>
+
+          <aside class="budget-card" aria-label="预算概览">
+            <div>
+              <h3>预算概览</h3>
+              <strong>¥<span id="totalBudget">0</span> / ¥<span id="budgetLimit">200</span></strong>
+              <p>预计总花费　预算上限</p>
+            </div>
+            <div class="budget-ring" id="budgetRing"><span id="budgetPercent">0%</span></div>
+          </aside>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    const CONFIG = {
+      apiBase: 'http://localhost:8000',
+      timeoutMs: 15000,
+      budgetLimit: 200
+    };
+
+    const MOCK_EVENTS = [
+      {"event":"phase","data":{"phase":"parsing","message":"正在理解你的需求..."}},
+      {"event":"phase","data":{"phase":"searching","message":"正在为你寻找合适的地方..."}},
+      {"event":"step","data":{"index":1,"poi":{"id":"poi_00001","name":"Tiny Pieces 小片咖啡","city":"上海","category":"咖啡馆","rating":4.7,"avg_price":36,"tags":["独处","靠窗","安静"],"avg_stay_min":40,"emotion_tags":{"excitement":0.72,"tranquility":0.45,"sociability":0.2,"culture_depth":0.35,"physical_demand":0.05}},"arrival_time":"10:00","departure_time":"10:40","narrative":"一杯拿铁，开启属于你的周末。"}},
+      {"event":"step","data":{"index":2,"poi":{"id":"poi_00002","name":"钟书阁（芮欧百货店）","city":"上海","category":"书店","rating":4.6,"avg_price":0,"tags":["书店","安静区"],"avg_stay_min":60,"emotion_tags":{"excitement":0.2,"tranquility":0.82,"sociability":0.25,"culture_depth":0.65,"physical_demand":0.08}},"arrival_time":"11:00","departure_time":"12:00","narrative":"在书的海洋里，时间慢了下来。"}},
+      {"event":"step","data":{"index":3,"poi":{"id":"poi_00003","name":"静安雕塑公园","city":"上海","category":"公园","rating":4.8,"avg_price":0,"tags":["绿荫","自然","散步"],"avg_stay_min":60,"emotion_tags":{"excitement":0.25,"tranquility":0.65,"sociability":0.25,"culture_depth":0.25,"physical_demand":0.28,"nature":0.92}},"arrival_time":"12:30","departure_time":"13:30","narrative":"绿影摇曳，呼吸城市里的自然气息。"}},
+      {"event":"step","data":{"index":4,"poi":{"id":"poi_00004","name":"上海市摄影艺术中心","city":"上海","category":"艺术展馆","rating":4.5,"avg_price":30,"tags":["展览","摄影","文化"],"avg_stay_min":90,"emotion_tags":{"excitement":0.25,"tranquility":0.58,"sociability":0.18,"culture_depth":0.88,"physical_demand":0.1}},"arrival_time":"14:00","departure_time":"15:30","narrative":"光影的故事，安静地打动人心。"}},
+      {"event":"budget","data":{"total":66,"budget_limit":200,"remaining":134,"total_hours":5.5,"total_steps":4}},
+      {"event":"phase","data":{"phase":"solving","message":"正在编排体验路线..."}},
+      {"event":"phase","data":{"phase":"narrating","message":"正在生成路线文案..."}},
+      {"event":"done","data":{"route_id":"mock001","full_route":{"route":[],"total_budget":66,"total_hours":5.5,"budget_summary":{"总预算":200,"已用":66,"剩余":134},"narrative":{"closing":"回到你喜欢的角落，写下今天的感受吧。"}}}}
+    ];
+
+    const EMOTION_META = {
+      excitement: { label: '兴奋', color: '#ff5368' },
+      tranquility: { label: '宁静', color: '#51aef9' },
+      nature: { label: '自然', color: '#7edc95' },
+      culture_depth: { label: '文化', color: '#925cff' },
+      sociability: { label: '社交', color: '#ff9b54' },
+      physical_demand: { label: '活力', color: '#7edc95' }
+    };
+
+    const PHASE_ORDER = ['parsing', 'identifying', 'ltm_predict', 'weight_mapping', 'searching', 'solving', 'narrating', 'saving'];
+
+    const AppState = {
+      routeId: null,
+      routeSteps: [],
+      currentRoute: null,
+      isPlanning: false,
+      streamFinished: false,
+      abortController: null,
+      timeoutId: null,
+      startedAt: 0
+    };
+
+    const $ = (id) => document.getElementById(id);
+    const el = {
+      userInput: $('userInput'),
+      charCount: $('charCount'),
+      submitBtn: $('submitBtn'),
+      routeList: $('routeList'),
+      statusMessage: $('statusMessage'),
+      dialogueInput: $('dialogueInput'),
+      adjustBtn: $('adjustBtn'),
+      adjustReply: $('adjustReply'),
+      totalBudget: $('totalBudget'),
+      budgetLimit: $('budgetLimit'),
+      budgetRing: $('budgetRing'),
+      budgetPercent: $('budgetPercent'),
+      intentHint: $('intentHint')
+    };
+
+    function text(value, fallback = '') {
+      if (value === null || value === undefined || value === '') return fallback;
+      return String(value);
+    }
+
+    function money(value) {
+      const num = Number(value || 0);
+      return Number.isFinite(num) ? Math.round(num) : 0;
+    }
+
+    function elapsed() {
+      const seconds = Math.max(0, Math.floor((Date.now() - AppState.startedAt) / 1000));
+      return `00:${String(seconds).padStart(2, '0')}`;
+    }
+
+    function setReply(message, tone = '') {
+      el.adjustReply.textContent = message || '';
+      if (tone) el.adjustReply.dataset.tone = tone;
+      else el.adjustReply.removeAttribute('data-tone');
+    }
+
+    function setStatus(message, tone = '') {
+      el.statusMessage.textContent = message || '';
+      if (tone) el.statusMessage.dataset.tone = tone;
+      else el.statusMessage.removeAttribute('data-tone');
+    }
+
+    function getDominantEmotion(poi = {}) {
+      const tags = poi.emotion_tags || {};
+      let bestKey = 'tranquility';
+      let bestVal = -1;
+      for (const key of Object.keys(EMOTION_META)) {
+        const val = Number(tags[key] || 0);
+        if (val > bestVal) {
+          bestKey = key;
+          bestVal = val;
+        }
+      }
+      return { key: bestKey, value: bestVal, ...EMOTION_META[bestKey] };
+    }
+
+    function thumbClass(poi = {}) {
+      const category = `${poi.category || ''}`;
+      const emotion = getDominantEmotion(poi).key;
+      if (emotion === 'nature' || category.includes('公园') || category.includes('运动')) return 'nature';
+      if (category.includes('餐') || category.includes('咖啡')) return 'food';
+      if (category.includes('酒店')) return 'hotel';
+      if (category.includes('购物')) return 'shop';
+      return 'culture';
+    }
+
+    function updateCharCount() {
+      el.charCount.textContent = `${el.userInput.value.length}/50`;
+    }
+
+    function setLoading(isLoading) {
+      AppState.isPlanning = isLoading;
+      el.submitBtn.disabled = isLoading;
+      el.submitBtn.textContent = isLoading ? '…' : '→';
+    }
+
+    function updatePlanner(phase) {
+      const activeIndex = Math.max(0, PHASE_ORDER.indexOf(phase));
+      document.querySelectorAll('.planner-step').forEach((step) => {
+        const stepIndex = PHASE_ORDER.indexOf(step.dataset.phase);
+        step.classList.toggle('is-active', stepIndex === activeIndex);
+        step.classList.toggle('is-done', stepIndex < activeIndex);
+      });
+      const timeTarget = document.getElementById(`phase${phase.charAt(0).toUpperCase()}${phase.slice(1)}Time`);
+      if (timeTarget) timeTarget.textContent = elapsed();
+    }
+
+    function resetPlan() {
+      AppState.routeId = null;
+      AppState.routeSteps = [];
+      AppState.currentRoute = null;
+      AppState.streamFinished = false;
+      AppState.startedAt = Date.now();
+      el.routeList.innerHTML = '<div class="empty-route"><p>AI 正在挑选地点。<br>路线会按时间线逐站出现。</p></div>';
+      setReply('AI 已匹配画像：杜弱独居青年　重新匹配');
+      setStatus('ⓘ AI 会综合天气、人流、你过往的偏好来为你优化');
+      updateBudget({ total: 0, budget_limit: CONFIG.budgetLimit });
+      PHASE_ORDER.forEach((phase) => {
+        const node = document.getElementById(`phase${phase.charAt(0).toUpperCase()}${phase.slice(1)}Time`);
+        if (node) node.textContent = phase === 'parsing' ? '00:00' : '--:--';
+      });
+      updatePlanner('parsing');
+      el.intentHint.textContent = `已识别：${extractIntentWords(el.userInput.value)}`;
+    }
+
+    function extractIntentWords(input) {
+      const words = [];
+      if (/独|一人|一个人/.test(input)) words.push('独处');
+      if (/安静|静|放松/.test(input)) words.push('安静');
+      if (/自然|公园|散步/.test(input)) words.push('自然');
+      if (/约会|情侣/.test(input)) words.push('约会');
+      if (/孩子|亲子/.test(input)) words.push('亲子');
+      if (/宠物|狗/.test(input)) words.push('宠物');
+      if (!words.length) words.push('探索', '放松');
+      return words.join('、');
+    }
+
+    function startTimeoutGuard() {
+      clearTimeout(AppState.timeoutId);
+      AppState.timeoutId = setTimeout(() => {
+        if (!AppState.isPlanning) return;
+        if (AppState.abortController) AppState.abortController.abort();
+        setLoading(false);
+        setStatus('请求超过 15 秒仍未完成，已保留当前返回的路线。', 'error');
+      }, CONFIG.timeoutMs);
+    }
+
+    function updateBudget(data = {}) {
+      // 兼容 narrative.budget_breakdown / total_cost / 直接字段三种格式
+      const total = money(data.total ?? data.total_budget ?? data.total_cost?.budget_used ?? 0);
+      const limit = money(data.budget_limit ?? data.budget_summary?.['总预算'] ?? data.total_cost?.budget_limit ?? CONFIG.budgetLimit);
+      const percent = limit ? Math.min(100, Math.round((total / limit) * 100)) : 0;
+      el.totalBudget.textContent = total;
+      el.budgetLimit.textContent = limit;
+      el.budgetPercent.textContent = `${percent}%`;
+      el.budgetRing.style.setProperty('--budget-angle', `${percent * 3.6}deg`);
+    }
+
+    function clearEmptyRoute() {
+      const empty = el.routeList.querySelector('.empty-route');
+      if (empty) empty.remove();
+    }
+
+    function addStep(step) {
+      if (!step || !step.poi) return;
+      clearEmptyRoute();
+      AppState.routeSteps.push(step);
+      const poi = step.poi;
+      const emotion = getDominantEmotion(poi);
+      const row = document.createElement('article');
+      row.className = 'route-row';
+      row.style.setProperty('--row-color', emotion.color);
+
+      const time = document.createElement('div');
+      time.className = 'time-cell';
+      time.innerHTML = `${text(step.arrival_time, '--')}<small>${text(step.departure_time, '--')}</small>`;
+
+      const card = document.createElement('div');
+      card.className = 'poi-card';
+      card.style.setProperty('--row-color', emotion.color);
+
+      const thumb = document.createElement('div');
+      thumb.className = `thumb ${thumbClass(poi)}`;
+
+      const info = document.createElement('div');
+      info.className = 'poi-info';
+      const title = document.createElement('h3');
+      title.className = 'poi-title';
+      const name = document.createElement('span');
+      name.textContent = text(poi.name, '未命名地点');
+      const chip = document.createElement('span');
+      chip.className = 'emotion-chip';
+      chip.textContent = emotion.label;
+      title.append(name, chip);
+
+      const narrative = document.createElement('p');
+      narrative.className = 'poi-narrative';
+      narrative.textContent = text(step.narrative, '为你保留一段合适的城市体验。');
+
+      const meta = document.createElement('div');
+      meta.className = 'poi-meta';
+      const place = text(poi.category, '地点');
+      const district = text(poi.city, '城市');
+      meta.textContent = `${place}　|　${district}　　预计消费 ¥${money(poi.avg_price)}`;
+
+      info.append(title, narrative, meta);
+
+      const price = document.createElement('div');
+      price.className = 'price';
+      price.textContent = `¥${money(poi.avg_price)}`;
+
+      card.append(thumb, info, price);
+      row.append(time, card);
+      el.routeList.appendChild(row);
+    }
+
+    function addClosingCard(route = {}) {
+      const closing = route.narrative?.closing || '回到你喜欢的角落，写下今天的感受吧。';
+      const row = document.createElement('article');
+      row.className = 'closing-card';
+      row.style.setProperty('--row-color', '#9aa5bd');
+      const time = document.createElement('div');
+      time.className = 'time-cell';
+      time.innerHTML = '16:00<small>☁</small>';
+      const card = document.createElement('div');
+      card.className = 'poi-card';
+      card.innerHTML = `<div>▱　${closing}</div><div class="price" style="color:#7edc95">¥0</div>`;
+      row.append(time, card);
+      el.routeList.appendChild(row);
+    }
+
+    function renderFullRoute(route = {}) {
+      if (Array.isArray(route.route) && route.route.length) {
+        el.routeList.innerHTML = '';
+        AppState.routeSteps = [];
+        route.route.forEach(addStep);
+      }
+      addClosingCard(route);
+      updateBudget(route);
+    }
+
+    function handleSSEEvent(eventType, data) {
+      if (eventType === 'phase') {
+        updatePlanner(data.phase);
+        setStatus(data.message || '正在处理...');
+        return;
+      }
+      if (eventType === 'step') {
+        addStep(data);
+        return;
+      }
+      if (eventType === 'budget') {
+        updateBudget(data);
+        return;
+      }
+      if (eventType === 'done') {
+        clearTimeout(AppState.timeoutId);
+        AppState.routeId = data.route_id || 'mock001';
+        AppState.currentRoute = data.full_route || {};
+        renderFullRoute(AppState.currentRoute);
+        updatePlanner('narrating');
+        document.querySelectorAll('.planner-step').forEach((step) => step.classList.add('is-done'));
+        setStatus('路线规划完成');
+        setReply('AI 已匹配画像：杜弱独居青年　重新匹配', 'ok');
+        AppState.streamFinished = true;
+        setLoading(false);
+        return;
+      }
+      if (eventType === 'error') {
+        clearTimeout(AppState.timeoutId);
+        setStatus(data.error || '规划失败，请稍后重试。', 'error');
+        AppState.streamFinished = true;
+        setLoading(false);
+      }
+    }
+
+    function parseSSEChunk(chunk, parser) {
+      parser.buffer += chunk;
+      const messages = parser.buffer.split(/\r?\n\r?\n/);
+      parser.buffer = messages.pop() || '';
+      messages.forEach((message) => {
+        let eventType = 'message';
+        const dataLines = [];
+        message.split(/\r?\n/).forEach((line) => {
+          if (line.startsWith('event:')) eventType = line.slice(6).trim();
+          if (line.startsWith('data:')) dataLines.push(line.slice(5).trimStart());
         });
+        if (!dataLines.length) return;
+        try {
+          handleSSEEvent(eventType, JSON.parse(dataLines.join('\n')));
+        } catch (error) {
+          console.error('SSE 解析失败:', error, message);
+          setStatus('收到无法解析的流式数据，已跳过。', 'error');
+        }
+      });
+    }
+
+    async function submitPlan(input) {
+      if (AppState.isPlanning) return;
+      resetPlan();
+      setLoading(true);
+      startTimeoutGuard();
+      AppState.abortController = new AbortController();
+      try {
+        const response = await fetch(`${CONFIG.apiBase}/api/plan`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ user_input: input }),
+          signal: AppState.abortController.signal
+        });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
-        let buffer = '';
+        const parser = { buffer: '' };
         while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
-            buffer += decoder.decode(value, { stream: true });
-            const lines = buffer.split('\n');
-            buffer = lines.pop();
-            let eventType = '';
-            for (const line of lines) {
-                if (line.startsWith('event: ')) eventType = line.slice(7).trim();
-                else if (line.startsWith('data: ') && eventType) {
-                    try {
-                        // 优先使用 app.js 的 handleSSEEvent
-                        if (typeof handleSSEEvent === 'function') {
-                            handleSSEEvent(eventType, JSON.parse(line.slice(6)));
-                        } else {
-                            fallbackSSEEvent(eventType, JSON.parse(line.slice(6)));
-                        }
-                    } catch (e) { /* JSON parse error */ }
-                    eventType = '';
-                }
-            }
+          const { done, value } = await reader.read();
+          if (done) break;
+          parseSSEChunk(decoder.decode(value, { stream: true }), parser);
+          if (AppState.streamFinished) {
+            await reader.cancel();
+            break;
+          }
         }
-    } catch (error) {
-        console.error('规划失败:', error);
-        showAnomalyAlert('网络请求失败: ' + error.message, 'time', 'high');
+      } catch (error) {
+        if (error.name === 'AbortError') return;
+        console.error(error);
+        clearTimeout(AppState.timeoutId);
+        setLoading(false);
+        setStatus('连接后端失败，已切换为本地演示。', 'error');
+        playMockEvents();
+      }
     }
-    loading.classList.remove('active');
-    btn.disabled = false;
-}
 
-// ================================================================
-// 回退 SSE 处理（当 app.js 未加载时）
-// ================================================================
-
-function fallbackSSEEvent(type, data) {
-    const loadingText = document.getElementById('loadingText');
-    const phaseIndicator = document.getElementById('phaseIndicator');
-    switch (type) {
-        case 'phase':
-            loadingText.textContent = data.message || '处理中...';
-            if (phaseIndicator && data.phase) {
-                phaseIndicator.className = 'phase-indicator phase-' + data.phase;
-            }
-            break;
-        case 'step':
-            __state.steps.push(data);
-            if (__state.poiList) {
-                __state.poiList.addStep(data);
-            } else {
-                renderPOIListFallback();
-            }
-            break;
-        case 'step_update':
-            if (data.index != null && data.description && __state.poiList) {
-                __state.poiList.updateCardNarrative(data.index, data.description);
-            }
-            break;
-        case 'budget':
-            renderBudget(data);
-            break;
-        case 'anomaly':
-            showAnomalyAlert(data.message || '检测到异常', data.type || 'info', data.severity || 'info');
-            break;
-        case 'done':
-            __state.routeId = data.route_id;
-            if (data.full_route) {
-                __state.route = data.full_route;
-                __state.narrative = data.full_route.narrative;
-                renderNarrative();
-                renderEmotionCurve(data.full_route.emotion_curve || []);
-                renderTimelineSimple();
-                if (__state.poiList) __state.poiList.render(__state.steps);
-            }
-            document.getElementById('dialogueBar').classList.add('active');
-            document.getElementById('loadingOverlay').classList.remove('active');
-            document.getElementById('submitBtn').disabled = false;
-            break;
-        case 'error':
-            showAnomalyAlert(data.error || '规划失败', 'time', 'high');
-            document.getElementById('loadingOverlay').classList.remove('active');
-            document.getElementById('submitBtn').disabled = false;
-            break;
+    function playMockEvents() {
+      resetPlan();
+      setLoading(true);
+      let index = 0;
+      function next() {
+        if (index >= MOCK_EVENTS.length) {
+          setLoading(false);
+          return;
+        }
+        const event = MOCK_EVENTS[index++];
+        if (event.event === 'done' && !event.data.full_route.route.length) {
+          event.data.full_route.route = AppState.routeSteps.slice();
+        }
+        handleSSEEvent(event.event, event.data);
+        const delay = event.event === 'phase' ? 520 : event.event === 'step' ? 180 : 300;
+        setTimeout(next, delay);
+      }
+      setTimeout(next, 180);
     }
-}
 
-// ================================================================
-// 清空路线
-// ================================================================
-
-function clearRoute() {
-    __state.steps = [];
-    __state.route = null;
-    __state.routeId = null;
-    __state.narrative = null;
-    __state.selectedIndex = -1;
-
-    const poiListEl = document.getElementById('poiList');
-    if (__state.poiList) {
-        __state.poiList.clear('正在规划路线...');
-    } else if (poiListEl) {
-        poiListEl.innerHTML = '<div class="empty-state">正在规划路线...</div>';
-    }
-    document.getElementById('narrativeOpening').textContent = '';
-    document.getElementById('narrativeClosing').textContent = '';
-    document.getElementById('curveContainer').style.display = 'none';
-    document.getElementById('budgetBar').style.display = 'none';
-    document.getElementById('timelineContainer').style.display = 'none';
-    document.getElementById('dialogueBar').classList.remove('active');
-    document.getElementById('routeStats').textContent = '';
-
-    // 清除地图路线标记
-    if (__state.chart && typeof __state.chart.clearRouteMarkers === 'function') {
-        __state.chart.clearRouteMarkers();
-    }
-}
-
-// ================================================================
-// 回退 POI 列表渲染
-// ================================================================
-
-function renderPOIListFallback() {
-    const list = document.getElementById('poiList');
-    if (!list) return;
-    if (__state.steps.length === 0) {
-        list.innerHTML = '<div class="empty-state">输入出行需求，开始规划路线</div>';
+    async function sendAdjustment(instruction) {
+      if (!instruction) return;
+      if (!AppState.routeId || AppState.routeId.startsWith('mock')) {
+        const reversed = AppState.routeSteps.slice(0, 4).reverse().map((step, index) => ({
+          ...step,
+          index: index + 1,
+          arrival_time: ['10:10', '11:20', '13:00', '14:20'][index] || step.arrival_time,
+          departure_time: ['10:50', '12:10', '13:50', '15:40'][index] || step.departure_time,
+          narrative: `已根据“${instruction}”调整：${step.poi.name}`
+        }));
+        el.routeList.innerHTML = '';
+        AppState.routeSteps = [];
+        reversed.forEach(addStep);
+        addClosingCard(AppState.currentRoute || {});
+        setReply(`已按“${instruction}”调整路线。`, 'ok');
         return;
-    }
-    list.innerHTML = __state.steps.map(function(step, i) {
-        const poi = step.poi;
-        const mood = getMoodClass(poi);
-        return '<div class="poi-card ' + mood + ' ' + (i === __state.selectedIndex ? 'active' : '') + '" onclick="selectPOI(' + i + ')">' +
-            '<div class="poi-index">' + (i + 1) + '</div>' +
-            '<div class="poi-body">' +
-                '<div class="poi-top"><span class="poi-name">' + escapeHtml(poi.name) + '</span>' +
-                '<span class="poi-time">' + (step.arrival_time || '') + (step.departure_time ? ' - ' + step.departure_time : '') + '</span></div>' +
-                '<div class="poi-meta"><span class="tag category">' + escapeHtml(poi.category || '') + '</span>' +
-                (poi.avg_price ? '<span class="tag price">\u00A5' + poi.avg_price + '</span>' : '') + '</div>' +
-                (step.narrative ? '<div class="poi-narrative">' + escapeHtml(step.narrative) + '</div>' : '') +
-            '</div></div>';
-    }).join('');
-    document.getElementById('routeStats').textContent = __state.steps.length + ' 个地点';
-}
+      }
 
-function escapeHtml(text) {
-    const el = document.createElement('span');
-    el.textContent = text || '';
-    return el.innerHTML;
-}
-
-function getMoodClass(poi) {
-    const et = poi.emotion_tags || {};
-    if (et.excitement > 0.6) return 'mood-exciting';
-    if (et.tranquility > 0.6) return 'mood-calm';
-    if (et.culture_depth > 0.6) return 'mood-cultural';
-    if (et.physical_demand > 0.6) return 'mood-nature';
-    return '';
-}
-
-// ================================================================
-// POI 选择
-// ================================================================
-
-function selectPOI(index) {
-    __state.selectedIndex = index;
-    if (__state.poiList) {
-        const step = __state.steps[index];
-        if (step && step.poi) __state.poiList.selectPoi(step.poi.id);
-        return;
-    }
-    renderPOIListFallback();
-    if (__state.steps.length > 0) {
-        const progress = index / (__state.steps.length - 1);
-        const slider = document.getElementById('timelineSlider');
-        if (slider) slider.value = progress * 100;
-        document.getElementById('timelineCurrentTime').textContent = __state.steps[index].arrival_time;
-        updateTimelineDots(progress);
-    }
-}
-
-// ================================================================
-// 叙述文案渲染
-// ================================================================
-
-function renderNarrative() {
-    if (!__state.narrative) return;
-    document.getElementById('narrativeOpening').textContent = __state.narrative.opening || '';
-    document.getElementById('narrativeClosing').textContent = __state.narrative.closing || '';
-}
-
-function renderEmotionCurve(curve) {
-    if (!curve || curve.length === 0) return;
-    document.getElementById('curveContainer').style.display = 'block';
-    const canvas = document.getElementById('emotionCurve');
-    const ctx = canvas.getContext('2d');
-    const dpr = window.devicePixelRatio || 1;
-    canvas.width = canvas.offsetWidth * dpr;
-    canvas.height = canvas.offsetHeight * dpr;
-    ctx.scale(dpr, dpr);
-    const w = canvas.offsetWidth, h = canvas.offsetHeight;
-    const pad = { top: 10, right: 10, bottom: 20, left: 30 };
-    const plotW = w - pad.left - pad.right, plotH = h - pad.top - pad.bottom;
-    ctx.clearRect(0, 0, w, h);
-    ctx.strokeStyle = '#2a2a4a'; ctx.lineWidth = 0.5;
-    for (let i = 0; i <= 4; i++) {
-        const y = pad.top + (plotH / 4) * i;
-        ctx.beginPath(); ctx.moveTo(pad.left, y); ctx.lineTo(w - pad.right, y); ctx.stroke();
-    }
-    const emotions = [
-        { key: 'excitement', color: '#e94560', label: '\u5174\u594B' },
-        { key: 'tranquility', color: '#3498db', label: '\u5B81\u9759' },
-        { key: 'culture_depth', color: '#9b59b6', label: '\u6587\u5316' },
-    ];
-    emotions.forEach(function(emotion) {
-        ctx.strokeStyle = emotion.color; ctx.lineWidth = 2; ctx.beginPath();
-        let started = false;
-        curve.forEach(function(point, i) {
-            const x = pad.left + (i / (curve.length - 1)) * plotW;
-            const val = point[emotion.key] || 0;
-            const y = pad.top + plotH * (1 - val);
-            if (!started) { ctx.moveTo(x, y); started = true; } else { ctx.lineTo(x, y); }
+      el.adjustBtn.disabled = true;
+      setReply('正在调整路线...');
+      try {
+        const response = await fetch(`${CONFIG.apiBase}/api/dialogue/${encodeURIComponent(AppState.routeId)}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ instruction })
         });
-        ctx.stroke();
-    });
-    const legendY = h - 8; let legendX = pad.left;
-    emotions.forEach(function(emotion) {
-        ctx.fillStyle = emotion.color; ctx.fillRect(legendX, legendY - 6, 12, 3);
-        ctx.fillStyle = '#888'; ctx.font = '10px sans-serif';
-        ctx.fillText(emotion.label, legendX + 16, legendY);
-        legendX += 60;
-    });
-}
-
-function renderBudget(budget) {
-    if (!budget) return;
-    document.getElementById('budgetBar').style.display = 'flex';
-    document.getElementById('budgetCost').textContent = '\u00A5' + (budget.total || 0);
-    document.getElementById('budgetLeverage').textContent = (budget.leverage_summary && budget.leverage_summary['\u9AD8']) || 0 + '\u4E2A';
-    if (budget.total_hours) document.getElementById('budgetTime').textContent = budget.total_hours + 'h';
-    if (budget.total_steps) document.getElementById('budgetSteps').textContent = budget.total_steps + '\u6B65';
-}
-
-// ================================================================
-// 时间轴（简洁回退版）
-// ================================================================
-
-function renderTimelineSimple() {
-    if (__state.steps.length === 0) return;
-    document.getElementById('timelineContainer').style.display = 'block';
-    document.getElementById('timelineCurrentTime').textContent = __state.steps[0].arrival_time;
-    document.getElementById('timelineEndTime').textContent = __state.steps[__state.steps.length - 1].departure_time;
-    document.getElementById('timelineSteps').innerHTML = __state.steps.map(function(_, i) {
-        return '<div class="timeline-step-dot' + (i === 0 ? ' active' : '') + '"></div>';
-    }).join('');
-}
-
-function onTimelineSlide(value) {
-    const progress = value / 100;
-    const index = Math.round(progress * (__state.steps.length - 1));
-    if (index >= 0 && index < __state.steps.length) {
-        document.getElementById('timelineCurrentTime').textContent = __state.steps[index].arrival_time;
-        updateTimelineDots(progress);
-    }
-}
-
-function updateTimelineDots(progress) {
-    const dots = document.querySelectorAll('.timeline-step-dot');
-    const activeIndex = Math.round(progress * (dots.length - 1));
-    dots.forEach(function(dot, i) {
-        dot.classList.toggle('active', i === activeIndex);
-        dot.classList.toggle('passed', i < activeIndex);
-    });
-}
-
-function togglePlayback() {
-    if (__state.isPlaying) { stopPlayback(); } else { startPlayback(); }
-}
-
-function startPlayback() {
-    __state.isPlaying = true;
-    const playBtn = document.getElementById('playBtn');
-    if (playBtn) playBtn.textContent = '\u23F8';
-    __state.playProgress = 0;
-    __state.playTimer = setInterval(function() {
-        __state.playProgress += 2;
-        if (__state.playProgress > 100) { stopPlayback(); return; }
-        const slider = document.getElementById('timelineSlider');
-        if (slider) slider.value = __state.playProgress;
-        onTimelineSlide(__state.playProgress);
-    }, 200);
-}
-
-function stopPlayback() {
-    __state.isPlaying = false;
-    const playBtn = document.getElementById('playBtn');
-    if (playBtn) playBtn.textContent = '\u25B6';
-    if (__state.playTimer) { clearInterval(__state.playTimer); __state.playTimer = null; }
-}
-
-// ================================================================
-// 对话指令
-// ================================================================
-
-async function sendDialogue() {
-    const input = document.getElementById('dialogueInput').value.trim();
-    if (!input || !__state.routeId) return;
-    const loading = document.getElementById('loadingOverlay');
-    loading.classList.add('active');
-    try {
-        const response = await fetch('/api/dialogue/' + __state.routeId, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ message: input })
-        });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const data = await response.json();
+        setReply(data.reply || '路线已调整。', 'ok');
         if (data.route) {
-            clearRoute();
-            if (data.route.route) {
-                data.route.route.forEach(function(step) {
-                    __state.steps.push(step);
-                    if (__state.poiList) {
-                        __state.poiList.addStep(step);
-                    }
-                });
-                __state.route = data.route;
-                __state.narrative = data.route.narrative;
-                renderNarrative();
-                renderEmotionCurve(data.route.emotion_curve || []);
-                renderTimelineSimple();
-                // 更新地图
-                if (__state.chart && typeof __state.chart.updateMarkers === 'function') {
-                    __state.chart.updateMarkers(__state.steps);
-                }
-            }
+          el.routeList.innerHTML = '';
+          AppState.routeSteps = [];
+          renderFullRoute(data.route);
+          AppState.currentRoute = data.route;
         }
-        document.getElementById('dialogueInput').value = '';
-    } catch (error) { console.error('调整失败:', error); }
-    loading.classList.remove('active');
-}
+      } catch (error) {
+        console.error(error);
+        setReply('调整失败，请检查后端接口。', 'error');
+      } finally {
+        el.adjustBtn.disabled = false;
+      }
+    }
 
-// ================================================================
-// 事件绑定
-// ================================================================
+    function bindEvents() {
+      el.userInput.addEventListener('input', updateCharCount);
+      el.submitBtn.addEventListener('click', () => {
+        const input = el.userInput.value.trim();
+        if (!input) {
+          el.userInput.focus();
+          return;
+        }
+        submitPlan(input);
+      });
+      el.userInput.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
+          el.submitBtn.click();
+        }
+      });
 
-const intentInput = document.getElementById('intentInput');
-if (intentInput) intentInput.addEventListener('keypress', function(e) { if (e.key === 'Enter') submitIntent(); });
+      document.querySelectorAll('.tag').forEach((button) => {
+        button.addEventListener('click', () => {
+          document.querySelectorAll('.tag').forEach((item) => item.classList.remove('is-active'));
+          button.classList.add('is-active');
+          el.userInput.value = button.dataset.input || '';
+          updateCharCount();
+        });
+      });
 
-const dialogueInput = document.getElementById('dialogueInput');
-if (dialogueInput) dialogueInput.addEventListener('keypress', function(e) { if (e.key === 'Enter') sendDialogue(); });
+      document.querySelectorAll('[data-adjust]').forEach((button) => {
+        button.addEventListener('click', () => sendAdjustment(button.dataset.adjust));
+      });
 
-// 确保 submitBtn 也有绑定
-const submitBtn = document.getElementById('submitBtn');
-if (submitBtn && !submitBtn._bound) {
-    submitBtn._bound = true;
-    // onsubmit 处理已在 submitBtn onclick 中
-}
+      el.adjustBtn.addEventListener('click', () => {
+        const value = el.dialogueInput.value.trim();
+        el.dialogueInput.value = '';
+        sendAdjustment(value);
+      });
+      el.dialogueInput.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter') el.adjustBtn.click();
+      });
+    }
 
-console.log('CityFlow 前端已加载 (D7 enhanced)');
-</script>
+    bindEvents();
+    updateCharCount();
+    updateBudget({ total: 0, budget_limit: CONFIG.budgetLimit });
+
+    const params = new URLSearchParams(window.location.search);
+    const autoPlan = params.get('plan');
+    if (params.get('mock') === '1') {
+      setTimeout(playMockEvents, 220);
+    } else if (autoPlan) {
+      el.userInput.value = autoPlan;
+      updateCharCount();
+      setTimeout(() => submitPlan(autoPlan), 220);
+    }
+  </script>
 </body>
 </html>

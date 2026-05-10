@@ -40,6 +40,11 @@ class PerceptionContext:
     fatigue_level: float = 0.0  # 0.0 ~ 1.0
     avg_stay_duration: int = 60  # 30 ~ 180 (min)
     photo_frequency: float = 0.0  # 0 ~ 5 (次/小时)
+    # 城市特色（by 王启龙 2026-05-09: 感知应该反映城市特质，而非纯气象数据）
+    city: str = "珠海"
+    city_vibe: str = "relaxed"  # relaxed/lively/rustic/energetic
+    city_specialties: list[str] = field(default_factory=list)
+    is_holiday: bool = False  # 当天是否是节假日
 
 
 class AnomalyType(str, enum.Enum):
@@ -200,47 +205,67 @@ class PerceptionService:
     # ---- 数据采集 ----------------------------------------------------------
 
     async def get_context(
-        self, scene: str | None = None, route: list[dict] | None = None
+        self, scene: str | None = None, route: list[dict] | None = None,
+        city: str = "珠海",
     ) -> PerceptionContext:
         """获取感知上下文。
 
+        不再随机生成天气，使用基于当前时间和季节的确定性默认值。
+
         Args:
-            scene: 预设场景名（sunny/rainy/fatigue/time_pressure），None=随机生成
+            scene: 预设场景名（sunny/rainy/fatigue/time_pressure），用于测试
             route: 当前路线步骤（用于估算步数）
+            city: 用户所在城市，用于加载城市特色数据
         """
         if scene and ScenePresets.get(scene):
-            ctx = ScenePresets.get(scene)
-            return ctx  # type: ignore[return-value]
+            return ScenePresets.get(scene)  # type: ignore[return-value]
 
-        return self._random_context()
+        return self._deterministic_context(city)
 
-    def _random_context(self) -> PerceptionContext:
-        """随机生成感知上下文。"""
+    def _deterministic_context(self, city: str = "珠海") -> PerceptionContext:
+        """生成确定的感知上下文（非随机）。"""
         now = datetime.now()
-        weather = self._rng.choices(
-            list(_WEATHER_WEIGHTS.keys()),
-            weights=list(_WEATHER_WEIGHTS.values()),
-        )[0]
-        temp_map = {
-            "sunny": self._rng.uniform(22, 30),
-            "cloudy": self._rng.uniform(18, 25),
-            "hot": self._rng.uniform(30, 35),
-            "rainy": self._rng.uniform(15, 22),
-            "cold": self._rng.uniform(10, 16),
-        }
+
+        # 季节决定基础天气（夏季偏晴热，冬季不出现hot）
         season_idx = (now.month % 12) // 3
         season = _SEASONS[season_idx]
+        weather, temp = {
+            "spring": ("cloudy", 22),
+            "summer": ("sunny", 30),
+            "autumn": ("sunny", 25),
+            "winter": ("cloudy", 16),
+        }[season]
+
+        # 加载城市特色
+        vibe = "relaxed"
+        specialties: list[str] = []
+        try:
+            import json
+            from pathlib import Path
+            _cp_path = Path(__file__).parent.parent / "data" / "city_personality.json"
+            if _cp_path.exists():
+                cp = json.loads(_cp_path.read_text(encoding="utf-8"))
+                personality = cp.get(city, {})
+                if personality:
+                    vibe = personality.get("vibe", "relaxed")
+                    specialties = personality.get("specialties", [])
+        except Exception:
+            pass
 
         return PerceptionContext(
             weather=weather,
-            temperature=round(temp_map[weather], 1),
+            temperature=temp,
             hour_of_day=now.hour,
             day_of_week=now.weekday(),
             season=season,
-            step_count=self._rng.randint(0, 8000),
-            fatigue_level=round(self._rng.uniform(0.0, 0.4), 2),
-            avg_stay_duration=self._rng.randint(30, 120),
-            photo_frequency=round(self._rng.uniform(0, 3), 1),
+            step_count=0,
+            fatigue_level=0.0,
+            avg_stay_duration=60,
+            photo_frequency=1.0,
+            city=city,
+            city_vibe=vibe,
+            city_specialties=specialties,
+            is_holiday=now.weekday() >= 5,
         )
 
     # ---- 异常检测 ----------------------------------------------------------
@@ -304,8 +329,13 @@ class PerceptionService:
                     )
                 )
 
-        # 4) 时间压力
-        if ctx.hour_of_day >= 16:
+        # 4) 时间压力（基于当前时间和步数综合判断）
+        #    基础阈值16:00，闲逛型放宽到17:00，体力好时延后
+        base_threshold = 16
+        if getattr(ctx, "city_vibe", "") == "relaxed":
+            base_threshold = 17  # 休闲城市节奏慢，时间压力来得晚
+        step_count = len(emotion_curve) if emotion_curve else 4
+        if ctx.hour_of_day >= base_threshold and step_count >= 4:
             anomalies.append(
                 Anomaly(
                     type=AnomalyType.TIME_PRESSURE,

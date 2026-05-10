@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CityFlow - 智能城市出行规划</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: #0f0f1a; color: #e8e8f0; height: 100vh; overflow: hidden;
+        }
+        .app { display: flex; flex-direction: column; height: 100vh; }
+        .header { background: #1a1a2e; padding: 16px 24px; border-bottom: 1px solid #2a2a4a; }
+        .content { display: flex; flex: 1; overflow: hidden; }
+        .left-panel { width: 420px; display: flex; flex-direction: column; border-right: 1px solid #2a2a4a; background: #14142a; }
+        .right-panel { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+
+        /* 顶部输入 */
+        .input-bar { display: flex; gap: 12px; max-width: 900px; margin: 0 auto; }
+        .intent-input { flex: 1; padding: 12px 16px; border: 1px solid #3a3a5a; border-radius: 8px; background: #0f0f1a; color: #e8e8f0; font-size: 14px; }
+        .intent-input:focus { outline: none; border-color: #e94560; }
+        .submit-btn { padding: 12px 28px; background: linear-gradient(135deg, #e94560, #c73e54); color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; }
+        .submit-btn:hover { filter: brightness(1.1); }
+        .submit-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        /* 左侧面板 */
+        .panel-header { padding: 14px 16px; border-bottom: 1px solid #2a2a4a; display: flex; justify-content: space-between; align-items: center; }
+        .panel-title { font-weight: 600; font-size: 15px; }
+        .route-stats { font-size: 12px; color: #888; }
+        .narrative-opening { padding: 16px; background: linear-gradient(135deg, #1a1a3a, #14142a); border-bottom: 1px solid #2a2a4a; font-size: 14px; line-height: 1.6; color: #b8b8d0; font-style: italic; }
+        .narrative-opening:empty { display: none; }
+        .poi-list { flex: 1; overflow-y: auto; padding: 12px; }
+        .poi-list::-webkit-scrollbar { width: 4px; }
+        .poi-list::-webkit-scrollbar-thumb { background: #3a3a5a; border-radius: 2px; }
+
+        /* POI卡片 */
+        .poi-card { border: 1px solid #2a2a4a; border-radius: 12px; padding: 14px; margin-bottom: 10px; cursor: pointer; transition: all 0.2s; display: flex; gap: 12px; }
+        .poi-card:hover { border-color: #e94560; transform: translateX(4px); }
+        .poi-card.active { border-color: #e94560; box-shadow: 0 0 12px rgba(233,69,96,0.2); }
+        .poi-card.mood-exciting { background: linear-gradient(135deg, rgba(233,69,96,0.08), rgba(15,15,26,0.9)); }
+        .poi-card.mood-calm { background: linear-gradient(135deg, rgba(52,152,219,0.08), rgba(15,15,26,0.9)); }
+        .poi-card.mood-cultural { background: linear-gradient(135deg, rgba(155,89,182,0.08), rgba(15,15,26,0.9)); }
+        .poi-card.mood-nature { background: linear-gradient(135deg, rgba(46,204,113,0.08), rgba(15,15,26,0.9)); }
+        .poi-index { width: 28px; height: 28px; border-radius: 50%; background: #e94560; color: white; font-size: 12px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        .poi-body { flex: 1; min-width: 0; }
+        .poi-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+        .poi-name { font-weight: 600; font-size: 14px; }
+        .poi-time { font-size: 12px; color: #888; font-variant-numeric: tabular-nums; }
+        .poi-meta { display: flex; gap: 6px; margin-top: 6px; flex-wrap: wrap; }
+        .tag { font-size: 11px; padding: 2px 8px; border-radius: 10px; background: rgba(255,255,255,0.06); color: #aaa; }
+        .tag.category { background: rgba(233,69,96,0.15); color: #e94560; }
+        .tag.price { background: rgba(243,156,18,0.15); color: #f39c12; }
+        .tag.leverage-high { background: rgba(46,204,113,0.15); color: #2ecc71; }
+        .tag.leverage-low { background: rgba(231,76,60,0.15); color: #e74c3c; }
+        .poi-narrative { font-size: 12px; color: #999; margin-top: 6px; line-height: 1.5; }
+        .poi-design { font-size: 11px; color: #7f8c8d; margin-top: 4px; padding: 6px 8px; background: rgba(255,255,255,0.03); border-radius: 6px; }
+        .poi-design .label { color: #95a5a6; margin-right: 4px; }
+        .narrative-closing { padding: 16px; border-top: 1px solid #2a2a4a; font-size: 14px; color: #b8b8d0; font-style: italic; }
+        .narrative-closing:empty { display: none; }
+
+        /* 右侧面板 */
+        .emotion-curve-container { height: 200px; padding: 16px; border-bottom: 1px solid #2a2a4a; background: #14142a; }
+        .curve-title { font-size: 13px; color: #888; margin-bottom: 8px; }
+        .emotion-curve { width: 100%; height: 150px; }
+        .budget-bar { display: flex; align-items: center; gap: 16px; padding: 12px 16px; background: #1a1a2e; border-bottom: 1px solid #2a2a4a; }
+        .budget-item { font-size: 13px; }
+        .budget-label { color: #888; margin-right: 4px; }
+        .budget-value { color: #f39c12; font-weight: 600; }
+        .timeline-container { padding: 12px 16px; background: #1a1a2e; border-bottom: 1px solid #2a2a4a; }
+        .timeline-controls { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+        .play-btn { width: 32px; height: 32px; border-radius: 50%; background: #e94560; border: none; color: white; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+        .play-btn:hover { filter: brightness(1.1); }
+        .timeline-slider { flex: 1; }
+        .timeline-slider input[type="range"] { width: 100%; -webkit-appearance: none; background: #2a2a4a; height: 4px; border-radius: 2px; outline: none; }
+        .timeline-slider input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; border-radius: 50%; background: #e94560; cursor: pointer; }
+        .timeline-time { font-size: 12px; color: #888; font-variant-numeric: tabular-nums; min-width: 50px; }
+        .timeline-steps { display: flex; gap: 4px; margin-top: 6px; }
+        .timeline-step-dot { flex: 1; height: 3px; border-radius: 2px; background: #2a2a4a; transition: background 0.2s; }
+        .timeline-step-dot.active { background: #e94560; }
+        .timeline-step-dot.passed { background: #5a5a7a; }
+        .map-area { flex: 1; position: relative; overflow: hidden; background: #0a0a1a; }
+        .map-placeholder { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 16px; color: #555; }
+        .map-placeholder-icon { font-size: 48px; opacity: 0.3; }
+        .map-placeholder-text { font-size: 14px; }
+        .dialogue-bar { padding: 12px 16px; background: #1a1a2e; border-top: 1px solid #2a2a4a; display: none; }
+        .dialogue-bar.active { display: flex; gap: 8px; align-items: center; }
+        .dialogue-input { flex: 1; padding: 10px 14px; border: 1px solid #3a3a5a; border-radius: 8px; background: #0f0f1a; color: #e8e8f0; font-size: 13px; }
+        .dialogue-input:focus { outline: none; border-color: #e94560; }
+        .dialogue-send { padding: 10px 16px; background: #3a3a5a; border: none; border-radius: 8px; color: #e8e8f0; cursor: pointer; }
+        .dialogue-send:hover { background: #4a4a6a; }
+        .loading-overlay { position: absolute; inset: 0; background: rgba(15,15,26,0.9); display: none; align-items: center; justify-content: center; flex-direction: column; gap: 16px; z-index: 10; }
+        .loading-overlay.active { display: flex; }
+        .loading-content { display: flex; flex-direction: column; align-items: center; gap: 16px; }
+        .loading-content .spinner { width: 40px; height: 40px; border: 3px solid #2a2a4a; border-top-color: #e94560; border-radius: 50%; animation: spin 0.8s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .loading-text { font-size: 14px; color: #888; }
+        .empty-state { display: flex; align-items: center; justify-content: center; flex: 1; color: #555; font-size: 14px; }
+        .quick-actions { display: flex; gap: 8px; padding: 8px 16px; border-bottom: 1px solid #2a2a4a; flex-wrap: wrap; }
+        .quick-btn { padding: 6px 12px; border: 1px solid #3a3a5a; border-radius: 16px; background: transparent; color: #aaa; font-size: 12px; cursor: pointer; }
+        .quick-btn:hover { border-color: #e94560; color: #e94560; }
+
+        /* ======== 异常告警容器 ======== */
+        #anomaly-container { position: fixed; top: 16px; left: 50%; transform: translateX(-50%); z-index: 9999; display: flex; flex-direction: column; gap: 8px; pointer-events: none; min-width: 360px; max-width: 600px; }
+        .anomaly-alert { display: flex; align-items: center; gap: 10px; padding: 12px 16px; background: #1a1a2e; border: 1px solid #2a2a4a; border-left: 4px solid #f39c12; border-radius: 8px; color: #e8e8f0; font-size: 13px; box-shadow: 0 4px 20px rgba(0,0,0,0.4); pointer-events: auto; cursor: pointer; animation: anomaly-slide-in 0.3s ease-out; }
+        .anomaly-alert.anomaly-dismissing { animation: anomaly-slide-out 0.3s ease-in forwards; }
+        @keyframes anomaly-slide-in { from { transform: translateY(-20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        @keyframes anomaly-slide-out { from { transform: translateY(0); opacity: 1; } to { transform: translateY(-20px); opacity: 0; } }
+        .anomaly-icon { font-size: 20px; flex-shrink: 0; }
+        .anomaly-text { flex: 1; line-height: 1.4; }
+        .anomaly-close { background: none; border: none; color: #888; font-size: 18px; cursor: pointer; padding: 0 4px; flex-shrink: 0; }
+        .anomaly-close:hover { color: #e8e8f0; }
+
+        /* ======== 阶段加载指示器 ======== */
+        .phase-indicator { display: inline-block; width: 16px; height: 16px; margin-right: 8px; vertical-align: middle; }
+        .phase-parsing::before { content: ''; display: inline-block; width: 12px; height: 12px; border-radius: 50%; background: #3498db; animation: phase-pulse 1s ease-in-out infinite; }
+        .phase-searching::before { content: '\1F4CD'; font-size: 16px; animation: phase-bounce 0.6s ease-in-out infinite alternate; }
+        .phase-solving::before { content: ''; display: inline-block; width: 14px; height: 14px; border: 2px solid #e94560; border-top-color: transparent; border-radius: 50%; animation: spin 0.6s linear infinite; }
+        .phase-narrating::after { content: ''; display: inline-block; animation: typing-dots 1.5s steps(4, end) infinite; }
+        @keyframes phase-pulse { 0%, 100% { opacity: 0.4; transform: scale(0.8); } 50% { opacity: 1; transform: scale(1.2); } }
+        @keyframes phase-bounce { from { transform: translateY(0); } to { transform: translateY(-4px); } }
+        @keyframes typing-dots { 0% { content: ''; } 25% { content: '.'; } 50% { content: '..'; } 75% { content: '...'; } 100% { content: ''; } }
+
+        /* ======== 拖拽排序 ======== */
+        .drag-handle { display: flex; flex-direction: column; gap: 3px; padding: 4px 6px; cursor: grab; flex-shrink: 0; align-items: center; justify-content: center; opacity: 0.4; transition: opacity 0.2s; }
+        .drag-handle:hover { opacity: 0.8; }
+        .drag-handle span { display: block; width: 4px; height: 4px; border-radius: 50%; background: #888; }
+        .poi-card.dragging { opacity: 0.5; outline: 2px dashed #e94560; outline-offset: -2px; }
+        .poi-card.touch-dragging { opacity: 0.7; outline: 2px solid #e94560; }
+        .drop-indicator { height: 3px; background: linear-gradient(90deg, #e94560, transparent); border-radius: 2px; margin: 4px 0; transition: all 0.2s; }
+
+        /* ======== 卡片流式出现动画 ======== */
+        @keyframes card-appear { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+        .poi-card.stream-appear { animation: card-appear 0.3s ease-out; }
+
+        /* ======== 加载阶段文案 ======== */
+        .loading-phase { display: inline-flex; align-items: center; gap: 6px; }
+        .loading-phase-text { font-size: 13px; color: #aaa; }
+        .loading-phase-text .highlight { color: #e94560; font-weight: 600; }
+        .loading-dots::after { content: ''; animation: typing-dots 1.5s steps(4, end) infinite; }
+    </style>
+</head>
+<body>
+<div class="app" id="app">
+    <div id="anomaly-container"></div>
+    <header class="header">
+        <div class="input-bar">
+            <input type="text" class="intent-input" id="intentInput" placeholder="描述你的出行需求，例如：周末想一个人安静走走...">
+            <button class="submit-btn" id="submitBtn" onclick="submitIntent()">规划路线</button>
+        </div>
+    </header>
+    <div class="content">
+        <div class="left-panel">
+            <div class="panel-header">
+                <span class="panel-title">路线规划</span>
+                <span class="route-stats" id="routeStats"></span>
+            </div>
+            <div class="quick-actions">
+                <button class="quick-btn" onclick="quickInput('周末想一个人安静走走，不想去人多的地方')">社恐独居</button>
+                <button class="quick-btn" onclick="quickInput('和女朋友约会，想找有氛围的地方')">情侣约会</button>
+                <button class="quick-btn" onclick="quickInput('周末带娃出去玩，让他消耗体力')">亲子出游</button>
+                <button class="quick-btn" onclick="quickInput('带狗子出去转转')">宠物友好</button>
+            </div>
+            <div class="narrative-opening" id="narrativeOpening"></div>
+            <div class="poi-list" id="poiList">
+                <div class="empty-state">输入出行需求，开始规划路线</div>
+            </div>
+            <div class="narrative-closing" id="narrativeClosing"></div>
+        </div>
+        <div class="right-panel">
+            <div class="emotion-curve-container" id="curveContainer" style="display:none">
+                <div class="curve-title">情绪曲线</div>
+                <canvas class="emotion-curve" id="emotionCurve"></canvas>
+            </div>
+            <div class="budget-bar" id="budgetBar" style="display:none">
+                <div class="budget-item"><span class="budget-label">总时间</span><span class="budget-value" id="budgetTime">-</span></div>
+                <div class="budget-item"><span class="budget-label">预算消耗</span><span class="budget-value" id="budgetCost">-</span></div>
+                <div class="budget-item"><span class="budget-label">预估步数</span><span class="budget-value" id="budgetSteps">-</span></div>
+                <div class="budget-item"><span class="budget-label">高杠杆</span><span class="budget-value" id="budgetLeverage">-</span></div>
+            </div>
+            <div class="timeline-container" id="timelineContainer" style="display:none">
+                <div class="timeline-controls">
+                    <button class="play-btn" id="playBtn" onclick="togglePlayback()">▶</button>
+                    <span class="timeline-time" id="timelineCurrentTime">09:00</span>
+                    <div class="timeline-slider"><input type="range" id="timelineSlider" min="0" max="100" value="0" oninput="onTimelineSlide(this.value)"></div>
+                    <span class="timeline-time" id="timelineEndTime">18:00</span>
+                </div>
+                <div class="timeline-steps" id="timelineSteps"></div>
+            </div>
+            <div class="map-area" id="chart-container">
+                <div class="map-placeholder" id="mapPlaceholder">
+                    <div class="map-placeholder-icon">🗺️</div>
+                    <div class="map-placeholder-text">路线规划完成后显示地图</div>
+                </div>
+                <div class="loading-overlay" id="loadingOverlay">
+                    <div class="loading-content">
+                        <div class="spinner"></div>
+                        <div class="loading-phase">
+                            <span class="phase-indicator" id="phaseIndicator"></span>
+                            <span class="loading-phase-text" id="loadingText">正在规划路线...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="dialogue-bar" id="dialogueBar">
+                <input type="text" class="dialogue-input" id="dialogueInput" placeholder="输入调整指令，如：换掉第二个景点、太赶了想轻松点...">
+                <button class="dialogue-send" onclick="sendDialogue()">发送</button>
+            </div>
+        </div>
+    </div>
+</div>
+<script src="js/chart3d.js"></script>
+<script src="js/llm-chat.js"></script>
+<script src="components/poi-list.js"></script>
+<script src="components/timeline.js"></script>
+<script src="js/l7-renderer.js"></script>
+<script src="js/app.js"></script>
+<script>
+// ================================================================
+// CityFlow 前端 — 内联脚本（SSE 读取 + 回退渲染）
+// appState 和 handleSSEEvent 由 app.js 提供
+// ================================================================
+
+// 确保 appState 存在（从 app.js 获取，失败时创建本地）
+const __state = typeof appState !== 'undefined' ? appState : (window.appState = {
+  chart: null, chat: null, poiList: null, timeline: null,
+  route: null, routeId: null, steps: [], narrative: null, selectedIndex: -1,
+  isPlaying: false, playTimer: null, playProgress: 0
+});
+
+function quickInput(text) { document.getElementById('intentInput').value = text; submitIntent(); }
+
+// ================================================================
+// SSE 读取（fetch + ReadableStream）
+// ================================================================
+
+async function submitIntent() {
+    const input = document.getElementById('intentInput').value.trim();
+    if (!input) return;
+    const btn = document.getElementById('submitBtn');
+    const loading = document.getElementById('loadingOverlay');
+    const loadingText = document.getElementById('loadingText');
+    const phaseIndicator = document.getElementById('phaseIndicator');
+    btn.disabled = true; loading.classList.add('active');
+    loadingText.textContent = '正在理解你的需求...';
+    if (phaseIndicator) phaseIndicator.className = 'phase-indicator phase-parsing';
+    clearRoute();
+    try {
+        const response = await fetch('/api/plan', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ user_input: input })
+        });
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split('\n');
+            buffer = lines.pop();
+            let eventType = '';
+            for (const line of lines) {
+                if (line.startsWith('event: ')) eventType = line.slice(7).trim();
+                else if (line.startsWith('data: ') && eventType) {
+                    try {
+                        // 优先使用 app.js 的 handleSSEEvent
+                        if (typeof handleSSEEvent === 'function') {
+                            handleSSEEvent(eventType, JSON.parse(line.slice(6)));
+                        } else {
+                            fallbackSSEEvent(eventType, JSON.parse(line.slice(6)));
+                        }
+                    } catch (e) { /* JSON parse error */ }
+                    eventType = '';
+                }
+            }
+        }
+    } catch (error) {
+        console.error('规划失败:', error);
+        showAnomalyAlert('网络请求失败: ' + error.message, 'time', 'high');
+    }
+    loading.classList.remove('active');
+    btn.disabled = false;
+}
+
+// ================================================================
+// 回退 SSE 处理（当 app.js 未加载时）
+// ================================================================
+
+function fallbackSSEEvent(type, data) {
+    const loadingText = document.getElementById('loadingText');
+    const phaseIndicator = document.getElementById('phaseIndicator');
+    switch (type) {
+        case 'phase':
+            loadingText.textContent = data.message || '处理中...';
+            if (phaseIndicator && data.phase) {
+                phaseIndicator.className = 'phase-indicator phase-' + data.phase;
+            }
+            break;
+        case 'step':
+            __state.steps.push(data);
+            if (__state.poiList) {
+                __state.poiList.addStep(data);
+            } else {
+                renderPOIListFallback();
+            }
+            break;
+        case 'step_update':
+            if (data.index != null && data.description && __state.poiList) {
+                __state.poiList.updateCardNarrative(data.index, data.description);
+            }
+            break;
+        case 'budget':
+            renderBudget(data);
+            break;
+        case 'anomaly':
+            showAnomalyAlert(data.message || '检测到异常', data.type || 'info', data.severity || 'info');
+            break;
+        case 'done':
+            __state.routeId = data.route_id;
+            if (data.full_route) {
+                __state.route = data.full_route;
+                __state.narrative = data.full_route.narrative;
+                renderNarrative();
+                renderEmotionCurve(data.full_route.emotion_curve || []);
+                renderTimelineSimple();
+                if (__state.poiList) __state.poiList.render(__state.steps);
+            }
+            document.getElementById('dialogueBar').classList.add('active');
+            document.getElementById('loadingOverlay').classList.remove('active');
+            document.getElementById('submitBtn').disabled = false;
+            break;
+        case 'error':
+            showAnomalyAlert(data.error || '规划失败', 'time', 'high');
+            document.getElementById('loadingOverlay').classList.remove('active');
+            document.getElementById('submitBtn').disabled = false;
+            break;
+    }
+}
+
+// ================================================================
+// 清空路线
+// ================================================================
+
+function clearRoute() {
+    __state.steps = [];
+    __state.route = null;
+    __state.routeId = null;
+    __state.narrative = null;
+    __state.selectedIndex = -1;
+
+    const poiListEl = document.getElementById('poiList');
+    if (__state.poiList) {
+        __state.poiList.clear('正在规划路线...');
+    } else if (poiListEl) {
+        poiListEl.innerHTML = '<div class="empty-state">正在规划路线...</div>';
+    }
+    document.getElementById('narrativeOpening').textContent = '';
+    document.getElementById('narrativeClosing').textContent = '';
+    document.getElementById('curveContainer').style.display = 'none';
+    document.getElementById('budgetBar').style.display = 'none';
+    document.getElementById('timelineContainer').style.display = 'none';
+    document.getElementById('dialogueBar').classList.remove('active');
+    document.getElementById('routeStats').textContent = '';
+
+    // 清除地图路线标记
+    if (__state.chart && typeof __state.chart.clearRouteMarkers === 'function') {
+        __state.chart.clearRouteMarkers();
+    }
+}
+
+// ================================================================
+// 回退 POI 列表渲染
+// ================================================================
+
+function renderPOIListFallback() {
+    const list = document.getElementById('poiList');
+    if (!list) return;
+    if (__state.steps.length === 0) {
+        list.innerHTML = '<div class="empty-state">输入出行需求，开始规划路线</div>';
+        return;
+    }
+    list.innerHTML = __state.steps.map(function(step, i) {
+        const poi = step.poi;
+        const mood = getMoodClass(poi);
+        return '<div class="poi-card ' + mood + ' ' + (i === __state.selectedIndex ? 'active' : '') + '" onclick="selectPOI(' + i + ')">' +
+            '<div class="poi-index">' + (i + 1) + '</div>' +
+            '<div class="poi-body">' +
+                '<div class="poi-top"><span class="poi-name">' + escapeHtml(poi.name) + '</span>' +
+                '<span class="poi-time">' + (step.arrival_time || '') + (step.departure_time ? ' - ' + step.departure_time : '') + '</span></div>' +
+                '<div class="poi-meta"><span class="tag category">' + escapeHtml(poi.category || '') + '</span>' +
+                (poi.avg_price ? '<span class="tag price">\u00A5' + poi.avg_price + '</span>' : '') + '</div>' +
+                (step.narrative ? '<div class="poi-narrative">' + escapeHtml(step.narrative) + '</div>' : '') +
+            '</div></div>';
+    }).join('');
+    document.getElementById('routeStats').textContent = __state.steps.length + ' 个地点';
+}
+
+function escapeHtml(text) {
+    const el = document.createElement('span');
+    el.textContent = text || '';
+    return el.innerHTML;
+}
+
+function getMoodClass(poi) {
+    const et = poi.emotion_tags || {};
+    if (et.excitement > 0.6) return 'mood-exciting';
+    if (et.tranquility > 0.6) return 'mood-calm';
+    if (et.culture_depth > 0.6) return 'mood-cultural';
+    if (et.physical_demand > 0.6) return 'mood-nature';
+    return '';
+}
+
+// ================================================================
+// POI 选择
+// ================================================================
+
+function selectPOI(index) {
+    __state.selectedIndex = index;
+    if (__state.poiList) {
+        const step = __state.steps[index];
+        if (step && step.poi) __state.poiList.selectPoi(step.poi.id);
+        return;
+    }
+    renderPOIListFallback();
+    if (__state.steps.length > 0) {
+        const progress = index / (__state.steps.length - 1);
+        const slider = document.getElementById('timelineSlider');
+        if (slider) slider.value = progress * 100;
+        document.getElementById('timelineCurrentTime').textContent = __state.steps[index].arrival_time;
+        updateTimelineDots(progress);
+    }
+}
+
+// ================================================================
+// 叙述文案渲染
+// ================================================================
+
+function renderNarrative() {
+    if (!__state.narrative) return;
+    document.getElementById('narrativeOpening').textContent = __state.narrative.opening || '';
+    document.getElementById('narrativeClosing').textContent = __state.narrative.closing || '';
+}
+
+function renderEmotionCurve(curve) {
+    if (!curve || curve.length === 0) return;
+    document.getElementById('curveContainer').style.display = 'block';
+    const canvas = document.getElementById('emotionCurve');
+    const ctx = canvas.getContext('2d');
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = canvas.offsetWidth * dpr;
+    canvas.height = canvas.offsetHeight * dpr;
+    ctx.scale(dpr, dpr);
+    const w = canvas.offsetWidth, h = canvas.offsetHeight;
+    const pad = { top: 10, right: 10, bottom: 20, left: 30 };
+    const plotW = w - pad.left - pad.right, plotH = h - pad.top - pad.bottom;
+    ctx.clearRect(0, 0, w, h);
+    ctx.strokeStyle = '#2a2a4a'; ctx.lineWidth = 0.5;
+    for (let i = 0; i <= 4; i++) {
+        const y = pad.top + (plotH / 4) * i;
+        ctx.beginPath(); ctx.moveTo(pad.left, y); ctx.lineTo(w - pad.right, y); ctx.stroke();
+    }
+    const emotions = [
+        { key: 'excitement', color: '#e94560', label: '\u5174\u594B' },
+        { key: 'tranquility', color: '#3498db', label: '\u5B81\u9759' },
+        { key: 'culture_depth', color: '#9b59b6', label: '\u6587\u5316' },
+    ];
+    emotions.forEach(function(emotion) {
+        ctx.strokeStyle = emotion.color; ctx.lineWidth = 2; ctx.beginPath();
+        let started = false;
+        curve.forEach(function(point, i) {
+            const x = pad.left + (i / (curve.length - 1)) * plotW;
+            const val = point[emotion.key] || 0;
+            const y = pad.top + plotH * (1 - val);
+            if (!started) { ctx.moveTo(x, y); started = true; } else { ctx.lineTo(x, y); }
+        });
+        ctx.stroke();
+    });
+    const legendY = h - 8; let legendX = pad.left;
+    emotions.forEach(function(emotion) {
+        ctx.fillStyle = emotion.color; ctx.fillRect(legendX, legendY - 6, 12, 3);
+        ctx.fillStyle = '#888'; ctx.font = '10px sans-serif';
+        ctx.fillText(emotion.label, legendX + 16, legendY);
+        legendX += 60;
+    });
+}
+
+function renderBudget(budget) {
+    if (!budget) return;
+    document.getElementById('budgetBar').style.display = 'flex';
+    document.getElementById('budgetCost').textContent = '\u00A5' + (budget.total || 0);
+    document.getElementById('budgetLeverage').textContent = (budget.leverage_summary && budget.leverage_summary['\u9AD8']) || 0 + '\u4E2A';
+    if (budget.total_hours) document.getElementById('budgetTime').textContent = budget.total_hours + 'h';
+    if (budget.total_steps) document.getElementById('budgetSteps').textContent = budget.total_steps + '\u6B65';
+}
+
+// ================================================================
+// 时间轴（简洁回退版）
+// ================================================================
+
+function renderTimelineSimple() {
+    if (__state.steps.length === 0) return;
+    document.getElementById('timelineContainer').style.display = 'block';
+    document.getElementById('timelineCurrentTime').textContent = __state.steps[0].arrival_time;
+    document.getElementById('timelineEndTime').textContent = __state.steps[__state.steps.length - 1].departure_time;
+    document.getElementById('timelineSteps').innerHTML = __state.steps.map(function(_, i) {
+        return '<div class="timeline-step-dot' + (i === 0 ? ' active' : '') + '"></div>';
+    }).join('');
+}
+
+function onTimelineSlide(value) {
+    const progress = value / 100;
+    const index = Math.round(progress * (__state.steps.length - 1));
+    if (index >= 0 && index < __state.steps.length) {
+        document.getElementById('timelineCurrentTime').textContent = __state.steps[index].arrival_time;
+        updateTimelineDots(progress);
+    }
+}
+
+function updateTimelineDots(progress) {
+    const dots = document.querySelectorAll('.timeline-step-dot');
+    const activeIndex = Math.round(progress * (dots.length - 1));
+    dots.forEach(function(dot, i) {
+        dot.classList.toggle('active', i === activeIndex);
+        dot.classList.toggle('passed', i < activeIndex);
+    });
+}
+
+function togglePlayback() {
+    if (__state.isPlaying) { stopPlayback(); } else { startPlayback(); }
+}
+
+function startPlayback() {
+    __state.isPlaying = true;
+    const playBtn = document.getElementById('playBtn');
+    if (playBtn) playBtn.textContent = '\u23F8';
+    __state.playProgress = 0;
+    __state.playTimer = setInterval(function() {
+        __state.playProgress += 2;
+        if (__state.playProgress > 100) { stopPlayback(); return; }
+        const slider = document.getElementById('timelineSlider');
+        if (slider) slider.value = __state.playProgress;
+        onTimelineSlide(__state.playProgress);
+    }, 200);
+}
+
+function stopPlayback() {
+    __state.isPlaying = false;
+    const playBtn = document.getElementById('playBtn');
+    if (playBtn) playBtn.textContent = '\u25B6';
+    if (__state.playTimer) { clearInterval(__state.playTimer); __state.playTimer = null; }
+}
+
+// ================================================================
+// 对话指令
+// ================================================================
+
+async function sendDialogue() {
+    const input = document.getElementById('dialogueInput').value.trim();
+    if (!input || !__state.routeId) return;
+    const loading = document.getElementById('loadingOverlay');
+    loading.classList.add('active');
+    try {
+        const response = await fetch('/api/dialogue/' + __state.routeId, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ message: input })
+        });
+        const data = await response.json();
+        if (data.route) {
+            clearRoute();
+            if (data.route.route) {
+                data.route.route.forEach(function(step) {
+                    __state.steps.push(step);
+                    if (__state.poiList) {
+                        __state.poiList.addStep(step);
+                    }
+                });
+                __state.route = data.route;
+                __state.narrative = data.route.narrative;
+                renderNarrative();
+                renderEmotionCurve(data.route.emotion_curve || []);
+                renderTimelineSimple();
+                // 更新地图
+                if (__state.chart && typeof __state.chart.updateMarkers === 'function') {
+                    __state.chart.updateMarkers(__state.steps);
+                }
+            }
+        }
+        document.getElementById('dialogueInput').value = '';
+    } catch (error) { console.error('调整失败:', error); }
+    loading.classList.remove('active');
+}
+
+// ================================================================
+// 事件绑定
+// ================================================================
+
+const intentInput = document.getElementById('intentInput');
+if (intentInput) intentInput.addEventListener('keypress', function(e) { if (e.key === 'Enter') submitIntent(); });
+
+const dialogueInput = document.getElementById('dialogueInput');
+if (dialogueInput) dialogueInput.addEventListener('keypress', function(e) { if (e.key === 'Enter') sendDialogue(); });
+
+// 确保 submitBtn 也有绑定
+const submitBtn = document.getElementById('submitBtn');
+if (submitBtn && !submitBtn._bound) {
+    submitBtn._bound = true;
+    // onsubmit 处理已在 submitBtn onclick 中
+}
+
+console.log('CityFlow 前端已加载 (D7 enhanced)');
+</script>
+</body>
+</html>
