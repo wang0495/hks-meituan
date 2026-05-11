@@ -745,11 +745,17 @@ def _select_diverse_candidates(
         def _is_open_in_window(p):
             """检查POI在用户时间窗口内是否可用。"""
             cat = p.get("category", "")
-            # 户外/运动/景点类：夜间可访问
-            if cat in _OUTDOOR_CATS:
-                return True
-
             hours = p.get("business_hours", "")
+
+            # 户外/运动/景点类：24小时开放的算夜间可访问
+            # 如沙滩、公园、观景台 → hours=00:00-23:59 或无营业时间限制
+            # 但收费景点/训练场有营业时间 → 需检查
+            if cat in _OUTDOOR_CATS:
+                # 无营业时间限制 或 24小时开放
+                if not hours or hours == "00:00-23:59" or "24小时" in str(p.get("tags", [])):
+                    return True
+                # 有营业时间限制 → 正常检查
+                # 收费景点/训练场通常有营业时间
             # 24h营业
             if "00:00" in hours and ("23:59" in hours or hours.endswith("00:00")):
                 return True
@@ -765,20 +771,24 @@ def _select_diverse_candidates(
                     return True
                 return False
 
-            # 用户窗口跨午夜（如 02:00-06:00）
-            if end_min < start_min:
-                if open_min <= close_min:
-                    if (start_min < close_min) or (open_min < end_min):
-                        return True
-                else:
+            # 检查POI营业时段是否覆盖用户时段
+            # 用户时段 [start_min, end_min]
+            # POI营业时段：
+            #   - 非跨午夜（open <= close）：[open, close]
+            #   - 跨午夜（open > close）：[open, 1440) + [0, close]
+
+            if open_min <= close_min:
+                # 非跨午夜POI：营业时段 [open, close]
+                # 检查交集：用户时段与POI营业时段是否有重叠
+                if open_min < end_min and close_min > start_min:
                     return True
             else:
-                if open_min <= close_min:
-                    if open_min < end_min and close_min > start_min:
-                        return True
-                else:
-                    if start_min >= open_min or end_min <= close_min:
-                        return True
+                # 跨午夜POI：营业时段 [open, 1440) + [0, close]
+                # 检查交集：用户时段与任意一段是否有重叠
+                # 与[open, 1440)重叠：open_min < end_min（用户时段开始前POI还在营业）
+                # 与[0, close]重叠：start_min < close_min（用户时段结束前POI已开门）
+                if open_min < end_min or start_min < close_min:
+                    return True
             return False
 
         # 只在跨午夜时做严格过滤，正常晚上时段（18:00-22:00）跳过
@@ -1195,14 +1205,43 @@ def _phase1_initialize(
             open_t, close_t = get_poi_opening_hours(poi)
             arrival_as_time = parse_time(format_time(arrival))
             wait = 0.0
-            if _is_late_night and poi.get("category", "") in _OUTDOOR_CATS_FOR_TW:
-                pass  # 户外POI深夜可访问，不检查营业时间
+
+            # 深夜场景营业时间检查（考虑跨午夜）
+            if _is_late_night:
+                # 户外24小时POI跳过检查
+                if poi.get("category", "") in _OUTDOOR_CATS_FOR_TW:
+                    hours = poi.get("business_hours", "")
+                    if not hours or hours == "00:00-23:59" or "24小时" in str(poi.get("tags", [])):
+                        pass  # 不检查
+                    else:
+                        # 有营业时间的户外POI也要检查
+                        pass
+                else:
+                    # 检查POI是否在深夜时段营业
+                    # 跨午夜POI（close < open）：close_t是次日凌晨
+                    open_min = open_t.hour * 60 + open_t.minute
+                    close_min = close_t.hour * 60 + close_t.minute
+                    arrival_min = arrival_as_time.hour * 60 + arrival_as_time.minute
+
+                    if close_min < open_min:
+                        # 跨午夜营业（如18:00-03:00）
+                        # 检查用户到达时间是否在营业时段内
+                        if arrival_min >= open_min or arrival_min <= close_min:
+                            pass  # 在营业时段内
+                        else:
+                            continue  # 不在营业时段，剪枝
+                    else:
+                        # 非跨午夜（如09:00-18:00）
+                        if arrival_as_time < open_t:
+                            wait = (open_t - arrival_as_time).total_seconds() / 60
+                            arrival_as_time = open_t
+                        if arrival_as_time > close_t:
+                            continue  # 已关门，剪枝
             else:
+                # 正常时段营业时间检查
                 if arrival_as_time < open_t:
                     wait = (open_t - arrival_as_time).total_seconds() / 60
                     arrival_as_time = open_t
-
-                # 剪枝：到达时间必须在关门之前
                 if arrival_as_time > close_t:
                     continue
 
