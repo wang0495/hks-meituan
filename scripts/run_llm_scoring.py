@@ -78,13 +78,16 @@ async def score_route(user_input, route_text):
         "- scene_diversity: 场景多样性\n"
         "- overall: 总体\n\n"
         "规则:\n"
-        "1. 不可能需求(如50元住五星、零预算)只要给了合理替代方案，overall给5-6分\n"
-        "2. 城市出行站间距离5-15km完全正常（开车/打车15-30分钟），不要因为距离扣geo_continuity分\n"
-        "3. 只有站间距离>25km或明显绕路时，geo_continuity才扣分\n"
-        "4. 路线有3个以上POI且类别多样，geo_continuity至少给6分\n"
-        "5. 如果用户要'宵夜'但选了便利店、要'蹦迪'但选了公园，intent_match扣分\n"
-        "6. 如果用户要'深夜'但选了白天景点，intent_match扣分\n"
-        "7. 列2-3个优点和2-3个建议\n\n"
+        "1. 【核心】不可能需求（50元住五星、零预算旅游、凌晨去白天景点）:\n"
+        "   - 若路线给出合理替代/拒绝/说明不可行 → intent_match=7-8，overall=6-7\n"
+        "   - 若路线强行匹配不可能POI（如便利店当宵夜）→ intent_match=2-3，overall=3-4\n"
+        "2. 【核心】用户意图可实现时:\n"
+        "   - 路线匹配核心意图（如宵夜选夜市/烧烤、蹦迪选酒吧/夜店）→ intent_match=8-9\n"
+        "   - 路线偏离核心意图（如宵夜选便利店、蹦迪选公园）→ intent_match=4-5\n"
+        "3. 城市出行站间距离5-15km完全正常（开车/打车15-30分钟），不要因为距离扣geo_continuity分\n"
+        "4. 只有站间距离>25km或明显绕路时，geo_continuity才扣分\n"
+        "5. 路线有3个以上POI且类别多样，geo_continuity至少给6分\n"
+        "6. 列2-3个优点和2-3个建议\n\n"
         '输出JSON: {"scores":{"intent_match":N,"poi_quality":N,"geo_continuity":N,"scene_diversity":N,"overall":N},"good_points":[...],"bad_points":[...]}'
     )
     result = await llm_json(prompt)

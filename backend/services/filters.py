@@ -165,22 +165,77 @@ def filter_candidates(
         parse_time_window(time_info) if time_info.get("start") else (0, 0)
     )
 
-    # late_night场景：跳过时间窗检查（Phase 0已做过深夜营业过滤）
-    _skip_time_check = "late_night" in hard_constraints
+    # late_night场景：需要特殊处理营业时间检查
+    _is_late_night = "late_night" in hard_constraints
+
+    # 解析用户时间窗口（凌晨00:00的hour=0，不是None）
+    user_start_h = user_start // 60
+    user_end_h = user_end // 60 if user_end > 0 else None
+
+    # 判断是否跨午夜时段（如00:00-06:00）
+    _crosses_midnight = user_end < user_start or user_start_h >= 22 or user_start_h <= 6
 
     result: list[dict[str, Any]] = []
     for poi in pois:
         # 时间窗：检查POI营业时间与用户出行时段是否有重叠
-        # 只要POI在用户出行期间有营业时间即可，不要求覆盖整个时段
-        # late_night场景跳过此检查（Phase 0已做过深夜营业过滤）
         hours_str = poi.get("constraints", {}).get("opening_hours", "") or poi.get(
             "business_hours", ""
         )
-        if hours_str and user_start > 0 and user_end > 0 and not _skip_time_check:
-            open_m, close_m = parse_hours_to_minutes(hours_str)
-            # 检查是否有重叠：POI关门时间 > 用户开始时间 AND POI开门时间 < 用户结束时间
-            if close_m <= user_start or open_m >= user_end:
-                continue
+
+        # 凌晨时段user_start=0，也需要检查营业时间（改为 >= 0）
+        if hours_str and user_start >= 0 and user_end > 0:
+            # 解析营业时间
+            try:
+                parts = hours_str.split("-")
+                open_h = int(parts[0].strip().split(":")[0])
+                open_m = int(parts[0].strip().split(":")[1])
+                close_h = int(parts[1].strip().split(":")[0])
+                close_m = int(parts[1].strip().split(":")[1])
+                poi_open_min = open_h * 60 + open_m
+                poi_close_min = close_h * 60 + close_m
+            except:
+                # 无法解析营业时间，检查标签判断是否24h
+                tags_str = ' '.join(poi.get("tags", [])) + ' ' + poi.get("name", "")
+                if "24小时" in tags_str or "通宵" in tags_str:
+                    poi_open_min, poi_close_min = 0, 1439  # 24小时
+                else:
+                    poi_open_min, poi_close_min = 0, 1439  # 默认可用
+
+            if _is_late_night and _crosses_midnight:
+                # 深夜跨午夜场景：检查POI是否营业到深夜或在凌晨开门
+                # 有效POI类型：
+                # 1. 24小时营业 (00:00-23:59)
+                # 2. 跨午夜营业 (如17:00-02:00, 18:00-05:00)
+                # 3. 早开门覆盖凌晨时段 (如06:00-22:00 覆盖06:00结束时间)
+
+                is_24h = (poi_open_min == 0 and poi_close_min >= 1439) or \
+                         "24小时" in ' '.join(poi.get("tags", []))
+
+                is_cross_midnight_poi = poi_close_min < poi_open_min  # POI跨午夜营业
+
+                # 检查是否有交集
+                if is_24h:
+                    # 24小时营业POI始终可用
+                    pass
+                elif is_cross_midnight_poi:
+                    # POI跨午夜营业：检查是否覆盖用户时段
+                    # 用户时段 [user_start, user_end] 可能是00:00-360(06:00)
+                    # POI营业时段 [poi_open, 1440) + [0, poi_close]
+                    # 需要检查：(poi_open < user_end) OR (user_start < poi_close)
+                    if not (poi_open_min < user_end or user_start < poi_close_min):
+                        continue  # POI营业时段不覆盖用户时段
+                else:
+                    # 非跨午夜POI：营业时段 [poi_open, poi_close]
+                    # 对于凌晨时段(如00:00-06:00)，白天营业的POI(09:00-22:00)不覆盖
+                    # 检查是否有交集
+                    if poi_open_min <= poi_close_min:
+                        # 非跨午夜POI：只有当营业时段与用户时段有重叠才可用
+                        if poi_close_min <= user_start or poi_open_min >= user_end:
+                            continue  # POI营业时段不覆盖用户时段
+            else:
+                # 正常时段：检查是否有重叠
+                if poi_close_min <= user_start or poi_open_min >= user_end:
+                    continue
 
         # 排队
         q_time = poi.get("constraints", {}).get("queue_time_min", 0)
