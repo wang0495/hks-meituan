@@ -1,0 +1,46 @@
+{
+  "best_weights": {
+    "alpha": 0.060000000000000005,
+    "beta": 0.46,
+    "gamma": 0.09000000000000001,
+    "delta": 0.43000000000000005,
+    "reaction": 0.09,
+    "sensory": 0.1,
+    "area": 0.16
+  },
+  "best_score": 0.04925,
+  "best_pass_rate": 0.05,
+  "by_profile": {
+    "情侣": {
+      "pass_rate": 0.2,
+      "passed": 1,
+      "total": 5
+    },
+    "朋友": {
+      "pass_rate": 0.0,
+      "passed": 0,
+      "total": 5
+    },
+    "独处": {
+      "pass_rate": 0.0,
+      "passed": 0,
+      "total": 5
+    },
+    "亲子": {
+      "pass_rate": 0.0,
+      "passed": 0,
+      "total": 5
+    }
+  },
+  "n_trials": 30,
+  "elapsed_seconds": 12.8,
+  "default_weights": {
+    "alpha": 1.0,
+    "beta": 0.5,
+    "gamma": 0.2,
+    "delta": 2.0,
+    "reaction": 0.3,
+    "sensory": 0.2,
+    "area": 1.0
+  }
+}

@@ -158,7 +158,7 @@ _INPUT_TO_SCENE_TAGS: dict[str, set[str]] = {
     "海边": {"海滨"}, "海滩": {"海滨"}, "沙滩": {"海滨"}, "海景": {"海滨"}, "海": {"海滨"},
     "安静": {"休闲放松", "安静"}, "放松": {"休闲放松"},
     "爬山": {"运动健身", "山景"}, "运动": {"运动健身"}, "徒步": {"运动健身"},
-    "拍照": {"拍照出片"}, "摄影": {"拍照出片"}, "出片": {"拍照出片"}, "打卡": {"打卡热点"},
+    "拍照": {"拍照出片", "出片"}, "摄影": {"拍照出片", "出片"}, "出片": {"拍照出片", "出片"}, "打卡": {"打卡热点", "出片"},
     "文化": {"文化历史"}, "历史": {"文化历史"}, "博物馆": {"文化历史"},
     "美食": {"美食"}, "小吃": {"美食"}, "吃": {"美食"}, "餐厅": {"美食"},
     "购物": {"购物"}, "逛街": {"购物"}, "买东西": {"购物"},
@@ -386,12 +386,14 @@ def _get_dynamic_phases(user_intent: dict[str, Any]) -> list[dict]:
             {"name": "甜蜜收尾", "ratio": 0.3, "target": {"excitement": (0.3, 0.6), "sociability": (0.3, 0.7)}, "cats": _ensure_cats(["餐饮", "景点", "海景咖啡馆"])},
         ]
 
-    # 文艺独处型
+    # 文艺独处型（4阶段，确保路线长度足够）
     _SOLO_KW = ["安静", "独处", "看书", "一个人", "小众", "文艺"]
     if any(kw in raw for kw in _SOLO_KW):
         return [
-            {"name": "宁静探索", "ratio": 0.5, "target": {"tranquility": (0.6, 1.0), "culture_depth": (0.3, 0.7)}, "cats": _ensure_cats(["文化", "咖啡馆", "书店", "景点"])},
-            {"name": "文化沉淀", "ratio": 0.5, "target": {"culture_depth": (0.5, 1.0), "tranquility": (0.4, 0.8)}, "cats": _ensure_cats(["文化", "咖啡馆", "书店"])},
+            {"name": "宁静铺垫", "ratio": 0.25, "target": {"tranquility": (0.6, 1.0)}, "cats": _ensure_cats(["文化", "咖啡馆", "书店"])},
+            {"name": "文化探索", "ratio": 0.25, "target": {"culture_depth": (0.5, 1.0), "tranquility": (0.3, 0.7)}, "cats": _ensure_cats(["文化", "书店", "景点"])},
+            {"name": "文艺体验", "ratio": 0.25, "target": {"surprise": (0.3, 0.7), "culture_depth": (0.3, 0.7)}, "cats": _ensure_cats(["咖啡馆", "购物", "景点"])},
+            {"name": "安静收尾", "ratio": 0.25, "target": {"tranquility": (0.5, 0.9), "culture_depth": (0.4, 0.8)}, "cats": _ensure_cats(["文化", "咖啡馆", "餐饮"])},
         ]
 
     # 亲子刺激型
@@ -411,12 +413,13 @@ def _get_dynamic_phases(user_intent: dict[str, Any]) -> list[dict]:
             {"name": "深夜延续", "ratio": 0.5, "target": {"excitement": (0.3, 0.6), "sociability": (0.3, 0.7)}, "cats": _ensure_cats(["餐饮", "夜市", "景点"])},
         ]
 
-    # 极速打卡型
+    # 极速打卡型（3阶段，保证最少3个POI）
     _FAST_KW = ["极速", "快速", "赶时间", "打卡", "2小时"]
     if any(kw in raw for kw in _FAST_KW):
         return [
-            {"name": "高效打卡", "ratio": 0.5, "target": {"excitement": (0.5, 0.8), "surprise": (0.3, 0.7)}, "cats": _ensure_cats(["景点", "文化", "购物"])},
-            {"name": "收尾体验", "ratio": 0.5, "target": {"excitement": (0.3, 0.6)}, "cats": _ensure_cats(["餐饮", "景点"])},
+            {"name": "高效打卡", "ratio": 0.4, "target": {"excitement": (0.5, 0.8), "surprise": (0.3, 0.7)}, "cats": _ensure_cats(["景点", "文化", "购物"])},
+            {"name": "核心体验", "ratio": 0.3, "target": {"excitement": (0.4, 0.7)}, "cats": _ensure_cats(["景点", "餐饮"])},
+            {"name": "收尾打卡", "ratio": 0.3, "target": {"excitement": (0.3, 0.6)}, "cats": _ensure_cats(["餐饮", "购物"])},
         ]
 
     # 退休悠闲型
@@ -624,7 +627,7 @@ def _select_diverse_candidates(
         city_counts[city] = city_counts.get(city, 0) + 1
     if city_counts:
         main_city = max(city_counts, key=city_counts.get)
-        all_pois = [p for p in all_pois if p.get("city") == main_city]
+        all_pois = [p for p in all_pois if p.get("city") == main_city or not p.get("city")]
 
     # 预计算旅游相关性，过滤低质量POI
     for poi in all_pois:
@@ -688,6 +691,29 @@ def _select_diverse_candidates(
         if len(sr_matched) >= 3:
             quality_pois = sr_matched
             print(f"[Solver] scene_requirements Phase0预过滤(ANY-match): {len(sr_matched)} 个匹配")
+
+    # ── 场景感知过滤 ──
+    # 1. 便利店/快餐不适合美食/宵夜场景
+    _food_scene_reqs = {"宵夜", "美食", "小吃", "烧烤", "火锅", "街边小店", "本地小吃"}
+    _is_food_req = bool(set(user_intent.get("scene_requirements", [])) & _food_scene_reqs)
+    if _is_food_req:
+        _CONVENIENCE_KEYWORDS = ["美宜佳", "7-Eleven", "全家", "便利店", "Circle K", "OK便利店"]
+        before = len(quality_pois)
+        quality_pois = [p for p in quality_pois
+                        if not any(kw in p.get("name", "") for kw in _CONVENIENCE_KEYWORDS)]
+        if len(quality_pois) < before:
+            print(f"[Solver] 美食场景过滤: 移除便利店{before - len(quality_pois)}个, 剩余{len(quality_pois)}")
+
+    # 2. 深夜场景过滤白天专属景点
+    _night_scene = any(kw in str(user_intent.get("scene_requirements", [])) + str(user_intent.get("_raw_input", ""))
+                       for kw in ["深夜", "凌晨", "宵夜", "夜景", "夜晚"])
+    if _night_scene:
+        _DAY_ONLY_KEYWORDS = ["海洋剧场", "海豚剧场", "儿童科技馆", "探险家中心", "动物园"]
+        before = len(quality_pois)
+        quality_pois = [p for p in quality_pois
+                        if not any(kw in p.get("name", "") for kw in _DAY_ONLY_KEYWORDS)]
+        if len(quality_pois) < before:
+            print(f"[Solver] 深夜场景过滤: 移除白天专属景点{before - len(quality_pois)}个")
 
     # late_night: 深夜/凌晨营业过滤
     # 只在时间窗口确实跨午夜时才激活（如 22:00-06:00）
@@ -1123,6 +1149,17 @@ def _phase1_initialize(
 
     # 按情绪阶段选POI
     phases = _get_dynamic_phases(user_intent)
+    # 最低阶段保护：动态阶段至少3个，避免路线过短
+    if len(phases) < 3:
+        default_phases = []
+        for phase in _EMOTION_PHASES:
+            p = dict(phase)
+            pref_cats = user_intent.get("preferred_categories", [])
+            for c in pref_cats:
+                if c not in p["cats"]:
+                    p["cats"].append(c)
+            default_phases.append(p)
+        phases = default_phases
     phase_idx = 0
 
     # 方案五：两阶段锁定 — 只有scene_requirements匹配POI足够多时才锁定
@@ -1227,34 +1264,52 @@ def _phase1_initialize(
             poi_scene_tags = set(poi.get("_scene_tags", []))
             raw_input = user_intent.get("_raw_input", "")
 
-            # 1. 用户输入文本 → 场景标签直接匹配（最高优先级）
+            # ── 用户意图匹配 ──
+            # 注意：不能超过travel_time的最大贡献(60)，否则travel失效
+            scene_bonus = 0.0
+            _INTENT_STRONG = -6.0    # 强意图匹配（输入/hard_constraints）
+            _INTENT_MEDIUM = -3.0    # 中意图匹配（偏好）
+            _INTENT_WEAK = -1.5      # 弱意图匹配（类别推荐）
+
+            # 1. 用户输入文本 → 场景标签直接匹配
             input_matched = False
             for keyword, target_tags in _INPUT_TO_SCENE_TAGS.items():
                 if keyword in raw_input and (poi_scene_tags & target_tags):
-                    scene_bonus -= 5.0  # 输入关键词任意匹配 → -5.0（压倒其他因素）
+                    scene_bonus += _INTENT_STRONG
                     input_matched = True
-                    break  # 任意一个关键词匹配就够了
+                    break
 
-            # 2. 偏好 → 场景标签间接匹配（次优先级）
+            # 1b. hard_constraints → 场景标签匹配
+            if not input_matched:
+                hard_constraints = user_intent.get("hard_constraints", [])
+                for constraint in hard_constraints:
+                    for keyword, target_tags in _INPUT_TO_SCENE_TAGS.items():
+                        if keyword in constraint and (poi_scene_tags & target_tags):
+                            scene_bonus += _INTENT_STRONG
+                            input_matched = True
+                            break
+                    if input_matched:
+                        break
+
+            # 2. 偏好 → 场景标签间接匹配
             pref_matched = False
             if not input_matched:
                 for pref_key, pref_val in preferences.items():
                     if pref_val > 0.3:
                         matched_tags = _PREF_TO_SCENE_TAGS.get(pref_key, set())
                         if poi_scene_tags & matched_tags:
-                            scene_bonus -= 2.0
+                            scene_bonus += _INTENT_MEDIUM
                             pref_matched = True
-                # 有偏好但不匹配 → 轻微惩罚
                 has_active_prefs = any(v > 0.3 for v in preferences.values())
                 if has_active_prefs and not pref_matched and not input_matched:
-                    scene_bonus += 0.3
+                    scene_bonus += 0.5  # 不匹配时轻微惩罚
 
-            # preferred_categories匹配加分（LLM推荐的类别优先选入）
+            # 3. preferred_categories匹配
             _pref_cats = user_intent.get("preferred_categories", [])
             _cat_bonus = 0.0
             if _pref_cats and poi.get("category", "") in _pref_cats:
                 _cat_idx = _pref_cats.index(poi.get("category", ""))
-                _cat_bonus = -5.0 + _cat_idx * 0.8  # 第1个-5.0, 第2个-4.2, 第3个-3.4...
+                _cat_bonus += _INTENT_WEAK + _cat_idx * 1.0  # -3, -2, -1...
 
             score = (
                 _get_weight("alpha", _ALPHA) * (travel + wait)
@@ -1272,9 +1327,9 @@ def _phase1_initialize(
             if _preferred_ids and poi.get("id") in _preferred_ids:
                 score -= 5.0  # 强烈推荐 → 大幅降低分数（越低越好）
 
-            # scene_requirements匹配加分（Level 0硬约束信号）
+            # scene_requirements匹配加分
             if _scene_matched_ids and poi.get("id") in _scene_matched_ids:
-                score -= 8.0  # scene_requirements匹配 → 极强加分
+                score -= 8.0  # scene_requirements匹配
 
             # 场景需求语义匹配（含同义词扩展）
             if _scene_requirements:
@@ -1299,7 +1354,7 @@ def _phase1_initialize(
                         if any(syn in poi_text for syn in synonyms):
                             matched_scenes += 1
                 if matched_scenes > 0:
-                    score -= matched_scenes * 4.0  # 场景需求匹配是强信号，压过情绪阶段
+                    score -= matched_scenes * 3.0  # 场景需求语义匹配
 
             # ---------- 经济引擎评分 ----------
             enriched = enrich_poi_economics(poi)
@@ -1365,7 +1420,25 @@ def _phase1_initialize(
         running_budget += best.get("avg_price", 0)
         step_count += estimate_steps(best)
         remaining.remove(best)
-        phase_idx += 1  # 每阶段选1个POI后进入下一阶段
+
+        # 类别多样性：如果当前POI和上一个POI类别不同，且还有空间，
+        # 可以在同一阶段再选一个不同类别的POI（不推进phase_idx）
+        prev_cat = route[-2]["poi"].get("category", "") if len(route) >= 2 else ""
+        curr_cat = best.get("category", "")
+        can_add_more = (
+            len(route) < max_pois
+            and phase_idx < len(phases) - 1  # 不是最后一个阶段
+            and curr_cat != prev_cat  # 已经有类别多样性
+        )
+        if can_add_more:
+            # 检查是否还有不同类别的POI可选
+            other_cats = [p for p in remaining if p.get("category", "") != curr_cat]
+            if other_cats:
+                phase_idx += 1  # 推进到下一阶段
+            else:
+                phase_idx += 1  # 没有其他类别，正常推进
+        else:
+            phase_idx += 1  # 正常推进
 
     return route
 
@@ -1911,11 +1984,46 @@ def solve_route(
         if not filtered:
             return empty_result
 
+    # ── 不可解场景检测 ──
+    _impossible_hints = []
+    budget_pp = user_intent.get("budget", {}).get("per_person", 500)
+    affordable = [p for p in filtered if p.get("avg_price", 0) <= budget_pp]
+    if not affordable and budget_pp < 100:
+        _impossible_hints.append(f"预算{budget_pp}元/人偏低，当前候选中没有此价位的POI")
+    if _impossible_hints:
+        empty_result["_impossible_hints"] = _impossible_hints
+
     _report_progress("filtered", {"phase": "筛选", "remaining": len(filtered)})
 
     # Phase 1: 贪心初始化
     route = _phase1_initialize(filtered, user_intent, start_time)
     _report_progress("initial_route", {"phase": "初排", "length": len(route)})
+
+    # 最低路线长度保护：如果Phase 1选出的POI太少，从候选中补充
+    if 0 < len(route) < 3:
+        used_ids = {s["poi"].get("id") for s in route}
+        for poi in filtered:
+            if len(route) >= 3:
+                break
+            if poi.get("id") not in used_ids:
+                # 简单添加到最后
+                last = route[-1]["poi"]
+                travel = estimate_travel_time(last, poi)
+                last_departure = parse_time(route[-1]["departure_time"])
+                arrival = last_departure + timedelta(minutes=travel)
+                stay = poi.get("avg_stay_min", 60)
+                departure = arrival + timedelta(minutes=stay)
+                route.append({
+                    "poi": poi,
+                    "arrival_time": format_time(arrival),
+                    "departure_time": format_time(departure),
+                    "travel_from_prev": {
+                        "distance_m": round(estimate_distance(last, poi)),
+                        "time_min": round(travel),
+                    },
+                })
+                used_ids.add(poi.get("id"))
+        print(f"[Solver] 最低长度保护: 补充到{len(route)}站")
 
     if not route:
         return empty_result
