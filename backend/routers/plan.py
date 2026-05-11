@@ -282,6 +282,55 @@ async def plan_route(request: PlanRequest):
             # Phase 2: 搜索候选 + 城市过滤
             yield _sse("phase", {"phase": "searching", "message": f"正在为你寻找合适的地方..."})
 
+            # ── Agent Phase: IntentAgent不可能需求检测 ──
+            # 在solver之前调用，利用主event loop
+            intent_agent_result = None
+            print(f"[DEBUG] Agent Phase开始, user_input={request.user_input[:30]}")
+            try:
+                from backend.agents import IntentAgent, get_llm as get_agent_llm
+                print("[DEBUG] Agent import成功")
+                logger.info("[Agent] 开始调用IntentAgent")
+                agent = IntentAgent(get_agent_llm())
+                intent_agent_result = await agent.analyze(request.user_input)
+                logger.info(f"[Agent] 结果: is_impossible={intent_agent_result.get('is_impossible')}")
+
+                # 如果是不可能需求，直接返回
+                if intent_agent_result.get("is_impossible"):
+                    yield _sse("agent_impossible", {
+                        "phase": "Agent检测",
+                        "reason": intent_agent_result.get("impossible_reason", ""),
+                        "suggestion": intent_agent_result.get("alternative_suggestion", ""),
+                    })
+                    yield _sse("done", {
+                        "route_id": "impossible_" + str(uuid.uuid4())[:8],
+                        "full_route": {
+                            "route": [],
+                            "impossible": True,
+                            "impossible_reason": intent_agent_result.get("impossible_reason", ""),
+                            "alternative_suggestion": intent_agent_result.get("alternative_suggestion", ""),
+                        }
+                    })
+                    return
+
+                # Agent增强user_intent
+                scene_keywords = intent_agent_result.get("scene_keywords", [])
+                preferred_zones = intent_agent_result.get("preferred_zones", [])
+                if scene_keywords:
+                    existing_sr = user_intent.get("scene_requirements", [])
+                    user_intent["scene_requirements"] = list(set(existing_sr + scene_keywords))
+                    yield _sse("agent_intent", {
+                        "phase": "Agent意图增强",
+                        "keywords": scene_keywords[:5],
+                        "zones": preferred_zones[:3],
+                    })
+                if preferred_zones:
+                    user_intent["_preferred_zones"] = preferred_zones
+                user_intent["_intent_agent_result"] = intent_agent_result
+            except Exception as e:
+                logger.error(f"[Agent] 调用失败: {e}")
+                import traceback
+                logger.error(traceback.format_exc())
+
             all_pois = get_data("city_poi_db")
 
             # 按城市过滤
@@ -424,6 +473,7 @@ async def plan_route(request: PlanRequest):
             for evt in solver_events:
                 yield _sse("solver_stage", evt)
 
+            
             # 兜底：求解失败或超时
             if route_result is None or not route_result.get("route"):
                 logger.warning("路线求解失败/超时，使用简化路线")

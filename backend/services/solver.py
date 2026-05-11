@@ -28,6 +28,7 @@ from backend.services.time_utils import (format_time, get_poi_opening_hours,
 from backend.services.memory.psychology import PsychologyRules
 from backend.services.poi_scenes import tag_poi, audit_route
 
+
 # ---------------------------------------------------------------------------
 # 非标体验加载（by 王启龙 2026-05-09: 集成城市特色体验到求解流程）
 # ---------------------------------------------------------------------------
@@ -1972,6 +1973,7 @@ def solve_route(
     if not candidates:
         return empty_result
 
+    
     # Phase 0: 按意图筛选候选（确保category多样性）
     selected = _select_diverse_candidates(candidates, user_intent, max_candidates=30)
 

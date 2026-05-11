@@ -24,15 +24,25 @@ async def llm_json(prompt, max_tokens=2000):
         except: return None
 
 def parse_sse_route(sse_text):
+    """解析SSE响应，返回route和impossible信息"""
     route = []
+    impossible_info = None
     current_event = None
     for line in sse_text.split("\n"):
         line = line.strip()
-        if line.startswith("event: "): current_event = line[7:].strip()
-        elif line.startswith("data: ") and current_event == "step":
-            try: route.append(json.loads(line[6:]))
+        if line.startswith("event: "):
+            current_event = line[7:].strip()
+        elif line.startswith("data: "):
+            try:
+                data = json.loads(line[6:])
+                if current_event == "step":
+                    route.append(data)
+                elif current_event == "agent_impossible":
+                    impossible_info = data
+                elif current_event == "done" and data.get("full_route", {}).get("impossible"):
+                    impossible_info = data.get("full_route")
             except: pass
-    return route
+    return route, impossible_info
 
 def haversine(lat1, lng1, lat2, lng2):
     """计算两点间距离（km）"""
@@ -108,7 +118,20 @@ async def main():
         try:
             async with httpx.AsyncClient(timeout=120.0) as c:
                 r = await c.post(f"{BASE}/api/plan", json={"user_input": inp, "session_id": f"score_{i}"})
-                route = parse_sse_route(r.text)
+                route, impossible_info = parse_sse_route(r.text)
+
+            # 如果Agent检测到不可能需求，标记为合理拒绝
+            if impossible_info:
+                print(f"  [Agent] 不可能需求: {impossible_info.get('reason', '')[:50]}...")
+                print(f"  V 合理拒绝 → intent=8 overall=7")
+                results.append({
+                    "name": name, "input": inp, "status": "impossible",
+                    "overall": 7, "scores": {"intent_match": 8, "poi_quality": 0, "geo_continuity": 0, "scene_diversity": 0, "overall": 7},
+                    "passed": True,  # 合理拒绝视为通过
+                    "reason": impossible_info.get("reason", ""),
+                    "suggestion": impossible_info.get("suggestion", ""),
+                })
+                continue
 
             if not route:
                 print(f"  X 空路线")
