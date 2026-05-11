@@ -284,8 +284,11 @@ async def plan_route(request: PlanRequest):
 
             # ── Agent Phase: IntentAgent不可能需求检测 ──
             # 在solver之前调用，利用主event loop
-            intent_agent_result = None
-            print(f"[DEBUG] Agent Phase开始, user_input={request.user_input[:30]}")
+            import sys
+            sys.stdout.flush()
+            print("=" * 50, flush=True)
+            print(f"[AGENT_DEBUG] Agent Phase开始, user_input={request.user_input[:30]}", flush=True)
+            print("=" * 50, flush=True)
             try:
                 from backend.agents import IntentAgent, get_llm as get_agent_llm
                 print("[DEBUG] Agent import成功")

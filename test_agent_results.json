@@ -1,0 +1,263 @@
+{
+  "intent_results": [
+    {
+      "name": "矛盾需求",
+      "input": "预算就50块，但要住五星级海景房，还带早餐",
+      "is_impossible": true,
+      "is_correct": true,
+      "scene_keywords": [
+        "经济型住宿",
+        "青年旅舍"
+      ],
+      "preferred_zones": [],
+      "impossible_reason": "五星级海景房通常800-1500元/晚，50元预算严重不足，且带早餐更不可能"
+    },
+    {
+      "name": "预算冲突",
+      "input": "想住情侣酒店，但只给100块预算，怎么办",
+      "is_impossible": true,
+      "is_correct": true,
+      "scene_keywords": [
+        "情侣酒店",
+        "经济型住宿"
+      ],
+      "preferred_zones": [],
+      "impossible_reason": "情侣酒店通常价格在200-500元/晚，100元预算不足"
+    },
+    {
+      "name": "时间压缩",
+      "input": "3小时从拱北到横琴，玩3个景点，可能吗",
+      "is_impossible": true,
+      "is_correct": true,
+      "scene_keywords": [
+        "长隆",
+        "海洋王国",
+        "主题乐园",
+        "紧凑行程"
+      ],
+      "preferred_zones": [
+        "横琴"
+      ],
+      "impossible_reason": "拱北到横琴距离约15公里，交通往返需1小时以上，3小时游玩3个景点时间严重不足"
+    },
+    {
+      "name": "朋友拼单",
+      "input": "3个人想去长隆，但不想住酒店，有没有一日游路线",
+      "is_impossible": false,
+      "is_correct": true,
+      "scene_keywords": [
+        "长隆",
+        "海洋王国",
+        "主题乐园",
+        "一日游",
+        "亲子"
+      ],
+      "preferred_zones": [
+        "横琴长隆"
+      ],
+      "impossible_reason": ""
+    },
+    {
+      "name": "情绪切换",
+      "input": "上午想安静画画，下午突然想蹦迪，怎么安排",
+      "is_impossible": false,
+      "is_correct": true,
+      "scene_keywords": [
+        "画画",
+        "安静",
+        "蹦迪",
+        "夜店",
+        "夜生活"
+      ],
+      "preferred_zones": [
+        "香洲老城区",
+        "拱北"
+      ],
+      "impossible_reason": ""
+    },
+    {
+      "name": "雨夜漫步",
+      "input": "下大雨的晚上，和伴侣在珠海散步，要有情调，别淋太多",
+      "is_impossible": false,
+      "is_correct": true,
+      "scene_keywords": [
+        "情侣路",
+        "海滨长廊",
+        "遮雨长廊",
+        "灯光夜景",
+        "浪漫",
+        "情调"
+      ],
+      "preferred_zones": [
+        "情侣路（珠海渔女段）",
+        "野狸岛（日月贝）",
+        "香炉湾沙滩"
+      ],
+      "impossible_reason": ""
+    },
+    {
+      "name": "深夜觅食",
+      "input": "凌晨2点还在珠海，哪儿还能吃宵夜？便宜点的",
+      "is_impossible": false,
+      "is_correct": true,
+      "scene_keywords": [
+        "夜市",
+        "大排档",
+        "烧烤",
+        "宵夜",
+        "24小时营业",
+        "便宜实惠"
+      ],
+      "preferred_zones": [
+        "拱北夏湾夜市",
+        "湾仔海鲜街"
+      ],
+      "impossible_reason": ""
+    },
+    {
+      "name": "深夜独白",
+      "input": "凌晨一个人在珠海街头走走，安全又有点意思的地方",
+      "is_impossible": false,
+      "is_correct": true,
+      "scene_keywords": [
+        "夜间散步",
+        "安全",
+        "街头",
+        "夜景",
+        "安静"
+      ],
+      "preferred_zones": [
+        "情侣路",
+        "野狸岛",
+        "香洲老城区"
+      ],
+      "impossible_reason": ""
+    },
+    {
+      "name": "穷游情侣",
+      "input": "零预算带女朋友浪漫一天，要拍照好看那种，别花一分钱",
+      "is_impossible": false,
+      "is_correct": true,
+      "scene_keywords": [
+        "免费景点",
+        "拍照打卡",
+        "海滨",
+        "日落",
+        "公园",
+        "情侣路",
+        "灯塔",
+        "沙滩"
+      ],
+      "preferred_zones": [
+        "情侣路沿线",
+        "野狸岛",
+        "日月贝",
+        "香炉湾沙滩"
+      ],
+      "impossible_reason": ""
+    },
+    {
+      "name": "宠物同行",
+      "input": "带我家金毛去海边玩，不能进收费区，要能遛狗的地方",
+      "is_impossible": false,
+      "is_correct": true,
+      "scene_keywords": [
+        "遛狗",
+        "免费海滩",
+        "宠物友好",
+        "金毛",
+        "海边"
+      ],
+      "preferred_zones": [
+        "情侣路沿线",
+        "野狸岛",
+        "香炉湾沙滩"
+      ],
+      "impossible_reason": ""
+    }
+  ],
+  "poi_results": [
+    {
+      "name": "朋友拼单",
+      "elapsed": 18.167546272277832,
+      "top_pois": [],
+      "scored_count": 50
+    },
+    {
+      "name": "情绪切换",
+      "elapsed": 18.017401695251465,
+      "top_pois": [],
+      "scored_count": 50
+    },
+    {
+      "name": "雨夜漫步",
+      "elapsed": 28.238616228103638,
+      "top_pois": [
+        {
+          "name": "怡景湾大酒店",
+          "category": "酒店",
+          "score": 6.0
+        },
+        {
+          "name": "香江酒店",
+          "category": "酒店",
+          "score": 5.0
+        },
+        {
+          "name": "Ole Tai Sam Un",
+          "category": "酒店",
+          "score": 5.0
+        },
+        {
+          "name": "San Va Hospedaria",
+          "category": "酒店",
+          "score": 5.0
+        },
+        {
+          "name": "国际交流中心",
+          "category": "酒店",
+          "score": 5.0
+        }
+      ],
+      "scored_count": 50
+    },
+    {
+      "name": "深夜觅食",
+      "elapsed": 16.106229782104492,
+      "top_pois": [],
+      "scored_count": 0
+    },
+    {
+      "name": "深夜独白",
+      "elapsed": 34.15620970726013,
+      "top_pois": [
+        {
+          "name": "怡景湾大酒店",
+          "category": "酒店",
+          "score": 6.0
+        },
+        {
+          "name": "香江酒店",
+          "category": "酒店",
+          "score": 6.0
+        },
+        {
+          "name": "Ole Tai Sam Un",
+          "category": "酒店",
+          "score": 6.0
+        },
+        {
+          "name": "San Va Hospedaria",
+          "category": "酒店",
+          "score": 6.0
+        },
+        {
+          "name": "国际交流中心",
+          "category": "酒店",
+          "score": 6.0
+        }
+      ],
+      "scored_count": 50
+    }
+  ]
+}

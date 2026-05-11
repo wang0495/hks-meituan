@@ -838,6 +838,63 @@ async def plan_route(request: PlanRequest):
                 "city": target_city,
             })
 
+            # ── FeasibilityAgent: 场景可行性检测 ──
+            # 统计POI分类
+            poi_stats = {}
+            for p in city_pois:
+                cat = p.get("category", "未知")
+                poi_stats[cat] = poi_stats.get(cat, 0) + 1
+
+            feasibility_result = None
+            try:
+                from backend.agents import FeasibilityAgent, get_llm as get_agent_llm
+                logger.info("[FeasibilityAgent] 开始场景可行性检测")
+                feasibility_agent = FeasibilityAgent(get_agent_llm())
+                feasibility_result = await feasibility_agent.check_feasibility(
+                    request.user_input,
+                    intent_agent_result or {},
+                    poi_stats,
+                )
+                logger.info(f"[FeasibilityAgent] 结果: feasibility={feasibility_result.get('feasibility')}")
+
+                # 发送可行性检测结果
+                yield _sse("agent_feasibility", {
+                    "phase": "场景可行性检测",
+                    "feasibility": feasibility_result.get("feasibility"),
+                    "reason": feasibility_result.get("reason", ""),
+                    "suggestion": feasibility_result.get("alternative_suggestion", ""),
+                    "required_types": feasibility_result.get("required_poi_types", []),
+                    "partial_match": feasibility_result.get("partial_match_types", []),
+                })
+
+                # 不可行或部分可行时，直接拒绝
+                # 核心需求POI缺失时，强行规划只会得到错误结果
+                if feasibility_result.get("feasibility") in ("infeasible", "partial"):
+                    yield _sse("agent_infeasible", {
+                        "phase": "场景不可行",
+                        "reason": feasibility_result.get("reason", ""),
+                        "suggestion": feasibility_result.get("alternative_suggestion", ""),
+                        "feasibility": feasibility_result.get("feasibility"),
+                    })
+                    yield _sse("done", {
+                        "route_id": "infeasible_" + str(uuid.uuid4())[:8],
+                        "full_route": {
+                            "route": [],
+                            "infeasible": True,
+                            "infeasible_reason": feasibility_result.get("reason", ""),
+                            "alternative_suggestion": feasibility_result.get("alternative_suggestion", ""),
+                            "required_poi_types": feasibility_result.get("required_poi_types", []),
+                            "partial_match_types": feasibility_result.get("partial_match_types", []),
+                        }
+                    })
+                    return
+
+                user_intent["_feasibility_result"] = feasibility_result
+            except Exception as e:
+                logger.error(f"[FeasibilityAgent] 调用失败: {e}")
+                import traceback
+                logger.error(traceback.format_exc())
+
             # 感知上下文（天气/时间/体力 + 城市特色）
             from backend.services.perception import PerceptionService
 

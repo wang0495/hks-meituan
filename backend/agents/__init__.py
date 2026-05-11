@@ -278,6 +278,118 @@ class POIAgent:
 
 
 # ---------------------------------------------------------------------------
+# Agent 2.5: Feasibility Agent (场景可行性检测)
+# ---------------------------------------------------------------------------
+
+
+class FeasibilityAgent:
+    """场景可行性检测Agent
+
+    任务:
+    1. 推理用户需求需要什么类型的POI/场所
+    2. 检查数据库中是否存在这类POI
+    3. 判断需求是否可行/部分可行/不可行
+    4. 给出替代建议
+    """
+
+    SYSTEM_PROMPT = """你是CityFlow路线规划系统的场景可行性检测Agent。
+
+你的任务是判断用户的场景需求在当前城市是否可实现。
+
+【推理步骤】
+1. 分析用户核心需求需要什么类型的场所
+   例: "蹦迪" → 需要酒吧/夜店/KTV/LiveHouse
+   例: "拍霓虹灯" → 需要商业区/地标建筑/城市灯光带
+   例: "游乐园海洋馆" → 需要主题乐园/海洋馆/水上乐园
+
+2. 根据提供的POI统计数据，判断是否存在匹配场所
+
+3. 给出可行性判断:
+   - feasible: 完全可行，有足够匹配POI
+   - partial: 部分可行，有相关但不完全匹配的POI
+   - infeasible: 不可行，缺乏必要POI
+
+【输出格式】严格输出JSON:
+{
+  "feasibility": "feasible/partial/infeasible",
+  "required_poi_types": ["类型1", "类型2"],
+  "found_poi_count": 数字,
+  "reason": "判断原因",
+  "alternative_suggestion": "如果不可行或部分可行，给出替代建议",
+  "partial_match_types": ["部分匹配的POI类型"],
+  "confidence": 0.0-1.0
+}
+
+【示例】
+用户: "下午想蹦迪"
+POI统计: {"酒吧": 0, "夜店": 0, "KTV": 3, "LiveHouse": 0}
+输出:
+{
+  "feasibility": "partial",
+  "required_poi_types": ["酒吧", "夜店", "KTV", "LiveHouse"],
+  "found_poi_count": 3,
+  "reason": "珠海暂无专业酒吧/夜店，但有3家KTV可提供类似娱乐体验",
+  "alternative_suggestion": "可前往KTV唱歌，或建议前往澳门体验更丰富的夜生活",
+  "partial_match_types": ["KTV"],
+  "confidence": 0.7
+}
+"""
+
+    def __init__(self, llm: ChatOpenAI | None = None):
+        self.llm = llm or get_llm()
+
+    async def check_feasibility(
+        self,
+        user_input: str,
+        intent_result: dict[str, Any],
+        poi_stats: dict[str, int],
+    ) -> dict[str, Any]:
+        """检查场景可行性
+
+        Args:
+            user_input: 用户原始输入
+            intent_result: IntentAgent的分析结果
+            poi_stats: POI分类统计 {"category": count}
+
+        Returns:
+            可行性判断结果
+        """
+        user_prompt = f"""用户需求: {user_input}
+
+意图分析结果:
+{json.dumps(intent_result, ensure_ascii=False, indent=2)}
+
+当前城市POI分类统计:
+{json.dumps(poi_stats, ensure_ascii=False, indent=2)}
+
+请判断该需求在当前城市是否可实现，输出JSON结果。"""
+
+        messages = [
+            SystemMessage(content=self.SYSTEM_PROMPT),
+            HumanMessage(content=user_prompt),
+        ]
+
+        response = await self.llm.ainvoke(messages)
+        content = response.content
+
+        try:
+            result = json.loads(content)
+            result["_agent"] = "FeasibilityAgent"
+            return result
+        except json.JSONDecodeError:
+            return {
+                "feasibility": "feasible",  # 默认可行，让后续流程处理
+                "required_poi_types": [],
+                "found_poi_count": 0,
+                "reason": "可行性检测失败，默认继续规划",
+                "alternative_suggestion": "",
+                "confidence": 0.5,
+                "_agent": "FeasibilityAgent",
+                "_parse_error": content[:200],
+            }
+
+
+# ---------------------------------------------------------------------------
 # Agent 3: Route Planning Agent (合理性检查)
 # ---------------------------------------------------------------------------
 
@@ -455,4 +567,4 @@ async def run_agent_pipeline(
 # 导出
 # ---------------------------------------------------------------------------
 
-__all__ = ["IntentAgent", "POIAgent", "RouteAgent", "run_agent_pipeline", "get_llm"]
+__all__ = ["IntentAgent", "FeasibilityAgent", "POIAgent", "RouteAgent", "run_agent_pipeline", "get_llm"]

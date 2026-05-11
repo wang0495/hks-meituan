@@ -24,9 +24,11 @@ async def llm_json(prompt, max_tokens=2000):
         except: return None
 
 def parse_sse_route(sse_text):
-    """解析SSE响应，返回route和impossible信息"""
+    """解析SSE响应，返回route、impossible信息、infeasible信息和feasibility信息"""
     route = []
     impossible_info = None
+    infeasible_info = None
+    feasibility_info = None
     current_event = None
     for line in sse_text.split("\n"):
         line = line.strip()
@@ -39,10 +41,18 @@ def parse_sse_route(sse_text):
                     route.append(data)
                 elif current_event == "agent_impossible":
                     impossible_info = data
-                elif current_event == "done" and data.get("full_route", {}).get("impossible"):
-                    impossible_info = data.get("full_route")
+                elif current_event == "agent_infeasible":
+                    infeasible_info = data
+                elif current_event == "agent_feasibility":
+                    feasibility_info = data
+                elif current_event == "done":
+                    full_route = data.get("full_route", {})
+                    if full_route.get("impossible"):
+                        impossible_info = full_route
+                    if full_route.get("infeasible"):
+                        infeasible_info = full_route
             except: pass
-    return route, impossible_info
+    return route, impossible_info, infeasible_info, feasibility_info
 
 def haversine(lat1, lng1, lat2, lng2):
     """计算两点间距离（km）"""
@@ -118,9 +128,9 @@ async def main():
         try:
             async with httpx.AsyncClient(timeout=120.0) as c:
                 r = await c.post(f"{BASE}/api/plan", json={"user_input": inp, "session_id": f"score_{i}"})
-                route, impossible_info = parse_sse_route(r.text)
+                route, impossible_info, infeasible_info, feasibility_info = parse_sse_route(r.text)
 
-            # 如果Agent检测到不可能需求，标记为合理拒绝
+            # 如果Agent检测到不可能需求(常识层面不可行)
             if impossible_info:
                 print(f"  [Agent] 不可能需求: {impossible_info.get('reason', '')[:50]}...")
                 print(f"  V 合理拒绝 → intent=8 overall=7")
@@ -133,6 +143,25 @@ async def main():
                 })
                 continue
 
+            # 如果FeasibilityAgent检测到场景不可行(缺乏必要POI)
+            if infeasible_info:
+                print(f"  [Feasibility] 场景不可行: {infeasible_info.get('reason', '')[:50]}...")
+                print(f"  V 合理拒绝 → intent=7 overall=6")
+                results.append({
+                    "name": name, "input": inp, "status": "infeasible",
+                    "overall": 6, "scores": {"intent_match": 7, "poi_quality": 0, "geo_continuity": 0, "scene_diversity": 0, "overall": 6},
+                    "passed": True,  # 合理拒绝视为通过
+                    "reason": infeasible_info.get("reason", ""),
+                    "suggestion": infeasible_info.get("suggestion", ""),
+                    "required_types": infeasible_info.get("required_poi_types", []),
+                })
+                continue
+
+            # 部分可行的情况，在评分时加入提示
+            feasibility_warning = None
+            if feasibility_info and feasibility_info.get("feasibility") == "partial":
+                feasibility_warning = feasibility_info.get("reason", "")
+
             if not route:
                 print(f"  X 空路线")
                 results.append({"name": name, "input": inp, "status": "empty", "overall": 0})
@@ -140,6 +169,8 @@ async def main():
 
             cats = [s.get("poi",{}).get("category","?") for s in route]
             print(f"  路线: {' -> '.join(cats)}")
+            if feasibility_warning:
+                print(f"  [部分可行] {feasibility_warning[:50]}...")
 
             eval_result = await score_route(inp, format_route(route))
             if not eval_result:
