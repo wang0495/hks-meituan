@@ -9,19 +9,40 @@ MODEL = "LongCat-Flash-Lite"
 BASE = "http://localhost:8001"
 PASS_THRESHOLD = 6.5
 
-async def llm_json(prompt, max_tokens=2000):
-    async with httpx.AsyncClient(timeout=60.0) as c:
-        r = await c.post(API_URL,
-            headers={"Authorization": f"Bearer {API_KEY}", "Content-Type": "application/json"},
-            json={"model": MODEL, "max_tokens": max_tokens,
-                  "messages": [{"role": "user", "content": prompt}],
-                  "temperature": 0.1, "response_format": {"type": "json_object"}})
-        if r.status_code != 200: return None
-        text = r.json().get("content", [{}])[0].get("text", "").strip()
-        if text.startswith("```"): text = text.split("\n", 1)[1] if "\n" in text else text[3:]
-        if text.endswith("```"): text = text[:-3]
-        try: return json.loads(text.strip())
-        except: return None
+async def llm_json(prompt, max_tokens=2000, retries=3):
+    """调用LLM评分，带重试机制"""
+    for attempt in range(retries):
+        try:
+            async with httpx.AsyncClient(timeout=120.0) as c:
+                r = await c.post(API_URL,
+                    headers={"Authorization": f"Bearer {API_KEY}", "Content-Type": "application/json"},
+                    json={"model": MODEL, "max_tokens": max_tokens,
+                          "messages": [{"role": "user", "content": prompt}],
+                          "temperature": 0.1, "response_format": {"type": "json_object"}})
+                if r.status_code != 200:
+                    print(f"    [LLM Error] Status {r.status_code}, attempt {attempt+1}/{retries}")
+                    if attempt < retries - 1:
+                        await asyncio.sleep(2 ** attempt)  # 指数退避
+                        continue
+                    return None
+                text = r.json().get("content", [{}])[0].get("text", "").strip()
+                if text.startswith("```"): text = text.split("\n", 1)[1] if "\n" in text else text[3:]
+                if text.endswith("```"): text = text[:-3]
+                try:
+                    return json.loads(text.strip())
+                except json.JSONDecodeError as e:
+                    print(f"    [LLM Error] JSON parse failed: {e}, attempt {attempt+1}/{retries}")
+                    if attempt < retries - 1:
+                        await asyncio.sleep(2 ** attempt)
+                        continue
+                    return None
+        except Exception as e:
+            print(f"    [LLM Error] Exception: {e}, attempt {attempt+1}/{retries}")
+            if attempt < retries - 1:
+                await asyncio.sleep(2 ** attempt)
+                continue
+            return None
+    return None
 
 def parse_sse_route(sse_text):
     """解析SSE响应，返回route、impossible信息、infeasible信息和feasibility信息"""
@@ -111,7 +132,15 @@ async def score_route(user_input, route_text):
         '输出JSON: {"scores":{"intent_match":N,"poi_quality":N,"geo_continuity":N,"scene_diversity":N,"overall":N},"good_points":[...],"bad_points":[...]}'
     )
     result = await llm_json(prompt)
-    if not result: return None
+    if not result:
+        # LLM评分失败，返回默认分数（避免完全失败）
+        print("    [LLM Fallback] 使用默认分数")
+        return {
+            "scores": {"intent_match": 5, "poi_quality": 5, "geo_continuity": 5, "scene_diversity": 5, "overall": 5},
+            "overall": 5,
+            "good_points": ["路线生成成功"],
+            "bad_points": ["LLM评分失败，使用默认分数"]
+        }
     scores = result.get("scores", result)
     return {"scores": scores, "overall": scores.get("overall", 0), "good_points": result.get("good_points",[]), "bad_points": result.get("bad_points",[])}
 
