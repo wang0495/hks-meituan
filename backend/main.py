@@ -318,6 +318,11 @@ class PlanRequest(BaseModel):
         description="出发位置，如'香洲'、'拱北'、'唐家湾'。留空则默认市区中心。",
     )
 
+    agent: bool | None = Field(
+        None,
+        description="是否使用新的多智能体架构。None表示使用系统默认配置，true强制启用，false强制禁用。",
+    )
+
     model_config = {
         "json_schema_extra": {
             "examples": [

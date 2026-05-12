@@ -158,6 +158,63 @@ async def plan_route(request: PlanRequest):
 
     async def event_stream():
         try:
+            # -----------------------------------------------------------------
+            # 特性开关: 使用新的LangGraph多智能体管线
+            # -----------------------------------------------------------------
+            from backend.config.settings import settings
+
+            # 支持请求参数覆盖配置: agent=true/false/None
+            use_agent = request.agent if request.agent is not None else settings.agent.enabled
+
+            if use_agent:
+                # 使用新的LangGraph管线
+                from backend.agents import build_graph, get_graph, LANGGRAPH_AVAILABLE
+                from backend.agents.streaming import graph_events_to_sse, sse_event
+
+                if LANGGRAPH_AVAILABLE:
+                    graph = get_graph()
+                    sse_queue: asyncio.Queue = asyncio.Queue()
+
+                    # 构建初始状态
+                    initial_state = {
+                        "user_input": request.user_input,
+                        "user_intent": {},
+                        "candidates": [],
+                        "route": None,
+                        "validation_results": [],
+                        "arbitration": None,
+                        "narrative": None,
+                        "round": 0,
+                        "errors": [],
+                    }
+
+                    # 启动图执行（后台）
+                    async def run_graph():
+                        try:
+                            result = await graph.ainvoke(initial_state)
+                            # 将结果放入队列
+                            await sse_queue.put(sse_event("done", {
+                                "route_id": str(uuid.uuid4())[:8],
+                                "full_route": result.get("route"),
+                            }))
+                        except Exception as e:
+                            logger.exception("LangGraph执行失败")
+                            await sse_queue.put(sse_event("error", {"error": str(e)}))
+
+                    # 启动后台任务
+                    asyncio.create_task(run_graph())
+
+                    # 转发SSE事件
+                    while True:
+                        event = await sse_queue.get()
+                        yield event
+                        if "event: done" in event or "event: error" in event:
+                            break
+                    return
+
+            # -----------------------------------------------------------------
+            # 原有管线（特性开关关闭时）
+            # -----------------------------------------------------------------
             # Phase 1: 解析意图
             yield _sse("phase", {"phase": "parsing", "message": "正在理解你的需求..."})
 
