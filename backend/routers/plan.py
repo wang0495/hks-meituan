@@ -169,22 +169,34 @@ async def plan_route(request: PlanRequest):
 
             if version == "a":
                 # A版本: 3层联邦架构
-                from backend.agents_v2 import build_graph_a, get_graph_a
+                from backend.agents_v2 import get_graph_a
                 graph_a = get_graph_a()
                 sse_queue_a: asyncio.Queue = asyncio.Queue()
 
-                # 构建初始状态
+                # 构建初始状态（完整FederatedState）
                 initial_state_a = {
                     "user_input": request.user_input,
+                    "perception_ctx": None,
                     "intent_package": None,
+                    "probe_questions": [],
+                    "bidding_rounds": [],
+                    "current_round": 0,
                     "bids": [],
+                    "composite_bids": [],
+                    "market_clearing": None,
+                    "validation_results": [],
                     "validation_issues": [],
                     "surviving_bids": [],
+                    "surviving_composites": [],
+                    "negotiation_result": None,
                     "contracts": [],
                     "final_route": None,
+                    "renegotiation_scope": None,
                     "runtime_alerts": [],
                     "round": 0,
                     "errors": [],
+                    "_bid_task": None,
+                    "_validation_task": None,
                 }
 
                 # 启动图执行（后台）
@@ -195,6 +207,7 @@ async def plan_route(request: PlanRequest):
                             "route_id": str(uuid.uuid4())[:8],
                             "full_route": result.get("final_route"),
                             "version": "a",
+                            "contracts_count": len(result.get("contracts", [])),
                         }))
                     except Exception as e:
                         logger.exception("A版本执行失败")
