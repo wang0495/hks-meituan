@@ -1,0 +1,2434 @@
+INFO:     Started server process [34532]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8001 (Press CTRL+C to quit)
+INFO:     127.0.0.1:5438 - "GET /health HTTP/1.1" 200 OK
+[IntentParser] 收到用户输入: 明天早上7点出发，2小时搞定珠海最火打卡点，预算50块内，一个人去
+INFO:     127.0.0.1:5449 - "POST /api/plan HTTP/1.1" 200 OK
+[IntentParser] LLM 解析成功
+[IntentParser] 匹配画像: P13 - 运动健身
+[IntentParser] 完整结果: {
+  "city": "珠海",
+  "time": {
+    "period": "上午",
+    "start": "07:00",
+    "end": "09:00"
+  },
+  "budget": {
+    "per_person": 50,
+    "type": "硬约束"
+  },
+  "group": {
+    "size": 1,
+    "type": "独居"
+  },
+  "preferences": {
+    "culture": 0.2,
+    "food": 0.3,
+    "nature": 0.5,
+    "social": 0.6
+  },
+  "pace": "特种兵型",
+  "hard_constraints": [],
+  "scene_requirements": [
+    "拍照打卡",
+    "网红景点",
+    "出片"
+  ],
+  "preferred_categories": [
+    "景点",
+    "自然风光",
+    "文化"
+  ],
+  "location": null,
+  "_llm_prompt": "你是 CityFlow 城市出行路线规划系统的意图解析器。\n用户会用自然语言描述出行需求，你需要解析为严格的 JSON 格式。\n\n输出格式（只输出 JSON，不要任何其他文字）：\n{\n  \"city\": \"珠海/广州/湛江\",\n  \"time\": {\"period\": \"上午/下午/全天\", \"start\": \"HH:MM\", \"end\": \"HH:MM\"},\n  \"budget\": {\"per_person\": 金额整数, \"type\": \"硬约束/弹性\"},\n  \"group\": {\"size\": 人数整数, \"type\": \"独居/情侣/亲子/朋友/退休\"},\n  \"preferences\": {\"culture\": 0到1的小数, \"food\": 0到1的小数, \"nature\": 0到1的小数, \"social\": 0到1的小数},\n  \"pace\": \"特种兵型/平衡型/闲逛型\",\n  \"hard_constraints\": [\"约束1\", \"约束2\"],\n  \"scene_requirements\": [\"场景元素1\", \"场景元素2\"],\n  \"preferred_categories\": [\"类别1\", \"类别2\", \"类别3\"],\n  \"demand_vector\": {\n    \"efficiency_seeking\": 0~1,\n    \"excitement_seeking\": 0~1,\n    \"tranquility_seeking\": 0~1,\n    \"budget_sensitivity\": 0~1,\n    \"novelty_seeking\": 0~1,\n    \"social_desire\": 0~1,\n    \"physical_energy\": 0~1\n  },\n  \"location\": \"用户在哪个区域/地标附近，如'拱北''香洲''天河'，不知道则填null\"\n}\n\n规则：\n- city: 根据用户提到的城市判断，无明确城市则默认\"珠海\"\n- budget: 无明确预算则 per_person=500, type=\"弹性\"\n- group.type: 根据同行人判断，默认\"独居\"\n- time: 如果用户提到\"3小时\"\"半天\"\"2小时搞定\"等时长，根据start计算end。如start=\"14:00\"且\"3小时\"→end=\"17:00\"\n- time: 如果用户提到\"凌晨\"\"深夜\"，start和end应为对应时段（如00:00-06:00）\n- preferences: 根据关键词推断偏好强度（0=完全不感兴趣, 1=非常感兴趣）\n  - culture: 文化/历史/艺术/博物馆/展览\n  - food: 美食/餐厅/小吃/探店\n  - nature: 自然/公园/山/湖/植物\n  - social: 社交/聚会/热闹/人多\n- pace: \"特种兵型\"=赶场打卡, \"平衡型\"=适中, \"闲逛型\"=慢节奏\n- hard_constraints: 提取明确的限制条件，支持以下类型：\n  - \"不想排队\" → \"queue_intolerant\"\n  - \"无障碍/轮椅/婴儿车\" → \"accessible\"\n  - \"带宠物/狗/猫\" → \"pet_friendly\"\n  - \"室内/空调/下雨天/别中暑\" → \"indoor_only\"\n  - \"海边/户外/露天\" → \"outdoor_preferred\"\n  - \"凌晨/深夜/宵夜/通宵\" → \"late_night\"\n  - \"游乐园/海洋馆/动物园\" → \"needs_entertainment\"\n  - \"烧烤/火锅/茶馆/咖啡馆/书店\" → add specific activity to hard_constraints\n- scene_requirements: 提取用户明确要求的场景元素，用于POI语义匹配。例如：\n  - \"喝茶听曲\" → [\"茶馆\", \"曲艺表演\", \"传统文化\"]\n  - \"街边小吃\" → [\"街边小店\", \"本地小吃\", \"便宜实惠\"]\n  - \"拍照出片\" → [\"拍照打卡\", \"网红景点\", \"出片\"]\n  - \"游乐园海洋馆\" → [\"游乐园\", \"海洋馆\", \"儿童游乐\"]\n  - \"蹦迪\" → [\"酒吧\", \"夜店\", \"LiveHouse\"]\n  - \"书法博物馆\" → [\"书法\", \"博物馆\", \"传统文化\"]\n  - \"烧烤聚会\" → [\"烧烤\", \"聚餐\", \"户外用餐\"]\n  - 如果用户没有明确要求特定场景，填空数组[]\n- preferred_categories: 根据用户意图选择3-6个最相关的POI类别，按优先级排序。可选类别：\n  餐饮, 景点, 购物, 文化, 运动, 娱乐, 温泉SPA, 海景咖啡馆, 夜市, 夜市小吃,\n  书店, 咖啡馆, 密室逃脱, 剧本杀, 恐怖密室, 室内攀岩, 户外攀岩, 水上运动场所,\n  游戏, 益智, 科技, 科技体验, 网吧/电竞馆, 自然风光, 文艺, 休闲, 便利店\n  示例：\n  - \"朋友聚会要能玩又能吃\" → [\"餐饮\", \"娱乐\", \"购物\"]\n  - \"下午想蹦迪\" → [\"娱乐\", \"餐饮\"]\n  - \"凌晨吃宵夜\" → [\"餐饮\", \"夜市\", \"夜市小吃\"]\n  - \"带孩子玩游乐园\" → [\"景点\", \"运动\", \"娱乐\"]\n  - \"安静画画\" → [\"文化\", \"文艺\", \"咖啡馆\"]\n  - \"拍日出日落夜景\" → [\"景点\", \"自然风光\"]\n  - \"情侣约会\" → [\"餐饮\", \"文化\", \"景点\", \"海景咖啡馆\"]\n  - \"老两口公园喝茶\" → [\"文化\", \"景点\", \"餐饮\"]\n- 社恐/不想人多 → social 设低值(0.1-0.2)\n- demand_vector: 语义需求向量（0~1），与preferences互补但更侧重行为倾向\n  - efficiency_seeking: 是否在意效率/赶时间\n  - excitement_seeking: 是否想要兴奋刺激\n  - tranquility_seeking: 是否想要宁静放松\n  - budget_sensitivity: 预算敏感度\n  - novelty_seeking: 是否想尝试新东西\n  - social_desire: 社交需求\n  - physical_energy: 体力意愿\n",
+  "_llm_raw_response": "{\n  \"city\": \"珠海\",\n  \"time\": {\"period\": \"上午\", \"start\": \"07:00\", \"end\": \"09:00\"},\n  \"budget\": {\"per_person\": 50, \"type\": \"硬约束\"},\n  \"group\": {\"size\": 1, \"type\": \"独居\"},\n  \"preferences\": {\"culture\": 0.2, \"food\": 0.3, \"nature\": 0.5, \"social\": 0.6},\n  \"pace\": \"特种兵型\",\n  \"hard_constraints\": [],\n  \"scene_requirements\": [\"拍照打卡\", \"网红景点\", \"出片\"],\n  \"preferred_categories\": [\"景点\", \"自然风光\", \"文化\"],\n  \"demand_vector\": {\n    \"efficiency_seeking\": 0.9,\n    \"excitement_seeking\": 0.6,\n    \"tranquility_seeking\": 0.2,\n  ",
+  "_llm_model": "deepseek-chat",
+  "_demand_vector": {
+    "efficiency_seeking": 0.9,
+    "excitement_seeking": 0.6,
+    "tranquility_seeking": 0.2,
+    "budget_sensitivity": 0.9,
+    "novelty_seeking": 0.7,
+    "social_desire": 0.3,
+    "physical_energy": 0.8
+  },
+  "matched_profile_id": "P13",
+  "_llm_used": true,
+  "_llm_error": "",
+  "_profile_top3": [
+    {
+      "id": "P13",
+      "score": 9.4,
+      "name": "运动健身"
+    },
+    {
+      "id": "P12",
+      "score": 7.0,
+      "name": "宠物主人"
+    },
+    {
+      "id": "P15",
+      "score": 6.9,
+      "name": "商务休闲"
+    }
+  ]
+}
+[IntentParser] 收到用户输入: 零预算带女朋友浪漫一天，要拍照好看那种，别花一分钱
+INFO:     127.0.0.1:5472 - "POST /api/plan HTTP/1.1" 200 OK
+[IntentParser] LLM 解析成功
+[IntentParser] 匹配画像: P8 - 自然爱好者
+[IntentParser] 完整结果: {
+  "city": "珠海",
+  "time": {
+    "period": "全天",
+    "start": "09:00",
+    "end": "21:00"
+  },
+  "budget": {
+    "per_person": 0,
+    "type": "硬约束"
+  },
+  "group": {
+    "size": 2,
+    "type": "情侣"
+  },
+  "preferences": {
+    "culture": 0.3,
+    "food": 0.1,
+    "nature": 0.8,
+    "social": 0.2
+  },
+  "pace": "闲逛型",
+  "hard_constraints": [
+    "budget_zero"
+  ],
+  "scene_requirements": [
+    "拍照打卡",
+    "网红景点",
+    "出片"
+  ],
+  "preferred_categories": [
+    "景点",
+    "自然风光",
+    "海景咖啡馆"
+  ],
+  "location": null,
+  "_llm_prompt": "你是 CityFlow 城市出行路线规划系统的意图解析器。\n用户会用自然语言描述出行需求，你需要解析为严格的 JSON 格式。\n\n输出格式（只输出 JSON，不要任何其他文字）：\n{\n  \"city\": \"珠海/广州/湛江\",\n  \"time\": {\"period\": \"上午/下午/全天\", \"start\": \"HH:MM\", \"end\": \"HH:MM\"},\n  \"budget\": {\"per_person\": 金额整数, \"type\": \"硬约束/弹性\"},\n  \"group\": {\"size\": 人数整数, \"type\": \"独居/情侣/亲子/朋友/退休\"},\n  \"preferences\": {\"culture\": 0到1的小数, \"food\": 0到1的小数, \"nature\": 0到1的小数, \"social\": 0到1的小数},\n  \"pace\": \"特种兵型/平衡型/闲逛型\",\n  \"hard_constraints\": [\"约束1\", \"约束2\"],\n  \"scene_requirements\": [\"场景元素1\", \"场景元素2\"],\n  \"preferred_categories\": [\"类别1\", \"类别2\", \"类别3\"],\n  \"demand_vector\": {\n    \"efficiency_seeking\": 0~1,\n    \"excitement_seeking\": 0~1,\n    \"tranquility_seeking\": 0~1,\n    \"budget_sensitivity\": 0~1,\n    \"novelty_seeking\": 0~1,\n    \"social_desire\": 0~1,\n    \"physical_energy\": 0~1\n  },\n  \"location\": \"用户在哪个区域/地标附近，如'拱北''香洲''天河'，不知道则填null\"\n}\n\n规则：\n- city: 根据用户提到的城市判断，无明确城市则默认\"珠海\"\n- budget: 无明确预算则 per_person=500, type=\"弹性\"\n- group.type: 根据同行人判断，默认\"独居\"\n- time: 如果用户提到\"3小时\"\"半天\"\"2小时搞定\"等时长，根据start计算end。如start=\"14:00\"且\"3小时\"→end=\"17:00\"\n- time: 如果用户提到\"凌晨\"\"深夜\"，start和end应为对应时段（如00:00-06:00）\n- preferences: 根据关键词推断偏好强度（0=完全不感兴趣, 1=非常感兴趣）\n  - culture: 文化/历史/艺术/博物馆/展览\n  - food: 美食/餐厅/小吃/探店\n  - nature: 自然/公园/山/湖/植物\n  - social: 社交/聚会/热闹/人多\n- pace: \"特种兵型\"=赶场打卡, \"平衡型\"=适中, \"闲逛型\"=慢节奏\n- hard_constraints: 提取明确的限制条件，支持以下类型：\n  - \"不想排队\" → \"queue_intolerant\"\n  - \"无障碍/轮椅/婴儿车\" → \"accessible\"\n  - \"带宠物/狗/猫\" → \"pet_friendly\"\n  - \"室内/空调/下雨天/别中暑\" → \"indoor_only\"\n  - \"海边/户外/露天\" → \"outdoor_preferred\"\n  - \"凌晨/深夜/宵夜/通宵\" → \"late_night\"\n  - \"游乐园/海洋馆/动物园\" → \"needs_entertainment\"\n  - \"烧烤/火锅/茶馆/咖啡馆/书店\" → add specific activity to hard_constraints\n- scene_requirements: 提取用户明确要求的场景元素，用于POI语义匹配。例如：\n  - \"喝茶听曲\" → [\"茶馆\", \"曲艺表演\", \"传统文化\"]\n  - \"街边小吃\" → [\"街边小店\", \"本地小吃\", \"便宜实惠\"]\n  - \"拍照出片\" → [\"拍照打卡\", \"网红景点\", \"出片\"]\n  - \"游乐园海洋馆\" → [\"游乐园\", \"海洋馆\", \"儿童游乐\"]\n  - \"蹦迪\" → [\"酒吧\", \"夜店\", \"LiveHouse\"]\n  - \"书法博物馆\" → [\"书法\", \"博物馆\", \"传统文化\"]\n  - \"烧烤聚会\" → [\"烧烤\", \"聚餐\", \"户外用餐\"]\n  - 如果用户没有明确要求特定场景，填空数组[]\n- preferred_categories: 根据用户意图选择3-6个最相关的POI类别，按优先级排序。可选类别：\n  餐饮, 景点, 购物, 文化, 运动, 娱乐, 温泉SPA, 海景咖啡馆, 夜市, 夜市小吃,\n  书店, 咖啡馆, 密室逃脱, 剧本杀, 恐怖密室, 室内攀岩, 户外攀岩, 水上运动场所,\n  游戏, 益智, 科技, 科技体验, 网吧/电竞馆, 自然风光, 文艺, 休闲, 便利店\n  示例：\n  - \"朋友聚会要能玩又能吃\" → [\"餐饮\", \"娱乐\", \"购物\"]\n  - \"下午想蹦迪\" → [\"娱乐\", \"餐饮\"]\n  - \"凌晨吃宵夜\" → [\"餐饮\", \"夜市\", \"夜市小吃\"]\n  - \"带孩子玩游乐园\" → [\"景点\", \"运动\", \"娱乐\"]\n  - \"安静画画\" → [\"文化\", \"文艺\", \"咖啡馆\"]\n  - \"拍日出日落夜景\" → [\"景点\", \"自然风光\"]\n  - \"情侣约会\" → [\"餐饮\", \"文化\", \"景点\", \"海景咖啡馆\"]\n  - \"老两口公园喝茶\" → [\"文化\", \"景点\", \"餐饮\"]\n- 社恐/不想人多 → social 设低值(0.1-0.2)\n- demand_vector: 语义需求向量（0~1），与preferences互补但更侧重行为倾向\n  - efficiency_seeking: 是否在意效率/赶时间\n  - excitement_seeking: 是否想要兴奋刺激\n  - tranquility_seeking: 是否想要宁静放松\n  - budget_sensitivity: 预算敏感度\n  - novelty_seeking: 是否想尝试新东西\n  - social_desire: 社交需求\n  - physical_energy: 体力意愿\n",
+  "_llm_raw_response": "{\n  \"city\": \"珠海\",\n  \"time\": {\"period\": \"全天\", \"start\": \"09:00\", \"end\": \"21:00\"},\n  \"budget\": {\"per_person\": 0, \"type\": \"硬约束\"},\n  \"group\": {\"size\": 2, \"type\": \"情侣\"},\n  \"preferences\": {\"culture\": 0.3, \"food\": 0.1, \"nature\": 0.8, \"social\": 0.2},\n  \"pace\": \"闲逛型\",\n  \"hard_constraints\": [\"budget_zero\"],\n  \"scene_requirements\": [\"拍照打卡\", \"网红景点\", \"出片\"],\n  \"preferred_categories\": [\"景点\", \"自然风光\", \"海景咖啡馆\"],\n  \"demand_vector\": {\n    \"efficiency_seeking\": 0.2,\n    \"excitement_seeking\": 0.3,\n    \"tranquility_see",
+  "_llm_model": "deepseek-chat",
+  "_demand_vector": {
+    "efficiency_seeking": 0.2,
+    "excitement_seeking": 0.3,
+    "tranquility_seeking": 0.8,
+    "budget_sensitivity": 1.0,
+    "novelty_seeking": 0.5,
+    "social_desire": 0.4,
+    "physical_energy": 0.6
+  },
+  "matched_profile_id": "P8",
+  "_llm_used": true,
+  "_llm_error": "",
+  "_profile_top3": [
+    {
+      "id": "P8",
+      "score": 7.0,
+      "name": "自然爱好者"
+    },
+    {
+      "id": "P20",
+      "score": 6.5,
+      "name": "极简主义者"
+    },
+    {
+      "id": "P5",
+      "score": 6.3,
+      "name": "退休休闲"
+    }
+  ]
+}
+[Solver] scene_requirements Phase0预过滤(ANY-match): 571 个匹配
+[Solver] hard_constraints: ['budget_zero'], type=<class 'list'>, late_night in=False
+[过滤] 情侣路·观海小筑 - 价格45 > 预算0
+[过滤] 香炉湾·蓝湾咖啡 - 价格52 > 预算0
+[过滤] 野狸岛·屿见咖啡 - 价格65 > 预算0
+[过滤] 珠海渔女 - 价格27 > 预算0
+[过滤] 珠海大剧院（野狸岛） - 价格200 > 预算0
+[过滤] 横琴创新方 - 价格100 > 预算0
+[过滤] 淇沙湾 - 价格29 > 预算0
+[过滤] 长隆海洋王国 - 价格350 > 预算0
+[过滤] 玉我唐公祠 - 价格20 > 预算0
+[过滤] 天一酒廊 Sky Lounge - 价格130 > 预算0
+[过滤] 星火门 - 价格63 > 预算0
+[过滤] 九洲港老码头茶馆 - 价格40 > 预算0
+[过滤] 珠海湾仔海鲜市场 - 价格80 > 预算0
+[过滤] 红旗镇广安村稻田咖啡屋 - 价格60 > 预算0
+[过滤] 白藤头海鲜市场 - 价格80 > 预算0
+[过滤] 1762s - 价格76 > 预算0
+[过滤] 義順鮮奶 - 价格197 > 预算0
+[过滤] The Royal dessert 御滿糖 - 价格131 > 预算0
+[过滤] 蕃茄屋 (葡國菜) - 价格191 > 预算0
+[过滤] 刘福记 - 价格165 > 预算0
+[过滤] 西贝莜面村 - 价格75 > 预算0
+[过滤] E.S.Kimo - 价格127 > 预算0
+[过滤] 正宗石磨肠粉 - 价格50 > 预算0
+[过滤] 爱尔兰四叶草酒吧 - 价格112 > 预算0
+[过滤] 书亦烧仙草 - 价格119 > 预算0
+[过滤] Cozinha Pinocchio - 价格192 > 预算0
+[过滤] 香洲柠溪路咖啡小巷 - 价格35 > 预算0
+[过滤] 南屏老街咖啡巷 - 价格35 > 预算0
+[过滤] 吉大免税商场后巷咖啡屋 - 价格45 > 预算0
+[过滤] 湾仔海鲜码头夜市 - 价格50 > 预算0
+[过滤] 壹家茶餐廳 - 价格56 > 预算0
+[过滤] 前山旧街角咖啡屋 - 价格35 > 预算0
+[过滤] 情侣路中段骑行驿站 - 价格20 > 预算0
+[过滤] 石景山公园 - 价格10 > 预算0
+[过滤] 拱北地下商业街·怀旧主题区 - 价格30 > 预算0
+[过滤] 吉大免税广场后巷文创市集 - 价格50 > 预算0
+[过滤] 金鼎会同村文创市集 - 价格50 > 预算0
+[过滤] 吉大旧货市场 - 价格30 > 预算0
+[过滤] 梅溪牌坊周边小巷市集 - 价格50 > 预算0
+[过滤] 前山旧货市场·文创市集 - 价格40 > 预算0
+[过滤] 梅溪牌坊文创市集 - 价格50 > 预算0
+[过滤] 湾仔沙旧货市场 - 价格40 > 预算0
+[过滤] 前山旧街市场 - 价格50 > 预算0
+[过滤] 吉大免税店后巷手工艺市集 - 价格80 > 预算0
+[过滤] 吉大免税商场后巷文创市集 - 价格50 > 预算0
+[过滤] 拱北地下商业街手工艺品店 - 价格80 > 预算0
+[过滤] 南屏华发商都创意市集 - 价格50 > 预算0
+[过滤] 吉大免税店旁小巷文创市集 - 价格40 > 预算0
+[过滤] 拱北联安路手工艺市集 - 价格80 > 预算0
+[过滤] 南屏创意街区 - 价格50 > 预算0
+[过滤] 吉大免税商场后街 - 价格30 > 预算0
+[Solver-Phase1] scene_requirements: ['日落', '沙滩', '免费景点', '拍照打卡', '网红景点', '公园', '情侣路', '灯塔', '出片', '海滨'], candidates: 65
+[Solver-Phase1] _scene_matched_ids: 64, remaining: 65, is_food_req: False
+[Solver-Phase1] 两阶段锁定: 只从64个scene_matched POI中选
+[DialoguePersistence] Redis 不可达，切换到内存模式
+[IntentParser] 收到用户输入: 周末晚上带6岁娃出来玩，要热闹刺激，别太早回家
+INFO:     127.0.0.1:5524 - "POST /api/plan HTTP/1.1" 200 OK
+[IntentParser] LLM 解析成功
+[IntentParser] 移除late_night约束（无明确深夜关键词）
+[IntentParser] 匹配画像: P3 - 活力亲子
+[IntentParser] 完整结果: {
+  "city": "珠海",
+  "time": {
+    "period": "下午",
+    "start": "18:00",
+    "end": "22:00"
+  },
+  "budget": {
+    "per_person": 500,
+    "type": "弹性"
+  },
+  "group": {
+    "size": 2,
+    "type": "亲子"
+  },
+  "preferences": {
+    "culture": 0.2,
+    "food": 0.5,
+    "nature": 0.1,
+    "social": 0.8
+  },
+  "pace": "平衡型",
+  "hard_constraints": [],
+  "scene_requirements": [
+    "热闹",
+    "刺激",
+    "儿童游乐"
+  ],
+  "preferred_categories": [
+    "娱乐",
+    "景点",
+    "餐饮"
+  ],
+  "location": null,
+  "_llm_prompt": "你是 CityFlow 城市出行路线规划系统的意图解析器。\n用户会用自然语言描述出行需求，你需要解析为严格的 JSON 格式。\n\n输出格式（只输出 JSON，不要任何其他文字）：\n{\n  \"city\": \"珠海/广州/湛江\",\n  \"time\": {\"period\": \"上午/下午/全天\", \"start\": \"HH:MM\", \"end\": \"HH:MM\"},\n  \"budget\": {\"per_person\": 金额整数, \"type\": \"硬约束/弹性\"},\n  \"group\": {\"size\": 人数整数, \"type\": \"独居/情侣/亲子/朋友/退休\"},\n  \"preferences\": {\"culture\": 0到1的小数, \"food\": 0到1的小数, \"nature\": 0到1的小数, \"social\": 0到1的小数},\n  \"pace\": \"特种兵型/平衡型/闲逛型\",\n  \"hard_constraints\": [\"约束1\", \"约束2\"],\n  \"scene_requirements\": [\"场景元素1\", \"场景元素2\"],\n  \"preferred_categories\": [\"类别1\", \"类别2\", \"类别3\"],\n  \"demand_vector\": {\n    \"efficiency_seeking\": 0~1,\n    \"excitement_seeking\": 0~1,\n    \"tranquility_seeking\": 0~1,\n    \"budget_sensitivity\": 0~1,\n    \"novelty_seeking\": 0~1,\n    \"social_desire\": 0~1,\n    \"physical_energy\": 0~1\n  },\n  \"location\": \"用户在哪个区域/地标附近，如'拱北''香洲''天河'，不知道则填null\"\n}\n\n规则：\n- city: 根据用户提到的城市判断，无明确城市则默认\"珠海\"\n- budget: 无明确预算则 per_person=500, type=\"弹性\"\n- group.type: 根据同行人判断，默认\"独居\"\n- time: 如果用户提到\"3小时\"\"半天\"\"2小时搞定\"等时长，根据start计算end。如start=\"14:00\"且\"3小时\"→end=\"17:00\"\n- time: 如果用户提到\"凌晨\"\"深夜\"，start和end应为对应时段（如00:00-06:00）\n- preferences: 根据关键词推断偏好强度（0=完全不感兴趣, 1=非常感兴趣）\n  - culture: 文化/历史/艺术/博物馆/展览\n  - food: 美食/餐厅/小吃/探店\n  - nature: 自然/公园/山/湖/植物\n  - social: 社交/聚会/热闹/人多\n- pace: \"特种兵型\"=赶场打卡, \"平衡型\"=适中, \"闲逛型\"=慢节奏\n- hard_constraints: 提取明确的限制条件，支持以下类型：\n  - \"不想排队\" → \"queue_intolerant\"\n  - \"无障碍/轮椅/婴儿车\" → \"accessible\"\n  - \"带宠物/狗/猫\" → \"pet_friendly\"\n  - \"室内/空调/下雨天/别中暑\" → \"indoor_only\"\n  - \"海边/户外/露天\" → \"outdoor_preferred\"\n  - \"凌晨/深夜/宵夜/通宵\" → \"late_night\"\n  - \"游乐园/海洋馆/动物园\" → \"needs_entertainment\"\n  - \"烧烤/火锅/茶馆/咖啡馆/书店\" → add specific activity to hard_constraints\n- scene_requirements: 提取用户明确要求的场景元素，用于POI语义匹配。例如：\n  - \"喝茶听曲\" → [\"茶馆\", \"曲艺表演\", \"传统文化\"]\n  - \"街边小吃\" → [\"街边小店\", \"本地小吃\", \"便宜实惠\"]\n  - \"拍照出片\" → [\"拍照打卡\", \"网红景点\", \"出片\"]\n  - \"游乐园海洋馆\" → [\"游乐园\", \"海洋馆\", \"儿童游乐\"]\n  - \"蹦迪\" → [\"酒吧\", \"夜店\", \"LiveHouse\"]\n  - \"书法博物馆\" → [\"书法\", \"博物馆\", \"传统文化\"]\n  - \"烧烤聚会\" → [\"烧烤\", \"聚餐\", \"户外用餐\"]\n  - 如果用户没有明确要求特定场景，填空数组[]\n- preferred_categories: 根据用户意图选择3-6个最相关的POI类别，按优先级排序。可选类别：\n  餐饮, 景点, 购物, 文化, 运动, 娱乐, 温泉SPA, 海景咖啡馆, 夜市, 夜市小吃,\n  书店, 咖啡馆, 密室逃脱, 剧本杀, 恐怖密室, 室内攀岩, 户外攀岩, 水上运动场所,\n  游戏, 益智, 科技, 科技体验, 网吧/电竞馆, 自然风光, 文艺, 休闲, 便利店\n  示例：\n  - \"朋友聚会要能玩又能吃\" → [\"餐饮\", \"娱乐\", \"购物\"]\n  - \"下午想蹦迪\" → [\"娱乐\", \"餐饮\"]\n  - \"凌晨吃宵夜\" → [\"餐饮\", \"夜市\", \"夜市小吃\"]\n  - \"带孩子玩游乐园\" → [\"景点\", \"运动\", \"娱乐\"]\n  - \"安静画画\" → [\"文化\", \"文艺\", \"咖啡馆\"]\n  - \"拍日出日落夜景\" → [\"景点\", \"自然风光\"]\n  - \"情侣约会\" → [\"餐饮\", \"文化\", \"景点\", \"海景咖啡馆\"]\n  - \"老两口公园喝茶\" → [\"文化\", \"景点\", \"餐饮\"]\n- 社恐/不想人多 → social 设低值(0.1-0.2)\n- demand_vector: 语义需求向量（0~1），与preferences互补但更侧重行为倾向\n  - efficiency_seeking: 是否在意效率/赶时间\n  - excitement_seeking: 是否想要兴奋刺激\n  - tranquility_seeking: 是否想要宁静放松\n  - budget_sensitivity: 预算敏感度\n  - novelty_seeking: 是否想尝试新东西\n  - social_desire: 社交需求\n  - physical_energy: 体力意愿\n",
+  "_llm_raw_response": "{\n  \"city\": \"珠海\",\n  \"time\": {\"period\": \"下午\", \"start\": \"18:00\", \"end\": \"22:00\"},\n  \"budget\": {\"per_person\": 500, \"type\": \"弹性\"},\n  \"group\": {\"size\": 2, \"type\": \"亲子\"},\n  \"preferences\": {\"culture\": 0.2, \"food\": 0.5, \"nature\": 0.1, \"social\": 0.8},\n  \"pace\": \"平衡型\",\n  \"hard_constraints\": [\"late_night\"],\n  \"scene_requirements\": [\"热闹\", \"刺激\", \"儿童游乐\"],\n  \"preferred_categories\": [\"娱乐\", \"景点\", \"餐饮\"],\n  \"demand_vector\": {\n    \"efficiency_seeking\": 0.3,\n    \"excitement_seeking\": 0.8,\n    \"tranquility_seeking\": ",
+  "_llm_model": "deepseek-chat",
+  "_demand_vector": {
+    "efficiency_seeking": 0.3,
+    "excitement_seeking": 0.8,
+    "tranquility_seeking": 0.1,
+    "budget_sensitivity": 0.3,
+    "novelty_seeking": 0.6,
+    "social_desire": 0.7,
+    "physical_energy": 0.6
+  },
+  "matched_profile_id": "P3",
+  "_llm_used": true,
+  "_llm_error": "",
+  "_profile_top3": [
+    {
+      "id": "P3",
+      "score": 9.2,
+      "name": "活力亲子"
+    },
+    {
+      "id": "P19",
+      "score": 8.6,
+      "name": "亲子教育"
+    },
+    {
+      "id": "P14",
+      "score": 6.8,
+      "name": "三代同堂"
+    }
+  ]
+}
+[Solver] scene_requirements Phase0预过滤(ANY-match): 186 个匹配
+[Solver] hard_constraints: [], type=<class 'list'>, late_night in=False
+[Solver-Phase1] scene_requirements: ['刺激', '儿童游乐', '热闹', '亲子', '夜市', '游乐场', '儿童乐园', '灯光秀'], candidates: 35
+[Solver-Phase1] _scene_matched_ids: 34, remaining: 35, is_food_req: False
+[Solver-Phase1] 两阶段锁定: 只从34个scene_matched POI中选
+[IntentParser] 收到用户输入: 带我家金毛去海边玩，不能进收费区，要能遛狗的地方
+INFO:     127.0.0.1:5539 - "POST /api/plan HTTP/1.1" 200 OK
+[IntentParser] LLM 解析成功
+[IntentParser] 匹配画像: P12 - 宠物主人
+[IntentParser] 完整结果: {
+  "city": "珠海",
+  "time": {
+    "period": "全天",
+    "start": "09:00",
+    "end": "18:00"
+  },
+  "budget": {
+    "per_person": 0,
+    "type": "硬约束"
+  },
+  "group": {
+    "size": 2,
+    "type": "独居"
+  },
+  "preferences": {
+    "culture": 0.1,
+    "food": 0.2,
+    "nature": 0.9,
+    "social": 0.3
+  },
+  "pace": "闲逛型",
+  "hard_constraints": [
+    "pet_friendly",
+    "free_entry"
+  ],
+  "scene_requirements": [
+    "海边",
+    "遛狗",
+    "免费"
+  ],
+  "preferred_categories": [
+    "景点",
+    "自然风光"
+  ],
+  "location": null,
+  "_llm_prompt": "你是 CityFlow 城市出行路线规划系统的意图解析器。\n用户会用自然语言描述出行需求，你需要解析为严格的 JSON 格式。\n\n输出格式（只输出 JSON，不要任何其他文字）：\n{\n  \"city\": \"珠海/广州/湛江\",\n  \"time\": {\"period\": \"上午/下午/全天\", \"start\": \"HH:MM\", \"end\": \"HH:MM\"},\n  \"budget\": {\"per_person\": 金额整数, \"type\": \"硬约束/弹性\"},\n  \"group\": {\"size\": 人数整数, \"type\": \"独居/情侣/亲子/朋友/退休\"},\n  \"preferences\": {\"culture\": 0到1的小数, \"food\": 0到1的小数, \"nature\": 0到1的小数, \"social\": 0到1的小数},\n  \"pace\": \"特种兵型/平衡型/闲逛型\",\n  \"hard_constraints\": [\"约束1\", \"约束2\"],\n  \"scene_requirements\": [\"场景元素1\", \"场景元素2\"],\n  \"preferred_categories\": [\"类别1\", \"类别2\", \"类别3\"],\n  \"demand_vector\": {\n    \"efficiency_seeking\": 0~1,\n    \"excitement_seeking\": 0~1,\n    \"tranquility_seeking\": 0~1,\n    \"budget_sensitivity\": 0~1,\n    \"novelty_seeking\": 0~1,\n    \"social_desire\": 0~1,\n    \"physical_energy\": 0~1\n  },\n  \"location\": \"用户在哪个区域/地标附近，如'拱北''香洲''天河'，不知道则填null\"\n}\n\n规则：\n- city: 根据用户提到的城市判断，无明确城市则默认\"珠海\"\n- budget: 无明确预算则 per_person=500, type=\"弹性\"\n- group.type: 根据同行人判断，默认\"独居\"\n- time: 如果用户提到\"3小时\"\"半天\"\"2小时搞定\"等时长，根据start计算end。如start=\"14:00\"且\"3小时\"→end=\"17:00\"\n- time: 如果用户提到\"凌晨\"\"深夜\"，start和end应为对应时段（如00:00-06:00）\n- preferences: 根据关键词推断偏好强度（0=完全不感兴趣, 1=非常感兴趣）\n  - culture: 文化/历史/艺术/博物馆/展览\n  - food: 美食/餐厅/小吃/探店\n  - nature: 自然/公园/山/湖/植物\n  - social: 社交/聚会/热闹/人多\n- pace: \"特种兵型\"=赶场打卡, \"平衡型\"=适中, \"闲逛型\"=慢节奏\n- hard_constraints: 提取明确的限制条件，支持以下类型：\n  - \"不想排队\" → \"queue_intolerant\"\n  - \"无障碍/轮椅/婴儿车\" → \"accessible\"\n  - \"带宠物/狗/猫\" → \"pet_friendly\"\n  - \"室内/空调/下雨天/别中暑\" → \"indoor_only\"\n  - \"海边/户外/露天\" → \"outdoor_preferred\"\n  - \"凌晨/深夜/宵夜/通宵\" → \"late_night\"\n  - \"游乐园/海洋馆/动物园\" → \"needs_entertainment\"\n  - \"烧烤/火锅/茶馆/咖啡馆/书店\" → add specific activity to hard_constraints\n- scene_requirements: 提取用户明确要求的场景元素，用于POI语义匹配。例如：\n  - \"喝茶听曲\" → [\"茶馆\", \"曲艺表演\", \"传统文化\"]\n  - \"街边小吃\" → [\"街边小店\", \"本地小吃\", \"便宜实惠\"]\n  - \"拍照出片\" → [\"拍照打卡\", \"网红景点\", \"出片\"]\n  - \"游乐园海洋馆\" → [\"游乐园\", \"海洋馆\", \"儿童游乐\"]\n  - \"蹦迪\" → [\"酒吧\", \"夜店\", \"LiveHouse\"]\n  - \"书法博物馆\" → [\"书法\", \"博物馆\", \"传统文化\"]\n  - \"烧烤聚会\" → [\"烧烤\", \"聚餐\", \"户外用餐\"]\n  - 如果用户没有明确要求特定场景，填空数组[]\n- preferred_categories: 根据用户意图选择3-6个最相关的POI类别，按优先级排序。可选类别：\n  餐饮, 景点, 购物, 文化, 运动, 娱乐, 温泉SPA, 海景咖啡馆, 夜市, 夜市小吃,\n  书店, 咖啡馆, 密室逃脱, 剧本杀, 恐怖密室, 室内攀岩, 户外攀岩, 水上运动场所,\n  游戏, 益智, 科技, 科技体验, 网吧/电竞馆, 自然风光, 文艺, 休闲, 便利店\n  示例：\n  - \"朋友聚会要能玩又能吃\" → [\"餐饮\", \"娱乐\", \"购物\"]\n  - \"下午想蹦迪\" → [\"娱乐\", \"餐饮\"]\n  - \"凌晨吃宵夜\" → [\"餐饮\", \"夜市\", \"夜市小吃\"]\n  - \"带孩子玩游乐园\" → [\"景点\", \"运动\", \"娱乐\"]\n  - \"安静画画\" → [\"文化\", \"文艺\", \"咖啡馆\"]\n  - \"拍日出日落夜景\" → [\"景点\", \"自然风光\"]\n  - \"情侣约会\" → [\"餐饮\", \"文化\", \"景点\", \"海景咖啡馆\"]\n  - \"老两口公园喝茶\" → [\"文化\", \"景点\", \"餐饮\"]\n- 社恐/不想人多 → social 设低值(0.1-0.2)\n- demand_vector: 语义需求向量（0~1），与preferences互补但更侧重行为倾向\n  - efficiency_seeking: 是否在意效率/赶时间\n  - excitement_seeking: 是否想要兴奋刺激\n  - tranquility_seeking: 是否想要宁静放松\n  - budget_sensitivity: 预算敏感度\n  - novelty_seeking: 是否想尝试新东西\n  - social_desire: 社交需求\n  - physical_energy: 体力意愿\n",
+  "_llm_raw_response": "{\n  \"city\": \"珠海\",\n  \"time\": {\"period\": \"全天\", \"start\": \"09:00\", \"end\": \"18:00\"},\n  \"budget\": {\"per_person\": 0, \"type\": \"硬约束\"},\n  \"group\": {\"size\": 2, \"type\": \"独居\"},\n  \"preferences\": {\"culture\": 0.1, \"food\": 0.2, \"nature\": 0.9, \"social\": 0.3},\n  \"pace\": \"闲逛型\",\n  \"hard_constraints\": [\"pet_friendly\", \"free_entry\"],\n  \"scene_requirements\": [\"海边\", \"遛狗\", \"免费\"],\n  \"preferred_categories\": [\"景点\", \"自然风光\"],\n  \"demand_vector\": {\n    \"efficiency_seeking\": 0.2,\n    \"excitement_seeking\": 0.3,\n    \"tranquility_s",
+  "_llm_model": "deepseek-chat",
+  "_demand_vector": {
+    "efficiency_seeking": 0.2,
+    "excitement_seeking": 0.3,
+    "tranquility_seeking": 0.8,
+    "budget_sensitivity": 1.0,
+    "novelty_seeking": 0.4,
+    "social_desire": 0.2,
+    "physical_energy": 0.5
+  },
+  "matched_profile_id": "P12",
+  "_llm_used": true,
+  "_llm_error": "",
+  "_profile_top3": [
+    {
+      "id": "P12",
+      "score": 14.2,
+      "name": "宠物主人"
+    },
+    {
+      "id": "P8",
+      "score": 9.5,
+      "name": "自然爱好者"
+    },
+    {
+      "id": "P20",
+      "score": 9.0,
+      "name": "极简主义者"
+    }
+  ]
+}
+[IntentParser] 收到用户输入: 下大雨的晚上，和伴侣在珠海散步，要有情调，别淋太多
+INFO:     127.0.0.1:5546 - "POST /api/plan HTTP/1.1" 200 OK
+[IntentParser] LLM 解析成功
+[IntentParser] 匹配画像: P8 - 自然爱好者
+[IntentParser] 完整结果: {
+  "city": "珠海",
+  "time": {
+    "period": "下午",
+    "start": "18:00",
+    "end": "22:00"
+  },
+  "budget": {
+    "per_person": 500,
+    "type": "弹性"
+  },
+  "group": {
+    "size": 2,
+    "type": "情侣"
+  },
+  "preferences": {
+    "culture": 0.3,
+    "food": 0.6,
+    "nature": 0.2,
+    "social": 0.2
+  },
+  "pace": "闲逛型",
+  "hard_constraints": [
+    "indoor_only"
+  ],
+  "scene_requirements": [
+    "情调",
+    "避雨",
+    "浪漫"
+  ],
+  "preferred_categories": [
+    "餐饮",
+    "文化",
+    "购物",
+    "海景咖啡馆"
+  ],
+  "location": null,
+  "_llm_prompt": "你是 CityFlow 城市出行路线规划系统的意图解析器。\n用户会用自然语言描述出行需求，你需要解析为严格的 JSON 格式。\n\n输出格式（只输出 JSON，不要任何其他文字）：\n{\n  \"city\": \"珠海/广州/湛江\",\n  \"time\": {\"period\": \"上午/下午/全天\", \"start\": \"HH:MM\", \"end\": \"HH:MM\"},\n  \"budget\": {\"per_person\": 金额整数, \"type\": \"硬约束/弹性\"},\n  \"group\": {\"size\": 人数整数, \"type\": \"独居/情侣/亲子/朋友/退休\"},\n  \"preferences\": {\"culture\": 0到1的小数, \"food\": 0到1的小数, \"nature\": 0到1的小数, \"social\": 0到1的小数},\n  \"pace\": \"特种兵型/平衡型/闲逛型\",\n  \"hard_constraints\": [\"约束1\", \"约束2\"],\n  \"scene_requirements\": [\"场景元素1\", \"场景元素2\"],\n  \"preferred_categories\": [\"类别1\", \"类别2\", \"类别3\"],\n  \"demand_vector\": {\n    \"efficiency_seeking\": 0~1,\n    \"excitement_seeking\": 0~1,\n    \"tranquility_seeking\": 0~1,\n    \"budget_sensitivity\": 0~1,\n    \"novelty_seeking\": 0~1,\n    \"social_desire\": 0~1,\n    \"physical_energy\": 0~1\n  },\n  \"location\": \"用户在哪个区域/地标附近，如'拱北''香洲''天河'，不知道则填null\"\n}\n\n规则：\n- city: 根据用户提到的城市判断，无明确城市则默认\"珠海\"\n- budget: 无明确预算则 per_person=500, type=\"弹性\"\n- group.type: 根据同行人判断，默认\"独居\"\n- time: 如果用户提到\"3小时\"\"半天\"\"2小时搞定\"等时长，根据start计算end。如start=\"14:00\"且\"3小时\"→end=\"17:00\"\n- time: 如果用户提到\"凌晨\"\"深夜\"，start和end应为对应时段（如00:00-06:00）\n- preferences: 根据关键词推断偏好强度（0=完全不感兴趣, 1=非常感兴趣）\n  - culture: 文化/历史/艺术/博物馆/展览\n  - food: 美食/餐厅/小吃/探店\n  - nature: 自然/公园/山/湖/植物\n  - social: 社交/聚会/热闹/人多\n- pace: \"特种兵型\"=赶场打卡, \"平衡型\"=适中, \"闲逛型\"=慢节奏\n- hard_constraints: 提取明确的限制条件，支持以下类型：\n  - \"不想排队\" → \"queue_intolerant\"\n  - \"无障碍/轮椅/婴儿车\" → \"accessible\"\n  - \"带宠物/狗/猫\" → \"pet_friendly\"\n  - \"室内/空调/下雨天/别中暑\" → \"indoor_only\"\n  - \"海边/户外/露天\" → \"outdoor_preferred\"\n  - \"凌晨/深夜/宵夜/通宵\" → \"late_night\"\n  - \"游乐园/海洋馆/动物园\" → \"needs_entertainment\"\n  - \"烧烤/火锅/茶馆/咖啡馆/书店\" → add specific activity to hard_constraints\n- scene_requirements: 提取用户明确要求的场景元素，用于POI语义匹配。例如：\n  - \"喝茶听曲\" → [\"茶馆\", \"曲艺表演\", \"传统文化\"]\n  - \"街边小吃\" → [\"街边小店\", \"本地小吃\", \"便宜实惠\"]\n  - \"拍照出片\" → [\"拍照打卡\", \"网红景点\", \"出片\"]\n  - \"游乐园海洋馆\" → [\"游乐园\", \"海洋馆\", \"儿童游乐\"]\n  - \"蹦迪\" → [\"酒吧\", \"夜店\", \"LiveHouse\"]\n  - \"书法博物馆\" → [\"书法\", \"博物馆\", \"传统文化\"]\n  - \"烧烤聚会\" → [\"烧烤\", \"聚餐\", \"户外用餐\"]\n  - 如果用户没有明确要求特定场景，填空数组[]\n- preferred_categories: 根据用户意图选择3-6个最相关的POI类别，按优先级排序。可选类别：\n  餐饮, 景点, 购物, 文化, 运动, 娱乐, 温泉SPA, 海景咖啡馆, 夜市, 夜市小吃,\n  书店, 咖啡馆, 密室逃脱, 剧本杀, 恐怖密室, 室内攀岩, 户外攀岩, 水上运动场所,\n  游戏, 益智, 科技, 科技体验, 网吧/电竞馆, 自然风光, 文艺, 休闲, 便利店\n  示例：\n  - \"朋友聚会要能玩又能吃\" → [\"餐饮\", \"娱乐\", \"购物\"]\n  - \"下午想蹦迪\" → [\"娱乐\", \"餐饮\"]\n  - \"凌晨吃宵夜\" → [\"餐饮\", \"夜市\", \"夜市小吃\"]\n  - \"带孩子玩游乐园\" → [\"景点\", \"运动\", \"娱乐\"]\n  - \"安静画画\" → [\"文化\", \"文艺\", \"咖啡馆\"]\n  - \"拍日出日落夜景\" → [\"景点\", \"自然风光\"]\n  - \"情侣约会\" → [\"餐饮\", \"文化\", \"景点\", \"海景咖啡馆\"]\n  - \"老两口公园喝茶\" → [\"文化\", \"景点\", \"餐饮\"]\n- 社恐/不想人多 → social 设低值(0.1-0.2)\n- demand_vector: 语义需求向量（0~1），与preferences互补但更侧重行为倾向\n  - efficiency_seeking: 是否在意效率/赶时间\n  - excitement_seeking: 是否想要兴奋刺激\n  - tranquility_seeking: 是否想要宁静放松\n  - budget_sensitivity: 预算敏感度\n  - novelty_seeking: 是否想尝试新东西\n  - social_desire: 社交需求\n  - physical_energy: 体力意愿\n",
+  "_llm_raw_response": "{\n  \"city\": \"珠海\",\n  \"time\": {\"period\": \"下午\", \"start\": \"18:00\", \"end\": \"22:00\"},\n  \"budget\": {\"per_person\": 500, \"type\": \"弹性\"},\n  \"group\": {\"size\": 2, \"type\": \"情侣\"},\n  \"preferences\": {\"culture\": 0.3, \"food\": 0.6, \"nature\": 0.2, \"social\": 0.2},\n  \"pace\": \"闲逛型\",\n  \"hard_constraints\": [\"indoor_only\"],\n  \"scene_requirements\": [\"情调\", \"避雨\", \"浪漫\"],\n  \"preferred_categories\": [\"餐饮\", \"文化\", \"购物\", \"海景咖啡馆\"],\n  \"demand_vector\": {\n    \"efficiency_seeking\": 0.2,\n    \"excitement_seeking\": 0.3,\n    \"tranquility_se",
+  "_llm_model": "deepseek-chat",
+  "_demand_vector": {
+    "efficiency_seeking": 0.2,
+    "excitement_seeking": 0.3,
+    "tranquility_seeking": 0.8,
+    "budget_sensitivity": 0.3,
+    "novelty_seeking": 0.5,
+    "social_desire": 0.4,
+    "physical_energy": 0.3
+  },
+  "matched_profile_id": "P8",
+  "_llm_used": true,
+  "_llm_error": "",
+  "_profile_top3": [
+    {
+      "id": "P8",
+      "score": 6.7,
+      "name": "自然爱好者"
+    },
+    {
+      "id": "P2",
+      "score": 6.6,
+      "name": "浪漫情侣"
+    },
+    {
+      "id": "P1",
+      "score": 6.4,
+      "name": "社恐独居"
+    }
+  ]
+}
+[IntentParser] 收到用户输入: 40度高温天，带孩子室内玩，别中暑，预算不限但得凉快
+INFO:     127.0.0.1:5558 - "POST /api/plan HTTP/1.1" 200 OK
+[IntentParser] LLM 解析成功
+[IntentParser] 匹配画像: P14 - 三代同堂
+[IntentParser] 完整结果: {
+  "city": "珠海",
+  "time": {
+    "period": "全天",
+    "start": "09:00",
+    "end": "21:00"
+  },
+  "budget": {
+    "per_person": 500,
+    "type": "弹性"
+  },
+  "group": {
+    "size": 2,
+    "type": "亲子"
+  },
+  "preferences": {
+    "culture": 0.3,
+    "food": 0.2,
+    "nature": 0.1,
+    "social": 0.2
+  },
+  "pace": "闲逛型",
+  "hard_constraints": [
+    "indoor_only"
+  ],
+  "scene_requirements": [],
+  "preferred_categories": [
+    "景点",
+    "娱乐",
+    "文化"
+  ],
+  "location": null,
+  "_llm_prompt": "你是 CityFlow 城市出行路线规划系统的意图解析器。\n用户会用自然语言描述出行需求，你需要解析为严格的 JSON 格式。\n\n输出格式（只输出 JSON，不要任何其他文字）：\n{\n  \"city\": \"珠海/广州/湛江\",\n  \"time\": {\"period\": \"上午/下午/全天\", \"start\": \"HH:MM\", \"end\": \"HH:MM\"},\n  \"budget\": {\"per_person\": 金额整数, \"type\": \"硬约束/弹性\"},\n  \"group\": {\"size\": 人数整数, \"type\": \"独居/情侣/亲子/朋友/退休\"},\n  \"preferences\": {\"culture\": 0到1的小数, \"food\": 0到1的小数, \"nature\": 0到1的小数, \"social\": 0到1的小数},\n  \"pace\": \"特种兵型/平衡型/闲逛型\",\n  \"hard_constraints\": [\"约束1\", \"约束2\"],\n  \"scene_requirements\": [\"场景元素1\", \"场景元素2\"],\n  \"preferred_categories\": [\"类别1\", \"类别2\", \"类别3\"],\n  \"demand_vector\": {\n    \"efficiency_seeking\": 0~1,\n    \"excitement_seeking\": 0~1,\n    \"tranquility_seeking\": 0~1,\n    \"budget_sensitivity\": 0~1,\n    \"novelty_seeking\": 0~1,\n    \"social_desire\": 0~1,\n    \"physical_energy\": 0~1\n  },\n  \"location\": \"用户在哪个区域/地标附近，如'拱北''香洲''天河'，不知道则填null\"\n}\n\n规则：\n- city: 根据用户提到的城市判断，无明确城市则默认\"珠海\"\n- budget: 无明确预算则 per_person=500, type=\"弹性\"\n- group.type: 根据同行人判断，默认\"独居\"\n- time: 如果用户提到\"3小时\"\"半天\"\"2小时搞定\"等时长，根据start计算end。如start=\"14:00\"且\"3小时\"→end=\"17:00\"\n- time: 如果用户提到\"凌晨\"\"深夜\"，start和end应为对应时段（如00:00-06:00）\n- preferences: 根据关键词推断偏好强度（0=完全不感兴趣, 1=非常感兴趣）\n  - culture: 文化/历史/艺术/博物馆/展览\n  - food: 美食/餐厅/小吃/探店\n  - nature: 自然/公园/山/湖/植物\n  - social: 社交/聚会/热闹/人多\n- pace: \"特种兵型\"=赶场打卡, \"平衡型\"=适中, \"闲逛型\"=慢节奏\n- hard_constraints: 提取明确的限制条件，支持以下类型：\n  - \"不想排队\" → \"queue_intolerant\"\n  - \"无障碍/轮椅/婴儿车\" → \"accessible\"\n  - \"带宠物/狗/猫\" → \"pet_friendly\"\n  - \"室内/空调/下雨天/别中暑\" → \"indoor_only\"\n  - \"海边/户外/露天\" → \"outdoor_preferred\"\n  - \"凌晨/深夜/宵夜/通宵\" → \"late_night\"\n  - \"游乐园/海洋馆/动物园\" → \"needs_entertainment\"\n  - \"烧烤/火锅/茶馆/咖啡馆/书店\" → add specific activity to hard_constraints\n- scene_requirements: 提取用户明确要求的场景元素，用于POI语义匹配。例如：\n  - \"喝茶听曲\" → [\"茶馆\", \"曲艺表演\", \"传统文化\"]\n  - \"街边小吃\" → [\"街边小店\", \"本地小吃\", \"便宜实惠\"]\n  - \"拍照出片\" → [\"拍照打卡\", \"网红景点\", \"出片\"]\n  - \"游乐园海洋馆\" → [\"游乐园\", \"海洋馆\", \"儿童游乐\"]\n  - \"蹦迪\" → [\"酒吧\", \"夜店\", \"LiveHouse\"]\n  - \"书法博物馆\" → [\"书法\", \"博物馆\", \"传统文化\"]\n  - \"烧烤聚会\" → [\"烧烤\", \"聚餐\", \"户外用餐\"]\n  - 如果用户没有明确要求特定场景，填空数组[]\n- preferred_categories: 根据用户意图选择3-6个最相关的POI类别，按优先级排序。可选类别：\n  餐饮, 景点, 购物, 文化, 运动, 娱乐, 温泉SPA, 海景咖啡馆, 夜市, 夜市小吃,\n  书店, 咖啡馆, 密室逃脱, 剧本杀, 恐怖密室, 室内攀岩, 户外攀岩, 水上运动场所,\n  游戏, 益智, 科技, 科技体验, 网吧/电竞馆, 自然风光, 文艺, 休闲, 便利店\n  示例：\n  - \"朋友聚会要能玩又能吃\" → [\"餐饮\", \"娱乐\", \"购物\"]\n  - \"下午想蹦迪\" → [\"娱乐\", \"餐饮\"]\n  - \"凌晨吃宵夜\" → [\"餐饮\", \"夜市\", \"夜市小吃\"]\n  - \"带孩子玩游乐园\" → [\"景点\", \"运动\", \"娱乐\"]\n  - \"安静画画\" → [\"文化\", \"文艺\", \"咖啡馆\"]\n  - \"拍日出日落夜景\" → [\"景点\", \"自然风光\"]\n  - \"情侣约会\" → [\"餐饮\", \"文化\", \"景点\", \"海景咖啡馆\"]\n  - \"老两口公园喝茶\" → [\"文化\", \"景点\", \"餐饮\"]\n- 社恐/不想人多 → social 设低值(0.1-0.2)\n- demand_vector: 语义需求向量（0~1），与preferences互补但更侧重行为倾向\n  - efficiency_seeking: 是否在意效率/赶时间\n  - excitement_seeking: 是否想要兴奋刺激\n  - tranquility_seeking: 是否想要宁静放松\n  - budget_sensitivity: 预算敏感度\n  - novelty_seeking: 是否想尝试新东西\n  - social_desire: 社交需求\n  - physical_energy: 体力意愿\n",
+  "_llm_raw_response": "{\n  \"city\": \"珠海\",\n  \"time\": {\"period\": \"全天\", \"start\": \"09:00\", \"end\": \"21:00\"},\n  \"budget\": {\"per_person\": 500, \"type\": \"弹性\"},\n  \"group\": {\"size\": 2, \"type\": \"亲子\"},\n  \"preferences\": {\"culture\": 0.3, \"food\": 0.2, \"nature\": 0.1, \"social\": 0.2},\n  \"pace\": \"闲逛型\",\n  \"hard_constraints\": [\"indoor_only\"],\n  \"scene_requirements\": [],\n  \"preferred_categories\": [\"景点\", \"娱乐\", \"文化\"],\n  \"demand_vector\": {\n    \"efficiency_seeking\": 0.3,\n    \"excitement_seeking\": 0.4,\n    \"tranquility_seeking\": 0.6,\n    \"budget_",
+  "_llm_model": "deepseek-chat",
+  "_demand_vector": {
+    "efficiency_seeking": 0.3,
+    "excitement_seeking": 0.4,
+    "tranquility_seeking": 0.6,
+    "budget_sensitivity": 0.1,
+    "novelty_seeking": 0.5,
+    "social_desire": 0.2,
+    "physical_energy": 0.3
+  },
+  "matched_profile_id": "P14",
+  "_llm_used": true,
+  "_llm_error": "",
+  "_profile_top3": [
+    {
+      "id": "P14",
+      "score": 8.9,
+      "name": "三代同堂"
+    },
+    {
+      "id": "P3",
+      "score": 6.7,
+      "name": "活力亲子"
+    },
+    {
+      "id": "P8",
+      "score": 6.7,
+      "name": "自然爱好者"
+    }
+  ]
+}
+[Solver] scene_requirements Phase0预过滤(ANY-match): 29 个匹配
+[Solver] hard_constraints: ['indoor_only'], type=<class 'list'>, late_night in=False
+[Solver-Phase1] scene_requirements: ['商场', '水上乐园', '博物馆', '避暑', '科技馆', '空调', '室内游乐场', '儿童乐园'], candidates: 29
+[Solver-Phase1] _scene_matched_ids: 28, remaining: 29, is_food_req: False
+[Solver-Phase1] 两阶段锁定: 只从28个scene_matched POI中选
+[IntentParser] 收到用户输入: 一个人安静待半天，找个小众咖啡馆或书店，预算100内
+INFO:     127.0.0.1:5568 - "POST /api/plan HTTP/1.1" 200 OK
+[IntentParser] LLM 解析成功
+[IntentParser] 匹配画像: P1 - 社恐独居
+[IntentParser] 完整结果: {
+  "city": "珠海",
+  "time": {
+    "period": "下午",
+    "start": "14:00",
+    "end": "18:00"
+  },
+  "budget": {
+    "per_person": 100,
+    "type": "硬约束"
+  },
+  "group": {
+    "size": 1,
+    "type": "独居"
+  },
+  "preferences": {
+    "culture": 0.6,
+    "food": 0.2,
+    "nature": 0.3,
+    "social": 0.1
+  },
+  "pace": "闲逛型",
+  "hard_constraints": [],
+  "scene_requirements": [
+    "小众",
+    "安静"
+  ],
+  "preferred_categories": [
+    "咖啡馆",
+    "书店",
+    "文艺"
+  ],
+  "location": null,
+  "_llm_prompt": "你是 CityFlow 城市出行路线规划系统的意图解析器。\n用户会用自然语言描述出行需求，你需要解析为严格的 JSON 格式。\n\n输出格式（只输出 JSON，不要任何其他文字）：\n{\n  \"city\": \"珠海/广州/湛江\",\n  \"time\": {\"period\": \"上午/下午/全天\", \"start\": \"HH:MM\", \"end\": \"HH:MM\"},\n  \"budget\": {\"per_person\": 金额整数, \"type\": \"硬约束/弹性\"},\n  \"group\": {\"size\": 人数整数, \"type\": \"独居/情侣/亲子/朋友/退休\"},\n  \"preferences\": {\"culture\": 0到1的小数, \"food\": 0到1的小数, \"nature\": 0到1的小数, \"social\": 0到1的小数},\n  \"pace\": \"特种兵型/平衡型/闲逛型\",\n  \"hard_constraints\": [\"约束1\", \"约束2\"],\n  \"scene_requirements\": [\"场景元素1\", \"场景元素2\"],\n  \"preferred_categories\": [\"类别1\", \"类别2\", \"类别3\"],\n  \"demand_vector\": {\n    \"efficiency_seeking\": 0~1,\n    \"excitement_seeking\": 0~1,\n    \"tranquility_seeking\": 0~1,\n    \"budget_sensitivity\": 0~1,\n    \"novelty_seeking\": 0~1,\n    \"social_desire\": 0~1,\n    \"physical_energy\": 0~1\n  },\n  \"location\": \"用户在哪个区域/地标附近，如'拱北''香洲''天河'，不知道则填null\"\n}\n\n规则：\n- city: 根据用户提到的城市判断，无明确城市则默认\"珠海\"\n- budget: 无明确预算则 per_person=500, type=\"弹性\"\n- group.type: 根据同行人判断，默认\"独居\"\n- time: 如果用户提到\"3小时\"\"半天\"\"2小时搞定\"等时长，根据start计算end。如start=\"14:00\"且\"3小时\"→end=\"17:00\"\n- time: 如果用户提到\"凌晨\"\"深夜\"，start和end应为对应时段（如00:00-06:00）\n- preferences: 根据关键词推断偏好强度（0=完全不感兴趣, 1=非常感兴趣）\n  - culture: 文化/历史/艺术/博物馆/展览\n  - food: 美食/餐厅/小吃/探店\n  - nature: 自然/公园/山/湖/植物\n  - social: 社交/聚会/热闹/人多\n- pace: \"特种兵型\"=赶场打卡, \"平衡型\"=适中, \"闲逛型\"=慢节奏\n- hard_constraints: 提取明确的限制条件，支持以下类型：\n  - \"不想排队\" → \"queue_intolerant\"\n  - \"无障碍/轮椅/婴儿车\" → \"accessible\"\n  - \"带宠物/狗/猫\" → \"pet_friendly\"\n  - \"室内/空调/下雨天/别中暑\" → \"indoor_only\"\n  - \"海边/户外/露天\" → \"outdoor_preferred\"\n  - \"凌晨/深夜/宵夜/通宵\" → \"late_night\"\n  - \"游乐园/海洋馆/动物园\" → \"needs_entertainment\"\n  - \"烧烤/火锅/茶馆/咖啡馆/书店\" → add specific activity to hard_constraints\n- scene_requirements: 提取用户明确要求的场景元素，用于POI语义匹配。例如：\n  - \"喝茶听曲\" → [\"茶馆\", \"曲艺表演\", \"传统文化\"]\n  - \"街边小吃\" → [\"街边小店\", \"本地小吃\", \"便宜实惠\"]\n  - \"拍照出片\" → [\"拍照打卡\", \"网红景点\", \"出片\"]\n  - \"游乐园海洋馆\" → [\"游乐园\", \"海洋馆\", \"儿童游乐\"]\n  - \"蹦迪\" → [\"酒吧\", \"夜店\", \"LiveHouse\"]\n  - \"书法博物馆\" → [\"书法\", \"博物馆\", \"传统文化\"]\n  - \"烧烤聚会\" → [\"烧烤\", \"聚餐\", \"户外用餐\"]\n  - 如果用户没有明确要求特定场景，填空数组[]\n- preferred_categories: 根据用户意图选择3-6个最相关的POI类别，按优先级排序。可选类别：\n  餐饮, 景点, 购物, 文化, 运动, 娱乐, 温泉SPA, 海景咖啡馆, 夜市, 夜市小吃,\n  书店, 咖啡馆, 密室逃脱, 剧本杀, 恐怖密室, 室内攀岩, 户外攀岩, 水上运动场所,\n  游戏, 益智, 科技, 科技体验, 网吧/电竞馆, 自然风光, 文艺, 休闲, 便利店\n  示例：\n  - \"朋友聚会要能玩又能吃\" → [\"餐饮\", \"娱乐\", \"购物\"]\n  - \"下午想蹦迪\" → [\"娱乐\", \"餐饮\"]\n  - \"凌晨吃宵夜\" → [\"餐饮\", \"夜市\", \"夜市小吃\"]\n  - \"带孩子玩游乐园\" → [\"景点\", \"运动\", \"娱乐\"]\n  - \"安静画画\" → [\"文化\", \"文艺\", \"咖啡馆\"]\n  - \"拍日出日落夜景\" → [\"景点\", \"自然风光\"]\n  - \"情侣约会\" → [\"餐饮\", \"文化\", \"景点\", \"海景咖啡馆\"]\n  - \"老两口公园喝茶\" → [\"文化\", \"景点\", \"餐饮\"]\n- 社恐/不想人多 → social 设低值(0.1-0.2)\n- demand_vector: 语义需求向量（0~1），与preferences互补但更侧重行为倾向\n  - efficiency_seeking: 是否在意效率/赶时间\n  - excitement_seeking: 是否想要兴奋刺激\n  - tranquility_seeking: 是否想要宁静放松\n  - budget_sensitivity: 预算敏感度\n  - novelty_seeking: 是否想尝试新东西\n  - social_desire: 社交需求\n  - physical_energy: 体力意愿\n",
+  "_llm_raw_response": "{\n  \"city\": \"珠海\",\n  \"time\": {\"period\": \"下午\", \"start\": \"14:00\", \"end\": \"18:00\"},\n  \"budget\": {\"per_person\": 100, \"type\": \"硬约束\"},\n  \"group\": {\"size\": 1, \"type\": \"独居\"},\n  \"preferences\": {\"culture\": 0.6, \"food\": 0.2, \"nature\": 0.3, \"social\": 0.1},\n  \"pace\": \"闲逛型\",\n  \"hard_constraints\": [],\n  \"scene_requirements\": [\"小众\", \"安静\"],\n  \"preferred_categories\": [\"咖啡馆\", \"书店\", \"文艺\"],\n  \"demand_vector\": {\n    \"efficiency_seeking\": 0.2,\n    \"excitement_seeking\": 0.1,\n    \"tranquility_seeking\": 0.9,\n    \"budget_s",
+  "_llm_model": "deepseek-chat",
+  "_demand_vector": {
+    "efficiency_seeking": 0.2,
+    "excitement_seeking": 0.1,
+    "tranquility_seeking": 0.9,
+    "budget_sensitivity": 0.8,
+    "novelty_seeking": 0.5,
+    "social_desire": 0.1,
+    "physical_energy": 0.3
+  },
+  "matched_profile_id": "P1",
+  "_llm_used": true,
+  "_llm_error": "",
+  "_profile_top3": [
+    {
+      "id": "P1",
+      "score": 14.7,
+      "name": "社恐独居"
+    },
+    {
+      "id": "P20",
+      "score": 9.9,
+      "name": "极简主义者"
+    },
+    {
+      "id": "P8",
+      "score": 9.4,
+      "name": "自然爱好者"
+    }
+  ]
+}
+[IntentParser] 收到用户输入: 5个朋友聚会，要能玩又能吃，预算人均150，下午到晚上
+INFO:     127.0.0.1:5576 - "POST /api/plan HTTP/1.1" 200 OK
+[IntentParser] LLM 解析成功
+[IntentParser] 匹配画像: P4 - 朋友聚会
+[IntentParser] 完整结果: {
+  "city": "珠海",
+  "time": {
+    "period": "下午",
+    "start": "14:00",
+    "end": "22:00"
+  },
+  "budget": {
+    "per_person": 150,
+    "type": "硬约束"
+  },
+  "group": {
+    "size": 5,
+    "type": "朋友"
+  },
+  "preferences": {
+    "culture": 0.2,
+    "food": 0.8,
+    "nature": 0.1,
+    "social": 0.9
+  },
+  "pace": "平衡型",
+  "hard_constraints": [],
+  "scene_requirements": [],
+  "preferred_categories": [
+    "餐饮",
+    "娱乐",
+    "购物"
+  ],
+  "location": null,
+  "_llm_prompt": "你是 CityFlow 城市出行路线规划系统的意图解析器。\n用户会用自然语言描述出行需求，你需要解析为严格的 JSON 格式。\n\n输出格式（只输出 JSON，不要任何其他文字）：\n{\n  \"city\": \"珠海/广州/湛江\",\n  \"time\": {\"period\": \"上午/下午/全天\", \"start\": \"HH:MM\", \"end\": \"HH:MM\"},\n  \"budget\": {\"per_person\": 金额整数, \"type\": \"硬约束/弹性\"},\n  \"group\": {\"size\": 人数整数, \"type\": \"独居/情侣/亲子/朋友/退休\"},\n  \"preferences\": {\"culture\": 0到1的小数, \"food\": 0到1的小数, \"nature\": 0到1的小数, \"social\": 0到1的小数},\n  \"pace\": \"特种兵型/平衡型/闲逛型\",\n  \"hard_constraints\": [\"约束1\", \"约束2\"],\n  \"scene_requirements\": [\"场景元素1\", \"场景元素2\"],\n  \"preferred_categories\": [\"类别1\", \"类别2\", \"类别3\"],\n  \"demand_vector\": {\n    \"efficiency_seeking\": 0~1,\n    \"excitement_seeking\": 0~1,\n    \"tranquility_seeking\": 0~1,\n    \"budget_sensitivity\": 0~1,\n    \"novelty_seeking\": 0~1,\n    \"social_desire\": 0~1,\n    \"physical_energy\": 0~1\n  },\n  \"location\": \"用户在哪个区域/地标附近，如'拱北''香洲''天河'，不知道则填null\"\n}\n\n规则：\n- city: 根据用户提到的城市判断，无明确城市则默认\"珠海\"\n- budget: 无明确预算则 per_person=500, type=\"弹性\"\n- group.type: 根据同行人判断，默认\"独居\"\n- time: 如果用户提到\"3小时\"\"半天\"\"2小时搞定\"等时长，根据start计算end。如start=\"14:00\"且\"3小时\"→end=\"17:00\"\n- time: 如果用户提到\"凌晨\"\"深夜\"，start和end应为对应时段（如00:00-06:00）\n- preferences: 根据关键词推断偏好强度（0=完全不感兴趣, 1=非常感兴趣）\n  - culture: 文化/历史/艺术/博物馆/展览\n  - food: 美食/餐厅/小吃/探店\n  - nature: 自然/公园/山/湖/植物\n  - social: 社交/聚会/热闹/人多\n- pace: \"特种兵型\"=赶场打卡, \"平衡型\"=适中, \"闲逛型\"=慢节奏\n- hard_constraints: 提取明确的限制条件，支持以下类型：\n  - \"不想排队\" → \"queue_intolerant\"\n  - \"无障碍/轮椅/婴儿车\" → \"accessible\"\n  - \"带宠物/狗/猫\" → \"pet_friendly\"\n  - \"室内/空调/下雨天/别中暑\" → \"indoor_only\"\n  - \"海边/户外/露天\" → \"outdoor_preferred\"\n  - \"凌晨/深夜/宵夜/通宵\" → \"late_night\"\n  - \"游乐园/海洋馆/动物园\" → \"needs_entertainment\"\n  - \"烧烤/火锅/茶馆/咖啡馆/书店\" → add specific activity to hard_constraints\n- scene_requirements: 提取用户明确要求的场景元素，用于POI语义匹配。例如：\n  - \"喝茶听曲\" → [\"茶馆\", \"曲艺表演\", \"传统文化\"]\n  - \"街边小吃\" → [\"街边小店\", \"本地小吃\", \"便宜实惠\"]\n  - \"拍照出片\" → [\"拍照打卡\", \"网红景点\", \"出片\"]\n  - \"游乐园海洋馆\" → [\"游乐园\", \"海洋馆\", \"儿童游乐\"]\n  - \"蹦迪\" → [\"酒吧\", \"夜店\", \"LiveHouse\"]\n  - \"书法博物馆\" → [\"书法\", \"博物馆\", \"传统文化\"]\n  - \"烧烤聚会\" → [\"烧烤\", \"聚餐\", \"户外用餐\"]\n  - 如果用户没有明确要求特定场景，填空数组[]\n- preferred_categories: 根据用户意图选择3-6个最相关的POI类别，按优先级排序。可选类别：\n  餐饮, 景点, 购物, 文化, 运动, 娱乐, 温泉SPA, 海景咖啡馆, 夜市, 夜市小吃,\n  书店, 咖啡馆, 密室逃脱, 剧本杀, 恐怖密室, 室内攀岩, 户外攀岩, 水上运动场所,\n  游戏, 益智, 科技, 科技体验, 网吧/电竞馆, 自然风光, 文艺, 休闲, 便利店\n  示例：\n  - \"朋友聚会要能玩又能吃\" → [\"餐饮\", \"娱乐\", \"购物\"]\n  - \"下午想蹦迪\" → [\"娱乐\", \"餐饮\"]\n  - \"凌晨吃宵夜\" → [\"餐饮\", \"夜市\", \"夜市小吃\"]\n  - \"带孩子玩游乐园\" → [\"景点\", \"运动\", \"娱乐\"]\n  - \"安静画画\" → [\"文化\", \"文艺\", \"咖啡馆\"]\n  - \"拍日出日落夜景\" → [\"景点\", \"自然风光\"]\n  - \"情侣约会\" → [\"餐饮\", \"文化\", \"景点\", \"海景咖啡馆\"]\n  - \"老两口公园喝茶\" → [\"文化\", \"景点\", \"餐饮\"]\n- 社恐/不想人多 → social 设低值(0.1-0.2)\n- demand_vector: 语义需求向量（0~1），与preferences互补但更侧重行为倾向\n  - efficiency_seeking: 是否在意效率/赶时间\n  - excitement_seeking: 是否想要兴奋刺激\n  - tranquility_seeking: 是否想要宁静放松\n  - budget_sensitivity: 预算敏感度\n  - novelty_seeking: 是否想尝试新东西\n  - social_desire: 社交需求\n  - physical_energy: 体力意愿\n",
+  "_llm_raw_response": "{\n  \"city\": \"珠海\",\n  \"time\": {\"period\": \"下午\", \"start\": \"14:00\", \"end\": \"22:00\"},\n  \"budget\": {\"per_person\": 150, \"type\": \"硬约束\"},\n  \"group\": {\"size\": 5, \"type\": \"朋友\"},\n  \"preferences\": {\"culture\": 0.2, \"food\": 0.8, \"nature\": 0.1, \"social\": 0.9},\n  \"pace\": \"平衡型\",\n  \"hard_constraints\": [],\n  \"scene_requirements\": [],\n  \"preferred_categories\": [\"餐饮\", \"娱乐\", \"购物\"],\n  \"demand_vector\": {\n    \"efficiency_seeking\": 0.3,\n    \"excitement_seeking\": 0.7,\n    \"tranquility_seeking\": 0.2,\n    \"budget_sensitivity\"",
+  "_llm_model": "deepseek-chat",
+  "_demand_vector": {
+    "efficiency_seeking": 0.3,
+    "excitement_seeking": 0.7,
+    "tranquility_seeking": 0.2,
+    "budget_sensitivity": 0.8,
+    "novelty_seeking": 0.5,
+    "social_desire": 0.9,
+    "physical_energy": 0.6
+  },
+  "matched_profile_id": "P4",
+  "_llm_used": true,
+  "_llm_error": "",
+  "_profile_top3": [
+    {
+      "id": "P4",
+      "score": 7.6,
+      "name": "朋友聚会"
+    },
+    {
+      "id": "P9",
+      "score": 7.2,
+      "name": "社交达人"
+    },
+    {
+      "id": "P16",
+      "score": 7.1,
+      "name": "学生穷游"
+    }
+  ]
+}
+[Solver] scene_requirements Phase0预过滤(ANY-match): 267 个匹配
+[Solver] hard_constraints: [], type=<class 'list'>, late_night in=False
+[过滤] Vinotopia - 价格159 > 预算150
+[过滤] 东北阿龙烧烤吧 - 价格176 > 预算150
+[过滤] Premier One - 价格155 > 预算150
+[过滤] 大利來記 - 价格157 > 预算150
+[过滤] 剧本杀·推理社（夏湾店） - 价格160 > 预算150
+[过滤] 彩虹卡丁车乐园（横琴店） - 价格180 > 预算150
+[过滤] 珠海长隆海洋王国 - 价格300 > 预算150
+[Solver-Phase1] scene_requirements: ['火锅', '娱乐', '聚餐', '烧烤', '轰趴', 'KTV', '桌游'], candidates: 32
+[Solver-Phase1] _scene_matched_ids: 17, remaining: 32, is_food_req: True
+[Solver-Phase1] 两阶段锁定: 只从17个scene_matched POI中选
+[Solver] 最低长度保护: 补充到3站
+[IntentParser] 收到用户输入: 今天拍日出日落加夜景，3个时段各一小时，地点越多越好
+INFO:     127.0.0.1:5602 - "POST /api/plan HTTP/1.1" 200 OK
+[IntentParser] LLM 解析成功
+[IntentParser] 匹配画像: P13 - 运动健身
+[IntentParser] 完整结果: {
+  "city": "珠海",
+  "time": {
+    "period": "全天",
+    "start": "05:00",
+    "end": "21:00"
+  },
+  "budget": {
+    "per_person": 500,
+    "type": "弹性"
+  },
+  "group": {
+    "size": 1,
+    "type": "独居"
+  },
+  "preferences": {
+    "culture": 0.1,
+    "food": 0.1,
+    "nature": 0.9,
+    "social": 0.1
+  },
+  "pace": "特种兵型",
+  "hard_constraints": [],
+  "scene_requirements": [
+    "拍照打卡",
+    "日出",
+    "日落",
+    "夜景"
+  ],
+  "preferred_categories": [
+    "景点",
+    "自然风光"
+  ],
+  "location": null,
+  "_llm_prompt": "你是 CityFlow 城市出行路线规划系统的意图解析器。\n用户会用自然语言描述出行需求，你需要解析为严格的 JSON 格式。\n\n输出格式（只输出 JSON，不要任何其他文字）：\n{\n  \"city\": \"珠海/广州/湛江\",\n  \"time\": {\"period\": \"上午/下午/全天\", \"start\": \"HH:MM\", \"end\": \"HH:MM\"},\n  \"budget\": {\"per_person\": 金额整数, \"type\": \"硬约束/弹性\"},\n  \"group\": {\"size\": 人数整数, \"type\": \"独居/情侣/亲子/朋友/退休\"},\n  \"preferences\": {\"culture\": 0到1的小数, \"food\": 0到1的小数, \"nature\": 0到1的小数, \"social\": 0到1的小数},\n  \"pace\": \"特种兵型/平衡型/闲逛型\",\n  \"hard_constraints\": [\"约束1\", \"约束2\"],\n  \"scene_requirements\": [\"场景元素1\", \"场景元素2\"],\n  \"preferred_categories\": [\"类别1\", \"类别2\", \"类别3\"],\n  \"demand_vector\": {\n    \"efficiency_seeking\": 0~1,\n    \"excitement_seeking\": 0~1,\n    \"tranquility_seeking\": 0~1,\n    \"budget_sensitivity\": 0~1,\n    \"novelty_seeking\": 0~1,\n    \"social_desire\": 0~1,\n    \"physical_energy\": 0~1\n  },\n  \"location\": \"用户在哪个区域/地标附近，如'拱北''香洲''天河'，不知道则填null\"\n}\n\n规则：\n- city: 根据用户提到的城市判断，无明确城市则默认\"珠海\"\n- budget: 无明确预算则 per_person=500, type=\"弹性\"\n- group.type: 根据同行人判断，默认\"独居\"\n- time: 如果用户提到\"3小时\"\"半天\"\"2小时搞定\"等时长，根据start计算end。如start=\"14:00\"且\"3小时\"→end=\"17:00\"\n- time: 如果用户提到\"凌晨\"\"深夜\"，start和end应为对应时段（如00:00-06:00）\n- preferences: 根据关键词推断偏好强度（0=完全不感兴趣, 1=非常感兴趣）\n  - culture: 文化/历史/艺术/博物馆/展览\n  - food: 美食/餐厅/小吃/探店\n  - nature: 自然/公园/山/湖/植物\n  - social: 社交/聚会/热闹/人多\n- pace: \"特种兵型\"=赶场打卡, \"平衡型\"=适中, \"闲逛型\"=慢节奏\n- hard_constraints: 提取明确的限制条件，支持以下类型：\n  - \"不想排队\" → \"queue_intolerant\"\n  - \"无障碍/轮椅/婴儿车\" → \"accessible\"\n  - \"带宠物/狗/猫\" → \"pet_friendly\"\n  - \"室内/空调/下雨天/别中暑\" → \"indoor_only\"\n  - \"海边/户外/露天\" → \"outdoor_preferred\"\n  - \"凌晨/深夜/宵夜/通宵\" → \"late_night\"\n  - \"游乐园/海洋馆/动物园\" → \"needs_entertainment\"\n  - \"烧烤/火锅/茶馆/咖啡馆/书店\" → add specific activity to hard_constraints\n- scene_requirements: 提取用户明确要求的场景元素，用于POI语义匹配。例如：\n  - \"喝茶听曲\" → [\"茶馆\", \"曲艺表演\", \"传统文化\"]\n  - \"街边小吃\" → [\"街边小店\", \"本地小吃\", \"便宜实惠\"]\n  - \"拍照出片\" → [\"拍照打卡\", \"网红景点\", \"出片\"]\n  - \"游乐园海洋馆\" → [\"游乐园\", \"海洋馆\", \"儿童游乐\"]\n  - \"蹦迪\" → [\"酒吧\", \"夜店\", \"LiveHouse\"]\n  - \"书法博物馆\" → [\"书法\", \"博物馆\", \"传统文化\"]\n  - \"烧烤聚会\" → [\"烧烤\", \"聚餐\", \"户外用餐\"]\n  - 如果用户没有明确要求特定场景，填空数组[]\n- preferred_categories: 根据用户意图选择3-6个最相关的POI类别，按优先级排序。可选类别：\n  餐饮, 景点, 购物, 文化, 运动, 娱乐, 温泉SPA, 海景咖啡馆, 夜市, 夜市小吃,\n  书店, 咖啡馆, 密室逃脱, 剧本杀, 恐怖密室, 室内攀岩, 户外攀岩, 水上运动场所,\n  游戏, 益智, 科技, 科技体验, 网吧/电竞馆, 自然风光, 文艺, 休闲, 便利店\n  示例：\n  - \"朋友聚会要能玩又能吃\" → [\"餐饮\", \"娱乐\", \"购物\"]\n  - \"下午想蹦迪\" → [\"娱乐\", \"餐饮\"]\n  - \"凌晨吃宵夜\" → [\"餐饮\", \"夜市\", \"夜市小吃\"]\n  - \"带孩子玩游乐园\" → [\"景点\", \"运动\", \"娱乐\"]\n  - \"安静画画\" → [\"文化\", \"文艺\", \"咖啡馆\"]\n  - \"拍日出日落夜景\" → [\"景点\", \"自然风光\"]\n  - \"情侣约会\" → [\"餐饮\", \"文化\", \"景点\", \"海景咖啡馆\"]\n  - \"老两口公园喝茶\" → [\"文化\", \"景点\", \"餐饮\"]\n- 社恐/不想人多 → social 设低值(0.1-0.2)\n- demand_vector: 语义需求向量（0~1），与preferences互补但更侧重行为倾向\n  - efficiency_seeking: 是否在意效率/赶时间\n  - excitement_seeking: 是否想要兴奋刺激\n  - tranquility_seeking: 是否想要宁静放松\n  - budget_sensitivity: 预算敏感度\n  - novelty_seeking: 是否想尝试新东西\n  - social_desire: 社交需求\n  - physical_energy: 体力意愿\n",
+  "_llm_raw_response": "{\n  \"city\": \"珠海\",\n  \"time\": {\"period\": \"全天\", \"start\": \"05:00\", \"end\": \"21:00\"},\n  \"budget\": {\"per_person\": 500, \"type\": \"弹性\"},\n  \"group\": {\"size\": 1, \"type\": \"独居\"},\n  \"preferences\": {\"culture\": 0.1, \"food\": 0.1, \"nature\": 0.9, \"social\": 0.1},\n  \"pace\": \"特种兵型\",\n  \"hard_constraints\": [],\n  \"scene_requirements\": [\"拍照打卡\", \"日出\", \"日落\", \"夜景\"],\n  \"preferred_categories\": [\"景点\", \"自然风光\"],\n  \"demand_vector\": {\n    \"efficiency_seeking\": 0.8,\n    \"excitement_seeking\": 0.3,\n    \"tranquility_seeking\": 0.2,\n    ",
+  "_llm_model": "deepseek-chat",
+  "_demand_vector": {
+    "efficiency_seeking": 0.8,
+    "excitement_seeking": 0.3,
+    "tranquility_seeking": 0.2,
+    "budget_sensitivity": 0.3,
+    "novelty_seeking": 0.5,
+    "social_desire": 0.1,
+    "physical_energy": 0.9
+  },
+  "matched_profile_id": "P13",
+  "_llm_used": true,
+  "_llm_error": "",
+  "_profile_top3": [
+    {
+      "id": "P13",
+      "score": 8.7,
+      "name": "运动健身"
+    },
+    {
+      "id": "P1",
+      "score": 7.5,
+      "name": "社恐独居"
+    },
+    {
+      "id": "P20",
+      "score": 7.3,
+      "name": "极简主义者"
+    }
+  ]
+}
+[Solver] scene_requirements Phase0预过滤(ANY-match): 260 个匹配
+[Solver] 深夜场景过滤: 移除白天专属景点5个
+[Solver] hard_constraints: [], type=<class 'list'>, late_night in=False
+[Solver-Phase1] scene_requirements: ['日落', '摄影', '拍照打卡', '观景台', '夜景', '日出', '城市天际线', '海滨'], candidates: 95
+[Solver-Phase1] _scene_matched_ids: 79, remaining: 95, is_food_req: False
+[Solver-Phase1] 两阶段锁定: 只从79个scene_matched POI中选
+[IntentParser] 收到用户输入: 老两口想慢慢逛，找个公园喝茶听曲，预算200以内
+INFO:     127.0.0.1:5629 - "POST /api/plan HTTP/1.1" 200 OK
+[IntentParser] LLM 解析成功
+[IntentParser] 匹配画像: P5 - 退休休闲
+[IntentParser] 完整结果: {
+  "city": "珠海",
+  "time": {
+    "period": "全天",
+    "start": "09:00",
+    "end": "17:00"
+  },
+  "budget": {
+    "per_person": 200,
+    "type": "硬约束"
+  },
+  "group": {
+    "size": 2,
+    "type": "退休"
+  },
+  "preferences": {
+    "culture": 0.6,
+    "food": 0.3,
+    "nature": 0.8,
+    "social": 0.2
+  },
+  "pace": "闲逛型",
+  "hard_constraints": [],
+  "scene_requirements": [
+    "茶馆",
+    "曲艺表演",
+    "传统文化"
+  ],
+  "preferred_categories": [
+    "文化",
+    "景点",
+    "餐饮"
+  ],
+  "location": null,
+  "_llm_prompt": "你是 CityFlow 城市出行路线规划系统的意图解析器。\n用户会用自然语言描述出行需求，你需要解析为严格的 JSON 格式。\n\n输出格式（只输出 JSON，不要任何其他文字）：\n{\n  \"city\": \"珠海/广州/湛江\",\n  \"time\": {\"period\": \"上午/下午/全天\", \"start\": \"HH:MM\", \"end\": \"HH:MM\"},\n  \"budget\": {\"per_person\": 金额整数, \"type\": \"硬约束/弹性\"},\n  \"group\": {\"size\": 人数整数, \"type\": \"独居/情侣/亲子/朋友/退休\"},\n  \"preferences\": {\"culture\": 0到1的小数, \"food\": 0到1的小数, \"nature\": 0到1的小数, \"social\": 0到1的小数},\n  \"pace\": \"特种兵型/平衡型/闲逛型\",\n  \"hard_constraints\": [\"约束1\", \"约束2\"],\n  \"scene_requirements\": [\"场景元素1\", \"场景元素2\"],\n  \"preferred_categories\": [\"类别1\", \"类别2\", \"类别3\"],\n  \"demand_vector\": {\n    \"efficiency_seeking\": 0~1,\n    \"excitement_seeking\": 0~1,\n    \"tranquility_seeking\": 0~1,\n    \"budget_sensitivity\": 0~1,\n    \"novelty_seeking\": 0~1,\n    \"social_desire\": 0~1,\n    \"physical_energy\": 0~1\n  },\n  \"location\": \"用户在哪个区域/地标附近，如'拱北''香洲''天河'，不知道则填null\"\n}\n\n规则：\n- city: 根据用户提到的城市判断，无明确城市则默认\"珠海\"\n- budget: 无明确预算则 per_person=500, type=\"弹性\"\n- group.type: 根据同行人判断，默认\"独居\"\n- time: 如果用户提到\"3小时\"\"半天\"\"2小时搞定\"等时长，根据start计算end。如start=\"14:00\"且\"3小时\"→end=\"17:00\"\n- time: 如果用户提到\"凌晨\"\"深夜\"，start和end应为对应时段（如00:00-06:00）\n- preferences: 根据关键词推断偏好强度（0=完全不感兴趣, 1=非常感兴趣）\n  - culture: 文化/历史/艺术/博物馆/展览\n  - food: 美食/餐厅/小吃/探店\n  - nature: 自然/公园/山/湖/植物\n  - social: 社交/聚会/热闹/人多\n- pace: \"特种兵型\"=赶场打卡, \"平衡型\"=适中, \"闲逛型\"=慢节奏\n- hard_constraints: 提取明确的限制条件，支持以下类型：\n  - \"不想排队\" → \"queue_intolerant\"\n  - \"无障碍/轮椅/婴儿车\" → \"accessible\"\n  - \"带宠物/狗/猫\" → \"pet_friendly\"\n  - \"室内/空调/下雨天/别中暑\" → \"indoor_only\"\n  - \"海边/户外/露天\" → \"outdoor_preferred\"\n  - \"凌晨/深夜/宵夜/通宵\" → \"late_night\"\n  - \"游乐园/海洋馆/动物园\" → \"needs_entertainment\"\n  - \"烧烤/火锅/茶馆/咖啡馆/书店\" → add specific activity to hard_constraints\n- scene_requirements: 提取用户明确要求的场景元素，用于POI语义匹配。例如：\n  - \"喝茶听曲\" → [\"茶馆\", \"曲艺表演\", \"传统文化\"]\n  - \"街边小吃\" → [\"街边小店\", \"本地小吃\", \"便宜实惠\"]\n  - \"拍照出片\" → [\"拍照打卡\", \"网红景点\", \"出片\"]\n  - \"游乐园海洋馆\" → [\"游乐园\", \"海洋馆\", \"儿童游乐\"]\n  - \"蹦迪\" → [\"酒吧\", \"夜店\", \"LiveHouse\"]\n  - \"书法博物馆\" → [\"书法\", \"博物馆\", \"传统文化\"]\n  - \"烧烤聚会\" → [\"烧烤\", \"聚餐\", \"户外用餐\"]\n  - 如果用户没有明确要求特定场景，填空数组[]\n- preferred_categories: 根据用户意图选择3-6个最相关的POI类别，按优先级排序。可选类别：\n  餐饮, 景点, 购物, 文化, 运动, 娱乐, 温泉SPA, 海景咖啡馆, 夜市, 夜市小吃,\n  书店, 咖啡馆, 密室逃脱, 剧本杀, 恐怖密室, 室内攀岩, 户外攀岩, 水上运动场所,\n  游戏, 益智, 科技, 科技体验, 网吧/电竞馆, 自然风光, 文艺, 休闲, 便利店\n  示例：\n  - \"朋友聚会要能玩又能吃\" → [\"餐饮\", \"娱乐\", \"购物\"]\n  - \"下午想蹦迪\" → [\"娱乐\", \"餐饮\"]\n  - \"凌晨吃宵夜\" → [\"餐饮\", \"夜市\", \"夜市小吃\"]\n  - \"带孩子玩游乐园\" → [\"景点\", \"运动\", \"娱乐\"]\n  - \"安静画画\" → [\"文化\", \"文艺\", \"咖啡馆\"]\n  - \"拍日出日落夜景\" → [\"景点\", \"自然风光\"]\n  - \"情侣约会\" → [\"餐饮\", \"文化\", \"景点\", \"海景咖啡馆\"]\n  - \"老两口公园喝茶\" → [\"文化\", \"景点\", \"餐饮\"]\n- 社恐/不想人多 → social 设低值(0.1-0.2)\n- demand_vector: 语义需求向量（0~1），与preferences互补但更侧重行为倾向\n  - efficiency_seeking: 是否在意效率/赶时间\n  - excitement_seeking: 是否想要兴奋刺激\n  - tranquility_seeking: 是否想要宁静放松\n  - budget_sensitivity: 预算敏感度\n  - novelty_seeking: 是否想尝试新东西\n  - social_desire: 社交需求\n  - physical_energy: 体力意愿\n",
+  "_llm_raw_response": "{\n  \"city\": \"珠海\",\n  \"time\": {\"period\": \"全天\", \"start\": \"09:00\", \"end\": \"17:00\"},\n  \"budget\": {\"per_person\": 200, \"type\": \"硬约束\"},\n  \"group\": {\"size\": 2, \"type\": \"退休\"},\n  \"preferences\": {\"culture\": 0.6, \"food\": 0.3, \"nature\": 0.8, \"social\": 0.2},\n  \"pace\": \"闲逛型\",\n  \"hard_constraints\": [],\n  \"scene_requirements\": [\"茶馆\", \"曲艺表演\", \"传统文化\"],\n  \"preferred_categories\": [\"文化\", \"景点\", \"餐饮\"],\n  \"demand_vector\": {\n    \"efficiency_seeking\": 0.1,\n    \"excitement_seeking\": 0.1,\n    \"tranquility_seeking\": 0.9,\n    ",
+  "_llm_model": "deepseek-chat",
+  "_demand_vector": {
+    "efficiency_seeking": 0.1,
+    "excitement_seeking": 0.1,
+    "tranquility_seeking": 0.9,
+    "budget_sensitivity": 0.8,
+    "novelty_seeking": 0.2,
+    "social_desire": 0.2,
+    "physical_energy": 0.3
+  },
+  "matched_profile_id": "P5",
+  "_llm_used": true,
+  "_llm_error": "",
+  "_profile_top3": [
+    {
+      "id": "P5",
+      "score": 9.3,
+      "name": "退休休闲"
+    },
+    {
+      "id": "P1",
+      "score": 6.7,
+      "name": "社恐独居"
+    },
+    {
+      "id": "P8",
+      "score": 6.4,
+      "name": "自然爱好者"
+    }
+  ]
+}
+[Solver] scene_requirements Phase0预过滤(ANY-match): 179 个匹配
+[Solver] hard_constraints: [], type=<class 'list'>, late_night in=False
+[Solver-Phase1] scene_requirements: ['传统文化', '慢节奏', '听曲', '喝茶', '老年活动', '茶馆', '曲艺表演', '公园'], candidates: 83
+[Solver-Phase1] _scene_matched_ids: 68, remaining: 83, is_food_req: False
+[Solver-Phase1] 两阶段锁定: 只从68个scene_matched POI中选
+[IntentParser] 收到用户输入: 凌晨2点还在珠海，哪儿还能吃宵夜？便宜点的
+INFO:     127.0.0.1:5657 - "POST /api/plan HTTP/1.1" 200 OK
+[IntentParser] LLM 解析成功
+[IntentParser] 匹配画像: P8 - 自然爱好者
+[IntentParser] 完整结果: {
+  "city": "珠海",
+  "time": {
+    "period": "凌晨",
+    "start": "00:00",
+    "end": "06:00"
+  },
+  "budget": {
+    "per_person": 50,
+    "type": "弹性"
+  },
+  "group": {
+    "size": 1,
+    "type": "独居"
+  },
+  "preferences": {
+    "culture": 0.0,
+    "food": 1.0,
+    "nature": 0.0,
+    "social": 0.3
+  },
+  "pace": "闲逛型",
+  "hard_constraints": [
+    "late_night"
+  ],
+  "scene_requirements": [
+    "街边小吃",
+    "便宜实惠"
+  ],
+  "preferred_categories": [
+    "餐饮",
+    "夜市",
+    "夜市小吃"
+  ],
+  "location": null,
+  "_llm_prompt": "你是 CityFlow 城市出行路线规划系统的意图解析器。\n用户会用自然语言描述出行需求，你需要解析为严格的 JSON 格式。\n\n输出格式（只输出 JSON，不要任何其他文字）：\n{\n  \"city\": \"珠海/广州/湛江\",\n  \"time\": {\"period\": \"上午/下午/全天\", \"start\": \"HH:MM\", \"end\": \"HH:MM\"},\n  \"budget\": {\"per_person\": 金额整数, \"type\": \"硬约束/弹性\"},\n  \"group\": {\"size\": 人数整数, \"type\": \"独居/情侣/亲子/朋友/退休\"},\n  \"preferences\": {\"culture\": 0到1的小数, \"food\": 0到1的小数, \"nature\": 0到1的小数, \"social\": 0到1的小数},\n  \"pace\": \"特种兵型/平衡型/闲逛型\",\n  \"hard_constraints\": [\"约束1\", \"约束2\"],\n  \"scene_requirements\": [\"场景元素1\", \"场景元素2\"],\n  \"preferred_categories\": [\"类别1\", \"类别2\", \"类别3\"],\n  \"demand_vector\": {\n    \"efficiency_seeking\": 0~1,\n    \"excitement_seeking\": 0~1,\n    \"tranquility_seeking\": 0~1,\n    \"budget_sensitivity\": 0~1,\n    \"novelty_seeking\": 0~1,\n    \"social_desire\": 0~1,\n    \"physical_energy\": 0~1\n  },\n  \"location\": \"用户在哪个区域/地标附近，如'拱北''香洲''天河'，不知道则填null\"\n}\n\n规则：\n- city: 根据用户提到的城市判断，无明确城市则默认\"珠海\"\n- budget: 无明确预算则 per_person=500, type=\"弹性\"\n- group.type: 根据同行人判断，默认\"独居\"\n- time: 如果用户提到\"3小时\"\"半天\"\"2小时搞定\"等时长，根据start计算end。如start=\"14:00\"且\"3小时\"→end=\"17:00\"\n- time: 如果用户提到\"凌晨\"\"深夜\"，start和end应为对应时段（如00:00-06:00）\n- preferences: 根据关键词推断偏好强度（0=完全不感兴趣, 1=非常感兴趣）\n  - culture: 文化/历史/艺术/博物馆/展览\n  - food: 美食/餐厅/小吃/探店\n  - nature: 自然/公园/山/湖/植物\n  - social: 社交/聚会/热闹/人多\n- pace: \"特种兵型\"=赶场打卡, \"平衡型\"=适中, \"闲逛型\"=慢节奏\n- hard_constraints: 提取明确的限制条件，支持以下类型：\n  - \"不想排队\" → \"queue_intolerant\"\n  - \"无障碍/轮椅/婴儿车\" → \"accessible\"\n  - \"带宠物/狗/猫\" → \"pet_friendly\"\n  - \"室内/空调/下雨天/别中暑\" → \"indoor_only\"\n  - \"海边/户外/露天\" → \"outdoor_preferred\"\n  - \"凌晨/深夜/宵夜/通宵\" → \"late_night\"\n  - \"游乐园/海洋馆/动物园\" → \"needs_entertainment\"\n  - \"烧烤/火锅/茶馆/咖啡馆/书店\" → add specific activity to hard_constraints\n- scene_requirements: 提取用户明确要求的场景元素，用于POI语义匹配。例如：\n  - \"喝茶听曲\" → [\"茶馆\", \"曲艺表演\", \"传统文化\"]\n  - \"街边小吃\" → [\"街边小店\", \"本地小吃\", \"便宜实惠\"]\n  - \"拍照出片\" → [\"拍照打卡\", \"网红景点\", \"出片\"]\n  - \"游乐园海洋馆\" → [\"游乐园\", \"海洋馆\", \"儿童游乐\"]\n  - \"蹦迪\" → [\"酒吧\", \"夜店\", \"LiveHouse\"]\n  - \"书法博物馆\" → [\"书法\", \"博物馆\", \"传统文化\"]\n  - \"烧烤聚会\" → [\"烧烤\", \"聚餐\", \"户外用餐\"]\n  - 如果用户没有明确要求特定场景，填空数组[]\n- preferred_categories: 根据用户意图选择3-6个最相关的POI类别，按优先级排序。可选类别：\n  餐饮, 景点, 购物, 文化, 运动, 娱乐, 温泉SPA, 海景咖啡馆, 夜市, 夜市小吃,\n  书店, 咖啡馆, 密室逃脱, 剧本杀, 恐怖密室, 室内攀岩, 户外攀岩, 水上运动场所,\n  游戏, 益智, 科技, 科技体验, 网吧/电竞馆, 自然风光, 文艺, 休闲, 便利店\n  示例：\n  - \"朋友聚会要能玩又能吃\" → [\"餐饮\", \"娱乐\", \"购物\"]\n  - \"下午想蹦迪\" → [\"娱乐\", \"餐饮\"]\n  - \"凌晨吃宵夜\" → [\"餐饮\", \"夜市\", \"夜市小吃\"]\n  - \"带孩子玩游乐园\" → [\"景点\", \"运动\", \"娱乐\"]\n  - \"安静画画\" → [\"文化\", \"文艺\", \"咖啡馆\"]\n  - \"拍日出日落夜景\" → [\"景点\", \"自然风光\"]\n  - \"情侣约会\" → [\"餐饮\", \"文化\", \"景点\", \"海景咖啡馆\"]\n  - \"老两口公园喝茶\" → [\"文化\", \"景点\", \"餐饮\"]\n- 社恐/不想人多 → social 设低值(0.1-0.2)\n- demand_vector: 语义需求向量（0~1），与preferences互补但更侧重行为倾向\n  - efficiency_seeking: 是否在意效率/赶时间\n  - excitement_seeking: 是否想要兴奋刺激\n  - tranquility_seeking: 是否想要宁静放松\n  - budget_sensitivity: 预算敏感度\n  - novelty_seeking: 是否想尝试新东西\n  - social_desire: 社交需求\n  - physical_energy: 体力意愿\n",
+  "_llm_raw_response": "{\n  \"city\": \"珠海\",\n  \"time\": {\"period\": \"凌晨\", \"start\": \"00:00\", \"end\": \"06:00\"},\n  \"budget\": {\"per_person\": 50, \"type\": \"弹性\"},\n  \"group\": {\"size\": 1, \"type\": \"独居\"},\n  \"preferences\": {\"culture\": 0.0, \"food\": 1.0, \"nature\": 0.0, \"social\": 0.3},\n  \"pace\": \"闲逛型\",\n  \"hard_constraints\": [\"late_night\"],\n  \"scene_requirements\": [\"街边小吃\", \"便宜实惠\"],\n  \"preferred_categories\": [\"餐饮\", \"夜市\", \"夜市小吃\"],\n  \"demand_vector\": {\n    \"efficiency_seeking\": 0.2,\n    \"excitement_seeking\": 0.1,\n    \"tranquility_seeking\": 0.5",
+  "_llm_model": "deepseek-chat",
+  "_demand_vector": {
+    "efficiency_seeking": 0.2,
+    "excitement_seeking": 0.1,
+    "tranquility_seeking": 0.5,
+    "budget_sensitivity": 0.8,
+    "novelty_seeking": 0.3,
+    "social_desire": 0.2,
+    "physical_energy": 0.3
+  },
+  "matched_profile_id": "P8",
+  "_llm_used": true,
+  "_llm_error": "",
+  "_profile_top3": [
+    {
+      "id": "P8",
+      "score": 9.4,
+      "name": "自然爱好者"
+    },
+    {
+      "id": "P12",
+      "score": 9.1,
+      "name": "宠物主人"
+    },
+    {
+      "id": "P20",
+      "score": 8.9,
+      "name": "极简主义者"
+    }
+  ]
+}
+[Solver] scene_requirements Phase0预过滤(ANY-match): 264 个匹配
+[Solver] 美食场景过滤: 移除便利店13个, 剩余251
+[Solver] hard_constraints: ['late_night'], type=<class 'list'>, late_night in=True
+[Solver] late_night filter ACTIVATED
+[Solver] late_night filter: 251 → 67 POIs (window=00:00-06:00, crosses_midnight=True)
+[过滤] 夏湾夜市小巷烧烤 - 价格60 > 预算50
+[过滤] 夏湾夜市 - 价格60 > 预算50
+[过滤] 横琴蚝庄夜市 - 价格60 > 预算50
+[过滤] 金湾区三灶镇海鲜夜市 - 价格52 > 预算50
+[Solver-Phase1] scene_requirements: ['宵夜', '大排档', '夜市', '24小时营业', '烧烤', '街边小吃', '便宜实惠'], candidates: 21
+[Solver-Phase1] _scene_matched_ids: 19, remaining: 21, is_food_req: True
+[Solver-Phase1] 两阶段锁定: 只从19个scene_matched POI中选
+[Solver] 最低长度保护: 补充到3站
+操作超时 (15.0s)，使用兜底
+路线求解失败/超时，使用简化路线
+[IntentParser] 收到用户输入: 早上5点起来看日出，然后跑步，一个人
+INFO:     127.0.0.1:5684 - "POST /api/plan HTTP/1.1" 200 OK
+[IntentParser] LLM 解析成功
+[IntentParser] 匹配画像: P13 - 运动健身
+[IntentParser] 完整结果: {
+  "city": "珠海",
+  "time": {
+    "period": "上午",
+    "start": "05:00",
+    "end": "08:00"
+  },
+  "budget": {
+    "per_person": 500,
+    "type": "弹性"
+  },
+  "group": {
+    "size": 1,
+    "type": "独居"
+  },
+  "preferences": {
+    "culture": 0.1,
+    "food": 0.1,
+    "nature": 0.9,
+    "social": 0.1
+  },
+  "pace": "特种兵型",
+  "hard_constraints": [
+    "outdoor_preferred"
+  ],
+  "scene_requirements": [
+    "日出",
+    "跑步"
+  ],
+  "preferred_categories": [
+    "自然风光",
+    "景点",
+    "运动"
+  ],
+  "location": null,
+  "_llm_prompt": "你是 CityFlow 城市出行路线规划系统的意图解析器。\n用户会用自然语言描述出行需求，你需要解析为严格的 JSON 格式。\n\n输出格式（只输出 JSON，不要任何其他文字）：\n{\n  \"city\": \"珠海/广州/湛江\",\n  \"time\": {\"period\": \"上午/下午/全天\", \"start\": \"HH:MM\", \"end\": \"HH:MM\"},\n  \"budget\": {\"per_person\": 金额整数, \"type\": \"硬约束/弹性\"},\n  \"group\": {\"size\": 人数整数, \"type\": \"独居/情侣/亲子/朋友/退休\"},\n  \"preferences\": {\"culture\": 0到1的小数, \"food\": 0到1的小数, \"nature\": 0到1的小数, \"social\": 0到1的小数},\n  \"pace\": \"特种兵型/平衡型/闲逛型\",\n  \"hard_constraints\": [\"约束1\", \"约束2\"],\n  \"scene_requirements\": [\"场景元素1\", \"场景元素2\"],\n  \"preferred_categories\": [\"类别1\", \"类别2\", \"类别3\"],\n  \"demand_vector\": {\n    \"efficiency_seeking\": 0~1,\n    \"excitement_seeking\": 0~1,\n    \"tranquility_seeking\": 0~1,\n    \"budget_sensitivity\": 0~1,\n    \"novelty_seeking\": 0~1,\n    \"social_desire\": 0~1,\n    \"physical_energy\": 0~1\n  },\n  \"location\": \"用户在哪个区域/地标附近，如'拱北''香洲''天河'，不知道则填null\"\n}\n\n规则：\n- city: 根据用户提到的城市判断，无明确城市则默认\"珠海\"\n- budget: 无明确预算则 per_person=500, type=\"弹性\"\n- group.type: 根据同行人判断，默认\"独居\"\n- time: 如果用户提到\"3小时\"\"半天\"\"2小时搞定\"等时长，根据start计算end。如start=\"14:00\"且\"3小时\"→end=\"17:00\"\n- time: 如果用户提到\"凌晨\"\"深夜\"，start和end应为对应时段（如00:00-06:00）\n- preferences: 根据关键词推断偏好强度（0=完全不感兴趣, 1=非常感兴趣）\n  - culture: 文化/历史/艺术/博物馆/展览\n  - food: 美食/餐厅/小吃/探店\n  - nature: 自然/公园/山/湖/植物\n  - social: 社交/聚会/热闹/人多\n- pace: \"特种兵型\"=赶场打卡, \"平衡型\"=适中, \"闲逛型\"=慢节奏\n- hard_constraints: 提取明确的限制条件，支持以下类型：\n  - \"不想排队\" → \"queue_intolerant\"\n  - \"无障碍/轮椅/婴儿车\" → \"accessible\"\n  - \"带宠物/狗/猫\" → \"pet_friendly\"\n  - \"室内/空调/下雨天/别中暑\" → \"indoor_only\"\n  - \"海边/户外/露天\" → \"outdoor_preferred\"\n  - \"凌晨/深夜/宵夜/通宵\" → \"late_night\"\n  - \"游乐园/海洋馆/动物园\" → \"needs_entertainment\"\n  - \"烧烤/火锅/茶馆/咖啡馆/书店\" → add specific activity to hard_constraints\n- scene_requirements: 提取用户明确要求的场景元素，用于POI语义匹配。例如：\n  - \"喝茶听曲\" → [\"茶馆\", \"曲艺表演\", \"传统文化\"]\n  - \"街边小吃\" → [\"街边小店\", \"本地小吃\", \"便宜实惠\"]\n  - \"拍照出片\" → [\"拍照打卡\", \"网红景点\", \"出片\"]\n  - \"游乐园海洋馆\" → [\"游乐园\", \"海洋馆\", \"儿童游乐\"]\n  - \"蹦迪\" → [\"酒吧\", \"夜店\", \"LiveHouse\"]\n  - \"书法博物馆\" → [\"书法\", \"博物馆\", \"传统文化\"]\n  - \"烧烤聚会\" → [\"烧烤\", \"聚餐\", \"户外用餐\"]\n  - 如果用户没有明确要求特定场景，填空数组[]\n- preferred_categories: 根据用户意图选择3-6个最相关的POI类别，按优先级排序。可选类别：\n  餐饮, 景点, 购物, 文化, 运动, 娱乐, 温泉SPA, 海景咖啡馆, 夜市, 夜市小吃,\n  书店, 咖啡馆, 密室逃脱, 剧本杀, 恐怖密室, 室内攀岩, 户外攀岩, 水上运动场所,\n  游戏, 益智, 科技, 科技体验, 网吧/电竞馆, 自然风光, 文艺, 休闲, 便利店\n  示例：\n  - \"朋友聚会要能玩又能吃\" → [\"餐饮\", \"娱乐\", \"购物\"]\n  - \"下午想蹦迪\" → [\"娱乐\", \"餐饮\"]\n  - \"凌晨吃宵夜\" → [\"餐饮\", \"夜市\", \"夜市小吃\"]\n  - \"带孩子玩游乐园\" → [\"景点\", \"运动\", \"娱乐\"]\n  - \"安静画画\" → [\"文化\", \"文艺\", \"咖啡馆\"]\n  - \"拍日出日落夜景\" → [\"景点\", \"自然风光\"]\n  - \"情侣约会\" → [\"餐饮\", \"文化\", \"景点\", \"海景咖啡馆\"]\n  - \"老两口公园喝茶\" → [\"文化\", \"景点\", \"餐饮\"]\n- 社恐/不想人多 → social 设低值(0.1-0.2)\n- demand_vector: 语义需求向量（0~1），与preferences互补但更侧重行为倾向\n  - efficiency_seeking: 是否在意效率/赶时间\n  - excitement_seeking: 是否想要兴奋刺激\n  - tranquility_seeking: 是否想要宁静放松\n  - budget_sensitivity: 预算敏感度\n  - novelty_seeking: 是否想尝试新东西\n  - social_desire: 社交需求\n  - physical_energy: 体力意愿\n",
+  "_llm_raw_response": "{\n  \"city\": \"珠海\",\n  \"time\": {\"period\": \"上午\", \"start\": \"05:00\", \"end\": \"08:00\"},\n  \"budget\": {\"per_person\": 500, \"type\": \"弹性\"},\n  \"group\": {\"size\": 1, \"type\": \"独居\"},\n  \"preferences\": {\"culture\": 0.1, \"food\": 0.1, \"nature\": 0.9, \"social\": 0.1},\n  \"pace\": \"特种兵型\",\n  \"hard_constraints\": [\"outdoor_preferred\"],\n  \"scene_requirements\": [\"日出\", \"跑步\"],\n  \"preferred_categories\": [\"自然风光\", \"景点\", \"运动\"],\n  \"demand_vector\": {\n    \"efficiency_seeking\": 0.8,\n    \"excitement_seeking\": 0.3,\n    \"tranquility_seeking\"",
+  "_llm_model": "deepseek-chat",
+  "_demand_vector": {
+    "efficiency_seeking": 0.8,
+    "excitement_seeking": 0.3,
+    "tranquility_seeking": 0.6,
+    "budget_sensitivity": 0.2,
+    "novelty_seeking": 0.4,
+    "social_desire": 0.1,
+    "physical_energy": 0.9
+  },
+  "matched_profile_id": "P13",
+  "_llm_used": true,
+  "_llm_error": "",
+  "_profile_top3": [
+    {
+      "id": "P13",
+      "score": 8.7,
+      "name": "运动健身"
+    },
+    {
+      "id": "P1",
+      "score": 7.5,
+      "name": "社恐独居"
+    },
+    {
+      "id": "P20",
+      "score": 7.3,
+      "name": "极简主义者"
+    }
+  ]
+}
+[Solver] scene_requirements Phase0预过滤(ANY-match): 206 个匹配
+[Solver] hard_constraints: ['outdoor_preferred'], type=<class 'list'>, late_night in=False
+[Solver-Phase1] scene_requirements: ['跑步', '日出', '情侣路', '晨练', '海滨'], candidates: 8
+[Solver-Phase1] _scene_matched_ids: 8, remaining: 8, is_food_req: False
+[Solver-Phase1] 两阶段锁定: 只从8个scene_matched POI中选
+[Solver] 最低长度保护: 补充到3站
+[IntentParser] 收到用户输入: 一天吃遍珠海特色小吃，预算200，别踩雷
+INFO:     127.0.0.1:5710 - "POST /api/plan HTTP/1.1" 200 OK
+[IntentParser] LLM 解析成功
+[IntentParser] 匹配画像: P13 - 运动健身
+[IntentParser] 完整结果: {
+  "city": "珠海",
+  "time": {
+    "period": "全天",
+    "start": "09:00",
+    "end": "21:00"
+  },
+  "budget": {
+    "per_person": 200,
+    "type": "硬约束"
+  },
+  "group": {
+    "size": 1,
+    "type": "独居"
+  },
+  "preferences": {
+    "culture": 0.1,
+    "food": 1.0,
+    "nature": 0.1,
+    "social": 0.3
+  },
+  "pace": "特种兵型",
+  "hard_constraints": [],
+  "scene_requirements": [
+    "本地小吃",
+    "便宜实惠"
+  ],
+  "preferred_categories": [
+    "餐饮",
+    "夜市小吃",
+    "夜市"
+  ],
+  "location": null,
+  "_llm_prompt": "你是 CityFlow 城市出行路线规划系统的意图解析器。\n用户会用自然语言描述出行需求，你需要解析为严格的 JSON 格式。\n\n输出格式（只输出 JSON，不要任何其他文字）：\n{\n  \"city\": \"珠海/广州/湛江\",\n  \"time\": {\"period\": \"上午/下午/全天\", \"start\": \"HH:MM\", \"end\": \"HH:MM\"},\n  \"budget\": {\"per_person\": 金额整数, \"type\": \"硬约束/弹性\"},\n  \"group\": {\"size\": 人数整数, \"type\": \"独居/情侣/亲子/朋友/退休\"},\n  \"preferences\": {\"culture\": 0到1的小数, \"food\": 0到1的小数, \"nature\": 0到1的小数, \"social\": 0到1的小数},\n  \"pace\": \"特种兵型/平衡型/闲逛型\",\n  \"hard_constraints\": [\"约束1\", \"约束2\"],\n  \"scene_requirements\": [\"场景元素1\", \"场景元素2\"],\n  \"preferred_categories\": [\"类别1\", \"类别2\", \"类别3\"],\n  \"demand_vector\": {\n    \"efficiency_seeking\": 0~1,\n    \"excitement_seeking\": 0~1,\n    \"tranquility_seeking\": 0~1,\n    \"budget_sensitivity\": 0~1,\n    \"novelty_seeking\": 0~1,\n    \"social_desire\": 0~1,\n    \"physical_energy\": 0~1\n  },\n  \"location\": \"用户在哪个区域/地标附近，如'拱北''香洲''天河'，不知道则填null\"\n}\n\n规则：\n- city: 根据用户提到的城市判断，无明确城市则默认\"珠海\"\n- budget: 无明确预算则 per_person=500, type=\"弹性\"\n- group.type: 根据同行人判断，默认\"独居\"\n- time: 如果用户提到\"3小时\"\"半天\"\"2小时搞定\"等时长，根据start计算end。如start=\"14:00\"且\"3小时\"→end=\"17:00\"\n- time: 如果用户提到\"凌晨\"\"深夜\"，start和end应为对应时段（如00:00-06:00）\n- preferences: 根据关键词推断偏好强度（0=完全不感兴趣, 1=非常感兴趣）\n  - culture: 文化/历史/艺术/博物馆/展览\n  - food: 美食/餐厅/小吃/探店\n  - nature: 自然/公园/山/湖/植物\n  - social: 社交/聚会/热闹/人多\n- pace: \"特种兵型\"=赶场打卡, \"平衡型\"=适中, \"闲逛型\"=慢节奏\n- hard_constraints: 提取明确的限制条件，支持以下类型：\n  - \"不想排队\" → \"queue_intolerant\"\n  - \"无障碍/轮椅/婴儿车\" → \"accessible\"\n  - \"带宠物/狗/猫\" → \"pet_friendly\"\n  - \"室内/空调/下雨天/别中暑\" → \"indoor_only\"\n  - \"海边/户外/露天\" → \"outdoor_preferred\"\n  - \"凌晨/深夜/宵夜/通宵\" → \"late_night\"\n  - \"游乐园/海洋馆/动物园\" → \"needs_entertainment\"\n  - \"烧烤/火锅/茶馆/咖啡馆/书店\" → add specific activity to hard_constraints\n- scene_requirements: 提取用户明确要求的场景元素，用于POI语义匹配。例如：\n  - \"喝茶听曲\" → [\"茶馆\", \"曲艺表演\", \"传统文化\"]\n  - \"街边小吃\" → [\"街边小店\", \"本地小吃\", \"便宜实惠\"]\n  - \"拍照出片\" → [\"拍照打卡\", \"网红景点\", \"出片\"]\n  - \"游乐园海洋馆\" → [\"游乐园\", \"海洋馆\", \"儿童游乐\"]\n  - \"蹦迪\" → [\"酒吧\", \"夜店\", \"LiveHouse\"]\n  - \"书法博物馆\" → [\"书法\", \"博物馆\", \"传统文化\"]\n  - \"烧烤聚会\" → [\"烧烤\", \"聚餐\", \"户外用餐\"]\n  - 如果用户没有明确要求特定场景，填空数组[]\n- preferred_categories: 根据用户意图选择3-6个最相关的POI类别，按优先级排序。可选类别：\n  餐饮, 景点, 购物, 文化, 运动, 娱乐, 温泉SPA, 海景咖啡馆, 夜市, 夜市小吃,\n  书店, 咖啡馆, 密室逃脱, 剧本杀, 恐怖密室, 室内攀岩, 户外攀岩, 水上运动场所,\n  游戏, 益智, 科技, 科技体验, 网吧/电竞馆, 自然风光, 文艺, 休闲, 便利店\n  示例：\n  - \"朋友聚会要能玩又能吃\" → [\"餐饮\", \"娱乐\", \"购物\"]\n  - \"下午想蹦迪\" → [\"娱乐\", \"餐饮\"]\n  - \"凌晨吃宵夜\" → [\"餐饮\", \"夜市\", \"夜市小吃\"]\n  - \"带孩子玩游乐园\" → [\"景点\", \"运动\", \"娱乐\"]\n  - \"安静画画\" → [\"文化\", \"文艺\", \"咖啡馆\"]\n  - \"拍日出日落夜景\" → [\"景点\", \"自然风光\"]\n  - \"情侣约会\" → [\"餐饮\", \"文化\", \"景点\", \"海景咖啡馆\"]\n  - \"老两口公园喝茶\" → [\"文化\", \"景点\", \"餐饮\"]\n- 社恐/不想人多 → social 设低值(0.1-0.2)\n- demand_vector: 语义需求向量（0~1），与preferences互补但更侧重行为倾向\n  - efficiency_seeking: 是否在意效率/赶时间\n  - excitement_seeking: 是否想要兴奋刺激\n  - tranquility_seeking: 是否想要宁静放松\n  - budget_sensitivity: 预算敏感度\n  - novelty_seeking: 是否想尝试新东西\n  - social_desire: 社交需求\n  - physical_energy: 体力意愿\n",
+  "_llm_raw_response": "{\n  \"city\": \"珠海\",\n  \"time\": {\"period\": \"全天\", \"start\": \"09:00\", \"end\": \"21:00\"},\n  \"budget\": {\"per_person\": 200, \"type\": \"硬约束\"},\n  \"group\": {\"size\": 1, \"type\": \"独居\"},\n  \"preferences\": {\"culture\": 0.1, \"food\": 1.0, \"nature\": 0.1, \"social\": 0.3},\n  \"pace\": \"特种兵型\",\n  \"hard_constraints\": [],\n  \"scene_requirements\": [\"本地小吃\", \"便宜实惠\"],\n  \"preferred_categories\": [\"餐饮\", \"夜市小吃\", \"夜市\"],\n  \"demand_vector\": {\n    \"efficiency_seeking\": 0.8,\n    \"excitement_seeking\": 0.3,\n    \"tranquility_seeking\": 0.1,\n    \"bu",
+  "_llm_model": "deepseek-chat",
+  "_demand_vector": {
+    "efficiency_seeking": 0.8,
+    "excitement_seeking": 0.3,
+    "tranquility_seeking": 0.1,
+    "budget_sensitivity": 0.9,
+    "novelty_seeking": 0.6,
+    "social_desire": 0.3,
+    "physical_energy": 0.7
+  },
+  "matched_profile_id": "P13",
+  "_llm_used": true,
+  "_llm_error": "",
+  "_profile_top3": [
+    {
+      "id": "P13",
+      "score": 9.3,
+      "name": "运动健身"
+    },
+    {
+      "id": "P10",
+      "score": 7.5,
+      "name": "摄影爱好者"
+    },
+    {
+      "id": "P12",
+      "score": 7.5,
+      "name": "宠物主人"
+    }
+  ]
+}
+[Solver] scene_requirements Phase0预过滤(ANY-match): 407 个匹配
+[Solver] 美食场景过滤: 移除便利店12个, 剩余395
+[Solver] hard_constraints: [], type=<class 'list'>, late_night in=False
+[过滤] 24h Convenience Store - 价格356 > 预算200
+[过滤] 來來超級市場 - 价格317 > 预算200
+[过滤] 新苗超級市場 Sanmiu Supermarket - 价格280 > 预算200
+[过滤] Fa Cheruo - 价格251 > 预算200
+[过滤] 华润万家 - 价格208 > 预算200
+[过滤] 泉亮廣場 Taipa Plaza - 价格316 > 预算200
+[Solver-Phase1] scene_requirements: ['街头小吃', '地道美食', '老字号', '特色小吃', '本地小吃', '平价美食', '便宜实惠'], candidates: 53
+[Solver-Phase1] _scene_matched_ids: 22, remaining: 53, is_food_req: True
+[Solver-Phase1] 两阶段锁定: 只从22个scene_matched POI中选
+[IntentParser] 收到用户输入: 预算就50块，但要住五星级海景房，还带早餐
+INFO:     127.0.0.1:5728 - "POST /api/plan HTTP/1.1" 200 OK
+[IntentParser] LLM 解析成功
+[IntentParser] 匹配画像: P10 - 摄影爱好者
+[IntentParser] 完整结果: {
+  "city": "珠海",
+  "time": {
+    "period": "全天",
+    "start": "09:00",
+    "end": "21:00"
+  },
+  "budget": {
+    "per_person": 50,
+    "type": "硬约束"
+  },
+  "group": {
+    "size": 1,
+    "type": "独居"
+  },
+  "preferences": {
+    "culture": 0.1,
+    "food": 0.5,
+    "nature": 0.8,
+    "social": 0.2
+  },
+  "pace": "平衡型",
+  "hard_constraints": [
+    "budget_50",
+    "五星级海景房",
+    "带早餐"
+  ],
+  "scene_requirements": [
+    "海景",
+    "五星级酒店",
+    "早餐"
+  ],
+  "preferred_categories": [
+    "景点",
+    "餐饮",
+    "自然风光"
+  ],
+  "location": null,
+  "_llm_prompt": "你是 CityFlow 城市出行路线规划系统的意图解析器。\n用户会用自然语言描述出行需求，你需要解析为严格的 JSON 格式。\n\n输出格式（只输出 JSON，不要任何其他文字）：\n{\n  \"city\": \"珠海/广州/湛江\",\n  \"time\": {\"period\": \"上午/下午/全天\", \"start\": \"HH:MM\", \"end\": \"HH:MM\"},\n  \"budget\": {\"per_person\": 金额整数, \"type\": \"硬约束/弹性\"},\n  \"group\": {\"size\": 人数整数, \"type\": \"独居/情侣/亲子/朋友/退休\"},\n  \"preferences\": {\"culture\": 0到1的小数, \"food\": 0到1的小数, \"nature\": 0到1的小数, \"social\": 0到1的小数},\n  \"pace\": \"特种兵型/平衡型/闲逛型\",\n  \"hard_constraints\": [\"约束1\", \"约束2\"],\n  \"scene_requirements\": [\"场景元素1\", \"场景元素2\"],\n  \"preferred_categories\": [\"类别1\", \"类别2\", \"类别3\"],\n  \"demand_vector\": {\n    \"efficiency_seeking\": 0~1,\n    \"excitement_seeking\": 0~1,\n    \"tranquility_seeking\": 0~1,\n    \"budget_sensitivity\": 0~1,\n    \"novelty_seeking\": 0~1,\n    \"social_desire\": 0~1,\n    \"physical_energy\": 0~1\n  },\n  \"location\": \"用户在哪个区域/地标附近，如'拱北''香洲''天河'，不知道则填null\"\n}\n\n规则：\n- city: 根据用户提到的城市判断，无明确城市则默认\"珠海\"\n- budget: 无明确预算则 per_person=500, type=\"弹性\"\n- group.type: 根据同行人判断，默认\"独居\"\n- time: 如果用户提到\"3小时\"\"半天\"\"2小时搞定\"等时长，根据start计算end。如start=\"14:00\"且\"3小时\"→end=\"17:00\"\n- time: 如果用户提到\"凌晨\"\"深夜\"，start和end应为对应时段（如00:00-06:00）\n- preferences: 根据关键词推断偏好强度（0=完全不感兴趣, 1=非常感兴趣）\n  - culture: 文化/历史/艺术/博物馆/展览\n  - food: 美食/餐厅/小吃/探店\n  - nature: 自然/公园/山/湖/植物\n  - social: 社交/聚会/热闹/人多\n- pace: \"特种兵型\"=赶场打卡, \"平衡型\"=适中, \"闲逛型\"=慢节奏\n- hard_constraints: 提取明确的限制条件，支持以下类型：\n  - \"不想排队\" → \"queue_intolerant\"\n  - \"无障碍/轮椅/婴儿车\" → \"accessible\"\n  - \"带宠物/狗/猫\" → \"pet_friendly\"\n  - \"室内/空调/下雨天/别中暑\" → \"indoor_only\"\n  - \"海边/户外/露天\" → \"outdoor_preferred\"\n  - \"凌晨/深夜/宵夜/通宵\" → \"late_night\"\n  - \"游乐园/海洋馆/动物园\" → \"needs_entertainment\"\n  - \"烧烤/火锅/茶馆/咖啡馆/书店\" → add specific activity to hard_constraints\n- scene_requirements: 提取用户明确要求的场景元素，用于POI语义匹配。例如：\n  - \"喝茶听曲\" → [\"茶馆\", \"曲艺表演\", \"传统文化\"]\n  - \"街边小吃\" → [\"街边小店\", \"本地小吃\", \"便宜实惠\"]\n  - \"拍照出片\" → [\"拍照打卡\", \"网红景点\", \"出片\"]\n  - \"游乐园海洋馆\" → [\"游乐园\", \"海洋馆\", \"儿童游乐\"]\n  - \"蹦迪\" → [\"酒吧\", \"夜店\", \"LiveHouse\"]\n  - \"书法博物馆\" → [\"书法\", \"博物馆\", \"传统文化\"]\n  - \"烧烤聚会\" → [\"烧烤\", \"聚餐\", \"户外用餐\"]\n  - 如果用户没有明确要求特定场景，填空数组[]\n- preferred_categories: 根据用户意图选择3-6个最相关的POI类别，按优先级排序。可选类别：\n  餐饮, 景点, 购物, 文化, 运动, 娱乐, 温泉SPA, 海景咖啡馆, 夜市, 夜市小吃,\n  书店, 咖啡馆, 密室逃脱, 剧本杀, 恐怖密室, 室内攀岩, 户外攀岩, 水上运动场所,\n  游戏, 益智, 科技, 科技体验, 网吧/电竞馆, 自然风光, 文艺, 休闲, 便利店\n  示例：\n  - \"朋友聚会要能玩又能吃\" → [\"餐饮\", \"娱乐\", \"购物\"]\n  - \"下午想蹦迪\" → [\"娱乐\", \"餐饮\"]\n  - \"凌晨吃宵夜\" → [\"餐饮\", \"夜市\", \"夜市小吃\"]\n  - \"带孩子玩游乐园\" → [\"景点\", \"运动\", \"娱乐\"]\n  - \"安静画画\" → [\"文化\", \"文艺\", \"咖啡馆\"]\n  - \"拍日出日落夜景\" → [\"景点\", \"自然风光\"]\n  - \"情侣约会\" → [\"餐饮\", \"文化\", \"景点\", \"海景咖啡馆\"]\n  - \"老两口公园喝茶\" → [\"文化\", \"景点\", \"餐饮\"]\n- 社恐/不想人多 → social 设低值(0.1-0.2)\n- demand_vector: 语义需求向量（0~1），与preferences互补但更侧重行为倾向\n  - efficiency_seeking: 是否在意效率/赶时间\n  - excitement_seeking: 是否想要兴奋刺激\n  - tranquility_seeking: 是否想要宁静放松\n  - budget_sensitivity: 预算敏感度\n  - novelty_seeking: 是否想尝试新东西\n  - social_desire: 社交需求\n  - physical_energy: 体力意愿\n",
+  "_llm_raw_response": "{\n  \"city\": \"珠海\",\n  \"time\": {\"period\": \"全天\", \"start\": \"09:00\", \"end\": \"21:00\"},\n  \"budget\": {\"per_person\": 50, \"type\": \"硬约束\"},\n  \"group\": {\"size\": 1, \"type\": \"独居\"},\n  \"preferences\": {\"culture\": 0.1, \"food\": 0.5, \"nature\": 0.8, \"social\": 0.2},\n  \"pace\": \"平衡型\",\n  \"hard_constraints\": [\"budget_50\", \"五星级海景房\", \"带早餐\"],\n  \"scene_requirements\": [\"海景\", \"五星级酒店\", \"早餐\"],\n  \"preferred_categories\": [\"景点\", \"餐饮\", \"自然风光\"],\n  \"demand_vector\": {\n    \"efficiency_seeking\": 0.3,\n    \"excitement_seeking\": 0.2,\n    \"tra",
+  "_llm_model": "deepseek-chat",
+  "_demand_vector": {
+    "efficiency_seeking": 0.3,
+    "excitement_seeking": 0.2,
+    "tranquility_seeking": 0.8,
+    "budget_sensitivity": 1.0,
+    "novelty_seeking": 0.5,
+    "social_desire": 0.2,
+    "physical_energy": 0.3
+  },
+  "matched_profile_id": "P10",
+  "_llm_used": true,
+  "_llm_error": "",
+  "_profile_top3": [
+    {
+      "id": "P10",
+      "score": 8.9,
+      "name": "摄影爱好者"
+    },
+    {
+      "id": "P11",
+      "score": 8.6,
+      "name": "历史迷"
+    },
+    {
+      "id": "P6",
+      "score": 8.3,
+      "name": "文化探索者"
+    }
+  ]
+}
+[IntentParser] 收到用户输入: 帮我安排个好玩的，大概半天，钱不是问题，但别太累
+INFO:     127.0.0.1:5732 - "POST /api/plan HTTP/1.1" 200 OK
+[IntentParser] LLM 解析成功
+[IntentParser] 匹配画像: P8 - 自然爱好者
+[IntentParser] 完整结果: {
+  "city": "珠海",
+  "time": {
+    "period": "下午",
+    "start": "13:00",
+    "end": "18:00"
+  },
+  "budget": {
+    "per_person": 1000,
+    "type": "弹性"
+  },
+  "group": {
+    "size": 1,
+    "type": "独居"
+  },
+  "preferences": {
+    "culture": 0.3,
+    "food": 0.5,
+    "nature": 0.6,
+    "social": 0.2
+  },
+  "pace": "闲逛型",
+  "hard_constraints": [],
+  "scene_requirements": [],
+  "preferred_categories": [
+    "景点",
+    "自然风光",
+    "休闲"
+  ],
+  "location": null,
+  "_llm_prompt": "你是 CityFlow 城市出行路线规划系统的意图解析器。\n用户会用自然语言描述出行需求，你需要解析为严格的 JSON 格式。\n\n输出格式（只输出 JSON，不要任何其他文字）：\n{\n  \"city\": \"珠海/广州/湛江\",\n  \"time\": {\"period\": \"上午/下午/全天\", \"start\": \"HH:MM\", \"end\": \"HH:MM\"},\n  \"budget\": {\"per_person\": 金额整数, \"type\": \"硬约束/弹性\"},\n  \"group\": {\"size\": 人数整数, \"type\": \"独居/情侣/亲子/朋友/退休\"},\n  \"preferences\": {\"culture\": 0到1的小数, \"food\": 0到1的小数, \"nature\": 0到1的小数, \"social\": 0到1的小数},\n  \"pace\": \"特种兵型/平衡型/闲逛型\",\n  \"hard_constraints\": [\"约束1\", \"约束2\"],\n  \"scene_requirements\": [\"场景元素1\", \"场景元素2\"],\n  \"preferred_categories\": [\"类别1\", \"类别2\", \"类别3\"],\n  \"demand_vector\": {\n    \"efficiency_seeking\": 0~1,\n    \"excitement_seeking\": 0~1,\n    \"tranquility_seeking\": 0~1,\n    \"budget_sensitivity\": 0~1,\n    \"novelty_seeking\": 0~1,\n    \"social_desire\": 0~1,\n    \"physical_energy\": 0~1\n  },\n  \"location\": \"用户在哪个区域/地标附近，如'拱北''香洲''天河'，不知道则填null\"\n}\n\n规则：\n- city: 根据用户提到的城市判断，无明确城市则默认\"珠海\"\n- budget: 无明确预算则 per_person=500, type=\"弹性\"\n- group.type: 根据同行人判断，默认\"独居\"\n- time: 如果用户提到\"3小时\"\"半天\"\"2小时搞定\"等时长，根据start计算end。如start=\"14:00\"且\"3小时\"→end=\"17:00\"\n- time: 如果用户提到\"凌晨\"\"深夜\"，start和end应为对应时段（如00:00-06:00）\n- preferences: 根据关键词推断偏好强度（0=完全不感兴趣, 1=非常感兴趣）\n  - culture: 文化/历史/艺术/博物馆/展览\n  - food: 美食/餐厅/小吃/探店\n  - nature: 自然/公园/山/湖/植物\n  - social: 社交/聚会/热闹/人多\n- pace: \"特种兵型\"=赶场打卡, \"平衡型\"=适中, \"闲逛型\"=慢节奏\n- hard_constraints: 提取明确的限制条件，支持以下类型：\n  - \"不想排队\" → \"queue_intolerant\"\n  - \"无障碍/轮椅/婴儿车\" → \"accessible\"\n  - \"带宠物/狗/猫\" → \"pet_friendly\"\n  - \"室内/空调/下雨天/别中暑\" → \"indoor_only\"\n  - \"海边/户外/露天\" → \"outdoor_preferred\"\n  - \"凌晨/深夜/宵夜/通宵\" → \"late_night\"\n  - \"游乐园/海洋馆/动物园\" → \"needs_entertainment\"\n  - \"烧烤/火锅/茶馆/咖啡馆/书店\" → add specific activity to hard_constraints\n- scene_requirements: 提取用户明确要求的场景元素，用于POI语义匹配。例如：\n  - \"喝茶听曲\" → [\"茶馆\", \"曲艺表演\", \"传统文化\"]\n  - \"街边小吃\" → [\"街边小店\", \"本地小吃\", \"便宜实惠\"]\n  - \"拍照出片\" → [\"拍照打卡\", \"网红景点\", \"出片\"]\n  - \"游乐园海洋馆\" → [\"游乐园\", \"海洋馆\", \"儿童游乐\"]\n  - \"蹦迪\" → [\"酒吧\", \"夜店\", \"LiveHouse\"]\n  - \"书法博物馆\" → [\"书法\", \"博物馆\", \"传统文化\"]\n  - \"烧烤聚会\" → [\"烧烤\", \"聚餐\", \"户外用餐\"]\n  - 如果用户没有明确要求特定场景，填空数组[]\n- preferred_categories: 根据用户意图选择3-6个最相关的POI类别，按优先级排序。可选类别：\n  餐饮, 景点, 购物, 文化, 运动, 娱乐, 温泉SPA, 海景咖啡馆, 夜市, 夜市小吃,\n  书店, 咖啡馆, 密室逃脱, 剧本杀, 恐怖密室, 室内攀岩, 户外攀岩, 水上运动场所,\n  游戏, 益智, 科技, 科技体验, 网吧/电竞馆, 自然风光, 文艺, 休闲, 便利店\n  示例：\n  - \"朋友聚会要能玩又能吃\" → [\"餐饮\", \"娱乐\", \"购物\"]\n  - \"下午想蹦迪\" → [\"娱乐\", \"餐饮\"]\n  - \"凌晨吃宵夜\" → [\"餐饮\", \"夜市\", \"夜市小吃\"]\n  - \"带孩子玩游乐园\" → [\"景点\", \"运动\", \"娱乐\"]\n  - \"安静画画\" → [\"文化\", \"文艺\", \"咖啡馆\"]\n  - \"拍日出日落夜景\" → [\"景点\", \"自然风光\"]\n  - \"情侣约会\" → [\"餐饮\", \"文化\", \"景点\", \"海景咖啡馆\"]\n  - \"老两口公园喝茶\" → [\"文化\", \"景点\", \"餐饮\"]\n- 社恐/不想人多 → social 设低值(0.1-0.2)\n- demand_vector: 语义需求向量（0~1），与preferences互补但更侧重行为倾向\n  - efficiency_seeking: 是否在意效率/赶时间\n  - excitement_seeking: 是否想要兴奋刺激\n  - tranquility_seeking: 是否想要宁静放松\n  - budget_sensitivity: 预算敏感度\n  - novelty_seeking: 是否想尝试新东西\n  - social_desire: 社交需求\n  - physical_energy: 体力意愿\n",
+  "_llm_raw_response": "{\n  \"city\": \"珠海\",\n  \"time\": {\"period\": \"下午\", \"start\": \"13:00\", \"end\": \"18:00\"},\n  \"budget\": {\"per_person\": 1000, \"type\": \"弹性\"},\n  \"group\": {\"size\": 1, \"type\": \"独居\"},\n  \"preferences\": {\"culture\": 0.3, \"food\": 0.5, \"nature\": 0.6, \"social\": 0.2},\n  \"pace\": \"闲逛型\",\n  \"hard_constraints\": [],\n  \"scene_requirements\": [],\n  \"preferred_categories\": [\"景点\", \"自然风光\", \"休闲\"],\n  \"demand_vector\": {\n    \"efficiency_seeking\": 0.2,\n    \"excitement_seeking\": 0.3,\n    \"tranquility_seeking\": 0.8,\n    \"budget_sensitivit",
+  "_llm_model": "deepseek-chat",
+  "_demand_vector": {
+    "efficiency_seeking": 0.2,
+    "excitement_seeking": 0.3,
+    "tranquility_seeking": 0.8,
+    "budget_sensitivity": 0.1,
+    "novelty_seeking": 0.5,
+    "social_desire": 0.2,
+    "physical_energy": 0.3
+  },
+  "emotion_need": "恢复",
+  "matched_profile_id": "P8",
+  "_llm_used": true,
+  "_llm_error": "",
+  "_profile_top3": [
+    {
+      "id": "P8",
+      "score": 9.4,
+      "name": "自然爱好者"
+    },
+    {
+      "id": "P1",
+      "score": 9.1,
+      "name": "社恐独居"
+    },
+    {
+      "id": "P12",
+      "score": 9.1,
+      "name": "宠物主人"
+    }
+  ]
+}
+[Solver] scene_requirements Phase0预过滤(ANY-match): 5 个匹配
+[Solver] hard_constraints: [], type=<class 'list'>, late_night in=False
+[Solver-Phase1] scene_requirements: ['高端', '轻松', '半日游', '不累'], candidates: 5
+[Solver-Phase1] _scene_matched_ids: 1, remaining: 5, is_food_req: False
+[Solver] 最低长度保护: 补充到3站
+[IntentParser] 收到用户输入: 🏖️🌅🐕‍🦺💰0 → 求方案
+INFO:     127.0.0.1:5750 - "POST /api/plan HTTP/1.1" 200 OK
+[IntentParser] LLM 解析成功
+[IntentParser] 匹配画像: P20 - 极简主义者
+[IntentParser] 完整结果: {
+  "city": "珠海",
+  "time": {
+    "period": "全天",
+    "start": "08:00",
+    "end": "22:00"
+  },
+  "budget": {
+    "per_person": 0,
+    "type": "硬约束"
+  },
+  "group": {
+    "size": 1,
+    "type": "独居"
+  },
+  "preferences": {
+    "culture": 0.2,
+    "food": 0.3,
+    "nature": 0.8,
+    "social": 0.1
+  },
+  "pace": "闲逛型",
+  "hard_constraints": [
+    "pet_friendly"
+  ],
+  "scene_requirements": [
+    "海边",
+    "日落",
+    "宠物友好"
+  ],
+  "preferred_categories": [
+    "景点",
+    "自然风光",
+    "海景咖啡馆"
+  ],
+  "location": null,
+  "_llm_prompt": "你是 CityFlow 城市出行路线规划系统的意图解析器。\n用户会用自然语言描述出行需求，你需要解析为严格的 JSON 格式。\n\n输出格式（只输出 JSON，不要任何其他文字）：\n{\n  \"city\": \"珠海/广州/湛江\",\n  \"time\": {\"period\": \"上午/下午/全天\", \"start\": \"HH:MM\", \"end\": \"HH:MM\"},\n  \"budget\": {\"per_person\": 金额整数, \"type\": \"硬约束/弹性\"},\n  \"group\": {\"size\": 人数整数, \"type\": \"独居/情侣/亲子/朋友/退休\"},\n  \"preferences\": {\"culture\": 0到1的小数, \"food\": 0到1的小数, \"nature\": 0到1的小数, \"social\": 0到1的小数},\n  \"pace\": \"特种兵型/平衡型/闲逛型\",\n  \"hard_constraints\": [\"约束1\", \"约束2\"],\n  \"scene_requirements\": [\"场景元素1\", \"场景元素2\"],\n  \"preferred_categories\": [\"类别1\", \"类别2\", \"类别3\"],\n  \"demand_vector\": {\n    \"efficiency_seeking\": 0~1,\n    \"excitement_seeking\": 0~1,\n    \"tranquility_seeking\": 0~1,\n    \"budget_sensitivity\": 0~1,\n    \"novelty_seeking\": 0~1,\n    \"social_desire\": 0~1,\n    \"physical_energy\": 0~1\n  },\n  \"location\": \"用户在哪个区域/地标附近，如'拱北''香洲''天河'，不知道则填null\"\n}\n\n规则：\n- city: 根据用户提到的城市判断，无明确城市则默认\"珠海\"\n- budget: 无明确预算则 per_person=500, type=\"弹性\"\n- group.type: 根据同行人判断，默认\"独居\"\n- time: 如果用户提到\"3小时\"\"半天\"\"2小时搞定\"等时长，根据start计算end。如start=\"14:00\"且\"3小时\"→end=\"17:00\"\n- time: 如果用户提到\"凌晨\"\"深夜\"，start和end应为对应时段（如00:00-06:00）\n- preferences: 根据关键词推断偏好强度（0=完全不感兴趣, 1=非常感兴趣）\n  - culture: 文化/历史/艺术/博物馆/展览\n  - food: 美食/餐厅/小吃/探店\n  - nature: 自然/公园/山/湖/植物\n  - social: 社交/聚会/热闹/人多\n- pace: \"特种兵型\"=赶场打卡, \"平衡型\"=适中, \"闲逛型\"=慢节奏\n- hard_constraints: 提取明确的限制条件，支持以下类型：\n  - \"不想排队\" → \"queue_intolerant\"\n  - \"无障碍/轮椅/婴儿车\" → \"accessible\"\n  - \"带宠物/狗/猫\" → \"pet_friendly\"\n  - \"室内/空调/下雨天/别中暑\" → \"indoor_only\"\n  - \"海边/户外/露天\" → \"outdoor_preferred\"\n  - \"凌晨/深夜/宵夜/通宵\" → \"late_night\"\n  - \"游乐园/海洋馆/动物园\" → \"needs_entertainment\"\n  - \"烧烤/火锅/茶馆/咖啡馆/书店\" → add specific activity to hard_constraints\n- scene_requirements: 提取用户明确要求的场景元素，用于POI语义匹配。例如：\n  - \"喝茶听曲\" → [\"茶馆\", \"曲艺表演\", \"传统文化\"]\n  - \"街边小吃\" → [\"街边小店\", \"本地小吃\", \"便宜实惠\"]\n  - \"拍照出片\" → [\"拍照打卡\", \"网红景点\", \"出片\"]\n  - \"游乐园海洋馆\" → [\"游乐园\", \"海洋馆\", \"儿童游乐\"]\n  - \"蹦迪\" → [\"酒吧\", \"夜店\", \"LiveHouse\"]\n  - \"书法博物馆\" → [\"书法\", \"博物馆\", \"传统文化\"]\n  - \"烧烤聚会\" → [\"烧烤\", \"聚餐\", \"户外用餐\"]\n  - 如果用户没有明确要求特定场景，填空数组[]\n- preferred_categories: 根据用户意图选择3-6个最相关的POI类别，按优先级排序。可选类别：\n  餐饮, 景点, 购物, 文化, 运动, 娱乐, 温泉SPA, 海景咖啡馆, 夜市, 夜市小吃,\n  书店, 咖啡馆, 密室逃脱, 剧本杀, 恐怖密室, 室内攀岩, 户外攀岩, 水上运动场所,\n  游戏, 益智, 科技, 科技体验, 网吧/电竞馆, 自然风光, 文艺, 休闲, 便利店\n  示例：\n  - \"朋友聚会要能玩又能吃\" → [\"餐饮\", \"娱乐\", \"购物\"]\n  - \"下午想蹦迪\" → [\"娱乐\", \"餐饮\"]\n  - \"凌晨吃宵夜\" → [\"餐饮\", \"夜市\", \"夜市小吃\"]\n  - \"带孩子玩游乐园\" → [\"景点\", \"运动\", \"娱乐\"]\n  - \"安静画画\" → [\"文化\", \"文艺\", \"咖啡馆\"]\n  - \"拍日出日落夜景\" → [\"景点\", \"自然风光\"]\n  - \"情侣约会\" → [\"餐饮\", \"文化\", \"景点\", \"海景咖啡馆\"]\n  - \"老两口公园喝茶\" → [\"文化\", \"景点\", \"餐饮\"]\n- 社恐/不想人多 → social 设低值(0.1-0.2)\n- demand_vector: 语义需求向量（0~1），与preferences互补但更侧重行为倾向\n  - efficiency_seeking: 是否在意效率/赶时间\n  - excitement_seeking: 是否想要兴奋刺激\n  - tranquility_seeking: 是否想要宁静放松\n  - budget_sensitivity: 预算敏感度\n  - novelty_seeking: 是否想尝试新东西\n  - social_desire: 社交需求\n  - physical_energy: 体力意愿\n",
+  "_llm_raw_response": "{\n  \"city\": \"珠海\",\n  \"time\": {\"period\": \"全天\", \"start\": \"08:00\", \"end\": \"22:00\"},\n  \"budget\": {\"per_person\": 0, \"type\": \"硬约束\"},\n  \"group\": {\"size\": 1, \"type\": \"独居\"},\n  \"preferences\": {\"culture\": 0.2, \"food\": 0.3, \"nature\": 0.8, \"social\": 0.1},\n  \"pace\": \"闲逛型\",\n  \"hard_constraints\": [\"pet_friendly\"],\n  \"scene_requirements\": [\"海边\", \"日落\", \"宠物友好\"],\n  \"preferred_categories\": [\"景点\", \"自然风光\", \"海景咖啡馆\"],\n  \"demand_vector\": {\n    \"efficiency_seeking\": 0.2,\n    \"excitement_seeking\": 0.3,\n    \"tranquility_seek",
+  "_llm_model": "deepseek-chat",
+  "_demand_vector": {
+    "efficiency_seeking": 0.2,
+    "excitement_seeking": 0.3,
+    "tranquility_seeking": 0.8,
+    "budget_sensitivity": 1.0,
+    "novelty_seeking": 0.5,
+    "social_desire": 0.1,
+    "physical_energy": 0.3
+  },
+  "matched_profile_id": "P20",
+  "_llm_used": true,
+  "_llm_error": "",
+  "_profile_top3": [
+    {
+      "id": "P20",
+      "score": 9.7,
+      "name": "极简主义者"
+    },
+    {
+      "id": "P8",
+      "score": 9.6,
+      "name": "自然爱好者"
+    },
+    {
+      "id": "P1",
+      "score": 9.3,
+      "name": "社恐独居"
+    }
+  ]
+}
+[Solver] scene_requirements Phase0预过滤(ANY-match): 12 个匹配
+[Solver] hard_constraints: ['pet_friendly'], type=<class 'list'>, late_night in=False
+[过滤] 狗不理宠物咖啡馆（吉大店） - 价格45 > 预算0
+[过滤] 爪爪时光宠物咖啡 - 价格50 > 预算0
+[过滤] 萌宠空间宠物友好餐厅 - 价格60 > 预算0
+[Solver-Phase1] scene_requirements: ['宠物友好', '日落', '海边', '免费', '日出', '海滩'], candidates: 9
+[Solver-Phase1] _scene_matched_ids: 9, remaining: 9, is_food_req: False
+[Solver-Phase1] 两阶段锁定: 只从9个scene_matched POI中选
+[IntentParser] 收到用户输入: 周六带小孩踢球爬山，下午3点到6点，别太远
+INFO:     127.0.0.1:5774 - "POST /api/plan HTTP/1.1" 200 OK
+[IntentParser] LLM 解析成功
+[IntentParser] 匹配画像: P19 - 亲子教育
+[IntentParser] 完整结果: {
+  "city": "珠海",
+  "time": {
+    "period": "下午",
+    "start": "15:00",
+    "end": "18:00"
+  },
+  "budget": {
+    "per_person": 500,
+    "type": "弹性"
+  },
+  "group": {
+    "size": 2,
+    "type": "亲子"
+  },
+  "preferences": {
+    "culture": 0.1,
+    "food": 0.2,
+    "nature": 0.9,
+    "social": 0.3
+  },
+  "pace": "平衡型",
+  "hard_constraints": [],
+  "scene_requirements": [
+    "踢球",
+    "爬山"
+  ],
+  "preferred_categories": [
+    "运动",
+    "景点",
+    "自然风光"
+  ],
+  "location": null,
+  "_llm_prompt": "你是 CityFlow 城市出行路线规划系统的意图解析器。\n用户会用自然语言描述出行需求，你需要解析为严格的 JSON 格式。\n\n输出格式（只输出 JSON，不要任何其他文字）：\n{\n  \"city\": \"珠海/广州/湛江\",\n  \"time\": {\"period\": \"上午/下午/全天\", \"start\": \"HH:MM\", \"end\": \"HH:MM\"},\n  \"budget\": {\"per_person\": 金额整数, \"type\": \"硬约束/弹性\"},\n  \"group\": {\"size\": 人数整数, \"type\": \"独居/情侣/亲子/朋友/退休\"},\n  \"preferences\": {\"culture\": 0到1的小数, \"food\": 0到1的小数, \"nature\": 0到1的小数, \"social\": 0到1的小数},\n  \"pace\": \"特种兵型/平衡型/闲逛型\",\n  \"hard_constraints\": [\"约束1\", \"约束2\"],\n  \"scene_requirements\": [\"场景元素1\", \"场景元素2\"],\n  \"preferred_categories\": [\"类别1\", \"类别2\", \"类别3\"],\n  \"demand_vector\": {\n    \"efficiency_seeking\": 0~1,\n    \"excitement_seeking\": 0~1,\n    \"tranquility_seeking\": 0~1,\n    \"budget_sensitivity\": 0~1,\n    \"novelty_seeking\": 0~1,\n    \"social_desire\": 0~1,\n    \"physical_energy\": 0~1\n  },\n  \"location\": \"用户在哪个区域/地标附近，如'拱北''香洲''天河'，不知道则填null\"\n}\n\n规则：\n- city: 根据用户提到的城市判断，无明确城市则默认\"珠海\"\n- budget: 无明确预算则 per_person=500, type=\"弹性\"\n- group.type: 根据同行人判断，默认\"独居\"\n- time: 如果用户提到\"3小时\"\"半天\"\"2小时搞定\"等时长，根据start计算end。如start=\"14:00\"且\"3小时\"→end=\"17:00\"\n- time: 如果用户提到\"凌晨\"\"深夜\"，start和end应为对应时段（如00:00-06:00）\n- preferences: 根据关键词推断偏好强度（0=完全不感兴趣, 1=非常感兴趣）\n  - culture: 文化/历史/艺术/博物馆/展览\n  - food: 美食/餐厅/小吃/探店\n  - nature: 自然/公园/山/湖/植物\n  - social: 社交/聚会/热闹/人多\n- pace: \"特种兵型\"=赶场打卡, \"平衡型\"=适中, \"闲逛型\"=慢节奏\n- hard_constraints: 提取明确的限制条件，支持以下类型：\n  - \"不想排队\" → \"queue_intolerant\"\n  - \"无障碍/轮椅/婴儿车\" → \"accessible\"\n  - \"带宠物/狗/猫\" → \"pet_friendly\"\n  - \"室内/空调/下雨天/别中暑\" → \"indoor_only\"\n  - \"海边/户外/露天\" → \"outdoor_preferred\"\n  - \"凌晨/深夜/宵夜/通宵\" → \"late_night\"\n  - \"游乐园/海洋馆/动物园\" → \"needs_entertainment\"\n  - \"烧烤/火锅/茶馆/咖啡馆/书店\" → add specific activity to hard_constraints\n- scene_requirements: 提取用户明确要求的场景元素，用于POI语义匹配。例如：\n  - \"喝茶听曲\" → [\"茶馆\", \"曲艺表演\", \"传统文化\"]\n  - \"街边小吃\" → [\"街边小店\", \"本地小吃\", \"便宜实惠\"]\n  - \"拍照出片\" → [\"拍照打卡\", \"网红景点\", \"出片\"]\n  - \"游乐园海洋馆\" → [\"游乐园\", \"海洋馆\", \"儿童游乐\"]\n  - \"蹦迪\" → [\"酒吧\", \"夜店\", \"LiveHouse\"]\n  - \"书法博物馆\" → [\"书法\", \"博物馆\", \"传统文化\"]\n  - \"烧烤聚会\" → [\"烧烤\", \"聚餐\", \"户外用餐\"]\n  - 如果用户没有明确要求特定场景，填空数组[]\n- preferred_categories: 根据用户意图选择3-6个最相关的POI类别，按优先级排序。可选类别：\n  餐饮, 景点, 购物, 文化, 运动, 娱乐, 温泉SPA, 海景咖啡馆, 夜市, 夜市小吃,\n  书店, 咖啡馆, 密室逃脱, 剧本杀, 恐怖密室, 室内攀岩, 户外攀岩, 水上运动场所,\n  游戏, 益智, 科技, 科技体验, 网吧/电竞馆, 自然风光, 文艺, 休闲, 便利店\n  示例：\n  - \"朋友聚会要能玩又能吃\" → [\"餐饮\", \"娱乐\", \"购物\"]\n  - \"下午想蹦迪\" → [\"娱乐\", \"餐饮\"]\n  - \"凌晨吃宵夜\" → [\"餐饮\", \"夜市\", \"夜市小吃\"]\n  - \"带孩子玩游乐园\" → [\"景点\", \"运动\", \"娱乐\"]\n  - \"安静画画\" → [\"文化\", \"文艺\", \"咖啡馆\"]\n  - \"拍日出日落夜景\" → [\"景点\", \"自然风光\"]\n  - \"情侣约会\" → [\"餐饮\", \"文化\", \"景点\", \"海景咖啡馆\"]\n  - \"老两口公园喝茶\" → [\"文化\", \"景点\", \"餐饮\"]\n- 社恐/不想人多 → social 设低值(0.1-0.2)\n- demand_vector: 语义需求向量（0~1），与preferences互补但更侧重行为倾向\n  - efficiency_seeking: 是否在意效率/赶时间\n  - excitement_seeking: 是否想要兴奋刺激\n  - tranquility_seeking: 是否想要宁静放松\n  - budget_sensitivity: 预算敏感度\n  - novelty_seeking: 是否想尝试新东西\n  - social_desire: 社交需求\n  - physical_energy: 体力意愿\n",
+  "_llm_raw_response": "{\n  \"city\": \"珠海\",\n  \"time\": {\"period\": \"下午\", \"start\": \"15:00\", \"end\": \"18:00\"},\n  \"budget\": {\"per_person\": 500, \"type\": \"弹性\"},\n  \"group\": {\"size\": 2, \"type\": \"亲子\"},\n  \"preferences\": {\"culture\": 0.1, \"food\": 0.2, \"nature\": 0.9, \"social\": 0.3},\n  \"pace\": \"平衡型\",\n  \"hard_constraints\": [],\n  \"scene_requirements\": [\"踢球\", \"爬山\"],\n  \"preferred_categories\": [\"运动\", \"景点\", \"自然风光\"],\n  \"demand_vector\": {\n    \"efficiency_seeking\": 0.3,\n    \"excitement_seeking\": 0.5,\n    \"tranquility_seeking\": 0.6,\n    \"budget_s",
+  "_llm_model": "deepseek-chat",
+  "_demand_vector": {
+    "efficiency_seeking": 0.3,
+    "excitement_seeking": 0.5,
+    "tranquility_seeking": 0.6,
+    "budget_sensitivity": 0.3,
+    "novelty_seeking": 0.4,
+    "social_desire": 0.3,
+    "physical_energy": 0.8
+  },
+  "matched_profile_id": "P19",
+  "_llm_used": true,
+  "_llm_error": "",
+  "_profile_top3": [
+    {
+      "id": "P19",
+      "score": 8.8,
+      "name": "亲子教育"
+    },
+    {
+      "id": "P3",
+      "score": 8.8,
+      "name": "活力亲子"
+    },
+    {
+      "id": "P14",
+      "score": 7.0,
+      "name": "三代同堂"
+    }
+  ]
+}
+[Solver] scene_requirements Phase0预过滤(ANY-match): 118 个匹配
+[Solver] hard_constraints: [], type=<class 'list'>, late_night in=False
+[Solver-Phase1] scene_requirements: ['亲子活动', '户外运动', '爬山', '踢球', '公园'], candidates: 49
+[Solver-Phase1] _scene_matched_ids: 46, remaining: 49, is_food_req: False
+[Solver-Phase1] 两阶段锁定: 只从46个scene_matched POI中选
+[Solver] 最低长度保护: 补充到3站
+[IntentParser] 收到用户输入: 纪念日要浪漫，预算200，要私密一点，别人多
+INFO:     127.0.0.1:5786 - "POST /api/plan HTTP/1.1" 200 OK
+[IntentParser] LLM 解析成功
+[IntentParser] 匹配画像: P1 - 社恐独居
+[IntentParser] 完整结果: {
+  "city": "珠海",
+  "time": {
+    "period": "全天",
+    "start": "09:00",
+    "end": "21:00"
+  },
+  "budget": {
+    "per_person": 200,
+    "type": "硬约束"
+  },
+  "group": {
+    "size": 2,
+    "type": "情侣"
+  },
+  "preferences": {
+    "culture": 0.3,
+    "food": 0.5,
+    "nature": 0.6,
+    "social": 0.1
+  },
+  "pace": "闲逛型",
+  "hard_constraints": [
+    "indoor_only"
+  ],
+  "scene_requirements": [
+    "浪漫",
+    "私密",
+    "安静"
+  ],
+  "preferred_categories": [
+    "景点",
+    "餐饮",
+    "海景咖啡馆"
+  ],
+  "location": null,
+  "_llm_prompt": "你是 CityFlow 城市出行路线规划系统的意图解析器。\n用户会用自然语言描述出行需求，你需要解析为严格的 JSON 格式。\n\n输出格式（只输出 JSON，不要任何其他文字）：\n{\n  \"city\": \"珠海/广州/湛江\",\n  \"time\": {\"period\": \"上午/下午/全天\", \"start\": \"HH:MM\", \"end\": \"HH:MM\"},\n  \"budget\": {\"per_person\": 金额整数, \"type\": \"硬约束/弹性\"},\n  \"group\": {\"size\": 人数整数, \"type\": \"独居/情侣/亲子/朋友/退休\"},\n  \"preferences\": {\"culture\": 0到1的小数, \"food\": 0到1的小数, \"nature\": 0到1的小数, \"social\": 0到1的小数},\n  \"pace\": \"特种兵型/平衡型/闲逛型\",\n  \"hard_constraints\": [\"约束1\", \"约束2\"],\n  \"scene_requirements\": [\"场景元素1\", \"场景元素2\"],\n  \"preferred_categories\": [\"类别1\", \"类别2\", \"类别3\"],\n  \"demand_vector\": {\n    \"efficiency_seeking\": 0~1,\n    \"excitement_seeking\": 0~1,\n    \"tranquility_seeking\": 0~1,\n    \"budget_sensitivity\": 0~1,\n    \"novelty_seeking\": 0~1,\n    \"social_desire\": 0~1,\n    \"physical_energy\": 0~1\n  },\n  \"location\": \"用户在哪个区域/地标附近，如'拱北''香洲''天河'，不知道则填null\"\n}\n\n规则：\n- city: 根据用户提到的城市判断，无明确城市则默认\"珠海\"\n- budget: 无明确预算则 per_person=500, type=\"弹性\"\n- group.type: 根据同行人判断，默认\"独居\"\n- time: 如果用户提到\"3小时\"\"半天\"\"2小时搞定\"等时长，根据start计算end。如start=\"14:00\"且\"3小时\"→end=\"17:00\"\n- time: 如果用户提到\"凌晨\"\"深夜\"，start和end应为对应时段（如00:00-06:00）\n- preferences: 根据关键词推断偏好强度（0=完全不感兴趣, 1=非常感兴趣）\n  - culture: 文化/历史/艺术/博物馆/展览\n  - food: 美食/餐厅/小吃/探店\n  - nature: 自然/公园/山/湖/植物\n  - social: 社交/聚会/热闹/人多\n- pace: \"特种兵型\"=赶场打卡, \"平衡型\"=适中, \"闲逛型\"=慢节奏\n- hard_constraints: 提取明确的限制条件，支持以下类型：\n  - \"不想排队\" → \"queue_intolerant\"\n  - \"无障碍/轮椅/婴儿车\" → \"accessible\"\n  - \"带宠物/狗/猫\" → \"pet_friendly\"\n  - \"室内/空调/下雨天/别中暑\" → \"indoor_only\"\n  - \"海边/户外/露天\" → \"outdoor_preferred\"\n  - \"凌晨/深夜/宵夜/通宵\" → \"late_night\"\n  - \"游乐园/海洋馆/动物园\" → \"needs_entertainment\"\n  - \"烧烤/火锅/茶馆/咖啡馆/书店\" → add specific activity to hard_constraints\n- scene_requirements: 提取用户明确要求的场景元素，用于POI语义匹配。例如：\n  - \"喝茶听曲\" → [\"茶馆\", \"曲艺表演\", \"传统文化\"]\n  - \"街边小吃\" → [\"街边小店\", \"本地小吃\", \"便宜实惠\"]\n  - \"拍照出片\" → [\"拍照打卡\", \"网红景点\", \"出片\"]\n  - \"游乐园海洋馆\" → [\"游乐园\", \"海洋馆\", \"儿童游乐\"]\n  - \"蹦迪\" → [\"酒吧\", \"夜店\", \"LiveHouse\"]\n  - \"书法博物馆\" → [\"书法\", \"博物馆\", \"传统文化\"]\n  - \"烧烤聚会\" → [\"烧烤\", \"聚餐\", \"户外用餐\"]\n  - 如果用户没有明确要求特定场景，填空数组[]\n- preferred_categories: 根据用户意图选择3-6个最相关的POI类别，按优先级排序。可选类别：\n  餐饮, 景点, 购物, 文化, 运动, 娱乐, 温泉SPA, 海景咖啡馆, 夜市, 夜市小吃,\n  书店, 咖啡馆, 密室逃脱, 剧本杀, 恐怖密室, 室内攀岩, 户外攀岩, 水上运动场所,\n  游戏, 益智, 科技, 科技体验, 网吧/电竞馆, 自然风光, 文艺, 休闲, 便利店\n  示例：\n  - \"朋友聚会要能玩又能吃\" → [\"餐饮\", \"娱乐\", \"购物\"]\n  - \"下午想蹦迪\" → [\"娱乐\", \"餐饮\"]\n  - \"凌晨吃宵夜\" → [\"餐饮\", \"夜市\", \"夜市小吃\"]\n  - \"带孩子玩游乐园\" → [\"景点\", \"运动\", \"娱乐\"]\n  - \"安静画画\" → [\"文化\", \"文艺\", \"咖啡馆\"]\n  - \"拍日出日落夜景\" → [\"景点\", \"自然风光\"]\n  - \"情侣约会\" → [\"餐饮\", \"文化\", \"景点\", \"海景咖啡馆\"]\n  - \"老两口公园喝茶\" → [\"文化\", \"景点\", \"餐饮\"]\n- 社恐/不想人多 → social 设低值(0.1-0.2)\n- demand_vector: 语义需求向量（0~1），与preferences互补但更侧重行为倾向\n  - efficiency_seeking: 是否在意效率/赶时间\n  - excitement_seeking: 是否想要兴奋刺激\n  - tranquility_seeking: 是否想要宁静放松\n  - budget_sensitivity: 预算敏感度\n  - novelty_seeking: 是否想尝试新东西\n  - social_desire: 社交需求\n  - physical_energy: 体力意愿\n",
+  "_llm_raw_response": "{\n  \"city\": \"珠海\",\n  \"time\": {\"period\": \"全天\", \"start\": \"09:00\", \"end\": \"21:00\"},\n  \"budget\": {\"per_person\": 200, \"type\": \"硬约束\"},\n  \"group\": {\"size\": 2, \"type\": \"情侣\"},\n  \"preferences\": {\"culture\": 0.3, \"food\": 0.5, \"nature\": 0.6, \"social\": 0.1},\n  \"pace\": \"闲逛型\",\n  \"hard_constraints\": [\"indoor_only\"],\n  \"scene_requirements\": [\"浪漫\", \"私密\", \"安静\"],\n  \"preferred_categories\": [\"景点\", \"餐饮\", \"海景咖啡馆\"],\n  \"demand_vector\": {\n    \"efficiency_seeking\": 0.2,\n    \"excitement_seeking\": 0.3,\n    \"tranquility_seeking",
+  "_llm_model": "deepseek-chat",
+  "_demand_vector": {
+    "efficiency_seeking": 0.2,
+    "excitement_seeking": 0.3,
+    "tranquility_seeking": 0.8,
+    "budget_sensitivity": 0.7,
+    "novelty_seeking": 0.4,
+    "social_desire": 0.1,
+    "physical_energy": 0.3
+  },
+  "matched_profile_id": "P1",
+  "_llm_used": true,
+  "_llm_error": "",
+  "_profile_top3": [
+    {
+      "id": "P1",
+      "score": 6.7,
+      "name": "社恐独居"
+    },
+    {
+      "id": "P20",
+      "score": 6.5,
+      "name": "极简主义者"
+    },
+    {
+      "id": "P8",
+      "score": 6.4,
+      "name": "自然爱好者"
+    }
+  ]
+}
+[Solver] scene_requirements Phase0预过滤(ANY-match): 14 个匹配
+[Solver] hard_constraints: ['indoor_only'], type=<class 'list'>, late_night in=False
+[Solver-Phase1] scene_requirements: ['私密', '纪念日', '浪漫', '安静', '氛围感'], candidates: 13
+[Solver-Phase1] _scene_matched_ids: 10, remaining: 13, is_food_req: False
+[Solver-Phase1] 两阶段锁定: 只从10个scene_matched POI中选
+[IntentParser] 收到用户输入: 下雨天，朋友约户外烧烤，怎么办？改室内吗？
+INFO:     127.0.0.1:5808 - "POST /api/plan HTTP/1.1" 200 OK
+[IntentParser] LLM 解析成功
+[IntentParser] 匹配画像: P7 - 美食猎人
+[IntentParser] 完整结果: {
+  "city": "珠海",
+  "time": {
+    "period": "全天",
+    "start": "09:00",
+    "end": "21:00"
+  },
+  "budget": {
+    "per_person": 500,
+    "type": "弹性"
+  },
+  "group": {
+    "size": 2,
+    "type": "朋友"
+  },
+  "preferences": {
+    "culture": 0.2,
+    "food": 0.8,
+    "nature": 0.3,
+    "social": 0.7
+  },
+  "pace": "平衡型",
+  "hard_constraints": [
+    "indoor_only"
+  ],
+  "scene_requirements": [
+    "烧烤",
+    "聚餐",
+    "室内"
+  ],
+  "preferred_categories": [
+    "餐饮",
+    "娱乐",
+    "购物"
+  ],
+  "location": null,
+  "_llm_prompt": "你是 CityFlow 城市出行路线规划系统的意图解析器。\n用户会用自然语言描述出行需求，你需要解析为严格的 JSON 格式。\n\n输出格式（只输出 JSON，不要任何其他文字）：\n{\n  \"city\": \"珠海/广州/湛江\",\n  \"time\": {\"period\": \"上午/下午/全天\", \"start\": \"HH:MM\", \"end\": \"HH:MM\"},\n  \"budget\": {\"per_person\": 金额整数, \"type\": \"硬约束/弹性\"},\n  \"group\": {\"size\": 人数整数, \"type\": \"独居/情侣/亲子/朋友/退休\"},\n  \"preferences\": {\"culture\": 0到1的小数, \"food\": 0到1的小数, \"nature\": 0到1的小数, \"social\": 0到1的小数},\n  \"pace\": \"特种兵型/平衡型/闲逛型\",\n  \"hard_constraints\": [\"约束1\", \"约束2\"],\n  \"scene_requirements\": [\"场景元素1\", \"场景元素2\"],\n  \"preferred_categories\": [\"类别1\", \"类别2\", \"类别3\"],\n  \"demand_vector\": {\n    \"efficiency_seeking\": 0~1,\n    \"excitement_seeking\": 0~1,\n    \"tranquility_seeking\": 0~1,\n    \"budget_sensitivity\": 0~1,\n    \"novelty_seeking\": 0~1,\n    \"social_desire\": 0~1,\n    \"physical_energy\": 0~1\n  },\n  \"location\": \"用户在哪个区域/地标附近，如'拱北''香洲''天河'，不知道则填null\"\n}\n\n规则：\n- city: 根据用户提到的城市判断，无明确城市则默认\"珠海\"\n- budget: 无明确预算则 per_person=500, type=\"弹性\"\n- group.type: 根据同行人判断，默认\"独居\"\n- time: 如果用户提到\"3小时\"\"半天\"\"2小时搞定\"等时长，根据start计算end。如start=\"14:00\"且\"3小时\"→end=\"17:00\"\n- time: 如果用户提到\"凌晨\"\"深夜\"，start和end应为对应时段（如00:00-06:00）\n- preferences: 根据关键词推断偏好强度（0=完全不感兴趣, 1=非常感兴趣）\n  - culture: 文化/历史/艺术/博物馆/展览\n  - food: 美食/餐厅/小吃/探店\n  - nature: 自然/公园/山/湖/植物\n  - social: 社交/聚会/热闹/人多\n- pace: \"特种兵型\"=赶场打卡, \"平衡型\"=适中, \"闲逛型\"=慢节奏\n- hard_constraints: 提取明确的限制条件，支持以下类型：\n  - \"不想排队\" → \"queue_intolerant\"\n  - \"无障碍/轮椅/婴儿车\" → \"accessible\"\n  - \"带宠物/狗/猫\" → \"pet_friendly\"\n  - \"室内/空调/下雨天/别中暑\" → \"indoor_only\"\n  - \"海边/户外/露天\" → \"outdoor_preferred\"\n  - \"凌晨/深夜/宵夜/通宵\" → \"late_night\"\n  - \"游乐园/海洋馆/动物园\" → \"needs_entertainment\"\n  - \"烧烤/火锅/茶馆/咖啡馆/书店\" → add specific activity to hard_constraints\n- scene_requirements: 提取用户明确要求的场景元素，用于POI语义匹配。例如：\n  - \"喝茶听曲\" → [\"茶馆\", \"曲艺表演\", \"传统文化\"]\n  - \"街边小吃\" → [\"街边小店\", \"本地小吃\", \"便宜实惠\"]\n  - \"拍照出片\" → [\"拍照打卡\", \"网红景点\", \"出片\"]\n  - \"游乐园海洋馆\" → [\"游乐园\", \"海洋馆\", \"儿童游乐\"]\n  - \"蹦迪\" → [\"酒吧\", \"夜店\", \"LiveHouse\"]\n  - \"书法博物馆\" → [\"书法\", \"博物馆\", \"传统文化\"]\n  - \"烧烤聚会\" → [\"烧烤\", \"聚餐\", \"户外用餐\"]\n  - 如果用户没有明确要求特定场景，填空数组[]\n- preferred_categories: 根据用户意图选择3-6个最相关的POI类别，按优先级排序。可选类别：\n  餐饮, 景点, 购物, 文化, 运动, 娱乐, 温泉SPA, 海景咖啡馆, 夜市, 夜市小吃,\n  书店, 咖啡馆, 密室逃脱, 剧本杀, 恐怖密室, 室内攀岩, 户外攀岩, 水上运动场所,\n  游戏, 益智, 科技, 科技体验, 网吧/电竞馆, 自然风光, 文艺, 休闲, 便利店\n  示例：\n  - \"朋友聚会要能玩又能吃\" → [\"餐饮\", \"娱乐\", \"购物\"]\n  - \"下午想蹦迪\" → [\"娱乐\", \"餐饮\"]\n  - \"凌晨吃宵夜\" → [\"餐饮\", \"夜市\", \"夜市小吃\"]\n  - \"带孩子玩游乐园\" → [\"景点\", \"运动\", \"娱乐\"]\n  - \"安静画画\" → [\"文化\", \"文艺\", \"咖啡馆\"]\n  - \"拍日出日落夜景\" → [\"景点\", \"自然风光\"]\n  - \"情侣约会\" → [\"餐饮\", \"文化\", \"景点\", \"海景咖啡馆\"]\n  - \"老两口公园喝茶\" → [\"文化\", \"景点\", \"餐饮\"]\n- 社恐/不想人多 → social 设低值(0.1-0.2)\n- demand_vector: 语义需求向量（0~1），与preferences互补但更侧重行为倾向\n  - efficiency_seeking: 是否在意效率/赶时间\n  - excitement_seeking: 是否想要兴奋刺激\n  - tranquility_seeking: 是否想要宁静放松\n  - budget_sensitivity: 预算敏感度\n  - novelty_seeking: 是否想尝试新东西\n  - social_desire: 社交需求\n  - physical_energy: 体力意愿\n",
+  "_llm_raw_response": "{\n  \"city\": \"珠海\",\n  \"time\": {\"period\": \"全天\", \"start\": \"09:00\", \"end\": \"21:00\"},\n  \"budget\": {\"per_person\": 500, \"type\": \"弹性\"},\n  \"group\": {\"size\": 2, \"type\": \"朋友\"},\n  \"preferences\": {\"culture\": 0.2, \"food\": 0.8, \"nature\": 0.3, \"social\": 0.7},\n  \"pace\": \"平衡型\",\n  \"hard_constraints\": [\"indoor_only\"],\n  \"scene_requirements\": [\"烧烤\", \"聚餐\", \"室内\"],\n  \"preferred_categories\": [\"餐饮\", \"娱乐\", \"购物\"],\n  \"demand_vector\": {\n    \"efficiency_seeking\": 0.3,\n    \"excitement_seeking\": 0.5,\n    \"tranquility_seeking\": 0",
+  "_llm_model": "deepseek-chat",
+  "_demand_vector": {
+    "efficiency_seeking": 0.3,
+    "excitement_seeking": 0.5,
+    "tranquility_seeking": 0.2,
+    "budget_sensitivity": 0.3,
+    "novelty_seeking": 0.4,
+    "social_desire": 0.7,
+    "physical_energy": 0.5
+  },
+  "matched_profile_id": "P7",
+  "_llm_used": true,
+  "_llm_error": "",
+  "_profile_top3": [
+    {
+      "id": "P7",
+      "score": 7.6,
+      "name": "美食猎人"
+    },
+    {
+      "id": "P16",
+      "score": 7.4,
+      "name": "学生穷游"
+    },
+    {
+      "id": "P18",
+      "score": 7.4,
+      "name": "夜生活爱好者"
+    }
+  ]
+}
+[Solver] scene_requirements Phase0预过滤(ANY-match): 97 个匹配
+[Solver] hard_constraints: ['indoor_only'], type=<class 'list'>, late_night in=False
+[Solver-Phase1] scene_requirements: ['室内烧烤', '室内', '雨天替代方案', '烤肉店', '聚餐', '烧烤'], candidates: 65
+[Solver-Phase1] _scene_matched_ids: 8, remaining: 65, is_food_req: True
+[Solver-Phase1] 两阶段锁定: 只从8个scene_matched POI中选
+[IntentParser] 收到用户输入: 今晚8点到10点，拍霓虹灯和建筑，推荐几个好机位
+INFO:     127.0.0.1:5825 - "POST /api/plan HTTP/1.1" 200 OK
+[IntentParser] LLM 解析成功
+[IntentParser] 移除late_night约束（无明确深夜关键词）
+[IntentParser] 匹配画像: P8 - 自然爱好者
+[IntentParser] 完整结果: {
+  "city": "珠海",
+  "time": {
+    "period": "晚上",
+    "start": "20:00",
+    "end": "22:00"
+  },
+  "budget": {
+    "per_person": 500,
+    "type": "弹性"
+  },
+  "group": {
+    "size": 1,
+    "type": "独居"
+  },
+  "preferences": {
+    "culture": 0.3,
+    "food": 0.1,
+    "nature": 0.1,
+    "social": 0.2
+  },
+  "pace": "闲逛型",
+  "hard_constraints": [
+    "outdoor_preferred"
+  ],
+  "scene_requirements": [
+    "拍照打卡",
+    "夜景",
+    "建筑",
+    "霓虹灯"
+  ],
+  "preferred_categories": [
+    "景点",
+    "自然风光",
+    "购物"
+  ],
+  "location": null,
+  "_llm_prompt": "你是 CityFlow 城市出行路线规划系统的意图解析器。\n用户会用自然语言描述出行需求，你需要解析为严格的 JSON 格式。\n\n输出格式（只输出 JSON，不要任何其他文字）：\n{\n  \"city\": \"珠海/广州/湛江\",\n  \"time\": {\"period\": \"上午/下午/全天\", \"start\": \"HH:MM\", \"end\": \"HH:MM\"},\n  \"budget\": {\"per_person\": 金额整数, \"type\": \"硬约束/弹性\"},\n  \"group\": {\"size\": 人数整数, \"type\": \"独居/情侣/亲子/朋友/退休\"},\n  \"preferences\": {\"culture\": 0到1的小数, \"food\": 0到1的小数, \"nature\": 0到1的小数, \"social\": 0到1的小数},\n  \"pace\": \"特种兵型/平衡型/闲逛型\",\n  \"hard_constraints\": [\"约束1\", \"约束2\"],\n  \"scene_requirements\": [\"场景元素1\", \"场景元素2\"],\n  \"preferred_categories\": [\"类别1\", \"类别2\", \"类别3\"],\n  \"demand_vector\": {\n    \"efficiency_seeking\": 0~1,\n    \"excitement_seeking\": 0~1,\n    \"tranquility_seeking\": 0~1,\n    \"budget_sensitivity\": 0~1,\n    \"novelty_seeking\": 0~1,\n    \"social_desire\": 0~1,\n    \"physical_energy\": 0~1\n  },\n  \"location\": \"用户在哪个区域/地标附近，如'拱北''香洲''天河'，不知道则填null\"\n}\n\n规则：\n- city: 根据用户提到的城市判断，无明确城市则默认\"珠海\"\n- budget: 无明确预算则 per_person=500, type=\"弹性\"\n- group.type: 根据同行人判断，默认\"独居\"\n- time: 如果用户提到\"3小时\"\"半天\"\"2小时搞定\"等时长，根据start计算end。如start=\"14:00\"且\"3小时\"→end=\"17:00\"\n- time: 如果用户提到\"凌晨\"\"深夜\"，start和end应为对应时段（如00:00-06:00）\n- preferences: 根据关键词推断偏好强度（0=完全不感兴趣, 1=非常感兴趣）\n  - culture: 文化/历史/艺术/博物馆/展览\n  - food: 美食/餐厅/小吃/探店\n  - nature: 自然/公园/山/湖/植物\n  - social: 社交/聚会/热闹/人多\n- pace: \"特种兵型\"=赶场打卡, \"平衡型\"=适中, \"闲逛型\"=慢节奏\n- hard_constraints: 提取明确的限制条件，支持以下类型：\n  - \"不想排队\" → \"queue_intolerant\"\n  - \"无障碍/轮椅/婴儿车\" → \"accessible\"\n  - \"带宠物/狗/猫\" → \"pet_friendly\"\n  - \"室内/空调/下雨天/别中暑\" → \"indoor_only\"\n  - \"海边/户外/露天\" → \"outdoor_preferred\"\n  - \"凌晨/深夜/宵夜/通宵\" → \"late_night\"\n  - \"游乐园/海洋馆/动物园\" → \"needs_entertainment\"\n  - \"烧烤/火锅/茶馆/咖啡馆/书店\" → add specific activity to hard_constraints\n- scene_requirements: 提取用户明确要求的场景元素，用于POI语义匹配。例如：\n  - \"喝茶听曲\" → [\"茶馆\", \"曲艺表演\", \"传统文化\"]\n  - \"街边小吃\" → [\"街边小店\", \"本地小吃\", \"便宜实惠\"]\n  - \"拍照出片\" → [\"拍照打卡\", \"网红景点\", \"出片\"]\n  - \"游乐园海洋馆\" → [\"游乐园\", \"海洋馆\", \"儿童游乐\"]\n  - \"蹦迪\" → [\"酒吧\", \"夜店\", \"LiveHouse\"]\n  - \"书法博物馆\" → [\"书法\", \"博物馆\", \"传统文化\"]\n  - \"烧烤聚会\" → [\"烧烤\", \"聚餐\", \"户外用餐\"]\n  - 如果用户没有明确要求特定场景，填空数组[]\n- preferred_categories: 根据用户意图选择3-6个最相关的POI类别，按优先级排序。可选类别：\n  餐饮, 景点, 购物, 文化, 运动, 娱乐, 温泉SPA, 海景咖啡馆, 夜市, 夜市小吃,\n  书店, 咖啡馆, 密室逃脱, 剧本杀, 恐怖密室, 室内攀岩, 户外攀岩, 水上运动场所,\n  游戏, 益智, 科技, 科技体验, 网吧/电竞馆, 自然风光, 文艺, 休闲, 便利店\n  示例：\n  - \"朋友聚会要能玩又能吃\" → [\"餐饮\", \"娱乐\", \"购物\"]\n  - \"下午想蹦迪\" → [\"娱乐\", \"餐饮\"]\n  - \"凌晨吃宵夜\" → [\"餐饮\", \"夜市\", \"夜市小吃\"]\n  - \"带孩子玩游乐园\" → [\"景点\", \"运动\", \"娱乐\"]\n  - \"安静画画\" → [\"文化\", \"文艺\", \"咖啡馆\"]\n  - \"拍日出日落夜景\" → [\"景点\", \"自然风光\"]\n  - \"情侣约会\" → [\"餐饮\", \"文化\", \"景点\", \"海景咖啡馆\"]\n  - \"老两口公园喝茶\" → [\"文化\", \"景点\", \"餐饮\"]\n- 社恐/不想人多 → social 设低值(0.1-0.2)\n- demand_vector: 语义需求向量（0~1），与preferences互补但更侧重行为倾向\n  - efficiency_seeking: 是否在意效率/赶时间\n  - excitement_seeking: 是否想要兴奋刺激\n  - tranquility_seeking: 是否想要宁静放松\n  - budget_sensitivity: 预算敏感度\n  - novelty_seeking: 是否想尝试新东西\n  - social_desire: 社交需求\n  - physical_energy: 体力意愿\n",
+  "_llm_raw_response": "{\n  \"city\": \"珠海\",\n  \"time\": {\"period\": \"晚上\", \"start\": \"20:00\", \"end\": \"22:00\"},\n  \"budget\": {\"per_person\": 500, \"type\": \"弹性\"},\n  \"group\": {\"size\": 1, \"type\": \"独居\"},\n  \"preferences\": {\"culture\": 0.3, \"food\": 0.1, \"nature\": 0.1, \"social\": 0.2},\n  \"pace\": \"闲逛型\",\n  \"hard_constraints\": [\"outdoor_preferred\", \"late_night\"],\n  \"scene_requirements\": [\"拍照打卡\", \"夜景\", \"建筑\", \"霓虹灯\"],\n  \"preferred_categories\": [\"景点\", \"自然风光\", \"购物\"],\n  \"demand_vector\": {\n    \"efficiency_seeking\": 0.3,\n    \"excitement_seeking\": 0.",
+  "_llm_model": "deepseek-chat",
+  "_demand_vector": {
+    "efficiency_seeking": 0.3,
+    "excitement_seeking": 0.4,
+    "tranquility_seeking": 0.6,
+    "budget_sensitivity": 0.3,
+    "novelty_seeking": 0.7,
+    "social_desire": 0.2,
+    "physical_energy": 0.5
+  },
+  "matched_profile_id": "P8",
+  "_llm_used": true,
+  "_llm_error": "",
+  "_profile_top3": [
+    {
+      "id": "P8",
+      "score": 9.7,
+      "name": "自然爱好者"
+    },
+    {
+      "id": "P12",
+      "score": 9.4,
+      "name": "宠物主人"
+    },
+    {
+      "id": "P1",
+      "score": 9.4,
+      "name": "社恐独居"
+    }
+  ]
+}
+[Solver] scene_requirements Phase0预过滤(ANY-match): 131 个匹配
+[Solver] hard_constraints: ['outdoor_preferred'], type=<class 'list'>, late_night in=False
+[Solver-Phase1] scene_requirements: ['摄影机位', '拍照打卡', '夜景', '建筑', '城市风光', '霓虹灯'], candidates: 13
+[Solver-Phase1] _scene_matched_ids: 13, remaining: 13, is_food_req: False
+[Solver-Phase1] 两阶段锁定: 只从13个scene_matched POI中选
+[Solver] 最低长度保护: 补充到3站
+[IntentParser] 收到用户输入: 带两孩子，半天玩游乐园和海洋馆，预算300够吗？
+INFO:     127.0.0.1:5847 - "POST /api/plan HTTP/1.1" 200 OK
+[IntentParser] LLM 解析成功
+[IntentParser] 匹配画像: P3 - 活力亲子
+[IntentParser] 完整结果: {
+  "city": "珠海",
+  "time": {
+    "period": "下午",
+    "start": "13:00",
+    "end": "18:00"
+  },
+  "budget": {
+    "per_person": 100,
+    "type": "硬约束"
+  },
+  "group": {
+    "size": 3,
+    "type": "亲子"
+  },
+  "preferences": {
+    "culture": 0.2,
+    "food": 0.3,
+    "nature": 0.4,
+    "social": 0.5
+  },
+  "pace": "平衡型",
+  "hard_constraints": [
+    "needs_entertainment"
+  ],
+  "scene_requirements": [
+    "游乐园",
+    "海洋馆",
+    "儿童游乐"
+  ],
+  "preferred_categories": [
+    "景点",
+    "娱乐",
+    "运动"
+  ],
+  "location": null,
+  "_llm_prompt": "你是 CityFlow 城市出行路线规划系统的意图解析器。\n用户会用自然语言描述出行需求，你需要解析为严格的 JSON 格式。\n\n输出格式（只输出 JSON，不要任何其他文字）：\n{\n  \"city\": \"珠海/广州/湛江\",\n  \"time\": {\"period\": \"上午/下午/全天\", \"start\": \"HH:MM\", \"end\": \"HH:MM\"},\n  \"budget\": {\"per_person\": 金额整数, \"type\": \"硬约束/弹性\"},\n  \"group\": {\"size\": 人数整数, \"type\": \"独居/情侣/亲子/朋友/退休\"},\n  \"preferences\": {\"culture\": 0到1的小数, \"food\": 0到1的小数, \"nature\": 0到1的小数, \"social\": 0到1的小数},\n  \"pace\": \"特种兵型/平衡型/闲逛型\",\n  \"hard_constraints\": [\"约束1\", \"约束2\"],\n  \"scene_requirements\": [\"场景元素1\", \"场景元素2\"],\n  \"preferred_categories\": [\"类别1\", \"类别2\", \"类别3\"],\n  \"demand_vector\": {\n    \"efficiency_seeking\": 0~1,\n    \"excitement_seeking\": 0~1,\n    \"tranquility_seeking\": 0~1,\n    \"budget_sensitivity\": 0~1,\n    \"novelty_seeking\": 0~1,\n    \"social_desire\": 0~1,\n    \"physical_energy\": 0~1\n  },\n  \"location\": \"用户在哪个区域/地标附近，如'拱北''香洲''天河'，不知道则填null\"\n}\n\n规则：\n- city: 根据用户提到的城市判断，无明确城市则默认\"珠海\"\n- budget: 无明确预算则 per_person=500, type=\"弹性\"\n- group.type: 根据同行人判断，默认\"独居\"\n- time: 如果用户提到\"3小时\"\"半天\"\"2小时搞定\"等时长，根据start计算end。如start=\"14:00\"且\"3小时\"→end=\"17:00\"\n- time: 如果用户提到\"凌晨\"\"深夜\"，start和end应为对应时段（如00:00-06:00）\n- preferences: 根据关键词推断偏好强度（0=完全不感兴趣, 1=非常感兴趣）\n  - culture: 文化/历史/艺术/博物馆/展览\n  - food: 美食/餐厅/小吃/探店\n  - nature: 自然/公园/山/湖/植物\n  - social: 社交/聚会/热闹/人多\n- pace: \"特种兵型\"=赶场打卡, \"平衡型\"=适中, \"闲逛型\"=慢节奏\n- hard_constraints: 提取明确的限制条件，支持以下类型：\n  - \"不想排队\" → \"queue_intolerant\"\n  - \"无障碍/轮椅/婴儿车\" → \"accessible\"\n  - \"带宠物/狗/猫\" → \"pet_friendly\"\n  - \"室内/空调/下雨天/别中暑\" → \"indoor_only\"\n  - \"海边/户外/露天\" → \"outdoor_preferred\"\n  - \"凌晨/深夜/宵夜/通宵\" → \"late_night\"\n  - \"游乐园/海洋馆/动物园\" → \"needs_entertainment\"\n  - \"烧烤/火锅/茶馆/咖啡馆/书店\" → add specific activity to hard_constraints\n- scene_requirements: 提取用户明确要求的场景元素，用于POI语义匹配。例如：\n  - \"喝茶听曲\" → [\"茶馆\", \"曲艺表演\", \"传统文化\"]\n  - \"街边小吃\" → [\"街边小店\", \"本地小吃\", \"便宜实惠\"]\n  - \"拍照出片\" → [\"拍照打卡\", \"网红景点\", \"出片\"]\n  - \"游乐园海洋馆\" → [\"游乐园\", \"海洋馆\", \"儿童游乐\"]\n  - \"蹦迪\" → [\"酒吧\", \"夜店\", \"LiveHouse\"]\n  - \"书法博物馆\" → [\"书法\", \"博物馆\", \"传统文化\"]\n  - \"烧烤聚会\" → [\"烧烤\", \"聚餐\", \"户外用餐\"]\n  - 如果用户没有明确要求特定场景，填空数组[]\n- preferred_categories: 根据用户意图选择3-6个最相关的POI类别，按优先级排序。可选类别：\n  餐饮, 景点, 购物, 文化, 运动, 娱乐, 温泉SPA, 海景咖啡馆, 夜市, 夜市小吃,\n  书店, 咖啡馆, 密室逃脱, 剧本杀, 恐怖密室, 室内攀岩, 户外攀岩, 水上运动场所,\n  游戏, 益智, 科技, 科技体验, 网吧/电竞馆, 自然风光, 文艺, 休闲, 便利店\n  示例：\n  - \"朋友聚会要能玩又能吃\" → [\"餐饮\", \"娱乐\", \"购物\"]\n  - \"下午想蹦迪\" → [\"娱乐\", \"餐饮\"]\n  - \"凌晨吃宵夜\" → [\"餐饮\", \"夜市\", \"夜市小吃\"]\n  - \"带孩子玩游乐园\" → [\"景点\", \"运动\", \"娱乐\"]\n  - \"安静画画\" → [\"文化\", \"文艺\", \"咖啡馆\"]\n  - \"拍日出日落夜景\" → [\"景点\", \"自然风光\"]\n  - \"情侣约会\" → [\"餐饮\", \"文化\", \"景点\", \"海景咖啡馆\"]\n  - \"老两口公园喝茶\" → [\"文化\", \"景点\", \"餐饮\"]\n- 社恐/不想人多 → social 设低值(0.1-0.2)\n- demand_vector: 语义需求向量（0~1），与preferences互补但更侧重行为倾向\n  - efficiency_seeking: 是否在意效率/赶时间\n  - excitement_seeking: 是否想要兴奋刺激\n  - tranquility_seeking: 是否想要宁静放松\n  - budget_sensitivity: 预算敏感度\n  - novelty_seeking: 是否想尝试新东西\n  - social_desire: 社交需求\n  - physical_energy: 体力意愿\n",
+  "_llm_raw_response": "{\n  \"city\": \"珠海\",\n  \"time\": {\"period\": \"下午\", \"start\": \"13:00\", \"end\": \"18:00\"},\n  \"budget\": {\"per_person\": 100, \"type\": \"硬约束\"},\n  \"group\": {\"size\": 3, \"type\": \"亲子\"},\n  \"preferences\": {\"culture\": 0.2, \"food\": 0.3, \"nature\": 0.4, \"social\": 0.5},\n  \"pace\": \"平衡型\",\n  \"hard_constraints\": [\"needs_entertainment\"],\n  \"scene_requirements\": [\"游乐园\", \"海洋馆\", \"儿童游乐\"],\n  \"preferred_categories\": [\"景点\", \"娱乐\", \"运动\"],\n  \"demand_vector\": {\n    \"efficiency_seeking\": 0.6,\n    \"excitement_seeking\": 0.7,\n    \"tranquilit",
+  "_llm_model": "deepseek-chat",
+  "_demand_vector": {
+    "efficiency_seeking": 0.6,
+    "excitement_seeking": 0.7,
+    "tranquility_seeking": 0.2,
+    "budget_sensitivity": 0.8,
+    "novelty_seeking": 0.5,
+    "social_desire": 0.4,
+    "physical_energy": 0.6
+  },
+  "matched_profile_id": "P3",
+  "_llm_used": true,
+  "_llm_error": "",
+  "_profile_top3": [
+    {
+      "id": "P3",
+      "score": 9.2,
+      "name": "活力亲子"
+    },
+    {
+      "id": "P19",
+      "score": 9.2,
+      "name": "亲子教育"
+    },
+    {
+      "id": "P14",
+      "score": 7.4,
+      "name": "三代同堂"
+    }
+  ]
+}
+[IntentParser] 收到用户输入: 3个人想去长隆，但不想住酒店，有没有一日游路线？
+INFO:     127.0.0.1:5852 - "POST /api/plan HTTP/1.1" 200 OK
+[IntentParser] LLM 解析成功
+[IntentParser] 匹配画像: P7 - 美食猎人
+[IntentParser] 完整结果: {
+  "city": "珠海",
+  "time": {
+    "period": "全天",
+    "start": "09:00",
+    "end": "21:00"
+  },
+  "budget": {
+    "per_person": 500,
+    "type": "弹性"
+  },
+  "group": {
+    "size": 3,
+    "type": "朋友"
+  },
+  "preferences": {
+    "culture": 0.2,
+    "food": 0.5,
+    "nature": 0.3,
+    "social": 0.6
+  },
+  "pace": "平衡型",
+  "hard_constraints": [
+    "no_hotel"
+  ],
+  "scene_requirements": [
+    "游乐园",
+    "海洋馆",
+    "儿童游乐"
+  ],
+  "preferred_categories": [
+    "景点",
+    "娱乐",
+    "餐饮"
+  ],
+  "location": "长隆",
+  "_llm_prompt": "你是 CityFlow 城市出行路线规划系统的意图解析器。\n用户会用自然语言描述出行需求，你需要解析为严格的 JSON 格式。\n\n输出格式（只输出 JSON，不要任何其他文字）：\n{\n  \"city\": \"珠海/广州/湛江\",\n  \"time\": {\"period\": \"上午/下午/全天\", \"start\": \"HH:MM\", \"end\": \"HH:MM\"},\n  \"budget\": {\"per_person\": 金额整数, \"type\": \"硬约束/弹性\"},\n  \"group\": {\"size\": 人数整数, \"type\": \"独居/情侣/亲子/朋友/退休\"},\n  \"preferences\": {\"culture\": 0到1的小数, \"food\": 0到1的小数, \"nature\": 0到1的小数, \"social\": 0到1的小数},\n  \"pace\": \"特种兵型/平衡型/闲逛型\",\n  \"hard_constraints\": [\"约束1\", \"约束2\"],\n  \"scene_requirements\": [\"场景元素1\", \"场景元素2\"],\n  \"preferred_categories\": [\"类别1\", \"类别2\", \"类别3\"],\n  \"demand_vector\": {\n    \"efficiency_seeking\": 0~1,\n    \"excitement_seeking\": 0~1,\n    \"tranquility_seeking\": 0~1,\n    \"budget_sensitivity\": 0~1,\n    \"novelty_seeking\": 0~1,\n    \"social_desire\": 0~1,\n    \"physical_energy\": 0~1\n  },\n  \"location\": \"用户在哪个区域/地标附近，如'拱北''香洲''天河'，不知道则填null\"\n}\n\n规则：\n- city: 根据用户提到的城市判断，无明确城市则默认\"珠海\"\n- budget: 无明确预算则 per_person=500, type=\"弹性\"\n- group.type: 根据同行人判断，默认\"独居\"\n- time: 如果用户提到\"3小时\"\"半天\"\"2小时搞定\"等时长，根据start计算end。如start=\"14:00\"且\"3小时\"→end=\"17:00\"\n- time: 如果用户提到\"凌晨\"\"深夜\"，start和end应为对应时段（如00:00-06:00）\n- preferences: 根据关键词推断偏好强度（0=完全不感兴趣, 1=非常感兴趣）\n  - culture: 文化/历史/艺术/博物馆/展览\n  - food: 美食/餐厅/小吃/探店\n  - nature: 自然/公园/山/湖/植物\n  - social: 社交/聚会/热闹/人多\n- pace: \"特种兵型\"=赶场打卡, \"平衡型\"=适中, \"闲逛型\"=慢节奏\n- hard_constraints: 提取明确的限制条件，支持以下类型：\n  - \"不想排队\" → \"queue_intolerant\"\n  - \"无障碍/轮椅/婴儿车\" → \"accessible\"\n  - \"带宠物/狗/猫\" → \"pet_friendly\"\n  - \"室内/空调/下雨天/别中暑\" → \"indoor_only\"\n  - \"海边/户外/露天\" → \"outdoor_preferred\"\n  - \"凌晨/深夜/宵夜/通宵\" → \"late_night\"\n  - \"游乐园/海洋馆/动物园\" → \"needs_entertainment\"\n  - \"烧烤/火锅/茶馆/咖啡馆/书店\" → add specific activity to hard_constraints\n- scene_requirements: 提取用户明确要求的场景元素，用于POI语义匹配。例如：\n  - \"喝茶听曲\" → [\"茶馆\", \"曲艺表演\", \"传统文化\"]\n  - \"街边小吃\" → [\"街边小店\", \"本地小吃\", \"便宜实惠\"]\n  - \"拍照出片\" → [\"拍照打卡\", \"网红景点\", \"出片\"]\n  - \"游乐园海洋馆\" → [\"游乐园\", \"海洋馆\", \"儿童游乐\"]\n  - \"蹦迪\" → [\"酒吧\", \"夜店\", \"LiveHouse\"]\n  - \"书法博物馆\" → [\"书法\", \"博物馆\", \"传统文化\"]\n  - \"烧烤聚会\" → [\"烧烤\", \"聚餐\", \"户外用餐\"]\n  - 如果用户没有明确要求特定场景，填空数组[]\n- preferred_categories: 根据用户意图选择3-6个最相关的POI类别，按优先级排序。可选类别：\n  餐饮, 景点, 购物, 文化, 运动, 娱乐, 温泉SPA, 海景咖啡馆, 夜市, 夜市小吃,\n  书店, 咖啡馆, 密室逃脱, 剧本杀, 恐怖密室, 室内攀岩, 户外攀岩, 水上运动场所,\n  游戏, 益智, 科技, 科技体验, 网吧/电竞馆, 自然风光, 文艺, 休闲, 便利店\n  示例：\n  - \"朋友聚会要能玩又能吃\" → [\"餐饮\", \"娱乐\", \"购物\"]\n  - \"下午想蹦迪\" → [\"娱乐\", \"餐饮\"]\n  - \"凌晨吃宵夜\" → [\"餐饮\", \"夜市\", \"夜市小吃\"]\n  - \"带孩子玩游乐园\" → [\"景点\", \"运动\", \"娱乐\"]\n  - \"安静画画\" → [\"文化\", \"文艺\", \"咖啡馆\"]\n  - \"拍日出日落夜景\" → [\"景点\", \"自然风光\"]\n  - \"情侣约会\" → [\"餐饮\", \"文化\", \"景点\", \"海景咖啡馆\"]\n  - \"老两口公园喝茶\" → [\"文化\", \"景点\", \"餐饮\"]\n- 社恐/不想人多 → social 设低值(0.1-0.2)\n- demand_vector: 语义需求向量（0~1），与preferences互补但更侧重行为倾向\n  - efficiency_seeking: 是否在意效率/赶时间\n  - excitement_seeking: 是否想要兴奋刺激\n  - tranquility_seeking: 是否想要宁静放松\n  - budget_sensitivity: 预算敏感度\n  - novelty_seeking: 是否想尝试新东西\n  - social_desire: 社交需求\n  - physical_energy: 体力意愿\n",
+  "_llm_raw_response": "{\n  \"city\": \"珠海\",\n  \"time\": {\"period\": \"全天\", \"start\": \"09:00\", \"end\": \"21:00\"},\n  \"budget\": {\"per_person\": 500, \"type\": \"弹性\"},\n  \"group\": {\"size\": 3, \"type\": \"朋友\"},\n  \"preferences\": {\"culture\": 0.2, \"food\": 0.5, \"nature\": 0.3, \"social\": 0.6},\n  \"pace\": \"平衡型\",\n  \"hard_constraints\": [\"no_hotel\"],\n  \"scene_requirements\": [\"游乐园\", \"海洋馆\", \"儿童游乐\"],\n  \"preferred_categories\": [\"景点\", \"娱乐\", \"餐饮\"],\n  \"demand_vector\": {\n    \"efficiency_seeking\": 0.5,\n    \"excitement_seeking\": 0.7,\n    \"tranquility_seeking\": ",
+  "_llm_model": "deepseek-chat",
+  "_demand_vector": {
+    "efficiency_seeking": 0.5,
+    "excitement_seeking": 0.7,
+    "tranquility_seeking": 0.2,
+    "budget_sensitivity": 0.3,
+    "novelty_seeking": 0.6,
+    "social_desire": 0.6,
+    "physical_energy": 0.7
+  },
+  "matched_profile_id": "P7",
+  "_llm_used": true,
+  "_llm_error": "",
+  "_profile_top3": [
+    {
+      "id": "P7",
+      "score": 7.3,
+      "name": "美食猎人"
+    },
+    {
+      "id": "P16",
+      "score": 7.1,
+      "name": "学生穷游"
+    },
+    {
+      "id": "P18",
+      "score": 7.1,
+      "name": "夜生活爱好者"
+    }
+  ]
+}
+[Solver] scene_requirements Phase0预过滤(ANY-match): 131 个匹配
+[Solver] hard_constraints: ['no_hotel'], type=<class 'list'>, late_night in=False
+[Solver-Phase1] scene_requirements: ['长隆', '儿童游乐', '主题乐园', '海洋馆', '亲子', '海洋王国', '一日游', '游乐园'], candidates: 49
+[Solver-Phase1] _scene_matched_ids: 48, remaining: 49, is_food_req: False
+[Solver-Phase1] 两阶段锁定: 只从48个scene_matched POI中选
+[IntentParser] 收到用户输入: 老夫妻喜欢书法，附近有什么博物馆或茶馆？
+INFO:     127.0.0.1:5876 - "POST /api/plan HTTP/1.1" 200 OK
+[IntentParser] LLM 解析成功
+[IntentParser] 匹配画像: P5 - 退休休闲
+[IntentParser] 完整结果: {
+  "city": "珠海",
+  "time": {
+    "period": "全天",
+    "start": "09:00",
+    "end": "17:00"
+  },
+  "budget": {
+    "per_person": 500,
+    "type": "弹性"
+  },
+  "group": {
+    "size": 2,
+    "type": "退休"
+  },
+  "preferences": {
+    "culture": 0.9,
+    "food": 0.3,
+    "nature": 0.2,
+    "social": 0.1
+  },
+  "pace": "闲逛型",
+  "hard_constraints": [],
+  "scene_requirements": [
+    "书法",
+    "博物馆",
+    "茶馆",
+    "传统文化"
+  ],
+  "preferred_categories": [
+    "文化",
+    "餐饮",
+    "景点"
+  ],
+  "location": null,
+  "_llm_prompt": "你是 CityFlow 城市出行路线规划系统的意图解析器。\n用户会用自然语言描述出行需求，你需要解析为严格的 JSON 格式。\n\n输出格式（只输出 JSON，不要任何其他文字）：\n{\n  \"city\": \"珠海/广州/湛江\",\n  \"time\": {\"period\": \"上午/下午/全天\", \"start\": \"HH:MM\", \"end\": \"HH:MM\"},\n  \"budget\": {\"per_person\": 金额整数, \"type\": \"硬约束/弹性\"},\n  \"group\": {\"size\": 人数整数, \"type\": \"独居/情侣/亲子/朋友/退休\"},\n  \"preferences\": {\"culture\": 0到1的小数, \"food\": 0到1的小数, \"nature\": 0到1的小数, \"social\": 0到1的小数},\n  \"pace\": \"特种兵型/平衡型/闲逛型\",\n  \"hard_constraints\": [\"约束1\", \"约束2\"],\n  \"scene_requirements\": [\"场景元素1\", \"场景元素2\"],\n  \"preferred_categories\": [\"类别1\", \"类别2\", \"类别3\"],\n  \"demand_vector\": {\n    \"efficiency_seeking\": 0~1,\n    \"excitement_seeking\": 0~1,\n    \"tranquility_seeking\": 0~1,\n    \"budget_sensitivity\": 0~1,\n    \"novelty_seeking\": 0~1,\n    \"social_desire\": 0~1,\n    \"physical_energy\": 0~1\n  },\n  \"location\": \"用户在哪个区域/地标附近，如'拱北''香洲''天河'，不知道则填null\"\n}\n\n规则：\n- city: 根据用户提到的城市判断，无明确城市则默认\"珠海\"\n- budget: 无明确预算则 per_person=500, type=\"弹性\"\n- group.type: 根据同行人判断，默认\"独居\"\n- time: 如果用户提到\"3小时\"\"半天\"\"2小时搞定\"等时长，根据start计算end。如start=\"14:00\"且\"3小时\"→end=\"17:00\"\n- time: 如果用户提到\"凌晨\"\"深夜\"，start和end应为对应时段（如00:00-06:00）\n- preferences: 根据关键词推断偏好强度（0=完全不感兴趣, 1=非常感兴趣）\n  - culture: 文化/历史/艺术/博物馆/展览\n  - food: 美食/餐厅/小吃/探店\n  - nature: 自然/公园/山/湖/植物\n  - social: 社交/聚会/热闹/人多\n- pace: \"特种兵型\"=赶场打卡, \"平衡型\"=适中, \"闲逛型\"=慢节奏\n- hard_constraints: 提取明确的限制条件，支持以下类型：\n  - \"不想排队\" → \"queue_intolerant\"\n  - \"无障碍/轮椅/婴儿车\" → \"accessible\"\n  - \"带宠物/狗/猫\" → \"pet_friendly\"\n  - \"室内/空调/下雨天/别中暑\" → \"indoor_only\"\n  - \"海边/户外/露天\" → \"outdoor_preferred\"\n  - \"凌晨/深夜/宵夜/通宵\" → \"late_night\"\n  - \"游乐园/海洋馆/动物园\" → \"needs_entertainment\"\n  - \"烧烤/火锅/茶馆/咖啡馆/书店\" → add specific activity to hard_constraints\n- scene_requirements: 提取用户明确要求的场景元素，用于POI语义匹配。例如：\n  - \"喝茶听曲\" → [\"茶馆\", \"曲艺表演\", \"传统文化\"]\n  - \"街边小吃\" → [\"街边小店\", \"本地小吃\", \"便宜实惠\"]\n  - \"拍照出片\" → [\"拍照打卡\", \"网红景点\", \"出片\"]\n  - \"游乐园海洋馆\" → [\"游乐园\", \"海洋馆\", \"儿童游乐\"]\n  - \"蹦迪\" → [\"酒吧\", \"夜店\", \"LiveHouse\"]\n  - \"书法博物馆\" → [\"书法\", \"博物馆\", \"传统文化\"]\n  - \"烧烤聚会\" → [\"烧烤\", \"聚餐\", \"户外用餐\"]\n  - 如果用户没有明确要求特定场景，填空数组[]\n- preferred_categories: 根据用户意图选择3-6个最相关的POI类别，按优先级排序。可选类别：\n  餐饮, 景点, 购物, 文化, 运动, 娱乐, 温泉SPA, 海景咖啡馆, 夜市, 夜市小吃,\n  书店, 咖啡馆, 密室逃脱, 剧本杀, 恐怖密室, 室内攀岩, 户外攀岩, 水上运动场所,\n  游戏, 益智, 科技, 科技体验, 网吧/电竞馆, 自然风光, 文艺, 休闲, 便利店\n  示例：\n  - \"朋友聚会要能玩又能吃\" → [\"餐饮\", \"娱乐\", \"购物\"]\n  - \"下午想蹦迪\" → [\"娱乐\", \"餐饮\"]\n  - \"凌晨吃宵夜\" → [\"餐饮\", \"夜市\", \"夜市小吃\"]\n  - \"带孩子玩游乐园\" → [\"景点\", \"运动\", \"娱乐\"]\n  - \"安静画画\" → [\"文化\", \"文艺\", \"咖啡馆\"]\n  - \"拍日出日落夜景\" → [\"景点\", \"自然风光\"]\n  - \"情侣约会\" → [\"餐饮\", \"文化\", \"景点\", \"海景咖啡馆\"]\n  - \"老两口公园喝茶\" → [\"文化\", \"景点\", \"餐饮\"]\n- 社恐/不想人多 → social 设低值(0.1-0.2)\n- demand_vector: 语义需求向量（0~1），与preferences互补但更侧重行为倾向\n  - efficiency_seeking: 是否在意效率/赶时间\n  - excitement_seeking: 是否想要兴奋刺激\n  - tranquility_seeking: 是否想要宁静放松\n  - budget_sensitivity: 预算敏感度\n  - novelty_seeking: 是否想尝试新东西\n  - social_desire: 社交需求\n  - physical_energy: 体力意愿\n",
+  "_llm_raw_response": "{\n  \"city\": \"珠海\",\n  \"time\": {\"period\": \"全天\", \"start\": \"09:00\", \"end\": \"17:00\"},\n  \"budget\": {\"per_person\": 500, \"type\": \"弹性\"},\n  \"group\": {\"size\": 2, \"type\": \"退休\"},\n  \"preferences\": {\"culture\": 0.9, \"food\": 0.3, \"nature\": 0.2, \"social\": 0.1},\n  \"pace\": \"闲逛型\",\n  \"hard_constraints\": [],\n  \"scene_requirements\": [\"书法\", \"博物馆\", \"茶馆\", \"传统文化\"],\n  \"preferred_categories\": [\"文化\", \"餐饮\", \"景点\"],\n  \"demand_vector\": {\n    \"efficiency_seeking\": 0.2,\n    \"excitement_seeking\": 0.1,\n    \"tranquility_seeking\": 0.9,\n",
+  "_llm_model": "deepseek-chat",
+  "_demand_vector": {
+    "efficiency_seeking": 0.2,
+    "excitement_seeking": 0.1,
+    "tranquility_seeking": 0.9,
+    "budget_sensitivity": 0.3,
+    "novelty_seeking": 0.4,
+    "social_desire": 0.1,
+    "physical_energy": 0.3
+  },
+  "matched_profile_id": "P5",
+  "_llm_used": true,
+  "_llm_error": "",
+  "_profile_top3": [
+    {
+      "id": "P5",
+      "score": 8.9,
+      "name": "退休休闲"
+    },
+    {
+      "id": "P1",
+      "score": 6.7,
+      "name": "社恐独居"
+    },
+    {
+      "id": "P17",
+      "score": 6.4,
+      "name": "艺术家"
+    }
+  ]
+}
+[Solver] scene_requirements Phase0预过滤(ANY-match): 62 个匹配
+[Solver] hard_constraints: [], type=<class 'list'>, late_night in=False
+[Solver-Phase1] scene_requirements: ['传统文化', '安静', '博物馆', '茶馆', '书法'], candidates: 39
+[Solver-Phase1] _scene_matched_ids: 39, remaining: 39, is_food_req: False
+[Solver-Phase1] 两阶段锁定: 只从39个scene_matched POI中选
+[IntentParser] 收到用户输入: 38度，带老人孩子去哪玩？室内有空调那种
+INFO:     127.0.0.1:5924 - "POST /api/plan HTTP/1.1" 200 OK
+[IntentParser] LLM 解析成功
+[IntentParser] 匹配画像: P14 - 三代同堂
+[IntentParser] 完整结果: {
+  "city": "珠海",
+  "time": {
+    "period": "全天",
+    "start": "09:00",
+    "end": "21:00"
+  },
+  "budget": {
+    "per_person": 500,
+    "type": "弹性"
+  },
+  "group": {
+    "size": 3,
+    "type": "亲子"
+  },
+  "preferences": {
+    "culture": 0.3,
+    "food": 0.5,
+    "nature": 0.1,
+    "social": 0.2
+  },
+  "pace": "闲逛型",
+  "hard_constraints": [
+    "indoor_only"
+  ],
+  "scene_requirements": [],
+  "preferred_categories": [
+    "景点",
+    "文化",
+    "购物",
+    "娱乐"
+  ],
+  "location": null,
+  "_llm_prompt": "你是 CityFlow 城市出行路线规划系统的意图解析器。\n用户会用自然语言描述出行需求，你需要解析为严格的 JSON 格式。\n\n输出格式（只输出 JSON，不要任何其他文字）：\n{\n  \"city\": \"珠海/广州/湛江\",\n  \"time\": {\"period\": \"上午/下午/全天\", \"start\": \"HH:MM\", \"end\": \"HH:MM\"},\n  \"budget\": {\"per_person\": 金额整数, \"type\": \"硬约束/弹性\"},\n  \"group\": {\"size\": 人数整数, \"type\": \"独居/情侣/亲子/朋友/退休\"},\n  \"preferences\": {\"culture\": 0到1的小数, \"food\": 0到1的小数, \"nature\": 0到1的小数, \"social\": 0到1的小数},\n  \"pace\": \"特种兵型/平衡型/闲逛型\",\n  \"hard_constraints\": [\"约束1\", \"约束2\"],\n  \"scene_requirements\": [\"场景元素1\", \"场景元素2\"],\n  \"preferred_categories\": [\"类别1\", \"类别2\", \"类别3\"],\n  \"demand_vector\": {\n    \"efficiency_seeking\": 0~1,\n    \"excitement_seeking\": 0~1,\n    \"tranquility_seeking\": 0~1,\n    \"budget_sensitivity\": 0~1,\n    \"novelty_seeking\": 0~1,\n    \"social_desire\": 0~1,\n    \"physical_energy\": 0~1\n  },\n  \"location\": \"用户在哪个区域/地标附近，如'拱北''香洲''天河'，不知道则填null\"\n}\n\n规则：\n- city: 根据用户提到的城市判断，无明确城市则默认\"珠海\"\n- budget: 无明确预算则 per_person=500, type=\"弹性\"\n- group.type: 根据同行人判断，默认\"独居\"\n- time: 如果用户提到\"3小时\"\"半天\"\"2小时搞定\"等时长，根据start计算end。如start=\"14:00\"且\"3小时\"→end=\"17:00\"\n- time: 如果用户提到\"凌晨\"\"深夜\"，start和end应为对应时段（如00:00-06:00）\n- preferences: 根据关键词推断偏好强度（0=完全不感兴趣, 1=非常感兴趣）\n  - culture: 文化/历史/艺术/博物馆/展览\n  - food: 美食/餐厅/小吃/探店\n  - nature: 自然/公园/山/湖/植物\n  - social: 社交/聚会/热闹/人多\n- pace: \"特种兵型\"=赶场打卡, \"平衡型\"=适中, \"闲逛型\"=慢节奏\n- hard_constraints: 提取明确的限制条件，支持以下类型：\n  - \"不想排队\" → \"queue_intolerant\"\n  - \"无障碍/轮椅/婴儿车\" → \"accessible\"\n  - \"带宠物/狗/猫\" → \"pet_friendly\"\n  - \"室内/空调/下雨天/别中暑\" → \"indoor_only\"\n  - \"海边/户外/露天\" → \"outdoor_preferred\"\n  - \"凌晨/深夜/宵夜/通宵\" → \"late_night\"\n  - \"游乐园/海洋馆/动物园\" → \"needs_entertainment\"\n  - \"烧烤/火锅/茶馆/咖啡馆/书店\" → add specific activity to hard_constraints\n- scene_requirements: 提取用户明确要求的场景元素，用于POI语义匹配。例如：\n  - \"喝茶听曲\" → [\"茶馆\", \"曲艺表演\", \"传统文化\"]\n  - \"街边小吃\" → [\"街边小店\", \"本地小吃\", \"便宜实惠\"]\n  - \"拍照出片\" → [\"拍照打卡\", \"网红景点\", \"出片\"]\n  - \"游乐园海洋馆\" → [\"游乐园\", \"海洋馆\", \"儿童游乐\"]\n  - \"蹦迪\" → [\"酒吧\", \"夜店\", \"LiveHouse\"]\n  - \"书法博物馆\" → [\"书法\", \"博物馆\", \"传统文化\"]\n  - \"烧烤聚会\" → [\"烧烤\", \"聚餐\", \"户外用餐\"]\n  - 如果用户没有明确要求特定场景，填空数组[]\n- preferred_categories: 根据用户意图选择3-6个最相关的POI类别，按优先级排序。可选类别：\n  餐饮, 景点, 购物, 文化, 运动, 娱乐, 温泉SPA, 海景咖啡馆, 夜市, 夜市小吃,\n  书店, 咖啡馆, 密室逃脱, 剧本杀, 恐怖密室, 室内攀岩, 户外攀岩, 水上运动场所,\n  游戏, 益智, 科技, 科技体验, 网吧/电竞馆, 自然风光, 文艺, 休闲, 便利店\n  示例：\n  - \"朋友聚会要能玩又能吃\" → [\"餐饮\", \"娱乐\", \"购物\"]\n  - \"下午想蹦迪\" → [\"娱乐\", \"餐饮\"]\n  - \"凌晨吃宵夜\" → [\"餐饮\", \"夜市\", \"夜市小吃\"]\n  - \"带孩子玩游乐园\" → [\"景点\", \"运动\", \"娱乐\"]\n  - \"安静画画\" → [\"文化\", \"文艺\", \"咖啡馆\"]\n  - \"拍日出日落夜景\" → [\"景点\", \"自然风光\"]\n  - \"情侣约会\" → [\"餐饮\", \"文化\", \"景点\", \"海景咖啡馆\"]\n  - \"老两口公园喝茶\" → [\"文化\", \"景点\", \"餐饮\"]\n- 社恐/不想人多 → social 设低值(0.1-0.2)\n- demand_vector: 语义需求向量（0~1），与preferences互补但更侧重行为倾向\n  - efficiency_seeking: 是否在意效率/赶时间\n  - excitement_seeking: 是否想要兴奋刺激\n  - tranquility_seeking: 是否想要宁静放松\n  - budget_sensitivity: 预算敏感度\n  - novelty_seeking: 是否想尝试新东西\n  - social_desire: 社交需求\n  - physical_energy: 体力意愿\n",
+  "_llm_raw_response": "{\n  \"city\": \"珠海\",\n  \"time\": {\"period\": \"全天\", \"start\": \"09:00\", \"end\": \"21:00\"},\n  \"budget\": {\"per_person\": 500, \"type\": \"弹性\"},\n  \"group\": {\"size\": 3, \"type\": \"亲子\"},\n  \"preferences\": {\"culture\": 0.3, \"food\": 0.5, \"nature\": 0.1, \"social\": 0.2},\n  \"pace\": \"闲逛型\",\n  \"hard_constraints\": [\"indoor_only\"],\n  \"scene_requirements\": [],\n  \"preferred_categories\": [\"景点\", \"文化\", \"购物\", \"娱乐\"],\n  \"demand_vector\": {\n    \"efficiency_seeking\": 0.3,\n    \"excitement_seeking\": 0.2,\n    \"tranquility_seeking\": 0.7,\n    \"b",
+  "_llm_model": "deepseek-chat",
+  "_demand_vector": {
+    "efficiency_seeking": 0.3,
+    "excitement_seeking": 0.2,
+    "tranquility_seeking": 0.7,
+    "budget_sensitivity": 0.5,
+    "novelty_seeking": 0.4,
+    "social_desire": 0.3,
+    "physical_energy": 0.3
+  },
+  "matched_profile_id": "P14",
+  "_llm_used": true,
+  "_llm_error": "",
+  "_profile_top3": [
+    {
+      "id": "P14",
+      "score": 8.9,
+      "name": "三代同堂"
+    },
+    {
+      "id": "P3",
+      "score": 6.7,
+      "name": "活力亲子"
+    },
+    {
+      "id": "P8",
+      "score": 6.7,
+      "name": "自然爱好者"
+    }
+  ]
+}
+[Solver] scene_requirements Phase0预过滤(ANY-match): 111 个匹配
+[Solver] hard_constraints: ['indoor_only'], type=<class 'list'>, late_night in=False
+[Solver-Phase1] scene_requirements: ['商场', '室内', '科技馆', '海洋馆', '亲子', '老人友好', '博物馆', '空调'], candidates: 76
+[Solver-Phase1] _scene_matched_ids: 76, remaining: 76, is_food_req: False
+[Solver-Phase1] 两阶段锁定: 只从76个scene_matched POI中选
+[IntentParser] 收到用户输入: 凌晨一个人在珠海街头走走，安全又有点意思的地方
+INFO:     127.0.0.1:5963 - "POST /api/plan HTTP/1.1" 200 OK
+[IntentParser] LLM 解析成功
+[IntentParser] 匹配画像: P1 - 社恐独居
+[IntentParser] 完整结果: {
+  "city": "珠海",
+  "time": {
+    "period": "凌晨",
+    "start": "00:00",
+    "end": "06:00"
+  },
+  "budget": {
+    "per_person": 500,
+    "type": "弹性"
+  },
+  "group": {
+    "size": 1,
+    "type": "独居"
+  },
+  "preferences": {
+    "culture": 0.3,
+    "food": 0.2,
+    "nature": 0.5,
+    "social": 0.1
+  },
+  "pace": "闲逛型",
+  "hard_constraints": [
+    "late_night"
+  ],
+  "scene_requirements": [
+    "安全",
+    "街头漫步"
+  ],
+  "preferred_categories": [
+    "景点",
+    "自然风光",
+    "休闲"
+  ],
+  "location": null,
+  "_llm_prompt": "你是 CityFlow 城市出行路线规划系统的意图解析器。\n用户会用自然语言描述出行需求，你需要解析为严格的 JSON 格式。\n\n输出格式（只输出 JSON，不要任何其他文字）：\n{\n  \"city\": \"珠海/广州/湛江\",\n  \"time\": {\"period\": \"上午/下午/全天\", \"start\": \"HH:MM\", \"end\": \"HH:MM\"},\n  \"budget\": {\"per_person\": 金额整数, \"type\": \"硬约束/弹性\"},\n  \"group\": {\"size\": 人数整数, \"type\": \"独居/情侣/亲子/朋友/退休\"},\n  \"preferences\": {\"culture\": 0到1的小数, \"food\": 0到1的小数, \"nature\": 0到1的小数, \"social\": 0到1的小数},\n  \"pace\": \"特种兵型/平衡型/闲逛型\",\n  \"hard_constraints\": [\"约束1\", \"约束2\"],\n  \"scene_requirements\": [\"场景元素1\", \"场景元素2\"],\n  \"preferred_categories\": [\"类别1\", \"类别2\", \"类别3\"],\n  \"demand_vector\": {\n    \"efficiency_seeking\": 0~1,\n    \"excitement_seeking\": 0~1,\n    \"tranquility_seeking\": 0~1,\n    \"budget_sensitivity\": 0~1,\n    \"novelty_seeking\": 0~1,\n    \"social_desire\": 0~1,\n    \"physical_energy\": 0~1\n  },\n  \"location\": \"用户在哪个区域/地标附近，如'拱北''香洲''天河'，不知道则填null\"\n}\n\n规则：\n- city: 根据用户提到的城市判断，无明确城市则默认\"珠海\"\n- budget: 无明确预算则 per_person=500, type=\"弹性\"\n- group.type: 根据同行人判断，默认\"独居\"\n- time: 如果用户提到\"3小时\"\"半天\"\"2小时搞定\"等时长，根据start计算end。如start=\"14:00\"且\"3小时\"→end=\"17:00\"\n- time: 如果用户提到\"凌晨\"\"深夜\"，start和end应为对应时段（如00:00-06:00）\n- preferences: 根据关键词推断偏好强度（0=完全不感兴趣, 1=非常感兴趣）\n  - culture: 文化/历史/艺术/博物馆/展览\n  - food: 美食/餐厅/小吃/探店\n  - nature: 自然/公园/山/湖/植物\n  - social: 社交/聚会/热闹/人多\n- pace: \"特种兵型\"=赶场打卡, \"平衡型\"=适中, \"闲逛型\"=慢节奏\n- hard_constraints: 提取明确的限制条件，支持以下类型：\n  - \"不想排队\" → \"queue_intolerant\"\n  - \"无障碍/轮椅/婴儿车\" → \"accessible\"\n  - \"带宠物/狗/猫\" → \"pet_friendly\"\n  - \"室内/空调/下雨天/别中暑\" → \"indoor_only\"\n  - \"海边/户外/露天\" → \"outdoor_preferred\"\n  - \"凌晨/深夜/宵夜/通宵\" → \"late_night\"\n  - \"游乐园/海洋馆/动物园\" → \"needs_entertainment\"\n  - \"烧烤/火锅/茶馆/咖啡馆/书店\" → add specific activity to hard_constraints\n- scene_requirements: 提取用户明确要求的场景元素，用于POI语义匹配。例如：\n  - \"喝茶听曲\" → [\"茶馆\", \"曲艺表演\", \"传统文化\"]\n  - \"街边小吃\" → [\"街边小店\", \"本地小吃\", \"便宜实惠\"]\n  - \"拍照出片\" → [\"拍照打卡\", \"网红景点\", \"出片\"]\n  - \"游乐园海洋馆\" → [\"游乐园\", \"海洋馆\", \"儿童游乐\"]\n  - \"蹦迪\" → [\"酒吧\", \"夜店\", \"LiveHouse\"]\n  - \"书法博物馆\" → [\"书法\", \"博物馆\", \"传统文化\"]\n  - \"烧烤聚会\" → [\"烧烤\", \"聚餐\", \"户外用餐\"]\n  - 如果用户没有明确要求特定场景，填空数组[]\n- preferred_categories: 根据用户意图选择3-6个最相关的POI类别，按优先级排序。可选类别：\n  餐饮, 景点, 购物, 文化, 运动, 娱乐, 温泉SPA, 海景咖啡馆, 夜市, 夜市小吃,\n  书店, 咖啡馆, 密室逃脱, 剧本杀, 恐怖密室, 室内攀岩, 户外攀岩, 水上运动场所,\n  游戏, 益智, 科技, 科技体验, 网吧/电竞馆, 自然风光, 文艺, 休闲, 便利店\n  示例：\n  - \"朋友聚会要能玩又能吃\" → [\"餐饮\", \"娱乐\", \"购物\"]\n  - \"下午想蹦迪\" → [\"娱乐\", \"餐饮\"]\n  - \"凌晨吃宵夜\" → [\"餐饮\", \"夜市\", \"夜市小吃\"]\n  - \"带孩子玩游乐园\" → [\"景点\", \"运动\", \"娱乐\"]\n  - \"安静画画\" → [\"文化\", \"文艺\", \"咖啡馆\"]\n  - \"拍日出日落夜景\" → [\"景点\", \"自然风光\"]\n  - \"情侣约会\" → [\"餐饮\", \"文化\", \"景点\", \"海景咖啡馆\"]\n  - \"老两口公园喝茶\" → [\"文化\", \"景点\", \"餐饮\"]\n- 社恐/不想人多 → social 设低值(0.1-0.2)\n- demand_vector: 语义需求向量（0~1），与preferences互补但更侧重行为倾向\n  - efficiency_seeking: 是否在意效率/赶时间\n  - excitement_seeking: 是否想要兴奋刺激\n  - tranquility_seeking: 是否想要宁静放松\n  - budget_sensitivity: 预算敏感度\n  - novelty_seeking: 是否想尝试新东西\n  - social_desire: 社交需求\n  - physical_energy: 体力意愿\n",
+  "_llm_raw_response": "{\n  \"city\": \"珠海\",\n  \"time\": {\"period\": \"凌晨\", \"start\": \"00:00\", \"end\": \"06:00\"},\n  \"budget\": {\"per_person\": 500, \"type\": \"弹性\"},\n  \"group\": {\"size\": 1, \"type\": \"独居\"},\n  \"preferences\": {\"culture\": 0.3, \"food\": 0.2, \"nature\": 0.5, \"social\": 0.1},\n  \"pace\": \"闲逛型\",\n  \"hard_constraints\": [\"late_night\"],\n  \"scene_requirements\": [\"安全\", \"街头漫步\"],\n  \"preferred_categories\": [\"景点\", \"自然风光\", \"休闲\"],\n  \"demand_vector\": {\n    \"efficiency_seeking\": 0.2,\n    \"excitement_seeking\": 0.1,\n    \"tranquility_seeking\": 0.8,",
+  "_llm_model": "deepseek-chat",
+  "_demand_vector": {
+    "efficiency_seeking": 0.2,
+    "excitement_seeking": 0.1,
+    "tranquility_seeking": 0.8,
+    "budget_sensitivity": 0.3,
+    "novelty_seeking": 0.4,
+    "social_desire": 0.1,
+    "physical_energy": 0.3
+  },
+  "matched_profile_id": "P1",
+  "_llm_used": true,
+  "_llm_error": "",
+  "_profile_top3": [
+    {
+      "id": "P1",
+      "score": 9.7,
+      "name": "社恐独居"
+    },
+    {
+      "id": "P20",
+      "score": 9.5,
+      "name": "极简主义者"
+    },
+    {
+      "id": "P8",
+      "score": 9.4,
+      "name": "自然爱好者"
+    }
+  ]
+}
+[Solver] scene_requirements Phase0预过滤(ANY-match): 149 个匹配
+[Solver] hard_constraints: ['late_night'], type=<class 'list'>, late_night in=True
+[Solver] late_night filter ACTIVATED
+[Solver] late_night filter: 149 → 23 POIs (window=00:00-06:00, crosses_midnight=True)
+[Solver-Phase1] scene_requirements: ['街头', '街头漫步', '安全', '安静', '夜景', '散步', '灯光'], candidates: 23
+[Solver-Phase1] _scene_matched_ids: 22, remaining: 23, is_food_req: False
+[Solver-Phase1] 两阶段锁定: 只从22个scene_matched POI中选
+[Solver] 最低长度保护: 补充到3站
+[IntentParser] 收到用户输入: 金毛能不能进圆明新园？不能的话哪里能带狗散步？
+INFO:     127.0.0.1:6001 - "POST /api/plan HTTP/1.1" 200 OK
+[IntentParser] LLM 解析成功
+[IntentParser] 匹配画像: P12 - 宠物主人
+[IntentParser] 完整结果: {
+  "city": "珠海",
+  "time": {
+    "period": "全天",
+    "start": "09:00",
+    "end": "18:00"
+  },
+  "budget": {
+    "per_person": 500,
+    "type": "弹性"
+  },
+  "group": {
+    "size": 1,
+    "type": "独居"
+  },
+  "preferences": {
+    "culture": 0.3,
+    "food": 0.2,
+    "nature": 0.8,
+    "social": 0.1
+  },
+  "pace": "闲逛型",
+  "hard_constraints": [
+    "pet_friendly"
+  ],
+  "scene_requirements": [
+    "散步",
+    "宠物友好"
+  ],
+  "preferred_categories": [
+    "景点",
+    "自然风光",
+    "公园"
+  ],
+  "location": "圆明新园",
+  "_llm_prompt": "你是 CityFlow 城市出行路线规划系统的意图解析器。\n用户会用自然语言描述出行需求，你需要解析为严格的 JSON 格式。\n\n输出格式（只输出 JSON，不要任何其他文字）：\n{\n  \"city\": \"珠海/广州/湛江\",\n  \"time\": {\"period\": \"上午/下午/全天\", \"start\": \"HH:MM\", \"end\": \"HH:MM\"},\n  \"budget\": {\"per_person\": 金额整数, \"type\": \"硬约束/弹性\"},\n  \"group\": {\"size\": 人数整数, \"type\": \"独居/情侣/亲子/朋友/退休\"},\n  \"preferences\": {\"culture\": 0到1的小数, \"food\": 0到1的小数, \"nature\": 0到1的小数, \"social\": 0到1的小数},\n  \"pace\": \"特种兵型/平衡型/闲逛型\",\n  \"hard_constraints\": [\"约束1\", \"约束2\"],\n  \"scene_requirements\": [\"场景元素1\", \"场景元素2\"],\n  \"preferred_categories\": [\"类别1\", \"类别2\", \"类别3\"],\n  \"demand_vector\": {\n    \"efficiency_seeking\": 0~1,\n    \"excitement_seeking\": 0~1,\n    \"tranquility_seeking\": 0~1,\n    \"budget_sensitivity\": 0~1,\n    \"novelty_seeking\": 0~1,\n    \"social_desire\": 0~1,\n    \"physical_energy\": 0~1\n  },\n  \"location\": \"用户在哪个区域/地标附近，如'拱北''香洲''天河'，不知道则填null\"\n}\n\n规则：\n- city: 根据用户提到的城市判断，无明确城市则默认\"珠海\"\n- budget: 无明确预算则 per_person=500, type=\"弹性\"\n- group.type: 根据同行人判断，默认\"独居\"\n- time: 如果用户提到\"3小时\"\"半天\"\"2小时搞定\"等时长，根据start计算end。如start=\"14:00\"且\"3小时\"→end=\"17:00\"\n- time: 如果用户提到\"凌晨\"\"深夜\"，start和end应为对应时段（如00:00-06:00）\n- preferences: 根据关键词推断偏好强度（0=完全不感兴趣, 1=非常感兴趣）\n  - culture: 文化/历史/艺术/博物馆/展览\n  - food: 美食/餐厅/小吃/探店\n  - nature: 自然/公园/山/湖/植物\n  - social: 社交/聚会/热闹/人多\n- pace: \"特种兵型\"=赶场打卡, \"平衡型\"=适中, \"闲逛型\"=慢节奏\n- hard_constraints: 提取明确的限制条件，支持以下类型：\n  - \"不想排队\" → \"queue_intolerant\"\n  - \"无障碍/轮椅/婴儿车\" → \"accessible\"\n  - \"带宠物/狗/猫\" → \"pet_friendly\"\n  - \"室内/空调/下雨天/别中暑\" → \"indoor_only\"\n  - \"海边/户外/露天\" → \"outdoor_preferred\"\n  - \"凌晨/深夜/宵夜/通宵\" → \"late_night\"\n  - \"游乐园/海洋馆/动物园\" → \"needs_entertainment\"\n  - \"烧烤/火锅/茶馆/咖啡馆/书店\" → add specific activity to hard_constraints\n- scene_requirements: 提取用户明确要求的场景元素，用于POI语义匹配。例如：\n  - \"喝茶听曲\" → [\"茶馆\", \"曲艺表演\", \"传统文化\"]\n  - \"街边小吃\" → [\"街边小店\", \"本地小吃\", \"便宜实惠\"]\n  - \"拍照出片\" → [\"拍照打卡\", \"网红景点\", \"出片\"]\n  - \"游乐园海洋馆\" → [\"游乐园\", \"海洋馆\", \"儿童游乐\"]\n  - \"蹦迪\" → [\"酒吧\", \"夜店\", \"LiveHouse\"]\n  - \"书法博物馆\" → [\"书法\", \"博物馆\", \"传统文化\"]\n  - \"烧烤聚会\" → [\"烧烤\", \"聚餐\", \"户外用餐\"]\n  - 如果用户没有明确要求特定场景，填空数组[]\n- preferred_categories: 根据用户意图选择3-6个最相关的POI类别，按优先级排序。可选类别：\n  餐饮, 景点, 购物, 文化, 运动, 娱乐, 温泉SPA, 海景咖啡馆, 夜市, 夜市小吃,\n  书店, 咖啡馆, 密室逃脱, 剧本杀, 恐怖密室, 室内攀岩, 户外攀岩, 水上运动场所,\n  游戏, 益智, 科技, 科技体验, 网吧/电竞馆, 自然风光, 文艺, 休闲, 便利店\n  示例：\n  - \"朋友聚会要能玩又能吃\" → [\"餐饮\", \"娱乐\", \"购物\"]\n  - \"下午想蹦迪\" → [\"娱乐\", \"餐饮\"]\n  - \"凌晨吃宵夜\" → [\"餐饮\", \"夜市\", \"夜市小吃\"]\n  - \"带孩子玩游乐园\" → [\"景点\", \"运动\", \"娱乐\"]\n  - \"安静画画\" → [\"文化\", \"文艺\", \"咖啡馆\"]\n  - \"拍日出日落夜景\" → [\"景点\", \"自然风光\"]\n  - \"情侣约会\" → [\"餐饮\", \"文化\", \"景点\", \"海景咖啡馆\"]\n  - \"老两口公园喝茶\" → [\"文化\", \"景点\", \"餐饮\"]\n- 社恐/不想人多 → social 设低值(0.1-0.2)\n- demand_vector: 语义需求向量（0~1），与preferences互补但更侧重行为倾向\n  - efficiency_seeking: 是否在意效率/赶时间\n  - excitement_seeking: 是否想要兴奋刺激\n  - tranquility_seeking: 是否想要宁静放松\n  - budget_sensitivity: 预算敏感度\n  - novelty_seeking: 是否想尝试新东西\n  - social_desire: 社交需求\n  - physical_energy: 体力意愿\n",
+  "_llm_raw_response": "{\n  \"city\": \"珠海\",\n  \"time\": {\"period\": \"全天\", \"start\": \"09:00\", \"end\": \"18:00\"},\n  \"budget\": {\"per_person\": 500, \"type\": \"弹性\"},\n  \"group\": {\"size\": 1, \"type\": \"独居\"},\n  \"preferences\": {\"culture\": 0.3, \"food\": 0.2, \"nature\": 0.8, \"social\": 0.1},\n  \"pace\": \"闲逛型\",\n  \"hard_constraints\": [\"pet_friendly\"],\n  \"scene_requirements\": [\"散步\", \"宠物友好\"],\n  \"preferred_categories\": [\"景点\", \"自然风光\", \"公园\"],\n  \"demand_vector\": {\n    \"efficiency_seeking\": 0.2,\n    \"excitement_seeking\": 0.1,\n    \"tranquility_seeking\": 0.",
+  "_llm_model": "deepseek-chat",
+  "_demand_vector": {
+    "efficiency_seeking": 0.2,
+    "excitement_seeking": 0.1,
+    "tranquility_seeking": 0.8,
+    "budget_sensitivity": 0.5,
+    "novelty_seeking": 0.3,
+    "social_desire": 0.1,
+    "physical_energy": 0.4
+  },
+  "matched_profile_id": "P12",
+  "_llm_used": true,
+  "_llm_error": "",
+  "_profile_top3": [
+    {
+      "id": "P12",
+      "score": 14.1,
+      "name": "宠物主人"
+    },
+    {
+      "id": "P1",
+      "score": 9.7,
+      "name": "社恐独居"
+    },
+    {
+      "id": "P20",
+      "score": 9.5,
+      "name": "极简主义者"
+    }
+  ]
+}
+[IntentParser] 收到用户输入: 想住情侣酒店，但只给100块预算，怎么办？
+INFO:     127.0.0.1:6016 - "POST /api/plan HTTP/1.1" 200 OK
+[IntentParser] LLM 解析成功
+[IntentParser] 匹配画像: P2 - 浪漫情侣
+[IntentParser] 完整结果: {
+  "city": "珠海",
+  "time": {
+    "period": "全天",
+    "start": "00:00",
+    "end": "23:59"
+  },
+  "budget": {
+    "per_person": 100,
+    "type": "硬约束"
+  },
+  "group": {
+    "size": 2,
+    "type": "情侣"
+  },
+  "preferences": {
+    "culture": 0.2,
+    "food": 0.3,
+    "nature": 0.2,
+    "social": 0.1
+  },
+  "pace": "平衡型",
+  "hard_constraints": [
+    "budget_100"
+  ],
+  "scene_requirements": [
+    "情侣酒店"
+  ],
+  "preferred_categories": [
+    "住宿",
+    "餐饮",
+    "景点"
+  ],
+  "location": null,
+  "_llm_prompt": "你是 CityFlow 城市出行路线规划系统的意图解析器。\n用户会用自然语言描述出行需求，你需要解析为严格的 JSON 格式。\n\n输出格式（只输出 JSON，不要任何其他文字）：\n{\n  \"city\": \"珠海/广州/湛江\",\n  \"time\": {\"period\": \"上午/下午/全天\", \"start\": \"HH:MM\", \"end\": \"HH:MM\"},\n  \"budget\": {\"per_person\": 金额整数, \"type\": \"硬约束/弹性\"},\n  \"group\": {\"size\": 人数整数, \"type\": \"独居/情侣/亲子/朋友/退休\"},\n  \"preferences\": {\"culture\": 0到1的小数, \"food\": 0到1的小数, \"nature\": 0到1的小数, \"social\": 0到1的小数},\n  \"pace\": \"特种兵型/平衡型/闲逛型\",\n  \"hard_constraints\": [\"约束1\", \"约束2\"],\n  \"scene_requirements\": [\"场景元素1\", \"场景元素2\"],\n  \"preferred_categories\": [\"类别1\", \"类别2\", \"类别3\"],\n  \"demand_vector\": {\n    \"efficiency_seeking\": 0~1,\n    \"excitement_seeking\": 0~1,\n    \"tranquility_seeking\": 0~1,\n    \"budget_sensitivity\": 0~1,\n    \"novelty_seeking\": 0~1,\n    \"social_desire\": 0~1,\n    \"physical_energy\": 0~1\n  },\n  \"location\": \"用户在哪个区域/地标附近，如'拱北''香洲''天河'，不知道则填null\"\n}\n\n规则：\n- city: 根据用户提到的城市判断，无明确城市则默认\"珠海\"\n- budget: 无明确预算则 per_person=500, type=\"弹性\"\n- group.type: 根据同行人判断，默认\"独居\"\n- time: 如果用户提到\"3小时\"\"半天\"\"2小时搞定\"等时长，根据start计算end。如start=\"14:00\"且\"3小时\"→end=\"17:00\"\n- time: 如果用户提到\"凌晨\"\"深夜\"，start和end应为对应时段（如00:00-06:00）\n- preferences: 根据关键词推断偏好强度（0=完全不感兴趣, 1=非常感兴趣）\n  - culture: 文化/历史/艺术/博物馆/展览\n  - food: 美食/餐厅/小吃/探店\n  - nature: 自然/公园/山/湖/植物\n  - social: 社交/聚会/热闹/人多\n- pace: \"特种兵型\"=赶场打卡, \"平衡型\"=适中, \"闲逛型\"=慢节奏\n- hard_constraints: 提取明确的限制条件，支持以下类型：\n  - \"不想排队\" → \"queue_intolerant\"\n  - \"无障碍/轮椅/婴儿车\" → \"accessible\"\n  - \"带宠物/狗/猫\" → \"pet_friendly\"\n  - \"室内/空调/下雨天/别中暑\" → \"indoor_only\"\n  - \"海边/户外/露天\" → \"outdoor_preferred\"\n  - \"凌晨/深夜/宵夜/通宵\" → \"late_night\"\n  - \"游乐园/海洋馆/动物园\" → \"needs_entertainment\"\n  - \"烧烤/火锅/茶馆/咖啡馆/书店\" → add specific activity to hard_constraints\n- scene_requirements: 提取用户明确要求的场景元素，用于POI语义匹配。例如：\n  - \"喝茶听曲\" → [\"茶馆\", \"曲艺表演\", \"传统文化\"]\n  - \"街边小吃\" → [\"街边小店\", \"本地小吃\", \"便宜实惠\"]\n  - \"拍照出片\" → [\"拍照打卡\", \"网红景点\", \"出片\"]\n  - \"游乐园海洋馆\" → [\"游乐园\", \"海洋馆\", \"儿童游乐\"]\n  - \"蹦迪\" → [\"酒吧\", \"夜店\", \"LiveHouse\"]\n  - \"书法博物馆\" → [\"书法\", \"博物馆\", \"传统文化\"]\n  - \"烧烤聚会\" → [\"烧烤\", \"聚餐\", \"户外用餐\"]\n  - 如果用户没有明确要求特定场景，填空数组[]\n- preferred_categories: 根据用户意图选择3-6个最相关的POI类别，按优先级排序。可选类别：\n  餐饮, 景点, 购物, 文化, 运动, 娱乐, 温泉SPA, 海景咖啡馆, 夜市, 夜市小吃,\n  书店, 咖啡馆, 密室逃脱, 剧本杀, 恐怖密室, 室内攀岩, 户外攀岩, 水上运动场所,\n  游戏, 益智, 科技, 科技体验, 网吧/电竞馆, 自然风光, 文艺, 休闲, 便利店\n  示例：\n  - \"朋友聚会要能玩又能吃\" → [\"餐饮\", \"娱乐\", \"购物\"]\n  - \"下午想蹦迪\" → [\"娱乐\", \"餐饮\"]\n  - \"凌晨吃宵夜\" → [\"餐饮\", \"夜市\", \"夜市小吃\"]\n  - \"带孩子玩游乐园\" → [\"景点\", \"运动\", \"娱乐\"]\n  - \"安静画画\" → [\"文化\", \"文艺\", \"咖啡馆\"]\n  - \"拍日出日落夜景\" → [\"景点\", \"自然风光\"]\n  - \"情侣约会\" → [\"餐饮\", \"文化\", \"景点\", \"海景咖啡馆\"]\n  - \"老两口公园喝茶\" → [\"文化\", \"景点\", \"餐饮\"]\n- 社恐/不想人多 → social 设低值(0.1-0.2)\n- demand_vector: 语义需求向量（0~1），与preferences互补但更侧重行为倾向\n  - efficiency_seeking: 是否在意效率/赶时间\n  - excitement_seeking: 是否想要兴奋刺激\n  - tranquility_seeking: 是否想要宁静放松\n  - budget_sensitivity: 预算敏感度\n  - novelty_seeking: 是否想尝试新东西\n  - social_desire: 社交需求\n  - physical_energy: 体力意愿\n",
+  "_llm_raw_response": "{\n  \"city\": \"珠海\",\n  \"time\": {\"period\": \"全天\", \"start\": \"00:00\", \"end\": \"23:59\"},\n  \"budget\": {\"per_person\": 100, \"type\": \"硬约束\"},\n  \"group\": {\"size\": 2, \"type\": \"情侣\"},\n  \"preferences\": {\"culture\": 0.2, \"food\": 0.3, \"nature\": 0.2, \"social\": 0.1},\n  \"pace\": \"平衡型\",\n  \"hard_constraints\": [\"budget_100\"],\n  \"scene_requirements\": [\"情侣酒店\"],\n  \"preferred_categories\": [\"住宿\", \"餐饮\", \"景点\"],\n  \"demand_vector\": {\n    \"efficiency_seeking\": 0.3,\n    \"excitement_seeking\": 0.5,\n    \"tranquility_seeking\": 0.4,\n    \"b",
+  "_llm_model": "deepseek-chat",
+  "_demand_vector": {
+    "efficiency_seeking": 0.3,
+    "excitement_seeking": 0.5,
+    "tranquility_seeking": 0.4,
+    "budget_sensitivity": 0.9,
+    "novelty_seeking": 0.6,
+    "social_desire": 0.2,
+    "physical_energy": 0.5
+  },
+  "matched_profile_id": "P2",
+  "_llm_used": true,
+  "_llm_error": "",
+  "_profile_top3": [
+    {
+      "id": "P2",
+      "score": 7.9,
+      "name": "浪漫情侣"
+    },
+    {
+      "id": "P10",
+      "score": 5.7,
+      "name": "摄影爱好者"
+    },
+    {
+      "id": "P11",
+      "score": 5.4,
+      "name": "历史迷"
+    }
+  ]
+}
+[IntentParser] 收到用户输入: 3小时从拱北到横琴，玩3个景点，可能吗？
+INFO:     127.0.0.1:6026 - "POST /api/plan HTTP/1.1" 200 OK
+[IntentParser] LLM 解析成功
+[IntentParser] 匹配画像: P13 - 运动健身
+[IntentParser] 完整结果: {
+  "city": "珠海",
+  "time": {
+    "period": "下午",
+    "start": "14:00",
+    "end": "17:00"
+  },
+  "budget": {
+    "per_person": 500,
+    "type": "弹性"
+  },
+  "group": {
+    "size": 1,
+    "type": "独居"
+  },
+  "preferences": {
+    "culture": 0.3,
+    "food": 0.3,
+    "nature": 0.5,
+    "social": 0.2
+  },
+  "pace": "特种兵型",
+  "hard_constraints": [],
+  "scene_requirements": [],
+  "preferred_categories": [
+    "景点",
+    "自然风光",
+    "文化"
+  ],
+  "location": "拱北",
+  "_llm_prompt": "你是 CityFlow 城市出行路线规划系统的意图解析器。\n用户会用自然语言描述出行需求，你需要解析为严格的 JSON 格式。\n\n输出格式（只输出 JSON，不要任何其他文字）：\n{\n  \"city\": \"珠海/广州/湛江\",\n  \"time\": {\"period\": \"上午/下午/全天\", \"start\": \"HH:MM\", \"end\": \"HH:MM\"},\n  \"budget\": {\"per_person\": 金额整数, \"type\": \"硬约束/弹性\"},\n  \"group\": {\"size\": 人数整数, \"type\": \"独居/情侣/亲子/朋友/退休\"},\n  \"preferences\": {\"culture\": 0到1的小数, \"food\": 0到1的小数, \"nature\": 0到1的小数, \"social\": 0到1的小数},\n  \"pace\": \"特种兵型/平衡型/闲逛型\",\n  \"hard_constraints\": [\"约束1\", \"约束2\"],\n  \"scene_requirements\": [\"场景元素1\", \"场景元素2\"],\n  \"preferred_categories\": [\"类别1\", \"类别2\", \"类别3\"],\n  \"demand_vector\": {\n    \"efficiency_seeking\": 0~1,\n    \"excitement_seeking\": 0~1,\n    \"tranquility_seeking\": 0~1,\n    \"budget_sensitivity\": 0~1,\n    \"novelty_seeking\": 0~1,\n    \"social_desire\": 0~1,\n    \"physical_energy\": 0~1\n  },\n  \"location\": \"用户在哪个区域/地标附近，如'拱北''香洲''天河'，不知道则填null\"\n}\n\n规则：\n- city: 根据用户提到的城市判断，无明确城市则默认\"珠海\"\n- budget: 无明确预算则 per_person=500, type=\"弹性\"\n- group.type: 根据同行人判断，默认\"独居\"\n- time: 如果用户提到\"3小时\"\"半天\"\"2小时搞定\"等时长，根据start计算end。如start=\"14:00\"且\"3小时\"→end=\"17:00\"\n- time: 如果用户提到\"凌晨\"\"深夜\"，start和end应为对应时段（如00:00-06:00）\n- preferences: 根据关键词推断偏好强度（0=完全不感兴趣, 1=非常感兴趣）\n  - culture: 文化/历史/艺术/博物馆/展览\n  - food: 美食/餐厅/小吃/探店\n  - nature: 自然/公园/山/湖/植物\n  - social: 社交/聚会/热闹/人多\n- pace: \"特种兵型\"=赶场打卡, \"平衡型\"=适中, \"闲逛型\"=慢节奏\n- hard_constraints: 提取明确的限制条件，支持以下类型：\n  - \"不想排队\" → \"queue_intolerant\"\n  - \"无障碍/轮椅/婴儿车\" → \"accessible\"\n  - \"带宠物/狗/猫\" → \"pet_friendly\"\n  - \"室内/空调/下雨天/别中暑\" → \"indoor_only\"\n  - \"海边/户外/露天\" → \"outdoor_preferred\"\n  - \"凌晨/深夜/宵夜/通宵\" → \"late_night\"\n  - \"游乐园/海洋馆/动物园\" → \"needs_entertainment\"\n  - \"烧烤/火锅/茶馆/咖啡馆/书店\" → add specific activity to hard_constraints\n- scene_requirements: 提取用户明确要求的场景元素，用于POI语义匹配。例如：\n  - \"喝茶听曲\" → [\"茶馆\", \"曲艺表演\", \"传统文化\"]\n  - \"街边小吃\" → [\"街边小店\", \"本地小吃\", \"便宜实惠\"]\n  - \"拍照出片\" → [\"拍照打卡\", \"网红景点\", \"出片\"]\n  - \"游乐园海洋馆\" → [\"游乐园\", \"海洋馆\", \"儿童游乐\"]\n  - \"蹦迪\" → [\"酒吧\", \"夜店\", \"LiveHouse\"]\n  - \"书法博物馆\" → [\"书法\", \"博物馆\", \"传统文化\"]\n  - \"烧烤聚会\" → [\"烧烤\", \"聚餐\", \"户外用餐\"]\n  - 如果用户没有明确要求特定场景，填空数组[]\n- preferred_categories: 根据用户意图选择3-6个最相关的POI类别，按优先级排序。可选类别：\n  餐饮, 景点, 购物, 文化, 运动, 娱乐, 温泉SPA, 海景咖啡馆, 夜市, 夜市小吃,\n  书店, 咖啡馆, 密室逃脱, 剧本杀, 恐怖密室, 室内攀岩, 户外攀岩, 水上运动场所,\n  游戏, 益智, 科技, 科技体验, 网吧/电竞馆, 自然风光, 文艺, 休闲, 便利店\n  示例：\n  - \"朋友聚会要能玩又能吃\" → [\"餐饮\", \"娱乐\", \"购物\"]\n  - \"下午想蹦迪\" → [\"娱乐\", \"餐饮\"]\n  - \"凌晨吃宵夜\" → [\"餐饮\", \"夜市\", \"夜市小吃\"]\n  - \"带孩子玩游乐园\" → [\"景点\", \"运动\", \"娱乐\"]\n  - \"安静画画\" → [\"文化\", \"文艺\", \"咖啡馆\"]\n  - \"拍日出日落夜景\" → [\"景点\", \"自然风光\"]\n  - \"情侣约会\" → [\"餐饮\", \"文化\", \"景点\", \"海景咖啡馆\"]\n  - \"老两口公园喝茶\" → [\"文化\", \"景点\", \"餐饮\"]\n- 社恐/不想人多 → social 设低值(0.1-0.2)\n- demand_vector: 语义需求向量（0~1），与preferences互补但更侧重行为倾向\n  - efficiency_seeking: 是否在意效率/赶时间\n  - excitement_seeking: 是否想要兴奋刺激\n  - tranquility_seeking: 是否想要宁静放松\n  - budget_sensitivity: 预算敏感度\n  - novelty_seeking: 是否想尝试新东西\n  - social_desire: 社交需求\n  - physical_energy: 体力意愿\n",
+  "_llm_raw_response": "{\n  \"city\": \"珠海\",\n  \"time\": {\"period\": \"下午\", \"start\": \"14:00\", \"end\": \"17:00\"},\n  \"budget\": {\"per_person\": 500, \"type\": \"弹性\"},\n  \"group\": {\"size\": 1, \"type\": \"独居\"},\n  \"preferences\": {\"culture\": 0.3, \"food\": 0.3, \"nature\": 0.5, \"social\": 0.2},\n  \"pace\": \"特种兵型\",\n  \"hard_constraints\": [],\n  \"scene_requirements\": [],\n  \"preferred_categories\": [\"景点\", \"自然风光\", \"文化\"],\n  \"demand_vector\": {\n    \"efficiency_seeking\": 0.9,\n    \"excitement_seeking\": 0.3,\n    \"tranquility_seeking\": 0.2,\n    \"budget_sensitivit",
+  "_llm_model": "deepseek-chat",
+  "_demand_vector": {
+    "efficiency_seeking": 0.9,
+    "excitement_seeking": 0.3,
+    "tranquility_seeking": 0.2,
+    "budget_sensitivity": 0.3,
+    "novelty_seeking": 0.5,
+    "social_desire": 0.2,
+    "physical_energy": 0.8
+  },
+  "matched_profile_id": "P13",
+  "_llm_used": true,
+  "_llm_error": "",
+  "_profile_top3": [
+    {
+      "id": "P13",
+      "score": 9.0,
+      "name": "运动健身"
+    },
+    {
+      "id": "P8",
+      "score": 7.7,
+      "name": "自然爱好者"
+    },
+    {
+      "id": "P1",
+      "score": 7.4,
+      "name": "社恐独居"
+    }
+  ]
+}
+[IntentParser] 收到用户输入: 珠海本地人爱吃的街边小店，避开游客坑，预算50
+INFO:     127.0.0.1:6042 - "POST /api/plan HTTP/1.1" 200 OK
+[IntentParser] LLM 解析成功
+[IntentParser] 匹配画像: P8 - 自然爱好者
+[IntentParser] 完整结果: {
+  "city": "珠海",
+  "time": {
+    "period": "全天",
+    "start": "09:00",
+    "end": "21:00"
+  },
+  "budget": {
+    "per_person": 50,
+    "type": "硬约束"
+  },
+  "group": {
+    "size": 1,
+    "type": "独居"
+  },
+  "preferences": {
+    "culture": 0.2,
+    "food": 0.9,
+    "nature": 0.1,
+    "social": 0.3
+  },
+  "pace": "闲逛型",
+  "hard_constraints": [
+    "queue_intolerant"
+  ],
+  "scene_requirements": [
+    "街边小店",
+    "本地小吃",
+    "便宜实惠"
+  ],
+  "preferred_categories": [
+    "餐饮",
+    "夜市小吃",
+    "便利店"
+  ],
+  "location": null,
+  "_llm_prompt": "你是 CityFlow 城市出行路线规划系统的意图解析器。\n用户会用自然语言描述出行需求，你需要解析为严格的 JSON 格式。\n\n输出格式（只输出 JSON，不要任何其他文字）：\n{\n  \"city\": \"珠海/广州/湛江\",\n  \"time\": {\"period\": \"上午/下午/全天\", \"start\": \"HH:MM\", \"end\": \"HH:MM\"},\n  \"budget\": {\"per_person\": 金额整数, \"type\": \"硬约束/弹性\"},\n  \"group\": {\"size\": 人数整数, \"type\": \"独居/情侣/亲子/朋友/退休\"},\n  \"preferences\": {\"culture\": 0到1的小数, \"food\": 0到1的小数, \"nature\": 0到1的小数, \"social\": 0到1的小数},\n  \"pace\": \"特种兵型/平衡型/闲逛型\",\n  \"hard_constraints\": [\"约束1\", \"约束2\"],\n  \"scene_requirements\": [\"场景元素1\", \"场景元素2\"],\n  \"preferred_categories\": [\"类别1\", \"类别2\", \"类别3\"],\n  \"demand_vector\": {\n    \"efficiency_seeking\": 0~1,\n    \"excitement_seeking\": 0~1,\n    \"tranquility_seeking\": 0~1,\n    \"budget_sensitivity\": 0~1,\n    \"novelty_seeking\": 0~1,\n    \"social_desire\": 0~1,\n    \"physical_energy\": 0~1\n  },\n  \"location\": \"用户在哪个区域/地标附近，如'拱北''香洲''天河'，不知道则填null\"\n}\n\n规则：\n- city: 根据用户提到的城市判断，无明确城市则默认\"珠海\"\n- budget: 无明确预算则 per_person=500, type=\"弹性\"\n- group.type: 根据同行人判断，默认\"独居\"\n- time: 如果用户提到\"3小时\"\"半天\"\"2小时搞定\"等时长，根据start计算end。如start=\"14:00\"且\"3小时\"→end=\"17:00\"\n- time: 如果用户提到\"凌晨\"\"深夜\"，start和end应为对应时段（如00:00-06:00）\n- preferences: 根据关键词推断偏好强度（0=完全不感兴趣, 1=非常感兴趣）\n  - culture: 文化/历史/艺术/博物馆/展览\n  - food: 美食/餐厅/小吃/探店\n  - nature: 自然/公园/山/湖/植物\n  - social: 社交/聚会/热闹/人多\n- pace: \"特种兵型\"=赶场打卡, \"平衡型\"=适中, \"闲逛型\"=慢节奏\n- hard_constraints: 提取明确的限制条件，支持以下类型：\n  - \"不想排队\" → \"queue_intolerant\"\n  - \"无障碍/轮椅/婴儿车\" → \"accessible\"\n  - \"带宠物/狗/猫\" → \"pet_friendly\"\n  - \"室内/空调/下雨天/别中暑\" → \"indoor_only\"\n  - \"海边/户外/露天\" → \"outdoor_preferred\"\n  - \"凌晨/深夜/宵夜/通宵\" → \"late_night\"\n  - \"游乐园/海洋馆/动物园\" → \"needs_entertainment\"\n  - \"烧烤/火锅/茶馆/咖啡馆/书店\" → add specific activity to hard_constraints\n- scene_requirements: 提取用户明确要求的场景元素，用于POI语义匹配。例如：\n  - \"喝茶听曲\" → [\"茶馆\", \"曲艺表演\", \"传统文化\"]\n  - \"街边小吃\" → [\"街边小店\", \"本地小吃\", \"便宜实惠\"]\n  - \"拍照出片\" → [\"拍照打卡\", \"网红景点\", \"出片\"]\n  - \"游乐园海洋馆\" → [\"游乐园\", \"海洋馆\", \"儿童游乐\"]\n  - \"蹦迪\" → [\"酒吧\", \"夜店\", \"LiveHouse\"]\n  - \"书法博物馆\" → [\"书法\", \"博物馆\", \"传统文化\"]\n  - \"烧烤聚会\" → [\"烧烤\", \"聚餐\", \"户外用餐\"]\n  - 如果用户没有明确要求特定场景，填空数组[]\n- preferred_categories: 根据用户意图选择3-6个最相关的POI类别，按优先级排序。可选类别：\n  餐饮, 景点, 购物, 文化, 运动, 娱乐, 温泉SPA, 海景咖啡馆, 夜市, 夜市小吃,\n  书店, 咖啡馆, 密室逃脱, 剧本杀, 恐怖密室, 室内攀岩, 户外攀岩, 水上运动场所,\n  游戏, 益智, 科技, 科技体验, 网吧/电竞馆, 自然风光, 文艺, 休闲, 便利店\n  示例：\n  - \"朋友聚会要能玩又能吃\" → [\"餐饮\", \"娱乐\", \"购物\"]\n  - \"下午想蹦迪\" → [\"娱乐\", \"餐饮\"]\n  - \"凌晨吃宵夜\" → [\"餐饮\", \"夜市\", \"夜市小吃\"]\n  - \"带孩子玩游乐园\" → [\"景点\", \"运动\", \"娱乐\"]\n  - \"安静画画\" → [\"文化\", \"文艺\", \"咖啡馆\"]\n  - \"拍日出日落夜景\" → [\"景点\", \"自然风光\"]\n  - \"情侣约会\" → [\"餐饮\", \"文化\", \"景点\", \"海景咖啡馆\"]\n  - \"老两口公园喝茶\" → [\"文化\", \"景点\", \"餐饮\"]\n- 社恐/不想人多 → social 设低值(0.1-0.2)\n- demand_vector: 语义需求向量（0~1），与preferences互补但更侧重行为倾向\n  - efficiency_seeking: 是否在意效率/赶时间\n  - excitement_seeking: 是否想要兴奋刺激\n  - tranquility_seeking: 是否想要宁静放松\n  - budget_sensitivity: 预算敏感度\n  - novelty_seeking: 是否想尝试新东西\n  - social_desire: 社交需求\n  - physical_energy: 体力意愿\n",
+  "_llm_raw_response": "{\n  \"city\": \"珠海\",\n  \"time\": {\"period\": \"全天\", \"start\": \"09:00\", \"end\": \"21:00\"},\n  \"budget\": {\"per_person\": 50, \"type\": \"硬约束\"},\n  \"group\": {\"size\": 1, \"type\": \"独居\"},\n  \"preferences\": {\"culture\": 0.2, \"food\": 0.9, \"nature\": 0.1, \"social\": 0.3},\n  \"pace\": \"闲逛型\",\n  \"hard_constraints\": [\"queue_intolerant\"],\n  \"scene_requirements\": [\"街边小店\", \"本地小吃\", \"便宜实惠\"],\n  \"preferred_categories\": [\"餐饮\", \"夜市小吃\", \"便利店\"],\n  \"demand_vector\": {\n    \"efficiency_seeking\": 0.3,\n    \"excitement_seeking\": 0.2,\n    \"tranquili",
+  "_llm_model": "deepseek-chat",
+  "_demand_vector": {
+    "efficiency_seeking": 0.3,
+    "excitement_seeking": 0.2,
+    "tranquility_seeking": 0.6,
+    "budget_sensitivity": 0.9,
+    "novelty_seeking": 0.4,
+    "social_desire": 0.2,
+    "physical_energy": 0.5
+  },
+  "matched_profile_id": "P8",
+  "_llm_used": true,
+  "_llm_error": "",
+  "_profile_top3": [
+    {
+      "id": "P8",
+      "score": 9.6,
+      "name": "自然爱好者"
+    },
+    {
+      "id": "P12",
+      "score": 9.3,
+      "name": "宠物主人"
+    },
+    {
+      "id": "P20",
+      "score": 9.1,
+      "name": "极简主义者"
+    }
+  ]
+}
+[Solver] scene_requirements Phase0预过滤(ANY-match): 414 个匹配
+[Solver] 美食场景过滤: 移除便利店12个, 剩余402
+[Solver] hard_constraints: ['queue_intolerant'], type=<class 'list'>, late_night in=False
+[过滤] 好香趣小吃 - 价格177 > 预算50
+[过滤] 爱尔兰四叶草酒吧 - 价格112 > 预算50
+[过滤] 瑪嘉烈蛋撻店 Cafe e Nata Margaret's - 价格65 > 预算50
+[过滤] 湾仔海鲜夜市 - 价格60 > 预算50
+[过滤] 九洲港夜市 - 价格55 > 预算50
+[过滤] 石花山公园 - 价格80 > 预算50
+[过滤] 拱北地下商业街 - 价格80 > 预算50
+[过滤] 24h Convenience Store - 价格356 > 预算50
+[过滤] 來來超級市場 - 价格317 > 预算50
+[过滤] Fa Cheruo - 价格251 > 预算50
+[过滤] 新苗超級市場 Sanmiu Supermarket - 价格280 > 预算50
+[过滤] 华润万家 - 价格208 > 预算50
+[过滤] 百佳 PARKnSHOP - 价格461 > 预算50
+[过滤] 泉亮廣場 Taipa Plaza - 价格316 > 预算50
+[Solver-Phase1] scene_requirements: ['街边小店', '苍蝇馆子', '老字号', '平价小吃', '本地小吃', '本地人推荐', '便宜实惠'], candidates: 43
+[Solver-Phase1] _scene_matched_ids: 12, remaining: 43, is_food_req: True
+[Solver-Phase1] 两阶段锁定: 只从12个scene_matched POI中选
+[Solver] 最低长度保护: 补充到3站
+[IntentParser] 收到用户输入: 上午想安静画画，下午突然想蹦迪，怎么安排？
+INFO:     127.0.0.1:6057 - "POST /api/plan HTTP/1.1" 200 OK
+[IntentParser] LLM 解析成功
+[IntentParser] 匹配画像: P1 - 社恐独居
+[IntentParser] 完整结果: {
+  "city": "珠海",
+  "time": {
+    "period": "全天",
+    "start": "09:00",
+    "end": "23:00"
+  },
+  "budget": {
+    "per_person": 500,
+    "type": "弹性"
+  },
+  "group": {
+    "size": 1,
+    "type": "独居"
+  },
+  "preferences": {
+    "culture": 0.8,
+    "food": 0.3,
+    "nature": 0.2,
+    "social": 0.6
+  },
+  "pace": "平衡型",
+  "hard_constraints": [],
+  "scene_requirements": [
+    "安静画画",
+    "蹦迪"
+  ],
+  "preferred_categories": [
+    "文化",
+    "文艺",
+    "咖啡馆",
+    "娱乐",
+    "餐饮"
+  ],
+  "location": null,
+  "_llm_prompt": "你是 CityFlow 城市出行路线规划系统的意图解析器。\n用户会用自然语言描述出行需求，你需要解析为严格的 JSON 格式。\n\n输出格式（只输出 JSON，不要任何其他文字）：\n{\n  \"city\": \"珠海/广州/湛江\",\n  \"time\": {\"period\": \"上午/下午/全天\", \"start\": \"HH:MM\", \"end\": \"HH:MM\"},\n  \"budget\": {\"per_person\": 金额整数, \"type\": \"硬约束/弹性\"},\n  \"group\": {\"size\": 人数整数, \"type\": \"独居/情侣/亲子/朋友/退休\"},\n  \"preferences\": {\"culture\": 0到1的小数, \"food\": 0到1的小数, \"nature\": 0到1的小数, \"social\": 0到1的小数},\n  \"pace\": \"特种兵型/平衡型/闲逛型\",\n  \"hard_constraints\": [\"约束1\", \"约束2\"],\n  \"scene_requirements\": [\"场景元素1\", \"场景元素2\"],\n  \"preferred_categories\": [\"类别1\", \"类别2\", \"类别3\"],\n  \"demand_vector\": {\n    \"efficiency_seeking\": 0~1,\n    \"excitement_seeking\": 0~1,\n    \"tranquility_seeking\": 0~1,\n    \"budget_sensitivity\": 0~1,\n    \"novelty_seeking\": 0~1,\n    \"social_desire\": 0~1,\n    \"physical_energy\": 0~1\n  },\n  \"location\": \"用户在哪个区域/地标附近，如'拱北''香洲''天河'，不知道则填null\"\n}\n\n规则：\n- city: 根据用户提到的城市判断，无明确城市则默认\"珠海\"\n- budget: 无明确预算则 per_person=500, type=\"弹性\"\n- group.type: 根据同行人判断，默认\"独居\"\n- time: 如果用户提到\"3小时\"\"半天\"\"2小时搞定\"等时长，根据start计算end。如start=\"14:00\"且\"3小时\"→end=\"17:00\"\n- time: 如果用户提到\"凌晨\"\"深夜\"，start和end应为对应时段（如00:00-06:00）\n- preferences: 根据关键词推断偏好强度（0=完全不感兴趣, 1=非常感兴趣）\n  - culture: 文化/历史/艺术/博物馆/展览\n  - food: 美食/餐厅/小吃/探店\n  - nature: 自然/公园/山/湖/植物\n  - social: 社交/聚会/热闹/人多\n- pace: \"特种兵型\"=赶场打卡, \"平衡型\"=适中, \"闲逛型\"=慢节奏\n- hard_constraints: 提取明确的限制条件，支持以下类型：\n  - \"不想排队\" → \"queue_intolerant\"\n  - \"无障碍/轮椅/婴儿车\" → \"accessible\"\n  - \"带宠物/狗/猫\" → \"pet_friendly\"\n  - \"室内/空调/下雨天/别中暑\" → \"indoor_only\"\n  - \"海边/户外/露天\" → \"outdoor_preferred\"\n  - \"凌晨/深夜/宵夜/通宵\" → \"late_night\"\n  - \"游乐园/海洋馆/动物园\" → \"needs_entertainment\"\n  - \"烧烤/火锅/茶馆/咖啡馆/书店\" → add specific activity to hard_constraints\n- scene_requirements: 提取用户明确要求的场景元素，用于POI语义匹配。例如：\n  - \"喝茶听曲\" → [\"茶馆\", \"曲艺表演\", \"传统文化\"]\n  - \"街边小吃\" → [\"街边小店\", \"本地小吃\", \"便宜实惠\"]\n  - \"拍照出片\" → [\"拍照打卡\", \"网红景点\", \"出片\"]\n  - \"游乐园海洋馆\" → [\"游乐园\", \"海洋馆\", \"儿童游乐\"]\n  - \"蹦迪\" → [\"酒吧\", \"夜店\", \"LiveHouse\"]\n  - \"书法博物馆\" → [\"书法\", \"博物馆\", \"传统文化\"]\n  - \"烧烤聚会\" → [\"烧烤\", \"聚餐\", \"户外用餐\"]\n  - 如果用户没有明确要求特定场景，填空数组[]\n- preferred_categories: 根据用户意图选择3-6个最相关的POI类别，按优先级排序。可选类别：\n  餐饮, 景点, 购物, 文化, 运动, 娱乐, 温泉SPA, 海景咖啡馆, 夜市, 夜市小吃,\n  书店, 咖啡馆, 密室逃脱, 剧本杀, 恐怖密室, 室内攀岩, 户外攀岩, 水上运动场所,\n  游戏, 益智, 科技, 科技体验, 网吧/电竞馆, 自然风光, 文艺, 休闲, 便利店\n  示例：\n  - \"朋友聚会要能玩又能吃\" → [\"餐饮\", \"娱乐\", \"购物\"]\n  - \"下午想蹦迪\" → [\"娱乐\", \"餐饮\"]\n  - \"凌晨吃宵夜\" → [\"餐饮\", \"夜市\", \"夜市小吃\"]\n  - \"带孩子玩游乐园\" → [\"景点\", \"运动\", \"娱乐\"]\n  - \"安静画画\" → [\"文化\", \"文艺\", \"咖啡馆\"]\n  - \"拍日出日落夜景\" → [\"景点\", \"自然风光\"]\n  - \"情侣约会\" → [\"餐饮\", \"文化\", \"景点\", \"海景咖啡馆\"]\n  - \"老两口公园喝茶\" → [\"文化\", \"景点\", \"餐饮\"]\n- 社恐/不想人多 → social 设低值(0.1-0.2)\n- demand_vector: 语义需求向量（0~1），与preferences互补但更侧重行为倾向\n  - efficiency_seeking: 是否在意效率/赶时间\n  - excitement_seeking: 是否想要兴奋刺激\n  - tranquility_seeking: 是否想要宁静放松\n  - budget_sensitivity: 预算敏感度\n  - novelty_seeking: 是否想尝试新东西\n  - social_desire: 社交需求\n  - physical_energy: 体力意愿\n",
+  "_llm_raw_response": "{\n  \"city\": \"珠海\",\n  \"time\": {\"period\": \"全天\", \"start\": \"09:00\", \"end\": \"23:00\"},\n  \"budget\": {\"per_person\": 500, \"type\": \"弹性\"},\n  \"group\": {\"size\": 1, \"type\": \"独居\"},\n  \"preferences\": {\"culture\": 0.8, \"food\": 0.3, \"nature\": 0.2, \"social\": 0.6},\n  \"pace\": \"平衡型\",\n  \"hard_constraints\": [],\n  \"scene_requirements\": [\"安静画画\", \"蹦迪\"],\n  \"preferred_categories\": [\"文化\", \"文艺\", \"咖啡馆\", \"娱乐\", \"餐饮\"],\n  \"demand_vector\": {\n    \"efficiency_seeking\": 0.3,\n    \"excitement_seeking\": 0.7,\n    \"tranquility_seeking\": 0.6,\n",
+  "_llm_model": "deepseek-chat",
+  "_demand_vector": {
+    "efficiency_seeking": 0.3,
+    "excitement_seeking": 0.7,
+    "tranquility_seeking": 0.6,
+    "budget_sensitivity": 0.3,
+    "novelty_seeking": 0.5,
+    "social_desire": 0.6,
+    "physical_energy": 0.5
+  },
+  "matched_profile_id": "P1",
+  "_llm_used": true,
+  "_llm_error": "",
+  "_profile_top3": [
+    {
+      "id": "P1",
+      "score": 11.3,
+      "name": "社恐独居"
+    },
+    {
+      "id": "P6",
+      "score": 9.3,
+      "name": "文化探索者"
+    },
+    {
+      "id": "P15",
+      "score": 9.0,
+      "name": "商务休闲"
+    }
+  ]
+}
+[IntentParser] 收到用户输入: 今天拍日出日落加夜景，3个时段各一小时，地点越多越好
+INFO:     127.0.0.1:6306 - "POST /api/plan HTTP/1.1" 200 OK
+[IntentParser] LLM 解析成功
+[IntentParser] 匹配画像: P13 - 运动健身
+[IntentParser] 完整结果: {
+  "city": "珠海",
+  "time": {
+    "period": "全天",
+    "start": "05:00",
+    "end": "21:00"
+  },
+  "budget": {
+    "per_person": 500,
+    "type": "弹性"
+  },
+  "group": {
+    "size": 1,
+    "type": "独居"
+  },
+  "preferences": {
+    "culture": 0.2,
+    "food": 0.1,
+    "nature": 0.9,
+    "social": 0.1
+  },
+  "pace": "特种兵型",
+  "hard_constraints": [
+    "outdoor_preferred"
+  ],
+  "scene_requirements": [
+    "拍照打卡",
+    "日出",
+    "日落",
+    "夜景"
+  ],
+  "preferred_categories": [
+    "景点",
+    "自然风光"
+  ],
+  "location": null,
+  "_llm_prompt": "你是 CityFlow 城市出行路线规划系统的意图解析器。\n用户会用自然语言描述出行需求，你需要解析为严格的 JSON 格式。\n\n输出格式（只输出 JSON，不要任何其他文字）：\n{\n  \"city\": \"珠海/广州/湛江\",\n  \"time\": {\"period\": \"上午/下午/全天\", \"start\": \"HH:MM\", \"end\": \"HH:MM\"},\n  \"budget\": {\"per_person\": 金额整数, \"type\": \"硬约束/弹性\"},\n  \"group\": {\"size\": 人数整数, \"type\": \"独居/情侣/亲子/朋友/退休\"},\n  \"preferences\": {\"culture\": 0到1的小数, \"food\": 0到1的小数, \"nature\": 0到1的小数, \"social\": 0到1的小数},\n  \"pace\": \"特种兵型/平衡型/闲逛型\",\n  \"hard_constraints\": [\"约束1\", \"约束2\"],\n  \"scene_requirements\": [\"场景元素1\", \"场景元素2\"],\n  \"preferred_categories\": [\"类别1\", \"类别2\", \"类别3\"],\n  \"demand_vector\": {\n    \"efficiency_seeking\": 0~1,\n    \"excitement_seeking\": 0~1,\n    \"tranquility_seeking\": 0~1,\n    \"budget_sensitivity\": 0~1,\n    \"novelty_seeking\": 0~1,\n    \"social_desire\": 0~1,\n    \"physical_energy\": 0~1\n  },\n  \"location\": \"用户在哪个区域/地标附近，如'拱北''香洲''天河'，不知道则填null\"\n}\n\n规则：\n- city: 根据用户提到的城市判断，无明确城市则默认\"珠海\"\n- budget: 无明确预算则 per_person=500, type=\"弹性\"\n- group.type: 根据同行人判断，默认\"独居\"\n- time: 如果用户提到\"3小时\"\"半天\"\"2小时搞定\"等时长，根据start计算end。如start=\"14:00\"且\"3小时\"→end=\"17:00\"\n- time: 如果用户提到\"凌晨\"\"深夜\"，start和end应为对应时段（如00:00-06:00）\n- preferences: 根据关键词推断偏好强度（0=完全不感兴趣, 1=非常感兴趣）\n  - culture: 文化/历史/艺术/博物馆/展览\n  - food: 美食/餐厅/小吃/探店\n  - nature: 自然/公园/山/湖/植物\n  - social: 社交/聚会/热闹/人多\n- pace: \"特种兵型\"=赶场打卡, \"平衡型\"=适中, \"闲逛型\"=慢节奏\n- hard_constraints: 提取明确的限制条件，支持以下类型：\n  - \"不想排队\" → \"queue_intolerant\"\n  - \"无障碍/轮椅/婴儿车\" → \"accessible\"\n  - \"带宠物/狗/猫\" → \"pet_friendly\"\n  - \"室内/空调/下雨天/别中暑\" → \"indoor_only\"\n  - \"海边/户外/露天\" → \"outdoor_preferred\"\n  - \"凌晨/深夜/宵夜/通宵\" → \"late_night\"\n  - \"游乐园/海洋馆/动物园\" → \"needs_entertainment\"\n  - \"烧烤/火锅/茶馆/咖啡馆/书店\" → add specific activity to hard_constraints\n- scene_requirements: 提取用户明确要求的场景元素，用于POI语义匹配。例如：\n  - \"喝茶听曲\" → [\"茶馆\", \"曲艺表演\", \"传统文化\"]\n  - \"街边小吃\" → [\"街边小店\", \"本地小吃\", \"便宜实惠\"]\n  - \"拍照出片\" → [\"拍照打卡\", \"网红景点\", \"出片\"]\n  - \"游乐园海洋馆\" → [\"游乐园\", \"海洋馆\", \"儿童游乐\"]\n  - \"蹦迪\" → [\"酒吧\", \"夜店\", \"LiveHouse\"]\n  - \"书法博物馆\" → [\"书法\", \"博物馆\", \"传统文化\"]\n  - \"烧烤聚会\" → [\"烧烤\", \"聚餐\", \"户外用餐\"]\n  - 如果用户没有明确要求特定场景，填空数组[]\n- preferred_categories: 根据用户意图选择3-6个最相关的POI类别，按优先级排序。可选类别：\n  餐饮, 景点, 购物, 文化, 运动, 娱乐, 温泉SPA, 海景咖啡馆, 夜市, 夜市小吃,\n  书店, 咖啡馆, 密室逃脱, 剧本杀, 恐怖密室, 室内攀岩, 户外攀岩, 水上运动场所,\n  游戏, 益智, 科技, 科技体验, 网吧/电竞馆, 自然风光, 文艺, 休闲, 便利店\n  示例：\n  - \"朋友聚会要能玩又能吃\" → [\"餐饮\", \"娱乐\", \"购物\"]\n  - \"下午想蹦迪\" → [\"娱乐\", \"餐饮\"]\n  - \"凌晨吃宵夜\" → [\"餐饮\", \"夜市\", \"夜市小吃\"]\n  - \"带孩子玩游乐园\" → [\"景点\", \"运动\", \"娱乐\"]\n  - \"安静画画\" → [\"文化\", \"文艺\", \"咖啡馆\"]\n  - \"拍日出日落夜景\" → [\"景点\", \"自然风光\"]\n  - \"情侣约会\" → [\"餐饮\", \"文化\", \"景点\", \"海景咖啡馆\"]\n  - \"老两口公园喝茶\" → [\"文化\", \"景点\", \"餐饮\"]\n- 社恐/不想人多 → social 设低值(0.1-0.2)\n- demand_vector: 语义需求向量（0~1），与preferences互补但更侧重行为倾向\n  - efficiency_seeking: 是否在意效率/赶时间\n  - excitement_seeking: 是否想要兴奋刺激\n  - tranquility_seeking: 是否想要宁静放松\n  - budget_sensitivity: 预算敏感度\n  - novelty_seeking: 是否想尝试新东西\n  - social_desire: 社交需求\n  - physical_energy: 体力意愿\n",
+  "_llm_raw_response": "{\n  \"city\": \"珠海\",\n  \"time\": {\"period\": \"全天\", \"start\": \"05:00\", \"end\": \"21:00\"},\n  \"budget\": {\"per_person\": 500, \"type\": \"弹性\"},\n  \"group\": {\"size\": 1, \"type\": \"独居\"},\n  \"preferences\": {\"culture\": 0.2, \"food\": 0.1, \"nature\": 0.9, \"social\": 0.1},\n  \"pace\": \"特种兵型\",\n  \"hard_constraints\": [\"outdoor_preferred\"],\n  \"scene_requirements\": [\"拍照打卡\", \"日出\", \"日落\", \"夜景\"],\n  \"preferred_categories\": [\"景点\", \"自然风光\"],\n  \"demand_vector\": {\n    \"efficiency_seeking\": 0.8,\n    \"excitement_seeking\": 0.3,\n    \"tranquility_",
+  "_llm_model": "deepseek-chat",
+  "_demand_vector": {
+    "efficiency_seeking": 0.8,
+    "excitement_seeking": 0.3,
+    "tranquility_seeking": 0.6,
+    "budget_sensitivity": 0.3,
+    "novelty_seeking": 0.5,
+    "social_desire": 0.1,
+    "physical_energy": 0.7
+  },
+  "matched_profile_id": "P13",
+  "_llm_used": true,
+  "_llm_error": "",
+  "_profile_top3": [
+    {
+      "id": "P13",
+      "score": 8.8,
+      "name": "运动健身"
+    },
+    {
+      "id": "P1",
+      "score": 7.6,
+      "name": "社恐独居"
+    },
+    {
+      "id": "P20",
+      "score": 7.4,
+      "name": "极简主义者"
+    }
+  ]
+}
+[Solver] scene_requirements Phase0预过滤(ANY-match): 333 个匹配
+[Solver] 深夜场景过滤: 移除白天专属景点5个
+[Solver] hard_constraints: ['outdoor_preferred'], type=<class 'list'>, late_night in=False
+[Solver-Phase1] scene_requirements: ['日落', '摄影', '拍照打卡', '观景台', '夜景', '日出', '地标', '海滨'], candidates: 88
+[Solver-Phase1] _scene_matched_ids: 88, remaining: 88, is_food_req: False
+[Solver-Phase1] 两阶段锁定: 只从88个scene_matched POI中选
