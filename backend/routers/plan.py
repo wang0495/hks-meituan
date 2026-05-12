@@ -163,10 +163,54 @@ async def plan_route(request: PlanRequest):
             # -----------------------------------------------------------------
             from backend.config.settings import settings
 
-            # 支持请求参数覆盖配置: agent=true/false/None
+            # 支持版本切换: version="a" (联邦架构), version="b" (Validator架构), None (默认配置)
+            version = getattr(request, 'version', None)
             use_agent = request.agent if request.agent is not None else settings.agent.enabled
 
-            if use_agent:
+            if version == "a":
+                # A版本: 3层联邦架构
+                from backend.agents_v2 import build_graph_a, get_graph_a
+                graph_a = get_graph_a()
+                sse_queue_a: asyncio.Queue = asyncio.Queue()
+
+                # 构建初始状态
+                initial_state_a = {
+                    "user_input": request.user_input,
+                    "intent_package": None,
+                    "bids": [],
+                    "validation_issues": [],
+                    "surviving_bids": [],
+                    "contracts": [],
+                    "final_route": None,
+                    "runtime_alerts": [],
+                    "round": 0,
+                    "errors": [],
+                }
+
+                # 启动图执行（后台）
+                async def run_graph_a():
+                    try:
+                        result = await graph_a.ainvoke(initial_state_a)
+                        await sse_queue_a.put(_sse("done", {
+                            "route_id": str(uuid.uuid4())[:8],
+                            "full_route": result.get("final_route"),
+                            "version": "a",
+                        }))
+                    except Exception as e:
+                        logger.exception("A版本执行失败")
+                        await sse_queue_a.put(_sse("error", {"error": str(e), "version": "a"}))
+
+                asyncio.create_task(run_graph_a())
+
+                # 转发SSE事件
+                while True:
+                    event = await sse_queue_a.get()
+                    yield event
+                    if "event: done" in event or "event: error" in event:
+                        break
+                return
+
+            elif version == "b" or use_agent:
                 # 使用新的LangGraph管线
                 from backend.agents import build_graph, get_graph, LANGGRAPH_AVAILABLE
                 from backend.agents.streaming import graph_events_to_sse, sse_event

@@ -323,6 +323,11 @@ class PlanRequest(BaseModel):
         description="是否使用新的多智能体架构。None表示使用系统默认配置，true强制启用，false强制禁用。",
     )
 
+    version: str | None = Field(
+        None,
+        description="架构版本选择: 'a'=3层联邦架构, 'b'=LangGraph+Validator架构, None=使用默认配置",
+    )
+
     model_config = {
         "json_schema_extra": {
             "examples": [
