@@ -51,16 +51,28 @@ async def _load_all_pois() -> list[dict]:
         return []
 
 
+import os as _os
+from openai import AsyncOpenAI as _AsyncOpenAI
+
+# 复用client（避免每次调用都new）
+_llm_client: _AsyncOpenAI | None = None
+
+
+def _get_llm_client() -> _AsyncOpenAI:
+    global _llm_client
+    if _llm_client is None:
+        _llm_client = _AsyncOpenAI(
+            base_url=_os.getenv("LLM_BASE_URL", "https://api.deepseek.com"),
+            api_key=_os.getenv("LLM_API_KEY", _os.getenv("OPENAI_API_KEY", "")),
+        )
+    return _llm_client
+
+
 async def _llm_decide(system_prompt: str, user_prompt: str, retries: int = 2) -> dict | None:
     """调用DeepSeek LLM做决策，JSON mode直接返回结构化输出。"""
+    client = _get_llm_client()
     for attempt in range(retries):
         try:
-            import os
-            from openai import AsyncOpenAI
-            client = AsyncOpenAI(
-                base_url=os.getenv("LLM_BASE_URL", "https://api.deepseek.com"),
-                api_key=os.getenv("LLM_API_KEY", os.getenv("OPENAI_API_KEY", "")),
-            )
             resp = await client.chat.completions.create(
                 model="deepseek-chat",
                 messages=[
@@ -74,7 +86,6 @@ async def _llm_decide(system_prompt: str, user_prompt: str, retries: int = 2) ->
             return json.loads(text)
         except Exception:
             if attempt < retries - 1:
-                import asyncio
                 await asyncio.sleep(1)
     return None
 

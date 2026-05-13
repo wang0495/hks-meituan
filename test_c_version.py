@@ -30,14 +30,8 @@ TEST_SCENARIOS = [
 ]
 
 
-async def llm_score(user_input: str, route_text: str) -> dict | None:
-    """用龙猫给路线打分（与test_llm_scoring.py相同逻辑）。"""
-    prompt = f"""你是旅游路线质量评审。请客观公正地评估以下路线。
-
-用户需求: {user_input}
-
-路线:
-{route_text}
+# 评分prompt前缀（固定部分，DeepSeek前缀缓存命中）
+_SCORE_PREFIX = """你是旅游路线质量评审。请客观公正地评估以下路线。
 
 ## 第一步：识别场景类型
 
@@ -97,6 +91,17 @@ async def llm_score(user_input: str, route_text: str) -> dict | None:
 3. 路线没有明显错误（如重复POI、深夜安排儿童活动等） → overall ≥ 6
 4. 不要因为"还可以更好"就给低分，6分代表"及格"，7分代表"不错"，8分代表"很好"
 5. 列出2-3个优点(good_points)和2-3个改进建议(bad_points)，不要只挑毛病
+
+"""
+
+
+async def llm_score(user_input: str, route_text: str) -> dict | None:
+    """用DeepSeek给路线打分（前缀缓存优化：固定rubric + 变量数据分离）。"""
+    # 固定前缀 + 变量后缀，让DeepSeek缓存命中rubric部分
+    prompt = _SCORE_PREFIX + f"""用户需求: {user_input}
+
+路线:
+{route_text}
 
 输出JSON: {{"scene_type":"目的地型/特种兵型/主题探索型/休闲慢游型/常规型","scores":{{"intent_match":N,"poi_quality":N,"geo_continuity":N,"scene_diversity":N,"overall":N}},"good_points":["优点1","优点2"],"bad_points":["建议1","建议2"]}}"""
 

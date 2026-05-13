@@ -783,14 +783,11 @@ async def _llm_decide(system_prompt: str, user_prompt: str, retries: int = 2) ->
     import json as _json
     import os
 
-    from openai import AsyncOpenAI
+    from backend.agents_v3.nodes.agents import _get_llm_client
 
+    client = _get_llm_client()
     for attempt in range(retries):
         try:
-            client = AsyncOpenAI(
-                base_url=os.getenv("LLM_BASE_URL", "https://api.deepseek.com"),
-                api_key=os.getenv("LLM_API_KEY", os.getenv("OPENAI_API_KEY", "")),
-            )
             resp = await client.chat.completions.create(
                 model="deepseek-chat",
                 messages=[

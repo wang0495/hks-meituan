@@ -91,16 +91,25 @@ Agent提案({len(proposal_summary)}个):
     return {"review_feedback": feedback, "review_round": round_num + 1}
 
 
+_review_client: "AsyncOpenAI | None" = None
+
+
+def _get_review_client():
+    global _review_client
+    if _review_client is None:
+        from openai import AsyncOpenAI
+        _review_client = AsyncOpenAI(
+            base_url=os.getenv("LLM_BASE_URL", "https://api.deepseek.com"),
+            api_key=os.getenv("LLM_API_KEY", os.getenv("OPENAI_API_KEY", "")),
+        )
+    return _review_client
+
+
 async def _llm_review(prompt: str) -> dict | None:
     """调用LLM做review。"""
-    from openai import AsyncOpenAI
-
+    client = _get_review_client()
     for _ in range(2):
         try:
-            client = AsyncOpenAI(
-                base_url=os.getenv("LLM_BASE_URL", "https://api.deepseek.com"),
-                api_key=os.getenv("LLM_API_KEY", os.getenv("OPENAI_API_KEY", "")),
-            )
             resp = await client.chat.completions.create(
                 model=os.getenv("LLM_MODEL", "deepseek-chat"),
                 messages=[{"role": "user", "content": prompt}],
