@@ -882,26 +882,30 @@ async def parse_intent(user_input: str, available_profiles: dict | None = None) 
     logger.info(f"[IntentParser] 收到用户输入: {user_input}")
     print(f"[IntentParser] 收到用户输入: {user_input}")
 
-    # 尝试 LLM 解析（30 秒超时 — DeepSeek 首次调用较慢）
+    # 尝试 LLM 解析（重试3次，每次30秒超时）
     intent: dict | None = None
     llm_used = False
     llm_error = ""
-    try:
-        intent = await asyncio.wait_for(_call_llm(user_input), timeout=30.0)
-        if intent:
-            llm_used = True
-            logger.info("[IntentParser] LLM 解析成功")
-            print("[IntentParser] LLM 解析成功")
-        else:
-            llm_error = "LLM 返回空结果"
-    except asyncio.TimeoutError:
-        llm_error = "LLM 超时（30s）"
-        logger.warning(f"[IntentParser] {llm_error}，降级为规则匹配")
-        print(f"[IntentParser] {llm_error}，降级为规则匹配")
-    except Exception as e:
-        llm_error = f"LLM 异常: {e}"
-        logger.warning(f"[IntentParser] {llm_error}，降级为规则匹配")
-        print(f"[IntentParser] {llm_error}，降级为规则匹配")
+    for attempt in range(3):
+        try:
+            intent = await asyncio.wait_for(_call_llm(user_input), timeout=30.0)
+            if intent:
+                llm_used = True
+                logger.info("[IntentParser] LLM 解析成功")
+                print("[IntentParser] LLM 解析成功")
+                break
+            else:
+                llm_error = "LLM 返回空结果"
+        except asyncio.TimeoutError:
+            llm_error = f"LLM 超时（30s）第{attempt + 1}次"
+            logger.warning(f"[IntentParser] {llm_error}")
+            print(f"[IntentParser] {llm_error}")
+        except Exception as e:
+            llm_error = f"LLM 异常: {e}"
+            logger.warning(f"[IntentParser] {llm_error}")
+            print(f"[IntentParser] {llm_error}")
+        if attempt < 2:
+            await asyncio.sleep(1)
 
     # 降级方案
     if intent is None:
