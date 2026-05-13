@@ -62,8 +62,12 @@ async def rule_guard(state: TravelState) -> dict:
     # ── 元规则防火墙检查 ──
     rule_violations = check_hard_rules(user_intent, candidates)
 
+    # ── 场景分类（规则，不额外调LLM） ──
+    scene_type = _classify_scene(user_input, user_intent)
+
     return {
         "user_intent": user_intent,
+        "scene_type": scene_type,
         "candidates": candidates,
         "rule_violations": rule_violations,
         "meta_rules": [],
@@ -210,3 +214,36 @@ def _fallback_intent(user_input: str) -> dict:
         intent["preferred_categories"] = ["景点", "文化"]
 
     return intent
+
+
+def _classify_scene(user_input: str, intent: dict) -> str:
+    """基于规则的场景分类（不额外调LLM）。
+
+    返回: 美食型 | 目的地型 | 特种兵型 | 休闲型 | 观光型（默认）
+    """
+    text = user_input.lower()
+    pace = intent.get("pace", "平衡型")
+    prefs = intent.get("preferred_categories", [])
+    scene_reqs = intent.get("scene_requirements", [])
+
+    # 优先级1：美食主题
+    food_kws = ["美食", "海鲜", "吃", "小吃", "特色菜", "夜市", "吃货"]
+    if any(kw in text for kw in food_kws) or "餐饮" in prefs:
+        return "美食型"
+
+    # 优先级2：目的地型（指定了大景区）
+    dest_kws = ["长隆", "海洋王国", "海洋科学馆", "圆明新园", "御温泉", "梦幻水城"]
+    if any(kw in text for kw in dest_kws):
+        return "目的地型"
+
+    # 优先级3：特种兵
+    if "特种兵" in text or "特种兵" in pace:
+        return "特种兵型"
+
+    # 优先级4：休闲/慢游
+    relax_kws = ["休闲", "慢", "闲逛", "养老", "散步", "轻松"]
+    if any(kw in text for kw in relax_kws) or "闲逛" in pace:
+        return "休闲型"
+
+    # 默认：观光型
+    return "观光型"

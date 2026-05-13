@@ -50,6 +50,7 @@ async def coordinator(state: TravelState) -> dict:
     # 优先用rework后的proposals
     proposals = list(state.get("reworked_proposals") or state.get("proposals", []))
     intent = dict(state.get("user_intent", {}))
+    scene_type = state.get("scene_type", "观光型")
     errors = []
 
     # ── 1. 按Agent类型分类提案 ──
@@ -73,7 +74,8 @@ async def coordinator(state: TravelState) -> dict:
 
     # ── 2. LLM Agent编排路线（主路径）──
     route = await _llm_assemble_route(poi_proposals, food_proposals, hotel_proposals,
-                                       traffic_proposal, intent, state.get("user_input", ""))
+                                       traffic_proposal, intent, state.get("user_input", ""),
+                                       scene_type)
 
     # ── 3. LLM失败 → 规则兜底 ──
     if not route or not route.get("route"):
@@ -528,6 +530,7 @@ async def _llm_assemble_route(
     traffic_proposal: dict | None,
     intent: dict,
     user_input: str,
+    scene_type: str = "观光型",
 ) -> dict | None:
     """LLM Agent编排路线：综合考虑地理、时间、情绪、餐饮位置。"""
     # 准备各Agent的精选结果
@@ -584,6 +587,33 @@ async def _llm_assemble_route(
     end_time = intent.get("time", {}).get("end", "21:00")
     budget = intent.get("budget", {}).get("per_person", 0)
 
+    # 场景感知规则（按scene_type分化）
+    if scene_type == "美食型":
+        diversity_rule = """7. 【美食场景规则·重要】
+   - 这是一条美食探索路线！餐饮是主角，不是景点的配角
+   - 路线以餐厅/小吃为主线，中间可穿插1个轻松的散步点（公园/海边），但不是必须的
+   - 重点保证餐饮类型交替：海鲜正餐→小吃/甜品→夜市，不要同类扎堆
+   - 不需要为了"多样性"硬塞景点/购物/文化等无关POI"""
+    elif scene_type == "目的地型":
+        diversity_rule = """7. 【目的地场景规则】
+   - 用户指定了大景区，会在该景区待大半天
+   - 路线以该景区为中心，周边安排1-2个补充景点+餐饮
+   - 不需要大范围跨区域"""
+    elif scene_type == "特种兵型":
+        diversity_rule = """7. 【特种兵场景规则】
+   - 路线应覆盖尽可能多的类型：地标+自然+文化+娱乐+餐饮
+   - 跨区域赶场是正常的，但同区域景点应连排
+   - 餐饮穿插在赶场间隙，选快节奏的（不选需要久坐的）"""
+    elif scene_type == "休闲型":
+        diversity_rule = """7. 【休闲场景规则】
+   - 路线节奏慢、站点少（3-4个），每站停留时间长
+   - 类型可以少但质量要高：1个好景点+1个好餐厅+1个休闲点
+   - 不追求覆盖面"""
+    else:
+        diversity_rule = """7. 【观光场景规则】
+   - 路线应包含至少3种类型（景点+餐饮+公园/文化等），避免全景点或全公园
+   - 禁止为了多样性硬塞无关POI"""
+
     system = f"""你是旅行路线编排专家。你需要把Agent精选的景点、餐厅、住宿组合成一条完整的一日游路线。
 
 你的任务（按优先级）：
@@ -602,14 +632,9 @@ async def _llm_assemble_route(
    如果景点太多放不下，优先选地理位置紧凑、评分高的景点，舍弃远的。
 5. 【场景适配】{'亲子：景点间距要短，带小孩不宜长途奔波' if group_type == '亲子' else ''}{'情侣：安排海滨/浪漫路线' if group_type == '情侣' else ''}{'特种兵：紧凑排列，减少空隙' if '特种兵' in pace else ''}
 6. 【住宿尾置】如有住宿，放路线最后
-7. 【类型多样性·按场景】
-   - 非美食主题：路线应包含至少3种类型（景点+餐饮+公园/文化等），避免全景点或全公园
-   - 美食主题：不需要加景点/购物！重点保证餐饮内部多样性（海鲜+茶餐厅+小吃+甜品），不同类型的餐厅交替
-   - 禁止为了多样性硬塞无关POI（如美食路线塞购物中心）
+{diversity_rule}
 
 注意：交通Agent已给出参考顺序(traffic_order)，你可以参考但不必完全照搬，你的排序应综合地理+时间+餐饮位置。
-
-【提示】如果用户主题是美食，可以在两顿正餐之间安排1个附近的休闲景点（如公园散步消食），但不是必须的。如果加了景点，它应该离餐厅很近且性质轻松。
 
 输出JSON格式：
 {{"ordered_stops":[{{"name":"景点/餐厅名","type":"poi/lunch/dinner/hotel","reason":"为什么排这里"}}],"route_design":"路线设计思路（2句话）"}}
@@ -617,6 +642,7 @@ async def _llm_assemble_route(
 只输出JSON。ordered_stops按游览顺序排列。"""
 
     user = f"""用户需求: {user_input}
+场景类型: {scene_type}
 群体: {group_type or '未知'}
 节奏: {pace}
 时间: {start_time}-{end_time}

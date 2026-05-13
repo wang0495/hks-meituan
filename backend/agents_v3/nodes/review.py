@@ -19,6 +19,7 @@ async def review(state: TravelState) -> dict:
     proposals = state.get("proposals", [])
     intent = state.get("user_intent", {})
     user_input = state.get("user_input", "")
+    scene_type = state.get("scene_type", "观光型")
     round_num = state.get("review_round", 0)
 
     # 超过2轮强制通过
@@ -46,8 +47,39 @@ async def review(state: TravelState) -> dict:
     group_type = intent.get("group", {}).get("type", "")
     pace = intent.get("pace", "平衡型")
 
+    # 按scene_type分化检查规则
+    if scene_type == "美食型":
+        check_rules = """请检查以下问题（每个问题必须指明是哪个agent的问题）：
+1. food_agent: 餐饮子类型是否多样？（不应全是海鲜排档/全是夜市/全是同一种类，应覆盖海鲜+小吃+甜品/饮品+正餐）
+2. food_agent: 是否选了太多综合性场所？（夜市+美食街+海鲜街最多选1个，它们内部已有多种）
+3. poi_agent: 美食路线不需要太多景点，1-2个散步点即可，选多了反而是问题
+4. 整体：路线是否以餐饮为主线？不应为了多样性硬塞景点"""
+    elif scene_type == "目的地型":
+        check_rules = """请检查以下问题：
+1. poi_agent: 是否包含了用户指定的核心目的地？
+2. food_agent: 餐厅是否在目的地附近？（不应选很远的地方）
+3. 整体：POI是否集中在目的地周围？（不应大范围跨区域）"""
+    elif scene_type == "特种兵型":
+        check_rules = """请检查以下问题：
+1. poi_agent: 是否选了足够多的地标景点？（特种兵应覆盖5-8个）
+2. poi_agent: 景点类型是否多样？（自然+文化+娱乐+地标，不应全是一种）
+3. food_agent: 餐厅是否快节奏？（不应选需要久坐的正餐）
+4. 整体：路线是否紧凑无空隙？"""
+    elif scene_type == "休闲型":
+        check_rules = """请检查以下问题：
+1. poi_agent: 景点是否太多？（休闲应3-4个，不应超过5个）
+2. food_agent: 餐厅是否环境好、适合久坐？
+3. 整体：路线节奏是否舒缓？"""
+    else:
+        check_rules = """请检查以下问题：
+1. poi_agent: 是否选了与主题无关的POI？
+2. food_agent: 餐厅位置是否和景点地理接近？菜系/类型是否多样？
+3. poi_agent: 是否覆盖了用户提到的核心需求？
+4. 整体：路线中POI类型是否过于单一？"""
+
     prompt = f"""你是旅行路线质量审查员。检查各Agent的提案是否匹配用户意图，找出明显问题。
 
+场景类型: {scene_type}
 用户需求: {user_input}
 场景要求: {scene_reqs}
 偏好类别: {preferred_cats}
@@ -57,11 +89,7 @@ async def review(state: TravelState) -> dict:
 Agent提案({len(proposal_summary)}个):
 {json.dumps(proposal_summary, ensure_ascii=False)}
 
-请检查以下问题（每个问题必须指明是哪个agent的问题）：
-1. poi_agent: 是否选了与主题无关的POI？美食主题却3/5非餐饮？特种兵却缺地标？
-2. food_agent: 是否选了餐厅？餐厅位置是否和景点地理接近？菜系/类型是否多样（不应全选海鲜或全选同一类型）？
-3. poi_agent: 是否覆盖了用户提到的核心需求（海鲜、公园、景点等）？
-4. 整体：路线中POI类型是否单一（如全是公园或全是博物馆），应包含不同类型？
+{check_rules}
 
 输出JSON:
 {{"issues":[{{"agent":"poi/food/hotel","issue":"问题描述","suggestion":"建议"}}],"approved":true/false}}

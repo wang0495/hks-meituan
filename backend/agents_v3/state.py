@@ -21,6 +21,7 @@ class TravelState(TypedDict, total=False):
     # ── Layer 1: 用户输入 + 元规则 ──
     user_input: str
     user_intent: dict
+    scene_type: str                  # 美食型/观光型/目的地型/特种兵型/休闲型
     meta_rules: list[dict]
     candidates: list[dict]
 

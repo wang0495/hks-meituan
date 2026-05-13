@@ -245,6 +245,7 @@ async def poi_agent(state: TravelState) -> dict:
     candidates = state.get("candidates", [])
     intent = state.get("user_intent", {})
     user_input = state.get("user_input", "")
+    scene_type = state.get("scene_type", "观光型")
     errors = []
 
     # ── 读取review反馈（如果有） ──
@@ -305,8 +306,17 @@ async def poi_agent(state: TravelState) -> dict:
     # ── 决策：LLM（按场景类型分化prompt） ──
     system = _build_poi_prompt(intent)
 
+    # 场景覆盖：不同scene_type调整POI数量和策略
     pace = intent.get("pace", "平衡型")
-    max_picks = 8 if "特种兵" in pace else (4 if "闲逛" in pace else 5)
+    if scene_type == "美食型":
+        # 美食场景：POI是散步消食用，选2-3个轻松地点（公园/海边/文化街区）
+        max_picks = 3
+        system += "\n\n【美食场景覆盖】用户主要目的是吃，但路线也需要穿插1-2个散步消食的轻松地点（公园、海边、文化街区），让行程不只是吃。选2-3个即可，不要选需要长时间游览的景点。"
+    elif scene_type == "目的地型":
+        max_picks = 3
+        system += "\n\n【目的地型覆盖】用户指定了大景区，会在那里待大半天。选1-2个附近的补充景点即可，不要远距离选点。"
+    else:
+        max_picks = 8 if "特种兵" in pace else (4 if "闲逛" in pace else 5)
 
     user = f"""用户需求: {user_input}
 意图分析:
@@ -554,6 +564,7 @@ async def food_agent(state: TravelState) -> dict:
     # ── 感知 ──
     intent = state.get("user_intent", {})
     user_input = state.get("user_input", "")
+    scene_type = state.get("scene_type", "观光型")
     candidates = state.get("candidates", [])
 
     # ── 读取review反馈 ──
@@ -572,7 +583,7 @@ async def food_agent(state: TravelState) -> dict:
     all_pois = [p for p in all_pois if p.get("city", "") == target_city or not p.get("city")]
     food_cats = ["餐饮", "美食", "小吃", "海鲜", "餐厅", "夜市", "茶餐厅", "甜品", "饮品"]
     food_names = ["餐厅", "海鲜", "烧", "煲", "粉", "面", "火锅", "烧烤", "夜市", "粥", "蚝", "排档",
-                  "甜品", "奶茶", "冰", "茶餐厅", "柠檬"]
+                  "甜品", "奶茶", "冰", "茶餐厅", "柠檬", "美食街", "海鲜街", "老街"]
     foods = [
         c for c in all_pois
         if (any(kw in c.get("category", "") for kw in food_cats)
@@ -605,8 +616,9 @@ async def food_agent(state: TravelState) -> dict:
     _FOOD_SUBCATS = {
         "海鲜": ["海鲜", "蚝", "鱼排", "渔港"],
         "正餐": ["餐厅", "烧", "煲", "火锅", "烧烤"],
-        "小吃": ["粉", "面", "粥", "小吃", "排档", "夜市"],
+        "小吃": ["粉", "面", "粥", "小吃", "排档"],
         "茶餐厅/甜品": ["茶餐厅", "甜品", "奶茶", "冰", "柠檬", "饮品"],
+        "综合美食街": ["夜市", "美食街", "海鲜街", "老街"],
     }
     stratified = []
     subcat_map = {}  # name -> subcat
@@ -638,8 +650,9 @@ async def food_agent(state: TravelState) -> dict:
 
     group_type = intent.get("group", {}).get("type", "")
 
-    # ── 决策：LLM ──
-    system = f"""你是珠海美食推荐专家。根据用户需求从候选餐厅中挑选最合适的组合。
+    # ── 决策：LLM（按场景分化） ──
+    # 固定前缀（缓存命中）
+    _FOOD_SYSTEM_PREFIX = """你是珠海美食推荐专家。根据用户需求从候选餐厅中挑选最合适的组合。
 
 核心要求（按优先级）：
 1. 【地理就近】午餐选上午游览景点附近（坐标相近的），晚餐选下午/傍晚景点附近
@@ -650,15 +663,42 @@ async def food_agent(state: TravelState) -> dict:
 4. 【类型搭配·硬约束】
    - 夜市/美食街/海鲜街属于综合性美食场所，内部已有小吃+海鲜+甜品等多种，选1个就够了
    - 搭配原则：1个正餐（如海鲜餐厅/茶餐厅）+ 1个休闲（咖啡/甜品）+ 最多1个夜市/美食街
-   - 禁止选2个以上夜市/美食街/海鲜街（如"湾仔海鲜街+湾仔海鲜夜市+夏湾夜市"全是街/市场）
+   - 禁止选2个以上夜市/美食街/海鲜街
    - 禁止全选同类型（如全是海鲜排档）
-   - 参考UGC评价中提到的菜品和口碑来选择
-5. 【群体适配】{'亲子：选环境好、有儿童餐的；' if group_type == '亲子' else ''}{'情侣：选氛围好的特色餐厅；' if group_type == '情侣' else ''}{'特种兵：选快节奏、不用排队的。' if '特种兵' in user_input else ''}
+   - 参考UGC评价中提到的菜品和口碑来选择"""
+
+    if scene_type == "美食型":
+        # 美食场景：餐饮是主角，选4-5家
+        system = _FOOD_SYSTEM_PREFIX + """
+5. 【美食场景特化·重要】
+   - 用户就是为了吃来的！这是美食探索路线，餐饮是核心不是配角
+   - 选4-5家不同类型的餐厅/小吃，必须覆盖至少3种子类：
+     · 正餐（海鲜餐厅/粤菜餐厅）
+     · 小吃（粉面粥/排档）
+     · 甜品/饮品（茶餐厅/奶茶/甜品铺）
+     · 综合美食场所（夜市/美食街/海鲜街）——最多只选1个！这类场所内部已有多种
+   - 禁止选2个以上综合美食场所（夜市+美食街+海鲜街 都属于同一类）
+   - 禁止全是海鲜（排档+海鲜市场+海鲜夜市都算海鲜一类）
+   - 可以安排午餐+下午茶+晚餐的完整美食时间线
+   - 每家之间的地理位置可以稍远（美食探索本身就是目的）
+
+输出JSON: {{"picks":[{{"name":"店名","reason":"推荐理由","confidence":0.8,"meal_time":"午餐/下午茶/晚餐"}}]}}
+选4-5个。只输出JSON。"""
+        max_food = 5
+    else:
+        # 观光/目的地/特种兵/休闲：餐饮是配角，选2-3家
+        _GROUP_HINT = '亲子：选环境好、有儿童餐的；' if group_type == '亲子' else ''
+        _GROUP_HINT += '情侣：选氛围好的特色餐厅；' if group_type == '情侣' else ''
+        _GROUP_HINT += '特种兵：选快节奏、不用排队的。' if '特种兵' in user_input else ''
+        system = _FOOD_SYSTEM_PREFIX + f"""
+5. 【群体适配】{_GROUP_HINT}
 
 输出JSON: {{"picks":[{{"name":"店名","reason":"推荐理由（含与哪个景点就近）","confidence":0.8,"meal_time":"午餐/晚餐"}}]}}
 最多选3个。只输出JSON。"""
+        max_food = 3
 
     user = f"""用户需求: {user_input}
+场景类型: {scene_type}
 预算: {intent.get('budget', {}).get('per_person', '不限')}元/人
 群体: {group_type or '未知'}
 
