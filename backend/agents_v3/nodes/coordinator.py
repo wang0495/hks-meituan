@@ -1025,13 +1025,16 @@ async def _llm_assemble_route(
     if traffic_proposal:
         traffic_order = traffic_proposal.get("content", {}).get("suggested_order", [])
 
-    # 计算POI间距离矩阵（完整，不截断）
+    # 计算POI间距离矩阵（完整，不截断），>15km标注⚠️
     distances = []
     for i, p1 in enumerate(poi_list):
         for j, p2 in enumerate(poi_list):
             if i < j and p1.get("lat") and p2.get("lat"):
                 d = _haversine_km(p1["lat"], p1["lng"], p2["lat"], p2["lng"])
-                distances.append({"from": p1["name"], "to": p2["name"], "km": round(d, 1)})
+                entry = {"from": p1["name"], "to": p2["name"], "km": round(d, 1)}
+                if d > 15:
+                    entry["warning"] = "⚠️跨区不推荐"
+                distances.append(entry)
 
     group_type = intent.get("group", {}).get("type", "")
     pace = intent.get("pace", "平衡型")
@@ -1084,6 +1087,7 @@ async def _llm_assemble_route(
    如果景点太多放不下，优先选地理位置紧凑、评分高的景点，舍弃远的。
 5. 【场景适配】{'亲子：景点间距要短，带小孩不宜长途奔波' if group_type == '亲子' else ''}{'情侣：安排海滨/浪漫路线' if group_type == '情侣' else ''}{'特种兵：紧凑排列，减少空隙' if '特种兵' in pace else ''}
 6. 【住宿尾置】如有住宿，放路线最后
+7.5. 【距离硬约束】距离矩阵中标有"⚠️跨区不推荐"的景点对，禁止排在相邻位置。跨区>15km的两个景点间至少隔1小时交通时间。如果某个景点与大多数其他景点都>15km，优先舍弃它。
 {diversity_rule}
 8. 【最重要·硬约束】以下所有景点和餐厅必须全部出现在ordered_stops中，不允许省略任何一个：
    - 必选景点({len(poi_list)}个): {', '.join(p['name'] for p in poi_list)}

@@ -55,6 +55,31 @@ _FOOD_NAME_KWS = [
 ]
 
 
+def _food_intent_hint(scene_reqs_text: str, user_input: str) -> str:
+    """根据用户子意图生成food_agent的额外prompt提示。
+
+    检测scene_requirements和user_input中的食物关键词，
+    指导LLM优先选对应类型的餐饮。
+    """
+    text = scene_reqs_text + " " + user_input
+    hints = []
+
+    if any(kw in text for kw in ["甜品", "奶茶", "冰室", "甜点", "蛋糕"]):
+        hints.append("   - ⚠️ 用户核心需求是吃甜品！优先选甜品店/奶茶/冰室/茶餐厅甜品档，正餐最多选1家")
+    if any(kw in text for kw in ["海鲜", "生蚝", "虾", "蟹"]):
+        hints.append("   - ⚠️ 用户核心需求是吃海鲜！优先选海鲜排档/海鲜市场/海鲜餐厅，少选粉面粥")
+    if any(kw in text for kw in ["小吃", "粉", "面", "粥", "排档", "扫街"]):
+        hints.append("   - ⚠️ 用户核心需求是吃小吃！优先选粉面粥/排档/夜市小吃，正餐酒楼最多1家")
+    if any(kw in text for kw in ["夜宵", "深夜", "凌晨", "宵夜", "夜市"]):
+        hints.append("   - ⚠️ 用户是深夜觅食！优先选大排档/深夜营业场所，正餐餐厅可能已关门")
+    if any(kw in text for kw in ["茶餐厅", "早茶", "点心"]):
+        hints.append("   - ⚠️ 用户想吃茶餐厅/早茶！优先选粤式茶餐厅，其他类型最多1家")
+
+    if hints:
+        return "\n6. 【用户子意图·最重要】\n" + "\n".join(hints)
+    return ""
+
+
 # ═══════════════════════════════════════════════════════════
 # 公共工具
 # ═══════════════════════════════════════════════════════════
@@ -235,6 +260,14 @@ def _build_poi_prompt(intent: dict) -> str:
 - 优先选适合独处的安静景点（书店、美术馆、公园）
 - 可以选有文化深度的场所（博物馆、历史遗迹）
 - 注意安全性（避开偏僻区域）"""
+    elif group_type in ("团建", "团队", "公司"):
+        scene_extra = """
+【团建/大团队场景特化】
+- 优先选适合团队互动的POI（拓展基地、沙滩、游乐园、卡丁车）
+- 选择能容纳大群体的场所（公园、广场、大型景区）
+- 排除不适合团队的活动（情侣向景点、小型场馆）
+- 考虑团建常见需求：破冰、协作、合影
+- 优先选有团建设施或集体活动空间的场所"""
 
     # 特种兵/闲逛
     pace_extra = ""
@@ -342,6 +375,7 @@ async def poi_agent(state: TravelState) -> dict:
             "lat": c.get("lat", 0),
             "lng": c.get("lng", 0),
             "reviews": c.get("_ugc_summary", ""),
+            "suitability": c.get("_suitability", {}),
         })
 
     # ── 决策：LLM（按场景类型分化prompt） ──
@@ -727,8 +761,11 @@ async def food_agent(state: TravelState) -> dict:
    - 参考UGC评价中提到的菜品和口碑来选择"""
 
     if scene_type == "美食型":
-        # 美食场景：餐饮是主角，选4-5家
-        system = _FOOD_SYSTEM_PREFIX + """
+        # ── 按用户子意图分化prompt ──
+        scene_reqs_text = " ".join(intent.get("scene_requirements", []))
+        intent_hint = _food_intent_hint(scene_reqs_text, user_input)
+
+        system = _FOOD_SYSTEM_PREFIX + f"""
 5. 【美食场景特化·重要】
    - 用户就是为了吃来的！这是美食探索路线，餐饮是核心不是配角
    - 选4-5家不同类型的餐厅/小吃，必须覆盖至少3种子类：
@@ -740,7 +777,7 @@ async def food_agent(state: TravelState) -> dict:
    - 禁止全是海鲜（排档+海鲜市场+海鲜夜市都算海鲜一类）
    - 可以安排午餐+下午茶+晚餐的完整美食时间线
    - 每家之间的地理位置可以稍远（美食探索本身就是目的）
-
+{intent_hint}
 输出JSON: {{"picks":[{{"name":"店名","reason":"推荐理由","confidence":0.8,"meal_time":"午餐/下午茶/晚餐"}}]}}
 选4-5个。只输出JSON。"""
         max_food = 5
