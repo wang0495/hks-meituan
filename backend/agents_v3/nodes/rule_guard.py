@@ -40,6 +40,9 @@ async def rule_guard(state: TravelState) -> dict:
             errors.append(f"本地数据也不可用: {e2}")
             all_pois = []
 
+    # ── 修正被误分类的美食POI ──
+    _fix_food_categories(all_pois)
+
     # ── 只保留目标城市POI ──
     target_city = user_intent.get("city", "珠海")
     if all_pois:
@@ -215,6 +218,33 @@ def _fallback_intent(user_input: str) -> dict:
         intent["preferred_categories"] = ["景点", "文化"]
 
     return intent
+
+
+# 名称中包含这些关键词的POI，即使category不是餐饮也应归为餐饮
+_FOOD_NAME_KWS = [
+    "美食街", "海鲜街", "小吃街", "美食城", "美食广场", "食街",
+    "夜市", "大排档", "海鲜城", "海鲜市场", "水产市场",
+]
+# 名称中包含这些关键词的，不是景点而是餐饮
+_EXCLUDE_FROM_POI = [
+    "餐厅", "茶餐厅", "火锅", "烧烤", "甜品", "奶茶", "咖啡",
+    "粉麵", "粥", "点心", "早茶", "烧腊", "煲仔",
+]
+
+
+def _fix_food_categories(pois: list[dict]) -> None:
+    """修正被误分类的美食POI：通过名称识别，把category覆盖为餐饮。"""
+    food_cats = {"餐饮", "美食", "小吃", "夜市小吃"}
+    for p in pois:
+        cat = p.get("category", "")
+        if cat in food_cats:
+            continue
+        name = p.get("name", "")
+        for kw in _FOOD_NAME_KWS:
+            if kw in name:
+                p["_original_category"] = cat
+                p["category"] = "餐饮"
+                break
 
 
 def _classify_scene(user_input: str, intent: dict) -> str:

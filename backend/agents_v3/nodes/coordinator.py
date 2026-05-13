@@ -381,7 +381,7 @@ def _assemble_route(pois: list[dict], foods: list[dict], hotels: list[dict], int
         t = departure + timedelta(minutes=travel_min)
         prev_stop = stop
 
-    return steps
+    return _enforce_time_windows(steps)
 
 
 def _nearest_neighbor_sort_stops(stops: list[dict]) -> list[dict]:
@@ -434,6 +434,100 @@ def _apply_weather_advice(steps: list[dict], weather_proposal: dict) -> None:
             tags = str(poi.get("tags", [])) + str(poi.get("_scene_tags", []))
             if any(kw in tags for kw in ["户外", "海滨", "沙滩", "公园"]):
                 s["_weather_note"] = weather.get("advice", "天气不佳，建议缩短户外时间")
+
+
+def _enforce_time_windows(steps: list[dict]) -> list[dict]:
+    """后处理：确保餐食和夜间场所在合理时间窗口内。
+
+    规则：
+    - 午餐不早于 11:00
+    - 晚餐不早于 17:00
+    - 夜市/夜间场所不早于 17:00
+    - 如果出发时间在夜间（22:00-06:00），跳过时间窗口约束
+
+    如果某站过早，插入等待时间推后该站及后续所有站。
+    同时根据实际时间修正 _type 标签（lunch/dinner）。
+    """
+    if len(steps) <= 1:
+        return steps
+
+    # 夜间出发（22:00-06:00）不强制餐食时间窗口
+    try:
+        first_arrival = datetime.strptime(steps[0]["arrival_time"], "%H:%M")
+        if first_arrival >= datetime.strptime("22:00", "%H:%M") or first_arrival < datetime.strptime("06:00", "%H:%M"):
+            return steps
+    except (ValueError, KeyError, IndexError):
+        pass
+
+    LUNCH_EARLIEST = datetime.strptime("11:00", "%H:%M")
+    DINNER_EARLIEST = datetime.strptime("17:00", "%H:%M")
+    AFTERNOON_SPLIT = datetime.strptime("15:00", "%H:%M")
+    NIGHT_KWS = ["夜市", "夜宵", "大排档", "深夜"]
+
+    # 先根据当前时间修正 _type 标签
+    for s in steps:
+        _type = s.get("_type", "")
+        if _type not in ("lunch", "dinner"):
+            continue
+        try:
+            arrival = datetime.strptime(s["arrival_time"], "%H:%M")
+        except ValueError:
+            continue
+        if _type == "dinner" and arrival < AFTERNOON_SPLIT:
+            s["_type"] = "lunch"
+        elif _type == "lunch" and arrival >= AFTERNOON_SPLIT:
+            s["_type"] = "dinner"
+
+    # 多轮修正，处理级联效应（lunch推后→dinner可能也要推后）
+    for _ in range(3):
+        shifted = False
+        for i, s in enumerate(steps):
+            _type = s.get("_type", "")
+            try:
+                arrival = datetime.strptime(s["arrival_time"], "%H:%M")
+            except ValueError:
+                continue
+
+            target = None
+            if _type == "lunch" and arrival < LUNCH_EARLIEST:
+                target = LUNCH_EARLIEST
+            elif _type == "dinner" and arrival < DINNER_EARLIEST:
+                target = DINNER_EARLIEST
+            else:
+                # 夜间场所（非lunch/dinner标记但有夜市关键词的POI）
+                poi = s.get("poi", {})
+                text = poi.get("name", "") + poi.get("category", "")
+                if any(kw in text for kw in NIGHT_KWS) and arrival < DINNER_EARLIEST:
+                    target = DINNER_EARLIEST
+
+            if target is None or arrival >= target:
+                continue
+
+            shift_min = int((target - arrival).total_seconds() / 60)
+            for j in range(i, len(steps)):
+                try:
+                    a = datetime.strptime(steps[j]["arrival_time"], "%H:%M")
+                    d = datetime.strptime(steps[j]["departure_time"], "%H:%M")
+                    steps[j]["arrival_time"] = (a + timedelta(minutes=shift_min)).strftime("%H:%M")
+                    steps[j]["departure_time"] = (d + timedelta(minutes=shift_min)).strftime("%H:%M")
+                except ValueError:
+                    pass
+
+            # 推后后重新标记 _type
+            for s2 in steps[i:]:
+                if s2.get("_type") == "lunch":
+                    try:
+                        if datetime.strptime(s2["arrival_time"], "%H:%M") >= AFTERNOON_SPLIT:
+                            s2["_type"] = "dinner"
+                    except ValueError:
+                        pass
+
+            shifted = True
+
+        if not shifted:
+            break
+
+    return steps
 
 
 def _dedup_route(steps: list[dict]) -> list[dict]:
@@ -523,6 +617,7 @@ def _ensure_poi_in_route(route: dict, poi_proposals: list[dict], intent: dict) -
         t = departure + timedelta(minutes=20)
 
     steps = _dedup_route(steps)
+    steps = _enforce_time_windows(steps)
     route["route"] = steps
     route["total_cost"] = {
         "time_min": route.get("total_cost", {}).get("time_min", 0),
@@ -580,12 +675,13 @@ def _ensure_food_in_route(route: dict, food_proposals: list[dict], intent: dict)
         if departure > end_dt:
             break  # 超过时间窗就不补了
 
+        meal_type = "dinner" if t >= datetime.strptime("15:00", "%H:%M") else "lunch"
         steps.append({
             "poi": content,
             "arrival_time": arrival.strftime("%H:%M"),
             "departure_time": departure.strftime("%H:%M"),
             "travel_from_prev": {"distance_m": 1800, "time_min": 15},
-            "_type": "lunch",
+            "_type": meal_type,
         })
         t = departure + timedelta(minutes=15)
 
@@ -680,12 +776,13 @@ def _ensure_min_food_in_route(route: dict, food_proposals: list[dict], intent: d
     else:
         t = datetime.strptime("12:00", "%H:%M")
 
+    meal_type = "dinner" if t >= datetime.strptime("15:00", "%H:%M") else "lunch"
     food_step = {
         "poi": best_food,
         "arrival_time": t.strftime("%H:%M"),
         "departure_time": (t + timedelta(minutes=50)).strftime("%H:%M"),
         "travel_from_prev": {"distance_m": 1500, "time_min": 15},
-        "_type": "lunch",
+        "_type": meal_type,
     }
     steps.insert(insert_idx, food_step)
     steps = _dedup_route(steps)
@@ -787,6 +884,7 @@ async def _llm_assemble_route(
             "lat": round(c.get("lat", 0), 3),
             "lng": round(c.get("lng", 0), 3),
             "meal_time": p.get("content", {}).get("meal_time", ""),
+            "business_hours": c.get("business_hours", c.get("opening_hours", "")),
             "reason": p.get("reasoning", ""),
         })
 
@@ -1019,6 +1117,9 @@ def _build_route_from_llm_order(
 
     # 去重
     steps = _dedup_route(steps)
+
+    # 强制修正餐食/夜间场所时间窗口
+    steps = _enforce_time_windows(steps)
 
     total_time = 0
     try:

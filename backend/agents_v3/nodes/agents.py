@@ -19,6 +19,14 @@ import uuid
 from backend.agents_v3.state import TravelState
 
 
+# 名称中包含这些关键词的POI应归为餐饮，不应被poi_agent选中
+_FOOD_NAME_KWS = [
+    "美食街", "海鲜街", "小吃街", "美食城", "美食广场", "食街",
+    "夜市", "大排档", "海鲜城", "海鲜市场", "水产市场",
+    "餐厅", "茶餐厅", "火锅", "烧烤", "甜品店", "奶茶",
+]
+
+
 # ═══════════════════════════════════════════════════════════
 # 公共工具
 # ═══════════════════════════════════════════════════════════
@@ -264,6 +272,9 @@ async def poi_agent(state: TravelState) -> dict:
         name = c.get("name", "")
         cat = c.get("category", "")
         if cat in ["住宿", "酒店", "民宿", "餐饮", "美食"]:
+            continue
+        # 名称包含餐饮关键词的也排除（防止美食街/海鲜街等被误选为景点）
+        if any(kw in name for kw in _FOOD_NAME_KWS):
             continue
         if _is_likely_macau(name):
             continue
