@@ -16,7 +16,7 @@ from backend.agents_v3.state import TravelState
 
 async def review(state: TravelState) -> dict:
     """审查所有agent提案质量，生成反馈。"""
-    proposals = state.get("proposals", [])
+    proposals = list(state.get("reworked_proposals") or state.get("proposals", []))
     intent = state.get("user_intent", {})
     user_input = state.get("user_input", "")
     scene_type = state.get("scene_type", "观光型")
@@ -143,6 +143,7 @@ async def _llm_review(prompt: str) -> dict | None:
                 messages=[{"role": "user", "content": prompt}],
                 temperature=0.1,
                 response_format={"type": "json_object"},
+                extra_body={"thinking": {"type": "disabled"}},
             )
             text = resp.choices[0].message.content or ""
             return json.loads(text)
@@ -177,14 +178,25 @@ async def rework(state: TravelState) -> dict:
     # 构建重选prompt
     old_names = [p.get("content", {}).get("name", "") for p in bad_old]
 
-    if "poi" in bad_agents:
-        new_proposals = await _rework_poi(candidates, intent, user_input, old_names, feedback_text)
-    elif "food" in bad_agents:
-        new_proposals = await _rework_food(candidates, intent, user_input, old_names, feedback_text)
-    else:
-        new_proposals = []
+    new_proposals = []
+    reworked_agents = set()
 
-    # 如果rework没产出，保留旧的
+    if "poi" in bad_agents:
+        poi_result = await _rework_poi(candidates, intent, user_input, old_names, feedback_text)
+        if poi_result:
+            new_proposals.extend(poi_result)
+            reworked_agents.add("poi")
+
+    if "food" in bad_agents:
+        food_result = await _rework_food(candidates, intent, user_input, old_names, feedback_text)
+        if food_result:
+            new_proposals.extend(food_result)
+            reworked_agents.add("food")
+
+    # rework失败的agent保留旧proposals
+    not_reworked = [p for p in bad_old if p.get("agent", "") not in reworked_agents]
+    new_proposals.extend(not_reworked)
+
     if not new_proposals:
         new_proposals = bad_old
 

@@ -22,9 +22,11 @@ def get_client() -> AsyncOpenAI:
 
 async def chat_stream(
     message: str,
-    model: str = "deepseek-chat",
+    model: str = "",
     system_prompt: str = "你是一个数据分析助手，简洁地回答用户问题。",
 ) -> AsyncIterator[str]:
+    if not model:
+        model = os.getenv("LLM_MODEL", "deepseek-chat")
     client = get_client()
     try:
         stream = await client.chat.completions.create(
@@ -47,7 +49,9 @@ async def chat_stream(
         raise LLMServiceError(message="LLM服务异常", details={"original_error": str(e)})
 
 
-async def chat(message: str, model: str = "deepseek-chat") -> str:
+async def chat(message: str, model: str = "") -> str:
+    if not model:
+        model = os.getenv("LLM_MODEL", "deepseek-chat")
     client = get_client()
     try:
         resp = await client.chat.completions.create(

@@ -82,8 +82,8 @@ def build_graph_c():
         },
     )
 
-    # rework → coordinator
-    graph.add_edge("rework", "coordinator")
+    # rework → review（修完二次检查，review_round上限防死循环）
+    graph.add_edge("rework", "review")
 
     # coordinator → live_itinerary → END
     graph.add_edge("coordinator", "live_itinerary")

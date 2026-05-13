@@ -429,6 +429,7 @@ async def _call_llm(user_input: str) -> dict | None:
             temperature=0.1,
             max_tokens=1500,
             response_format={"type": "json_object"},
+            extra_body={"thinking": {"type": "disabled"}},
         )
         raw = resp.choices[0].message.content or ""
         # 提取 JSON（兼容 markdown 代码块）

@@ -11,6 +11,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import math
 import uuid
@@ -74,13 +75,14 @@ async def _llm_decide(system_prompt: str, user_prompt: str, retries: int = 2) ->
     for attempt in range(retries):
         try:
             resp = await client.chat.completions.create(
-                model="deepseek-chat",
+                model=_os.getenv("LLM_MODEL", "deepseek-chat"),
                 messages=[
                     {"role": "system", "content": system_prompt + "\n你必须输出合法JSON。"},
                     {"role": "user", "content": user_prompt},
                 ],
                 temperature=0.1,
                 response_format={"type": "json_object"},
+                extra_body={"thinking": {"type": "disabled"}},
             )
             text = resp.choices[0].message.content or ""
             return json.loads(text)
@@ -612,7 +614,24 @@ async def food_agent(state: TravelState) -> dict:
                     "category": c.get("category", ""),
                 })
 
-    # 分层采样：按子类别分组，每组取top，确保多样性
+    # 计算景点簇中心（供规则预排用）
+    _poi_center = None
+    if poi_locations:
+        _poi_center = (
+            sum(p["lat"] for p in poi_locations) / len(poi_locations),
+            sum(p["lng"] for p in poi_locations) / len(poi_locations),
+        )
+
+    def _food_rule_score(f):
+        s = f.get("rating", 0)
+        if _poi_center:
+            lat, lng = f.get("lat", 0), f.get("lng", 0)
+            if lat and lng:
+                dist = _haversine_km(lat, lng, _poi_center[0], _poi_center[1])
+                s -= dist * 0.05
+        return s
+
+    # 分层采样：按子类别分组，规则预排top3，确保多样性
     _FOOD_SUBCATS = {
         "海鲜": ["海鲜", "蚝", "鱼排", "渔港"],
         "正餐": ["餐厅", "烧", "煲", "火锅", "烧烤"],
@@ -626,8 +645,8 @@ async def food_agent(state: TravelState) -> dict:
     for sub_name, kws in _FOOD_SUBCATS.items():
         bucket = [f for f in foods if any(kw in f.get("name", "") or kw in f.get("category", "") for kw in kws)
                   and f.get("name", "") not in seen_names]
-        bucket.sort(key=lambda x: x.get("rating", 0), reverse=True)
-        for f in bucket[:10]:
+        bucket.sort(key=_food_rule_score, reverse=True)
+        for f in bucket[:3]:
             stratified.append(f)
             subcat_map[f.get("name", "")] = sub_name
             seen_names.add(f.get("name", ""))
@@ -645,7 +664,7 @@ async def food_agent(state: TravelState) -> dict:
             "lng": round(f.get("lng", 0), 3) if f.get("lng") else None,
             "reviews": f.get("_ugc_summary", ""),
         }
-        for f in stratified[:40]
+        for f in stratified[:15]
     ]
 
     group_type = intent.get("group", {}).get("type", "")
@@ -712,10 +731,11 @@ async def food_agent(state: TravelState) -> dict:
 
     result = await _llm_decide(system, user)
 
-    proposals = []
-    if result and "picks" in result:
+    # 匹配LLM picks到food POI
+    def _match_food_picks(picks_data):
+        matched = []
         name_map = {f.get("name", ""): f for f in foods}
-        for pick in result["picks"]:
+        for pick in picks_data:
             name = pick.get("name", "")
             content = name_map.get(name)
             if not content:
@@ -724,10 +744,37 @@ async def food_agent(state: TravelState) -> dict:
                         content = f
                         break
             if content:
-                proposals.append(_proposal("food", content, pick.get("confidence", 0.7), pick.get("reason", "LLM推荐")))
+                matched.append(_proposal("food", content, pick.get("confidence", 0.7), pick.get("reason", "LLM推荐")))
+        return matched
 
-    # 后验多样性检查：如果picks全是同一子类，强制替换
-    proposals = _enforce_food_diversity(proposals, stratified, _FOOD_SUBCATS)
+    proposals = _match_food_picks(result.get("picks", [])) if result and "picks" in result else []
+
+    # LLM后验多样性检查 + 带反馈重选（最多2轮）
+    for _ in range(2):
+        issues = _check_food_diversity_issues(proposals, _FOOD_SUBCATS, scene_type)
+        if not issues:
+            break
+        current_info = [
+            f"{p['content']['name']}({_get_food_subcat(p['content']['name'], _FOOD_SUBCATS)})"
+            for p in proposals if p.get("content", {}).get("name")
+        ]
+        feedback = "\n".join(f"❌ {i}" for i in issues)
+        reselect_user = f"""你之前选了: {', '.join(current_info)}
+
+存在的问题:
+{feedback}
+
+请从候选餐厅重新选择，确保子类型多样:
+{json.dumps(summaries, ensure_ascii=False)}
+
+输出JSON: {{"picks":[{{"name":"店名","reason":"理由","confidence":0.8,"meal_time":"午餐/下午茶/晚餐"}}]}}
+不要重复之前的错误。"""
+
+        new_result = await _llm_decide(system, reselect_user)
+        if new_result and "picks" in new_result:
+            new_proposals = _match_food_picks(new_result["picks"])
+            if new_proposals:
+                proposals = new_proposals
 
     # ── 降级：智能规则 ──
     if not proposals:
@@ -736,42 +783,46 @@ async def food_agent(state: TravelState) -> dict:
     return {"proposals": proposals}
 
 
-def _enforce_food_diversity(
+def _get_food_subcat(name: str, subcat_defs: dict[str, list[str]]) -> str:
+    """判断餐饮POI属于哪个子类别。"""
+    for sub_name, kws in subcat_defs.items():
+        if any(kw in name for kw in kws):
+            return sub_name
+    return "其他"
+
+
+def _check_food_diversity_issues(
     proposals: list[dict],
-    stratified_pool: list[dict],
     subcat_defs: dict[str, list[str]],
-) -> list[dict]:
-    """后验检查：如果LLM选的全是同一子类，强制替换部分。"""
+    scene_type: str,
+) -> list[str]:
+    """检查餐饮提案的子类别多样性问题。返回问题列表，空=通过。"""
     if len(proposals) < 2:
-        return proposals
+        return []
 
-    # 判断每个proposal属于哪个子类
-    def _get_subcat(name: str) -> str:
-        for sub_name, kws in subcat_defs.items():
-            if any(kw in name for kw in kws):
-                return sub_name
-        return "其他"
+    from collections import Counter
 
-    subcats = [_get_subcat(p.get("content", {}).get("name", "")) for p in proposals]
-    unique = set(subcats)
+    subcats = [_get_food_subcat(p.get("content", {}).get("name", ""), subcat_defs) for p in proposals]
+    counts = Counter(subcats)
+    issues = []
 
-    # 如果≥3个picks且只有1种子类，替换最后1个
-    if len(proposals) >= 2 and len(unique) == 1:
-        dominant = subcats[0]
-        # 从分层池里找不同子类的
-        replacements = [
-            f for f in stratified_pool
-            if _get_subcat(f.get("name", "")) != dominant
-            and f.get("name", "") not in {p.get("content", {}).get("name", "") for p in proposals}
-            and f.get("rating") is not None
-        ]
-        if replacements:
-            # 替换评分最低的那个
-            worst_idx = min(range(len(proposals)), key=lambda i: proposals[i].get("confidence", 0.5))
-            rep = replacements[0]
-            proposals[worst_idx] = _proposal("food", rep, 0.7, f"强制多样性替换（{dominant}→{_get_subcat(rep['name'])}）")
+    # 综合美食街最多1个
+    street_count = counts.get("综合美食街", 0)
+    if street_count > 1:
+        street_names = [p.get("content", {}).get("name", "") for p in proposals
+                        if _get_food_subcat(p.get("content", {}).get("name", ""), subcat_defs) == "综合美食街"]
+        issues.append(f"选了{street_count}个综合美食场所（{', '.join(street_names)}），内部已有多种美食，最多选1个")
 
-    return proposals
+    # 任何子类不超过2个
+    for sub, cnt in counts.items():
+        if cnt > 2:
+            issues.append(f"{sub}类选了{cnt}个，同类型最多2个")
+
+    # 美食型需要≥3种子类
+    if scene_type == "美食型" and len(set(subcats)) < 3:
+        issues.append(f"只覆盖{len(set(subcats))}种子类（{', '.join(set(subcats))}），美食路线需要≥3种不同子类")
+
+    return issues
 
 
 def _smart_food_selection(foods: list[dict], intent: dict, user_input: str) -> list[dict]:

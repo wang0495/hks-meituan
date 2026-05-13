@@ -68,7 +68,7 @@ async def coordinator(state: TravelState) -> dict:
     food_proposals = _geo_compat_filter(food_proposals, poi_proposals, "food") or food_proposals
     hotel_proposals = _geo_compat_filter(hotel_proposals, poi_proposals, "hotel") or hotel_proposals
 
-    if not poi_proposals:
+    if not poi_proposals and not food_proposals:
         errors.append("无有效POI提案")
         return {"route": None, "narrative": None, "errors": errors}
 
@@ -80,6 +80,15 @@ async def coordinator(state: TravelState) -> dict:
     # ── 3. LLM失败 → 规则兜底 ──
     if not route or not route.get("route"):
         route = _fallback_assemble(proposals, intent)
+
+    # ── 3.5 所有场景：确保所有提案都在路线中（防LLM丢弃）──
+    if route and route.get("route"):
+        route = _ensure_food_in_route(route, food_proposals, intent)
+        route = _ensure_poi_in_route(route, poi_proposals, intent)
+
+    # ── 3.6 所有路线：确保至少含1个餐饮 ──
+    if route and route.get("route") and food_proposals:
+        route = _ensure_min_food_in_route(route, food_proposals, intent)
 
     # ── 4. 生成文案 ──
     narrative = None
@@ -464,7 +473,228 @@ def _fuzzy_dedup_key(name: str) -> str | None:
     return None
 
 
-def _build_fallback_narrative(route: dict) -> dict:
+def _ensure_poi_in_route(route: dict, poi_proposals: list[dict], intent: dict) -> dict:
+    """确保所有POI提案都在路线中，遗漏的补回。"""
+    if not route or not route.get("route") or not poi_proposals:
+        return route
+
+    steps = route["route"]
+    route_names = set()
+    for s in steps:
+        n = s.get("poi", {}).get("name", "")
+        route_names.add(n)
+        route_names.add(_canonical_name(n))
+
+    missing = []
+    for pp in poi_proposals:
+        name = pp.get("content", {}).get("name", "")
+        if not any(name in rn or rn in name for rn in route_names):
+            missing.append(pp)
+
+    if not missing:
+        return route
+
+    try:
+        t = datetime.strptime(steps[-1].get("departure_time", "17:00"), "%H:%M")
+    except ValueError:
+        t = datetime.strptime("17:00", "%H:%M")
+
+    end_time_str = intent.get("time", {}).get("end", "21:00")
+    try:
+        end_dt = datetime.strptime(end_time_str, "%H:%M")
+    except ValueError:
+        end_dt = datetime.strptime("21:00", "%H:%M")
+
+    for pp in missing:
+        content = pp.get("content", {})
+        stay_min = int(content.get("avg_stay_min", 60))
+        arrival = t
+        departure = t + timedelta(minutes=stay_min)
+        if departure > end_dt:
+            break
+
+        steps.append({
+            "poi": content,
+            "arrival_time": arrival.strftime("%H:%M"),
+            "departure_time": departure.strftime("%H:%M"),
+            "travel_from_prev": {"distance_m": 3000, "time_min": 20},
+            "_type": "",
+        })
+        t = departure + timedelta(minutes=20)
+
+    steps = _dedup_route(steps)
+    route["route"] = steps
+    route["total_cost"] = {
+        "time_min": route.get("total_cost", {}).get("time_min", 0),
+        "budget_used": sum(s.get("poi", {}).get("avg_price", 0) for s in steps),
+    }
+    return route
+
+
+def _ensure_food_in_route(route: dict, food_proposals: list[dict], intent: dict) -> dict:
+    """确保所有餐厅提案都在路线中，遗漏的补回。"""
+    if not route or not route.get("route") or not food_proposals:
+        return route
+
+    steps = route["route"]
+    route_names = set()
+    for s in steps:
+        n = s.get("poi", {}).get("name", "")
+        route_names.add(n)
+        canon = _canonical_name(n)
+        if canon != n:
+            route_names.add(canon)
+
+    # 找遗漏的餐厅
+    missing = []
+    for fp in food_proposals:
+        name = fp.get("content", {}).get("name", "")
+        found = name in route_names
+        if not found:
+            for rn in route_names:
+                if name in rn or rn in name:
+                    found = True
+                    break
+        if not found:
+            missing.append(fp)
+
+    if not missing:
+        return route
+
+    # 补回遗漏的餐厅：从最后一个step的时间开始追加
+    try:
+        t = datetime.strptime(steps[-1].get("departure_time", "18:00"), "%H:%M")
+    except ValueError:
+        t = datetime.strptime("18:00", "%H:%M")
+
+    end_time_str = intent.get("time", {}).get("end", "21:00")
+    try:
+        end_dt = datetime.strptime(end_time_str, "%H:%M")
+    except ValueError:
+        end_dt = datetime.strptime("21:00", "%H:%M")
+
+    for fp in missing:
+        content = fp.get("content", {})
+        arrival = t
+        departure = t + timedelta(minutes=50)
+        if departure > end_dt:
+            break  # 超过时间窗就不补了
+
+        steps.append({
+            "poi": content,
+            "arrival_time": arrival.strftime("%H:%M"),
+            "departure_time": departure.strftime("%H:%M"),
+            "travel_from_prev": {"distance_m": 1800, "time_min": 15},
+            "_type": "lunch",
+        })
+        t = departure + timedelta(minutes=15)
+
+    steps = _dedup_route(steps)
+    route["route"] = steps
+    route["total_cost"] = {
+        "time_min": route.get("total_cost", {}).get("time_min", 0),
+        "budget_used": sum(s.get("poi", {}).get("avg_price", 0) for s in steps),
+    }
+    return route
+
+
+def _ensure_min_food_in_route(route: dict, food_proposals: list[dict], intent: dict) -> dict:
+    """通用检查：所有路线至少含1个餐饮（提升diversity分数）。"""
+    if not route or not route.get("route") or not food_proposals:
+        return route
+
+    steps = route["route"]
+
+    # 检查是否已有餐饮
+    has_food = False
+    for s in steps:
+        poi = s.get("poi", {})
+        cat = poi.get("category", "")
+        _type = s.get("_type", "")
+        if _type in ("lunch", "dinner") or cat in ("餐饮", "美食", "小吃", "海鲜", "夜市", "夜市小吃"):
+            has_food = True
+            break
+        # 也检查food agent标记
+        name = poi.get("name", "")
+        food_kws = ["餐厅", "海鲜", "烧", "煲", "粉", "面", "粥", "甜品", "奶茶", "茶餐厅", "排档", "咖啡"]
+        if any(kw in name for kw in food_kws):
+            has_food = True
+            break
+
+    if has_food:
+        return route
+
+    # 没有餐饮 → 找最合适的food proposal插入
+    # 选评分最高、且在路线POI簇附近的
+    best_food = None
+    best_score = -1
+
+    # 计算路线POI簇中心
+    poi_coords = [(s["poi"].get("lat", 0), s["poi"].get("lng", 0)) for s in steps
+                  if s.get("poi", {}).get("lat") and s.get("poi", {}).get("lng")]
+    if poi_coords:
+        center_lat = sum(la for la, _ in poi_coords) / len(poi_coords)
+        center_lng = sum(ln for _, ln in poi_coords) / len(poi_coords)
+    else:
+        center_lat, center_lng = 22.27, 113.58  # 珠海默认
+
+    for fp in food_proposals:
+        content = fp.get("content", {})
+        if not content.get("rating"):
+            continue
+        score = content.get("rating", 0)
+        lat, lng = content.get("lat", 0), content.get("lng", 0)
+        if lat and lng:
+            dist = _haversine_km(lat, lng, center_lat, center_lng)
+            if dist > 15:
+                continue  # 太远
+            score -= dist * 0.1  # 距离惩罚
+        if score > best_score:
+            best_score = score
+            best_food = content
+
+    if not best_food:
+        # 取第一个
+        best_food = food_proposals[0].get("content", {})
+
+    # 插入到路线中间（午餐位置）
+    insert_idx = min(2, len(steps))
+    if insert_idx >= len(steps):
+        insert_idx = len(steps)
+
+    # 计算时间
+    if insert_idx > 0 and insert_idx < len(steps):
+        # 取前后step的时间，插入中间
+        prev = steps[insert_idx - 1]
+        arrival = prev.get("departure_time", "12:00")
+        try:
+            t = datetime.strptime(arrival, "%H:%M") + timedelta(minutes=15)
+        except ValueError:
+            t = datetime.strptime("12:00", "%H:%M")
+    elif insert_idx == 0 and steps:
+        t_str = steps[0].get("arrival_time", "09:00")
+        try:
+            t = datetime.strptime(t_str, "%H:%M") + timedelta(minutes=120)
+        except ValueError:
+            t = datetime.strptime("12:00", "%H:%M")
+    else:
+        t = datetime.strptime("12:00", "%H:%M")
+
+    food_step = {
+        "poi": best_food,
+        "arrival_time": t.strftime("%H:%M"),
+        "departure_time": (t + timedelta(minutes=50)).strftime("%H:%M"),
+        "travel_from_prev": {"distance_m": 1500, "time_min": 15},
+        "_type": "lunch",
+    }
+    steps.insert(insert_idx, food_step)
+    steps = _dedup_route(steps)
+    route["route"] = steps
+    route["total_cost"] = {
+        "time_min": route.get("total_cost", {}).get("time_min", 0),
+        "budget_used": sum(s.get("poi", {}).get("avg_price", 0) for s in steps),
+    }
+    return route
     steps = []
     for s in route.get("route", []):
         name = s.get("poi", {}).get("name", "未知")
@@ -589,11 +819,11 @@ async def _llm_assemble_route(
 
     # 场景感知规则（按scene_type分化）
     if scene_type == "美食型":
-        diversity_rule = """7. 【美食场景规则·重要】
-   - 这是一条美食探索路线！餐饮是主角，不是景点的配角
-   - 路线以餐厅/小吃为主线，中间可穿插1个轻松的散步点（公园/海边），但不是必须的
-   - 重点保证餐饮类型交替：海鲜正餐→小吃/甜品→夜市，不要同类扎堆
-   - 不需要为了"多样性"硬塞景点/购物/文化等无关POI"""
+        diversity_rule = f"""7. 【美食场景规则·最重要·硬约束】
+   - 这是一条美食探索路线！餐饮是主角，不是景点配角
+   - **必须包含所有{len(food_list)}家餐厅，一个都不许漏！** ordered_stops必须包含每一家
+   - 按时间排列：早茶/早点→午餐→下午茶→晚餐→夜市，中间最多穿插1个散步点
+   - 不需要为了"多样性"硬塞景点/购物/文化"""
     elif scene_type == "目的地型":
         diversity_rule = """7. 【目的地场景规则】
    - 用户指定了大景区，会在该景区待大半天
@@ -633,6 +863,10 @@ async def _llm_assemble_route(
 5. 【场景适配】{'亲子：景点间距要短，带小孩不宜长途奔波' if group_type == '亲子' else ''}{'情侣：安排海滨/浪漫路线' if group_type == '情侣' else ''}{'特种兵：紧凑排列，减少空隙' if '特种兵' in pace else ''}
 6. 【住宿尾置】如有住宿，放路线最后
 {diversity_rule}
+8. 【最重要·硬约束】以下所有景点和餐厅必须全部出现在ordered_stops中，不允许省略任何一个：
+   - 必选景点({len(poi_list)}个): {', '.join(p['name'] for p in poi_list)}
+   - 必选餐厅({len(food_list)}个): {', '.join(f['name'] for f in food_list)}
+   你只决定顺序，不决定取舍。如果时间窗口装不下，通过压缩停留时间来适配，而不是省略任何站点。
 
 注意：交通Agent已给出参考顺序(traffic_order)，你可以参考但不必完全照搬，你的排序应综合地理+时间+餐饮位置。
 
@@ -815,13 +1049,14 @@ async def _llm_decide(system_prompt: str, user_prompt: str, retries: int = 2) ->
     for attempt in range(retries):
         try:
             resp = await client.chat.completions.create(
-                model="deepseek-chat",
+                model=os.getenv("LLM_MODEL", "deepseek-chat"),
                 messages=[
                     {"role": "system", "content": system_prompt + "\n你必须输出合法JSON。"},
                     {"role": "user", "content": user_prompt},
                 ],
                 temperature=0.1,
                 response_format={"type": "json_object"},
+                extra_body={"thinking": {"type": "disabled"}},
             )
             text = resp.choices[0].message.content or ""
             return _json.loads(text)

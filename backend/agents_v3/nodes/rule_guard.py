@@ -136,6 +136,7 @@ async def _ensure_key_pois_llm(
             messages=[{"role": "user", "content": prompt}],
             temperature=0.1,
             response_format={"type": "json_object"},
+            extra_body={"thinking": {"type": "disabled"}},
         )
         text = resp.choices[0].message.content or ""
         result = json.loads(text)
