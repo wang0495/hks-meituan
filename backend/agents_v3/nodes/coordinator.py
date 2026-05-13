@@ -4,6 +4,64 @@
 - coordinator是调度者，不做具体排序/编排
 - 路线编排交给LLM Agent：综合考虑地理、时间节奏、情绪曲线
 - _fallback_assemble 只是LLM失败时的规则兜底
+
+═════════════════════════════════════════════════════════════
+  架构决策记录（ADR）— 别瞎改，每条都是踩过坑的
+═════════════════════════════════════════════════════════════
+
+ADR-1: 路线编排必须用LLM，不能用规则引擎（TSP/最近邻）
+  - 原因：C版本用solver.py的TSP+2opt做排序，30场景均分5.3
+  - 换LLM编排后提升到6.8。规则引擎为了凑距离近会乱排路线逻辑
+  - 比如为了最短路径把餐厅插在两个不相干的景点中间
+  - 结论：距离最优 ≠ 体验最优，LLM能理解"午餐该插在上午景点后"
+
+ADR-2: coordinator"只排不选"，不做取舍
+  - 原因：之前coordinator会丢提案（~40% variance来源）
+  - 现在硬约束prompt："以下所有景点和餐厅必须全部出现在ordered_stops中"
+  - 配合_ensure_food_in_route / _ensure_poi_in_route补回遗漏
+  - 结论：取舍是agent的事，coordinator只管排序
+
+ADR-3: 后处理层是必要的，不能指望LLM一次做对
+  - _enforce_time_windows: LLM会把午餐排到9点、晚餐排到凌晨
+    修法：后处理强制午餐≥11:00、晚餐≥17:00、夜市≥17:00
+    深夜出发(22:00-06:00)跳过约束
+  - _cap_route_stops: LLM会排太多站塞不进时间窗
+    修法：按scene_type设上限（美食型6/休闲5/特种兵8等）
+  - _validate_scene_categories: LLM会加不搭的POI
+    修法：美食型踢掉购物/酒店类
+  - 结论：LLM是主力但不可靠，后处理是安全网
+
+ADR-4: 美食型场景跳过_geo_compat_filter
+  - 原因：_geo_compat_filter以POI簇为中心过滤餐饮
+  - 美食型场景POI只有2-3个散步点，集中在同一区域
+  - 导致大部分餐厅被砍（"闺蜜逛街"只有1站就是这原因）
+  - 美食型吃本身就是目的，餐厅不需要靠近景点
+  - 结论：美食型走_geo_compat_filter会截断餐饮提案
+
+ADR-5: 不能加route_review（LLM再审查最终路线）
+  - 试过：review LLM会删景点或幻觉出不存在的景点
+  - 破坏ADR-2的"只排不选"设计，之前的努力白费
+  - 结论：review只审查proposals，不审查最终路线
+
+ADR-6: 时间分配不能交给规则引擎
+  - 原因：solver.py的TSPTW时间窗分配会为了约束砍掉合理POI
+  - LLM的时间分配虽不完美，但后处理(_enforce_time_windows)能修
+  - 结论：LLM分配+后处理修正 > 规则引擎硬约束
+
+ADR-7: food_agent候选池必须限制
+  - 原因：832个餐饮POI全给LLM → 选太多同类型 → 方差大
+  - 现在分5个子类(海鲜/正餐/小吃/茶餐厅甜品/综合美食街)每类取top3
+  - 总共15个给LLM选，方差大幅降低
+
+待改进方向（改了能提升但不急）：
+  - TODO-1: food_agent按用户子意图分化prompt
+    "吃甜品"→ 强调甜品店/奶茶/冰室, "吃海鲜"→ 强调海鲜排档/海鲜市场
+    目前用一个通用prompt，选出来的不够精准
+  - TODO-2: coordinator距离信息强化
+    在prompt里直接标注"⚠️ XX距其他景点Nkm, 跨区不推荐"
+    LLM看到显式警告会更重视
+  - TODO-3: POI加适合人数标签, poi_agent过滤时考虑群体
+    团建15人→ 只选适合多人活动的POI, 排除小空间场所
 """
 
 from __future__ import annotations
