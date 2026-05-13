@@ -1,0 +1,96 @@
+[
+  {
+    "id": 1,
+    "name": "情侣珠海一日游",
+    "success": true,
+    "elapsed": 21.899,
+    "route_steps": 4,
+    "proposals": 10,
+    "conflicts": 1,
+    "has_narrative": true,
+    "poi_names": [
+      "横琴长隆海洋科学馆",
+      "休息片刻",
+      "横琴长隆海洋王国",
+      "珠海海洋王国"
+    ],
+    "errors": [],
+    "score": 6.0
+  },
+  {
+    "id": 2,
+    "name": "亲子海洋王国",
+    "success": true,
+    "elapsed": 13.159,
+    "route_steps": 4,
+    "proposals": 10,
+    "conflicts": 1,
+    "has_narrative": true,
+    "poi_names": [
+      "横琴长隆海洋科学馆",
+      "休息片刻",
+      "珠海长隆海洋王国",
+      "横琴长隆海洋王国"
+    ],
+    "errors": [],
+    "score": 6.0
+  },
+  {
+    "id": 3,
+    "name": "美食探索",
+    "success": true,
+    "elapsed": 14.237,
+    "route_steps": 4,
+    "proposals": 12,
+    "conflicts": 1,
+    "has_narrative": true,
+    "poi_names": [
+      "横琴长隆海洋科学馆",
+      "休息片刻",
+      "横琴长隆海洋王国",
+      "珠海海洋王国"
+    ],
+    "errors": [],
+    "score": 6.0
+  },
+  {
+    "id": 4,
+    "name": "特种兵打卡",
+    "success": true,
+    "elapsed": 17.27,
+    "route_steps": 5,
+    "proposals": 10,
+    "conflicts": 0,
+    "has_narrative": true,
+    "poi_names": [
+      "聚芳园",
+      "竹溪",
+      "天下第一龙",
+      "菩提树",
+      "广州碑林"
+    ],
+    "errors": [],
+    "score": 7.0
+  },
+  {
+    "id": 5,
+    "name": "休闲养老游",
+    "success": true,
+    "elapsed": 17.964,
+    "route_steps": 5,
+    "proposals": 10,
+    "conflicts": 1,
+    "has_narrative": true,
+    "poi_names": [
+      "珠海横琴长隆海洋王国",
+      "横琴长隆海洋王国",
+      "横琴长隆海洋科学馆",
+      "珠海海洋王国",
+      "珠海长隆海洋王国"
+    ],
+    "errors": [
+      "路线求解失败: 'poi'"
+    ],
+    "score": 6.0
+  }
+]

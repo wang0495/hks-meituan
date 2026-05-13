@@ -75,6 +75,17 @@ class SecuritySettings(BaseSettings):
     encryption_key: str = ""  # 数据加密主密钥，留空则从 ENCRYPTION_KEY 环境变量读取
 
 
+class AgentSettings(BaseSettings):
+    """多智能体配置。"""
+
+    model_config = SettingsConfigDict(env_prefix="AGENT_")
+
+    enabled: bool = False  # 特性开关: 启用新LangGraph管线
+    validation_timeout: float = 10.0  # 校验器超时(秒)
+    max_validation_rounds: int = 2  # 最大校验循环次数
+    local_expert_temperature: float = 0.3  # LocalExpert LLM温度
+
+
 # ---------------------------------------------------------------------------
 # 主配置
 # ---------------------------------------------------------------------------
@@ -112,6 +123,7 @@ class Settings(BaseSettings):
     redis: RedisSettings = Field(default_factory=RedisSettings)
     llm: LLMSettings = Field(default_factory=LLMSettings)
     security: SecuritySettings = Field(default_factory=SecuritySettings)
+    agent: AgentSettings = Field(default_factory=AgentSettings)
 
     # ------------------------------------------------------------------
     # 自动推导字段

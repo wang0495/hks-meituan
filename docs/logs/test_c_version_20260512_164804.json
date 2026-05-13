@@ -1,0 +1,241 @@
+{
+  "scenario": "情侣珠海一日游",
+  "success": true,
+  "elapsed": 0.01400446891784668,
+  "proposal_count": 36,
+  "conflict_count": 0,
+  "errors": [],
+  "final_route": {
+    "route": [
+      {
+        "poi": {
+          "name": "珠海湾仔酒店"
+        },
+        "arrival_time": "全天",
+        "type": "accommodation"
+      },
+      {
+        "poi": {
+          "name": "珠海湾仔酒店"
+        },
+        "arrival_time": "全天",
+        "type": "accommodation"
+      },
+      {
+        "poi": {
+          "name": "珠海湾仔酒店"
+        },
+        "arrival_time": "全天",
+        "type": "accommodation"
+      },
+      {
+        "poi": {
+          "name": "珠海湾仔酒店"
+        },
+        "arrival_time": "全天",
+        "type": "accommodation"
+      },
+      {
+        "poi": {
+          "name": "珠海渔女"
+        },
+        "arrival_time": "09:00",
+        "type": "attraction"
+      },
+      {
+        "poi": {
+          "name": "情侣路"
+        },
+        "arrival_time": "11:30",
+        "type": "attraction"
+      },
+      {
+        "poi": {
+          "name": "长隆海洋王国"
+        },
+        "arrival_time": "14:00",
+        "type": "attraction"
+      },
+      {
+        "poi": {
+          "name": "珠海渔女"
+        },
+        "arrival_time": "16:30",
+        "type": "attraction"
+      },
+      {
+        "poi": {
+          "name": "长隆海洋王国"
+        },
+        "arrival_time": "19:00",
+        "type": "attraction"
+      },
+      {
+        "poi": {
+          "name": "情侣路"
+        },
+        "arrival_time": "21:30",
+        "type": "attraction"
+      },
+      {
+        "poi": {
+          "name": "珠海渔女"
+        },
+        "arrival_time": "00:00",
+        "type": "attraction"
+      },
+      {
+        "poi": {
+          "name": "情侣路"
+        },
+        "arrival_time": "02:30",
+        "type": "attraction"
+      },
+      {
+        "poi": {
+          "name": "长隆海洋王国"
+        },
+        "arrival_time": "05:00",
+        "type": "attraction"
+      },
+      {
+        "poi": {
+          "name": "珠海渔女"
+        },
+        "arrival_time": "07:30",
+        "type": "attraction"
+      },
+      {
+        "poi": {
+          "name": "长隆海洋王国"
+        },
+        "arrival_time": "10:00",
+        "type": "attraction"
+      },
+      {
+        "poi": {
+          "name": "情侣路"
+        },
+        "arrival_time": "12:30",
+        "type": "attraction"
+      },
+      {
+        "poi": {
+          "name": "海记猪肚鸡"
+        },
+        "arrival_time": "15:00",
+        "type": "dining"
+      },
+      {
+        "poi": {
+          "name": "海记猪肚鸡"
+        },
+        "arrival_time": "16:00",
+        "type": "dining"
+      },
+      {
+        "poi": {
+          "name": "海记猪肚鸡"
+        },
+        "arrival_time": "17:00",
+        "type": "dining"
+      },
+      {
+        "poi": {
+          "name": "海记猪肚鸡"
+        },
+        "arrival_time": "18:00",
+        "type": "dining"
+      },
+      {
+        "poi": {
+          "name": "天气: 晴"
+        },
+        "arrival_time": "",
+        "type": "weather"
+      },
+      {
+        "poi": {
+          "name": "天气: 晴"
+        },
+        "arrival_time": "",
+        "type": "weather"
+      },
+      {
+        "poi": {
+          "name": "天气: 晴"
+        },
+        "arrival_time": "",
+        "type": "weather"
+      },
+      {
+        "poi": {
+          "name": "天气: 晴"
+        },
+        "arrival_time": "",
+        "type": "weather"
+      }
+    ],
+    "confidence_score": 0.3333333333333333,
+    "heatmap_summary": {
+      "total": 9,
+      "green": 3
+    },
+    "decision_trace": {
+      "prop_hotel_001": {
+        "why": "位置便利，价格适中",
+        "alternatives": [],
+        "negotiation_history": [],
+        "timestamp": 1778575684.984034
+      },
+      "prop_poi_001": {
+        "why": "珠海标志性景点",
+        "alternatives": [],
+        "negotiation_history": [],
+        "timestamp": 1778575684.984034
+      },
+      "prop_poi_002": {
+        "why": "浪漫海滨长廊",
+        "alternatives": [],
+        "negotiation_history": [],
+        "timestamp": 1778575684.984034
+      },
+      "prop_poi_003": {
+        "why": "世界级主题公园",
+        "alternatives": [],
+        "negotiation_history": [],
+        "timestamp": 1778575684.984034
+      },
+      "prop_food_001": {
+        "why": "本地特色美食",
+        "alternatives": [],
+        "negotiation_history": [],
+        "timestamp": 1778575684.984034
+      },
+      "prop_transport_001": {
+        "why": "基于景点位置规划",
+        "alternatives": [],
+        "negotiation_history": [],
+        "timestamp": 1778575684.984034
+      },
+      "prop_weather_001": {
+        "why": "天气预报良好",
+        "alternatives": [],
+        "negotiation_history": [],
+        "timestamp": 1778575684.984034
+      },
+      "prop_local_expert_001": {
+        "why": "本地人推荐",
+        "alternatives": [],
+        "negotiation_history": [],
+        "timestamp": 1778575684.984034
+      },
+      "prop_insurance_001": {
+        "why": "低风险行程",
+        "alternatives": [],
+        "negotiation_history": [],
+        "timestamp": 1778575684.984034
+      }
+    }
+  }
+}

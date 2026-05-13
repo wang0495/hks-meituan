@@ -789,6 +789,79 @@ async def plan_route(request: PlanRequest):
             # Phase 2: 搜索候选 + 城市过滤
             yield _sse("phase", {"phase": "searching", "message": f"正在为你寻找合适的地方..."})
 
+            # ══════════════════════════════════════════════════
+            # C版本主路径：分布式智能体网络
+            # ══════════════════════════════════════════════════
+            try:
+                from backend.agents_v3 import get_graph_c, TravelState
+
+                yield _sse("phase", {"phase": "agents", "message": "7个智能体正在并行规划..."})
+
+                c_graph = get_graph_c()
+                c_state: TravelState = {
+                    "user_input": request.user_input,
+                    "proposals": [],
+                    "negotiation_msgs": [],
+                    "errors": [],
+                }
+                c_result = await asyncio.wait_for(c_graph.ainvoke(c_state), timeout=120)
+
+                c_route = c_result.get("route", {})
+                c_narrative = c_result.get("narrative", {})
+                c_steps = c_route.get("route", []) if c_route else []
+
+                if not c_steps:
+                    logger.warning("C版本返回空路线，降级到原管线")
+                    raise RuntimeError("C版本空路线")
+
+                # 发送C版本Agent信息
+                proposals = c_result.get("proposals", [])
+                agent_types = list(set(p.get("agent", "?") for p in proposals))
+                yield _sse("debug_agents", {
+                    "version": "C",
+                    "agent_count": len(proposals),
+                    "agents": agent_types,
+                    "conflicts": len(c_result.get("conflicts", [])),
+                })
+
+                # 逐步返回步骤（兼容前端SSE格式）
+                n_steps = c_narrative.get("steps", []) if c_narrative else []
+                for i, step in enumerate(c_steps):
+                    ns = n_steps[i] if i < len(n_steps) else {}
+                    step_data = {
+                        "index": i + 1,
+                        "poi": step.get("poi", {}),
+                        "arrival_time": step.get("arrival_time"),
+                        "departure_time": step.get("departure_time"),
+                        "narrative": ns.get("description", "") if isinstance(ns, dict) else str(ns),
+                        "emotion_design": ns.get("emotion_design", "") if isinstance(ns, dict) else "",
+                        "scene_tags": step.get("poi", {}).get("_scene_tags", []),
+                    }
+                    yield _sse("step", step_data)
+                    await asyncio.sleep(0.05)
+
+                # 完成
+                route_id = uuid.uuid4().hex[:8]
+                yield _sse("done", {
+                    "route_id": route_id,
+                    "full_route": c_route,
+                    "version": "C-分布式智能体",
+                })
+
+                # 缓存route用于对话
+                c_route["narrative"] = c_narrative
+                c_route["user_intent"] = user_intent
+                route_cache.set(route_id, c_route)
+
+                return  # C版本路径结束，不走老管线
+
+            except Exception as c_err:
+                logger.warning(f"C版本执行失败，降级到原管线: {c_err}")
+                yield _sse("debug_fallback", {"reason": str(c_err)})
+            # ══════════════════════════════════════════════════
+            # 以下是原管线（A/B版本），作为C版本的降级备选
+            # ══════════════════════════════════════════════════
+
             # ── Agent Phase: IntentAgent不可能需求检测 ──
             intent_agent_result = None
             try:

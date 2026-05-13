@@ -1,0 +1,72 @@
+[
+  {
+    "id": 1,
+    "name": "情侣珠海一日游",
+    "success": true,
+    "elapsed": 0.013997316360473633,
+    "proposals": 36,
+    "conflicts": 0,
+    "heatmap": {
+      "green": 3,
+      "yellow": 6,
+      "red": 0
+    },
+    "score": 8.666666666666668
+  },
+  {
+    "id": 2,
+    "name": "亲子海洋王国",
+    "success": true,
+    "elapsed": 0.006025791168212891,
+    "proposals": 36,
+    "conflicts": 0,
+    "heatmap": {
+      "green": 3,
+      "yellow": 6,
+      "red": 0
+    },
+    "score": 8.666666666666668
+  },
+  {
+    "id": 3,
+    "name": "美食探索",
+    "success": true,
+    "elapsed": 0.005000114440917969,
+    "proposals": 36,
+    "conflicts": 0,
+    "heatmap": {
+      "green": 3,
+      "yellow": 6,
+      "red": 0
+    },
+    "score": 8.666666666666668
+  },
+  {
+    "id": 4,
+    "name": "特种兵打卡",
+    "success": true,
+    "elapsed": 0.006942272186279297,
+    "proposals": 36,
+    "conflicts": 0,
+    "heatmap": {
+      "green": 3,
+      "yellow": 6,
+      "red": 0
+    },
+    "score": 8.666666666666668
+  },
+  {
+    "id": 5,
+    "name": "休闲养老游",
+    "success": true,
+    "elapsed": 0.006015777587890625,
+    "proposals": 36,
+    "conflicts": 0,
+    "heatmap": {
+      "green": 3,
+      "yellow": 6,
+      "red": 0
+    },
+    "score": 8.666666666666668
+  }
+]

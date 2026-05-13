@@ -1,0 +1,37 @@
+[
+  {
+    "scenario": "情侣珠海一日游",
+    "success": false,
+    "elapsed": 0.022035837173461914,
+    "score": 0,
+    "error": "At key 'user_input': Can receive only one value per step. Use an Annotated key to handle multiple values.\nFor troubleshooting, visit: https://docs.langchain.com/oss/python/langgraph/errors/INVALID_CONCURRENT_GRAPH_UPDATE"
+  },
+  {
+    "scenario": "亲子海洋王国",
+    "success": false,
+    "elapsed": 0.006997108459472656,
+    "score": 0,
+    "error": "At key 'user_input': Can receive only one value per step. Use an Annotated key to handle multiple values.\nFor troubleshooting, visit: https://docs.langchain.com/oss/python/langgraph/errors/INVALID_CONCURRENT_GRAPH_UPDATE"
+  },
+  {
+    "scenario": "美食探索",
+    "success": false,
+    "elapsed": 0.005993366241455078,
+    "score": 0,
+    "error": "At key 'user_input': Can receive only one value per step. Use an Annotated key to handle multiple values.\nFor troubleshooting, visit: https://docs.langchain.com/oss/python/langgraph/errors/INVALID_CONCURRENT_GRAPH_UPDATE"
+  },
+  {
+    "scenario": "特种兵打卡",
+    "success": false,
+    "elapsed": 0.005002260208129883,
+    "score": 0,
+    "error": "At key 'user_input': Can receive only one value per step. Use an Annotated key to handle multiple values.\nFor troubleshooting, visit: https://docs.langchain.com/oss/python/langgraph/errors/INVALID_CONCURRENT_GRAPH_UPDATE"
+  },
+  {
+    "scenario": "休闲养老游",
+    "success": false,
+    "elapsed": 0.0060045719146728516,
+    "score": 0,
+    "error": "At key 'user_input': Can receive only one value per step. Use an Annotated key to handle multiple values.\nFor troubleshooting, visit: https://docs.langchain.com/oss/python/langgraph/errors/INVALID_CONCURRENT_GRAPH_UPDATE"
+  }
+]

@@ -564,7 +564,42 @@ async def run_agent_pipeline(
 
 
 # ---------------------------------------------------------------------------
+# 新的LangGraph多智能体系统 (2026-05-12)
+# ---------------------------------------------------------------------------
+
+try:
+    from backend.agents.graph import build_graph, get_graph
+    from backend.agents.state import (
+        PlanningState,
+        AgentIssue,
+        ValidatorResult,
+        ArbitrationResult,
+    )
+    LANGGRAPH_AVAILABLE = True
+except ImportError:
+    LANGGRAPH_AVAILABLE = False
+    build_graph = None
+    get_graph = None
+
+
+# ---------------------------------------------------------------------------
 # 导出
 # ---------------------------------------------------------------------------
 
-__all__ = ["IntentAgent", "FeasibilityAgent", "POIAgent", "RouteAgent", "run_agent_pipeline", "get_llm"]
+__all__ = [
+    # 旧Agent系统 (保持兼容)
+    "IntentAgent",
+    "FeasibilityAgent",
+    "POIAgent",
+    "RouteAgent",
+    "run_agent_pipeline",
+    "get_llm",
+    # 新LangGraph系统
+    "build_graph",
+    "get_graph",
+    "PlanningState",
+    "AgentIssue",
+    "ValidatorResult",
+    "ArbitrationResult",
+    "LANGGRAPH_AVAILABLE",
+]
