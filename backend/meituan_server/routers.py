@@ -193,7 +193,7 @@ def poi_reviews(
         sum(c["rating"] for c in comments) / len(comments) if comments else 0
     )
     # 高频词提取（简单从tags里取）
-    keywords = list({w for c in items for w in c.get("text", "") if len(w) >= 2})[:8]
+    keywords = list({w for c in items for w in c.get("content", c.get("text", "")) if len(w) >= 2})[:8]
 
     return {
         "poi_id": poi_id,
@@ -204,7 +204,7 @@ def poi_reviews(
         "reviews": [
             {
                 "user": c.get("user", "匿名"),
-                "text": c.get("text", ""),
+                "text": c.get("content", c.get("text", "")),
                 "rating": c.get("rating"),
             }
             for c in items

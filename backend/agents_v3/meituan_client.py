@@ -30,6 +30,13 @@ def _normalize(poi: dict) -> dict:
         "pet_friendly": poi.get("pet_friendly", False),
     }
 
+    # UGC评价摘要（取前2条有实质内容的）
+    ugc_summary = ""
+    for c in poi.get("ugc_comments", [])[:4]:
+        content = c.get("content", c.get("text", ""))
+        if content and len(content.strip()) > 5:
+            ugc_summary += f"「{content.strip()[:60]}」"
+
     return {
         "id": poi.get("id", ""),
         "name": poi.get("name", ""),
@@ -48,8 +55,9 @@ def _normalize(poi: dict) -> dict:
         "_suitability": poi.get("suitability", {}),
         "emotion_tags": poi.get("emotion_tags", {}),
         "constraints": constraints,
-        # _llm_quality 无API对应，用默认值
         "_llm_quality": {"is_tourist": poi.get("rating", 0) >= 4.0, "score": int(poi.get("rating", 0)), "issues": []},
+        # UGC评价摘要
+        "_ugc_summary": ugc_summary,
     }
 
 

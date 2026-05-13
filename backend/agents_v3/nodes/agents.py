@@ -288,6 +288,7 @@ async def poi_agent(state: TravelState) -> dict:
             "avg_stay_min": c.get("avg_stay_min", 60),
             "lat": c.get("lat", 0),
             "lng": c.get("lng", 0),
+            "reviews": c.get("_ugc_summary", ""),
         })
 
     # ── 决策：LLM（按场景类型分化prompt） ──
@@ -608,7 +609,7 @@ async def food_agent(state: TravelState) -> dict:
             subcat_map[f.get("name", "")] = sub_name
             seen_names.add(f.get("name", ""))
 
-    # 给LLM的摘要（含坐标让LLM判断地理关系）
+    # 给LLM的摘要（含坐标+UGC评价）
     summaries = [
         {
             "name": f.get("name", ""),
@@ -619,6 +620,7 @@ async def food_agent(state: TravelState) -> dict:
             "tags": f.get("tags", [])[:3],
             "lat": round(f.get("lat", 0), 3) if f.get("lat") else None,
             "lng": round(f.get("lng", 0), 3) if f.get("lng") else None,
+            "reviews": f.get("_ugc_summary", ""),
         }
         for f in stratified[:40]
     ]
