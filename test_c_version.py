@@ -15,9 +15,9 @@ sys.path.insert(0, "backend")
 from backend.agents_v3 import get_graph_c, TravelState
 
 # ── LLM评分配置 ──
-API_KEY = "ak_2C232w6Wj58e9Pw8a86gd2id76U58"
-API_URL = "https://api.longcat.chat/anthropic/v1/messages"
-MODEL = "LongCat-Flash-Lite"
+API_KEY = "sk-1aad8fc6f2bb4614be106bcdb747478f"
+API_URL = "https://api.deepseek.com/chat/completions"
+MODEL = "deepseek-chat"
 PASS_THRESHOLD = 6.5
 
 
@@ -100,7 +100,8 @@ async def llm_score(user_input: str, route_text: str) -> dict | None:
                 )
                 if r.status_code != 200:
                     continue
-                text = r.json().get("content", [{}])[0].get("text", "").strip()
+                # OpenAI格式响应
+                text = r.json()["choices"][0]["message"]["content"].strip()
                 if text.startswith("```"):
                     text = text.split("\n", 1)[1] if "\n" in text else text[3:]
                 if text.endswith("```"):
@@ -197,13 +198,38 @@ async def run_test(scenario: dict) -> dict:
 
 
 async def main():
+    # ── 启动美团模拟服务器 ──
+    import subprocess
+    import requests
+
+    server_proc = subprocess.Popen(
+        [sys.executable, "-m", "uvicorn", "backend.meituan_server.main:app",
+         "--host", "127.0.0.1", "--port", "8001"],
+        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+    )
+    # 等服务器就绪
+    for _ in range(20):
+        try:
+            requests.get("http://127.0.0.1:8001/api/area/boundaries", timeout=1)
+            break
+        except Exception:
+            time.sleep(0.5)
+    else:
+        print("❌ 美团模拟服务器启动失败")
+        server_proc.kill()
+        return
+
     print("=" * 60)
-    print("C版本LLM评分测试：分布式智能体网络")
+    print("C版本LLM评分测试：分布式智能体网络（美团API数据源）")
     print(f"评分模型: {MODEL} | 及格线: {PASS_THRESHOLD}")
     print("=" * 60)
 
+    # 每个场景切换时清缓存
+    from backend.agents_v3.meituan_client import clear_cache
+
     results = []
     for sc in TEST_SCENARIOS:
+        clear_cache()
         r = await run_test(sc)
         results.append(r)
 
@@ -251,6 +277,10 @@ async def main():
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
     with open(f"docs/logs/test_c_version_{ts}.json", "w", encoding="utf-8") as f:
         json.dump(results, f, ensure_ascii=False, indent=2)
+
+    # 关闭美团模拟服务器
+    server_proc.terminate()
+    server_proc.wait(timeout=5)
 
 
 if __name__ == "__main__":

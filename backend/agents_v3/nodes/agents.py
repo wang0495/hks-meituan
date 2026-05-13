@@ -32,17 +32,23 @@ def _proposal(agent: str, content: dict, confidence: float, reasoning: str) -> d
     }
 
 
-def _load_all_pois() -> list[dict]:
+async def _load_all_pois() -> list[dict]:
+    """从美团API获取全部POI数据。"""
     try:
-        from backend.services.data_service import get_data
-        data = get_data()
-        if isinstance(data, dict):
-            return list(data.values())
-        if isinstance(data, list):
-            return data
+        from backend.agents_v3.meituan_client import fetch_pois
+        return await fetch_pois()
     except Exception:
-        pass
-    return []
+        # API不可用时降级到本地JSON
+        try:
+            from backend.services.data_service import get_data
+            data = get_data()
+            if isinstance(data, dict):
+                return list(data.values())
+            if isinstance(data, list):
+                return data
+        except Exception:
+            pass
+        return []
 
 
 async def _llm_decide(system_prompt: str, user_prompt: str, retries: int = 2) -> dict | None:
@@ -529,8 +535,8 @@ async def food_agent(state: TravelState) -> dict:
     user_input = state.get("user_input", "")
     candidates = state.get("candidates", [])
 
-    # 独立加载全部餐饮POI（不依赖candidates过滤）
-    all_pois = _load_all_pois()
+    # 从美团API获取全部餐饮POI（不依赖candidates过滤）
+    all_pois = await _load_all_pois()
     # 只保留目标城市
     target_city = intent.get("city", "珠海")
     all_pois = [p for p in all_pois if p.get("city", "") == target_city or not p.get("city")]
@@ -687,8 +693,8 @@ async def hotel_agent(state: TravelState) -> dict:
     if not need_hotel:
         return {"proposals": []}
 
-    # 从全部POI中找住宿
-    all_pois = _load_all_pois()
+    # 从美团API获取全部POI中找住宿
+    all_pois = await _load_all_pois()
     target_city = intent.get("city", "珠海")
     all_pois = [p for p in all_pois if p.get("city", "") == target_city or not p.get("city")]
     hotel_sources = all_pois + candidates

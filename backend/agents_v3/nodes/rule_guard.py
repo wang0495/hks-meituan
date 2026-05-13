@@ -22,17 +22,23 @@ async def rule_guard(state: TravelState) -> dict:
         errors.append(f"意图解析失败: {e}")
         user_intent = _fallback_intent(user_input)
 
-    # ── 加载POI ──
+    # ── 从美团API加载POI ──
     try:
-        from backend.services.data_service import get_data
-        all_pois = get_data()
-        if isinstance(all_pois, dict):
-            all_pois = list(all_pois.values())
-        elif not isinstance(all_pois, list):
-            all_pois = []
+        from backend.agents_v3.meituan_client import fetch_pois
+        all_pois = await fetch_pois()
     except Exception as e:
-        errors.append(f"POI加载失败: {e}")
-        all_pois = []
+        errors.append(f"美团API不可用: {e}")
+        # 降级到本地JSON
+        try:
+            from backend.services.data_service import get_data
+            all_pois = get_data()
+            if isinstance(all_pois, dict):
+                all_pois = list(all_pois.values())
+            elif not isinstance(all_pois, list):
+                all_pois = []
+        except Exception as e2:
+            errors.append(f"本地数据也不可用: {e2}")
+            all_pois = []
 
     # ── 只保留目标城市POI ──
     target_city = user_intent.get("city", "珠海")
