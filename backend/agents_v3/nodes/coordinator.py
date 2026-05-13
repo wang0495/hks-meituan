@@ -64,8 +64,9 @@ async def coordinator(state: TravelState) -> dict:
     food_proposals = [p for p in food_proposals if not _is_likely_macau(p.get("content", {}).get("name", ""))]
     hotel_proposals = [p for p in hotel_proposals if not _is_likely_macau(p.get("content", {}).get("name", ""))]
 
-    # 地理兼容过滤
-    food_proposals = _geo_compat_filter(food_proposals, poi_proposals, "food") or food_proposals
+    # 地理兼容过滤（美食型场景不过滤餐饮，因为吃本身就是目的）
+    if scene_type != "美食型":
+        food_proposals = _geo_compat_filter(food_proposals, poi_proposals, "food") or food_proposals
     hotel_proposals = _geo_compat_filter(hotel_proposals, poi_proposals, "hotel") or hotel_proposals
 
     if not poi_proposals and not food_proposals:
@@ -737,6 +738,9 @@ def _ensure_min_food_in_route(route: dict, food_proposals: list[dict], intent: d
     for fp in food_proposals:
         content = fp.get("content", {})
         if not content.get("rating"):
+            continue
+        # 排除酒店/住宿类
+        if content.get("category", "") in ("酒店", "住宿"):
             continue
         score = content.get("rating", 0)
         lat, lng = content.get("lat", 0), content.get("lng", 0)

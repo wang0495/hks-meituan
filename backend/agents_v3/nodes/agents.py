@@ -601,6 +601,7 @@ async def food_agent(state: TravelState) -> dict:
         c for c in all_pois
         if (any(kw in c.get("category", "") for kw in food_cats)
             or any(kw in c.get("name", "") for kw in food_names))
+        and c.get("category", "") not in ["购物", "酒店", "住宿"]  # 排除非餐饮类
         and not _is_likely_macau(c.get("name", ""))
         and c.get("rating") is not None  # 过滤垃圾POI
     ]
