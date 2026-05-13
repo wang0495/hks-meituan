@@ -33,6 +33,11 @@ class TravelState(TypedDict, total=False):
     counter_proposals: Annotated[list[dict], operator.add]
     negotiation_msgs: Annotated[list[dict], operator.add]
 
+    # ── 讨论池：review反馈 ──
+    review_feedback: list[dict]       # [{agent: "poi", issue: "...", action: "rework"}]
+    review_round: int                 # 当前轮次（0=首轮, 1=第2轮...）
+    reworked_proposals: list[dict]    # rework后的完整proposals（覆盖原始的）
+
     # ── Layer 5: 涌现式校验结果 ──
     conflicts: list[dict]
 

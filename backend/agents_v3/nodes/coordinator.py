@@ -47,7 +47,8 @@ def _haversine_km(lat1, lng1, lat2, lng2) -> float:
 
 async def coordinator(state: TravelState) -> dict:
     """coordinator：调度Agent结果 → LLM编排路线 → 兜底规则组装。"""
-    proposals = list(state.get("proposals", []))
+    # 优先用rework后的proposals
+    proposals = list(state.get("reworked_proposals") or state.get("proposals", []))
     intent = dict(state.get("user_intent", {}))
     errors = []
 
@@ -578,8 +579,11 @@ async def _llm_assemble_route(
    如果景点太多放不下，优先选地理位置紧凑、评分高的景点，舍弃远的。
 5. 【场景适配】{'亲子：景点间距要短，带小孩不宜长途奔波' if group_type == '亲子' else ''}{'情侣：安排海滨/浪漫路线' if group_type == '情侣' else ''}{'特种兵：紧凑排列，减少空隙' if '特种兵' in pace else ''}
 6. 【住宿尾置】如有住宿，放路线最后
+7. 【类型多样性·锦上添花】在满足地理连贯的前提下，如果两个POI地理距离相近，优先选不同类型（景点/公园/文化/餐饮交替）。绝不为了多样性牺牲地理连贯性。
 
 注意：交通Agent已给出参考顺序(traffic_order)，你可以参考但不必完全照搬，你的排序应综合地理+时间+餐饮位置。
+
+【提示】如果用户主题是美食，可以在两顿正餐之间安排1个附近的休闲景点（如公园散步消食），但不是必须的。如果加了景点，它应该离餐厅很近且性质轻松。
 
 输出JSON格式：
 {{"ordered_stops":[{{"name":"景点/餐厅名","type":"poi/lunch/dinner/hotel","reason":"为什么排这里"}}],"route_design":"路线设计思路（2句话）"}}
@@ -805,6 +809,7 @@ def _fallback_assemble(proposals: list[dict], intent: dict) -> dict | None:
         _apply_weather_advice(route_steps, weather_proposal)
     if route_steps:
         route_steps = _dedup_route(route_steps)
+        route_steps = _ensure_category_diversity(route_steps)
 
     if not route_steps:
         return None
@@ -825,3 +830,39 @@ def _fallback_assemble(proposals: list[dict], intent: dict) -> dict | None:
         },
         "emotion_curve": [],
     }
+
+
+def _ensure_category_diversity(steps: list[dict], max_same: int = 2) -> list[dict]:
+    """检查路线中连续同类POI，超过阈值时插入多样性标记。
+
+    只做标记不删除——删除会破坏地理和时间编排。
+    """
+    if len(steps) <= 3:
+        return steps
+
+    # 把category归入大类
+    _CAT_MAP = {
+        "公园": "自然", "海滨": "自然", "沙滩": "自然", "自然风光": "自然", "岛屿": "自然",
+        "博物馆": "文化", "文化": "文化", "历史": "文化", "艺术": "文化", "剧院": "文化",
+        "餐饮": "餐饮", "美食": "餐饮", "小吃": "餐饮", "海鲜": "餐饮",
+        "娱乐": "娱乐", "游乐园": "娱乐", "温泉SPA": "娱乐",
+        "购物": "购物", "住宿": "住宿", "酒店": "住宿",
+    }
+
+    def _broad_cat(step: dict) -> str:
+        raw = step.get("poi", {}).get("category", "")
+        for k, v in _CAT_MAP.items():
+            if k in raw:
+                return v
+        return "其他"
+
+    # 统计大类分布
+    cats = [_broad_cat(s) for s in steps]
+    unique_cats = set(cats)
+
+    # 如果路线只有1-2种大类，给steps添加多样性提示
+    if len(unique_cats) <= 2 and len(steps) >= 4:
+        for s in steps:
+            s["_diversity_warning"] = "路线类型单一，建议增加不同类型POI"
+
+    return steps

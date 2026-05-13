@@ -236,6 +236,14 @@ async def poi_agent(state: TravelState) -> dict:
     user_input = state.get("user_input", "")
     errors = []
 
+    # ── 读取review反馈（如果有） ──
+    feedback = state.get("review_feedback", [])
+    poi_feedback = [f for f in feedback if f.get("agent") == "poi"]
+    feedback_hint = ""
+    if poi_feedback:
+        hints = "; ".join(f"{f['issue']} → {f['suggestion']}" for f in poi_feedback)
+        feedback_hint = f"\n\n【上一轮审查反馈，必须据此调整】\n{hints}\n请严格按照反馈要求重新选择，不要重复之前的错误。"
+
     # 只做最基本过滤：去掉非景点、澳门、无评分垃圾POI
     pool = []
     for c in candidates:
@@ -291,6 +299,7 @@ async def poi_agent(state: TravelState) -> dict:
     user = f"""用户需求: {user_input}
 意图分析:
 - 偏好类别: {json.dumps(intent.get('preferred_categories', []), ensure_ascii=False)}
+- 场景关键词: {json.dumps(intent.get('scene_requirements', []), ensure_ascii=False)}
 - 预算: {intent.get('budget', {}).get('per_person', '不限')}元/人
 - 节奏: {pace}
 - 群体: {intent.get('group', {}).get('type', '未知')}
@@ -299,7 +308,7 @@ async def poi_agent(state: TravelState) -> dict:
 
 候选POI（{len(sampled)}个，按类别分层抽样）:
 {json.dumps(poi_summaries, ensure_ascii=False)}
-
+{feedback_hint}
 请选出{max_picks}个最合适的景点。"""
 
     result = await _llm_decide(system, user)
@@ -535,6 +544,15 @@ async def food_agent(state: TravelState) -> dict:
     user_input = state.get("user_input", "")
     candidates = state.get("candidates", [])
 
+    # ── 读取review反馈 ──
+    feedback = state.get("review_feedback", [])
+    food_feedback = [f for f in feedback if f.get("agent") == "food"]
+    feedback_hint = ""
+    if food_feedback:
+        hints = "; ".join(f"{f['issue']} → {f['suggestion']}" for f in food_feedback)
+        feedback_hint = f"\n\n【上一轮审查反馈，必须据此调整】\n{hints}"
+    candidates = state.get("candidates", [])
+
     # 从美团API获取全部餐饮POI（不依赖candidates过滤）
     all_pois = await _load_all_pois()
     # 只保留目标城市
@@ -571,10 +589,30 @@ async def food_agent(state: TravelState) -> dict:
                     "category": c.get("category", ""),
                 })
 
+    # 分层采样：按子类别分组，每组取top，确保多样性
+    _FOOD_SUBCATS = {
+        "海鲜": ["海鲜", "蚝", "鱼排", "渔港"],
+        "正餐": ["餐厅", "烧", "煲", "火锅", "烧烤"],
+        "小吃": ["粉", "面", "粥", "小吃", "排档", "夜市"],
+        "茶餐厅/甜品": ["茶餐厅", "甜品", "奶茶", "冰", "柠檬", "饮品"],
+    }
+    stratified = []
+    subcat_map = {}  # name -> subcat
+    seen_names = set()
+    for sub_name, kws in _FOOD_SUBCATS.items():
+        bucket = [f for f in foods if any(kw in f.get("name", "") or kw in f.get("category", "") for kw in kws)
+                  and f.get("name", "") not in seen_names]
+        bucket.sort(key=lambda x: x.get("rating", 0), reverse=True)
+        for f in bucket[:10]:
+            stratified.append(f)
+            subcat_map[f.get("name", "")] = sub_name
+            seen_names.add(f.get("name", ""))
+
     # 给LLM的摘要（含坐标让LLM判断地理关系）
     summaries = [
         {
             "name": f.get("name", ""),
+            "type": subcat_map.get(f.get("name", ""), "其他"),
             "cat": f.get("category", ""),
             "price": f.get("avg_price", 0),
             "rating": f.get("rating", 0),
@@ -582,7 +620,7 @@ async def food_agent(state: TravelState) -> dict:
             "lat": round(f.get("lat", 0), 3) if f.get("lat") else None,
             "lng": round(f.get("lng", 0), 3) if f.get("lng") else None,
         }
-        for f in foods[:30]
+        for f in stratified[:40]
     ]
 
     group_type = intent.get("group", {}).get("type", "")
@@ -590,13 +628,16 @@ async def food_agent(state: TravelState) -> dict:
     # ── 决策：LLM ──
     system = f"""你是珠海美食推荐专家。根据用户需求从候选餐厅中挑选最合适的组合。
 
-核心要求：
+核心要求（按优先级）：
 1. 【地理就近】午餐选上午游览景点附近（坐标相近的），晚餐选下午/傍晚景点附近
 2. 【时段匹配】
    - 午餐(11:00-13:00)：用户通常在第2-3个景点后用餐，选该区域的特色餐厅
    - 晚餐(17:00-19:00)：用户通常在最后1-2个景点附近，选评价好的正餐
 3. 【预算合理】人均不超预算，高评分优先
-4. 【类型多样】不要全选同类（如都是海鲜），穿插本地特色/小吃/正餐
+4. 【类型多样·硬约束】每个pick必须是不同类型的餐厅！
+   - 如果选3家：必须包含至少2种不同类型（如：1海鲜+1茶餐厅+1小吃）
+   - 禁止全部选同类型（如全是海鲜街/全是排档/全是夜市）
+   - 优先搭配：正餐+特色小吃+甜品/饮品
 5. 【群体适配】{'亲子：选环境好、有儿童餐的；' if group_type == '亲子' else ''}{'情侣：选氛围好的特色餐厅；' if group_type == '情侣' else ''}{'特种兵：选快节奏、不用排队的。' if '特种兵' in user_input else ''}
 
 输出JSON: {{"picks":[{{"name":"店名","reason":"推荐理由（含与哪个景点就近）","confidence":0.8,"meal_time":"午餐/晚餐"}}]}}
@@ -609,9 +650,9 @@ async def food_agent(state: TravelState) -> dict:
 用户可能游览的景点位置:
 {json.dumps(poi_locations[:10], ensure_ascii=False)}
 
-候选餐厅（{len(foods)}家，含坐标）:
+候选餐厅（{len(stratified)}家，分层采样）:
 {json.dumps(summaries, ensure_ascii=False)}
-
+{feedback_hint}
 请根据餐厅与景点的坐标距离，推荐最方便的就餐选择。"""
 
     result = await _llm_decide(system, user)

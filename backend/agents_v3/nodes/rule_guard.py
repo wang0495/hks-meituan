@@ -46,7 +46,6 @@ async def rule_guard(state: TravelState) -> dict:
         zhuhai_pois = [p for p in all_pois if p.get("city", "") == target_city or not p.get("city")]
         if len(zhuhai_pois) >= 10:
             all_pois = zhuhai_pois
-        # else 保留全部（数据可能没标城市）
 
     # ── 预筛（宽松：只做最基本过滤，让Agent自己选） ──
     candidates = all_pois
@@ -57,8 +56,8 @@ async def rule_guard(state: TravelState) -> dict:
         except Exception:
             candidates = all_pois[:120]
 
-        # 确保关键景点在候选池中（即使被过滤掉了也加回来）
-        candidates = _ensure_key_pois(candidates, all_pois, user_intent)
+        # 用LLM判断需要哪些核心景点，确保在候选池中
+        candidates = await _ensure_key_pois_llm(candidates, all_pois, user_input, user_intent)
 
     # ── 元规则防火墙检查 ──
     rule_violations = check_hard_rules(user_intent, candidates)
@@ -72,7 +71,7 @@ async def rule_guard(state: TravelState) -> dict:
     }
 
 
-# 珠海核心景点（必须出现在候选池中）
+# 珠海核心景点（LLM降级时使用）
 _KEY_POIS = [
     "长隆海洋王国", "海洋王国", "横琴长隆海洋科学馆", "长隆马戏城",
     "珠海渔女", "情侣路", "外伶仃岛", "淇澳岛", "圆明新园",
@@ -82,35 +81,92 @@ _KEY_POIS = [
 ]
 
 
-def _ensure_key_pois(candidates: list[dict], all_pois: list[dict], intent: dict) -> list[dict]:
-    """确保关键景点在候选池中。"""
+async def _ensure_key_pois_llm(
+    candidates: list[dict],
+    all_pois: list[dict],
+    user_input: str,
+    intent: dict,
+) -> list[dict]:
+    """用LLM判断用户意图隐含需要哪些核心景点，确保它们在候选池中。"""
+    import json
+    import os
+
+    from openai import AsyncOpenAI
+
     cand_names = {c.get("name", "") for c in candidates}
 
-    # 构建需要确保的景点列表
-    user_input = str(intent.get("_raw_input", ""))
-    needed = set()
-    for kp in _KEY_POIS:
-        if kp in user_input:
-            needed.add(kp)
+    # 从全部POI中取高评分的知名景点（供LLM选择）
+    well_known = [
+        {"name": p.get("name", ""), "category": p.get("category", ""), "rating": p.get("rating", 0)}
+        for p in all_pois
+        if p.get("rating") and p.get("rating", 0) >= 4.0
+        and p.get("category", "") not in ["住宿", "酒店", "民宿"]
+    ][:80]
 
-    # 如果用户没提到特定景点，至少加入最知名的
-    if not needed:
-        needed = {"长隆海洋王国", "珠海渔女", "情侣路", "圆明新园", "海滨泳场"}
+    group_type = intent.get("group", {}).get("type", "未知")
 
+    prompt = f"""根据用户的出行需求，判断以下哪些知名景点/地点应该在候选池中（即使用户没有直接点名，只要是该需求下理应包含的）。
+
+用户需求: {user_input}
+场景类型: {intent.get('scene_requirements', [])}
+偏好类别: {intent.get('preferred_categories', [])}
+群体: {group_type}
+
+已知知名景点:
+{json.dumps(well_known, ensure_ascii=False)}
+
+当前候选池中已有的:
+{json.dumps(list(cand_names)[:30], ensure_ascii=False)}
+
+请选出必须在候选池中但目前缺失的景点名。输出JSON: {{"must_have": ["景点名1", "景点名2"]}}
+如果候选池已经足够，输出: {{"must_have": []}}
+只输出JSON。"""
+
+    try:
+        client = AsyncOpenAI(
+            base_url=os.getenv("LLM_BASE_URL", "https://api.deepseek.com"),
+            api_key=os.getenv("LLM_API_KEY", os.getenv("OPENAI_API_KEY", "")),
+        )
+        resp = await client.chat.completions.create(
+            model=os.getenv("LLM_MODEL", "deepseek-chat"),
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.1,
+            response_format={"type": "json_object"},
+        )
+        text = resp.choices[0].message.content or ""
+        result = json.loads(text)
+        must_have = result.get("must_have", [])
+    except Exception:
+        # LLM失败降级到正则
+        must_have = _fallback_must_have(user_input)
+
+    # 把缺失的加入候选池
     missing = []
     for poi in all_pois:
         name = poi.get("name", "")
-        for n in needed:
-            if n in name or name in n:
-                if name not in cand_names:
-                    missing.append(poi)
-                    cand_names.add(name)
-                    break
+        if name in cand_names:
+            continue
+        for needed_name in must_have:
+            if needed_name in name or name in needed_name:
+                missing.append(poi)
+                cand_names.add(name)
+                break
 
     if missing:
         candidates = list(candidates) + missing
 
     return candidates
+
+
+def _fallback_must_have(user_input: str) -> list[str]:
+    """LLM不可用时降级：关键词匹配。"""
+    needed = set()
+    for kp in _KEY_POIS:
+        if kp in user_input:
+            needed.add(kp)
+    if not needed:
+        needed = {"长隆海洋王国", "珠海渔女", "情侣路", "圆明新园", "海滨泳场"}
+    return list(needed)
 
 
 def _fallback_intent(user_input: str) -> dict:
