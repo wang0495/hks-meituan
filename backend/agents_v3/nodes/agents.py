@@ -206,9 +206,10 @@ def _build_poi_prompt(intent: dict) -> str:
 
 核心要求（按优先级）：
 1. 根据用户意图精准匹配（群体类型、预算、节奏）
-2. **地理紧凑性**：选出的景点地理紧凑（总行程直径不超过15km）
-   - 珠海主要区域：横琴(lat≈22.11) / 拱北(lat≈22.22) / 香洲(lat≈22.27) / 唐家湾(lat≈22.36)
-   - 不要混合横琴和唐家湾（跨距超30km）
+2. **地理紧凑性**：每个景点都有lat/lng坐标，选出的景点在地理上应紧凑集中。
+   - 通过坐标判断：如果选了lat=22.27的景点，其他景点也应集中在22.2-22.35范围内
+   - 不要混合南北两端（如横琴lat~22.11和唐家湾lat~22.36跨距超25km）
+   - 特种兵场景可以跨区域，但同区域的景点应连排
 3. 场景多样性：自然/文化/娱乐/海滨 不重复同类型
 {scene_extra}{pace_extra}{constraint_extra}{budget_extra}
 
@@ -222,71 +223,47 @@ def _build_poi_prompt(intent: dict) -> str:
 # ═══════════════════════════════════════════════════════════
 
 async def poi_agent(state: TravelState) -> dict:
-    """景点Agent：感知用户意图 → LLM选择最佳POI → 提案。"""
+    """景点Agent：LLM直接从候选池选景点，不做算法预排序。"""
     # ── 感知 ──
     candidates = state.get("candidates", [])
     intent = state.get("user_intent", {})
     user_input = state.get("user_input", "")
     errors = []
 
-    # 先按质量+相关性排序候选（确保高质量景点在前面）
-    keywords = intent.get("preferred_categories", []) + intent.get("scene_requirements", [])
-    scored_candidates = []
+    # 只做最基本过滤：去掉非景点、澳门、无评分垃圾POI
+    pool = []
     for c in candidates:
         name = c.get("name", "")
         cat = c.get("category", "")
-        # 跳过纯住宿/餐饮
-        if cat in ["住宿", "酒店", "民宿"]:
+        if cat in ["住宿", "酒店", "民宿", "餐饮", "美食"]:
             continue
-        # 跳过澳门POI
         if _is_likely_macau(name):
             continue
-        # 跳过垃圾POI（无评分且不是地标）
         if c.get("rating") is None:
-            if not any(lm in name for lm in _LANDMARK_NAMES):
-                continue
-        score = 0.0
-        # 质量分
-        rating = c.get("rating") or 4.0
-        score += rating * 0.3
-        # LLM质量（有就用，没有不罚）
-        llm_q = c.get("_llm_quality", {})
-        if llm_q.get("is_tourist"):
-            score += 1.5
-        score += (llm_q.get("score") or 5) * 0.2
-        # 知名地标大幅加分（不管_llm_quality有没有）
-        for lm in _LANDMARK_NAMES:
-            if lm in name:
-                score += 3.0
-                break
-        # 标签匹配
-        if keywords:
-            score += _tag_similarity(c, keywords) * 3.0
-        # 知名度（tags多的通常更知名）
-        score += min(len(c.get("tags", [])), 5) * 0.2
-        # 关键：用户直接提到的POI大幅加分
-        if user_input:
-            for keyword in ["海洋王国", "长隆", "渔女", "情侣路", "圆明新园", "海滨",
-                            "外伶仃", "淇澳", "御温泉", "唐家湾", "飞沙滩", "金海滩",
-                            "海滨泳场", "日月贝", "大剧院", "野狸岛", "竹仙洞",
-                            "白莲洞", "石花山", "梅华", "新海利", "湾仔"]:
-                if keyword in user_input and keyword in name:
-                    score += 5.0
-                    break
-        # 场景适合度
-        suitability = c.get("_suitability", {})
-        group_type = intent.get("group", {}).get("type", "")
-        if group_type == "亲子" and suitability.get("亲子友好"):
-            score += 1.5
-        if group_type == "情侣" and suitability.get("情侣友好"):
-            score += 1.5
-        scored_candidates.append((c, score))
-    scored_candidates.sort(key=lambda x: x[1], reverse=True)
-    top_candidates = [c for c, _ in scored_candidates[:30]]
+            continue
+        pool.append(c)
 
-    # 准备POI摘要给LLM（含坐标用于地理聚类）
+    # 按category分层抽样，确保LLM看到各类POI
+    cat_groups = {}
+    for c in pool:
+        cat = c.get("category", "其他")
+        cat_groups.setdefault(cat, []).append(c)
+
+    # 每个category按rating排序后取前N个，总共控制在~200个
+    sampled = []
+    per_cat = max(3, 200 // max(len(cat_groups), 1))
+    for cat, items in cat_groups.items():
+        items.sort(key=lambda x: x.get("rating", 0), reverse=True)
+        sampled.extend(items[:per_cat])
+
+    # 如果总量还是太大，按rating截断
+    if len(sampled) > 250:
+        sampled.sort(key=lambda x: x.get("rating", 0), reverse=True)
+        sampled = sampled[:250]
+
+    # 构建LLM摘要
     poi_summaries = []
-    for c in top_candidates:
+    for c in sampled:
         poi_summaries.append({
             "name": c.get("name", ""),
             "category": c.get("category", ""),
@@ -314,7 +291,7 @@ async def poi_agent(state: TravelState) -> dict:
 - 人数: {intent.get('group', {}).get('size', 2)}
 - 时间: {json.dumps(intent.get('time', {}), ensure_ascii=False)}
 
-候选POI（共{len(candidates)}个，展示前{len(poi_summaries)}个）:
+候选POI（{len(sampled)}个，按类别分层抽样）:
 {json.dumps(poi_summaries, ensure_ascii=False)}
 
 请选出{max_picks}个最合适的景点。"""
@@ -322,14 +299,12 @@ async def poi_agent(state: TravelState) -> dict:
     result = await _llm_decide(system, user)
 
     proposals = []
-    # 用全部candidates做匹配（不只是top_candidates）
     name_map = {c.get("name", ""): c for c in candidates}
     if result and "picks" in result:
         for pick in result["picks"]:
             name = pick.get("name", "")
             content = name_map.get(name)
             if not content:
-                # 模糊匹配
                 for c in candidates:
                     if name in c.get("name", "") or c.get("name", "") in name:
                         content = c
@@ -341,10 +316,6 @@ async def poi_agent(state: TravelState) -> dict:
                     pick.get("confidence", 0.7),
                     pick.get("reason", "LLM推荐"),
                 ))
-
-    # ── 地理聚类后处理：替换离群POI ──
-    if len(proposals) >= 3:
-        proposals = _geo_cluster_filter(proposals, candidates)
 
     # ── 降级：智能规则引擎（非简单fallback） ──
     if not proposals:

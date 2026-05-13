@@ -48,18 +48,8 @@ def _haversine_km(lat1, lng1, lat2, lng2) -> float:
 async def coordinator(state: TravelState) -> dict:
     """coordinator：调度Agent结果 → LLM编排路线 → 兜底规则组装。"""
     proposals = list(state.get("proposals", []))
-    conflicts = state.get("conflicts", [])
     intent = dict(state.get("user_intent", {}))
     errors = []
-
-    # ── 0. 应用群聊冲突决议 ──
-    remove_names = set()
-    for c in conflicts:
-        if c.get("resolution") == "remove":
-            remove_names.add(c.get("target_name", ""))
-    if remove_names:
-        proposals = [p for p in proposals
-                     if p.get("content", {}).get("name", "") not in remove_names]
 
     # ── 1. 按Agent类型分类提案 ──
     poi_proposals = [p for p in proposals if p.get("agent") == "poi" and p.get("content", {}).get("name")]
@@ -556,10 +546,10 @@ async def _llm_assemble_route(
     if traffic_proposal:
         traffic_order = traffic_proposal.get("content", {}).get("suggested_order", [])
 
-    # 计算POI间距离矩阵
+    # 计算POI间距离矩阵（完整，不截断）
     distances = []
-    for i, p1 in enumerate(poi_list[:12]):
-        for j, p2 in enumerate(poi_list[:12]):
+    for i, p1 in enumerate(poi_list):
+        for j, p2 in enumerate(poi_list):
             if i < j and p1.get("lat") and p2.get("lat"):
                 d = _haversine_km(p1["lat"], p1["lng"], p2["lat"], p2["lng"])
                 distances.append({"from": p1["name"], "to": p2["name"], "km": round(d, 1)})
@@ -573,7 +563,10 @@ async def _llm_assemble_route(
     system = f"""你是旅行路线编排专家。你需要把Agent精选的景点、餐厅、住宿组合成一条完整的一日游路线。
 
 你的任务（按优先级）：
-1. 【地理连贯】同区域景点连走，避免折返。通过坐标和距离矩阵判断地理位置。
+1. 【地理连贯】通过坐标判断地理位置紧凑性，同区域景点连走，绝不折返。
+   - 每个景点都有lat/lng，直接看坐标：如果选了lat≈22.27的景点，其他景点也应集中在22.2-22.35
+   - lat差>0.05（约5.5km）或经纬度跨距大时，先走完一个区域再移到下一个
+   - 距离矩阵已给出所有景点间的km距离，用它来避免折返
 2. 【时间节奏】按情绪曲线设计：
    - 上午({start_time}-12:00)：精力好，主力景点（地标/特色/户外）
    - 午餐(11:30-13:00)：选距离此时最近景点的餐厅
@@ -581,8 +574,10 @@ async def _llm_assemble_route(
    - 晚餐(17:30-19:00)：选距离此时最近景点的餐厅
    - 傍晚/晚上：休闲收尾（海边/观景/夜景）
 3. 【餐饮就近】餐厅必须插在距它最近的景点旁边，不要硬插到远处
-4. 【场景适配】{'亲子：景点间距要短，带小孩不宜长途奔波' if group_type == '亲子' else ''}{'情侣：安排海滨/浪漫路线' if group_type == '情侣' else ''}{'特种兵：紧凑排列，减少空隙' if '特种兵' in pace else ''}
-5. 【住宿尾置】如有住宿，放路线最后
+4. 【时间硬约束】总行程必须在{start_time}-{end_time}内完成，最后一步的离开时间不得超过{end_time}。
+   如果景点太多放不下，优先选地理位置紧凑、评分高的景点，舍弃远的。
+5. 【场景适配】{'亲子：景点间距要短，带小孩不宜长途奔波' if group_type == '亲子' else ''}{'情侣：安排海滨/浪漫路线' if group_type == '情侣' else ''}{'特种兵：紧凑排列，减少空隙' if '特种兵' in pace else ''}
+6. 【住宿尾置】如有住宿，放路线最后
 
 注意：交通Agent已给出参考顺序(traffic_order)，你可以参考但不必完全照搬，你的排序应综合地理+时间+餐饮位置。
 
@@ -606,7 +601,7 @@ async def _llm_assemble_route(
 {'住宿Agent精选: ' + json.dumps(hotel_list, ensure_ascii=False) if hotel_list else '无需住宿'}
 
 景点间距离:
-{json.dumps(distances[:25], ensure_ascii=False)}
+{json.dumps(distances, ensure_ascii=False)}
 
 交通Agent建议顺序: {json.dumps(traffic_order, ensure_ascii=False) if traffic_order else '无'}
 
@@ -719,6 +714,19 @@ def _build_route_from_llm_order(
     if not steps:
         return None
 
+    # 截断超过end_time的步骤
+    end_time_str = intent.get("time", {}).get("end", "21:00")
+    try:
+        end_dt = datetime.strptime(end_time_str, "%H:%M")
+    except ValueError:
+        end_dt = datetime.strptime("21:00", "%H:%M")
+    # 跨天处理：如果end_time < start_time（如00:00），认为end是次日
+    if end_dt <= datetime.strptime(start_time_str, "%H:%M"):
+        end_dt += timedelta(days=1)
+
+    # 到达时间超过end_time的步骤一律截掉
+    steps = [s for s in steps if datetime.strptime(s["arrival_time"], "%H:%M") <= end_dt]
+
     # 去重
     steps = _dedup_route(steps)
 
@@ -769,7 +777,10 @@ async def _llm_decide(system_prompt: str, user_prompt: str, retries: int = 2) ->
                 import asyncio
                 await asyncio.sleep(2)
     return None
-    """Solver失败时的手动路线组装兜底。"""
+
+
+def _fallback_assemble(proposals: list[dict], intent: dict) -> dict | None:
+    """LLM编排失败时的规则兜底。"""
     poi_proposals = [p for p in proposals if p.get("agent") == "poi" and p.get("content", {}).get("name")]
     food_proposals = [p for p in proposals if p.get("agent") == "food" and p.get("content", {}).get("name")]
     hotel_proposals = [p for p in proposals if p.get("agent") == "hotel" and p.get("content", {}).get("name")]
