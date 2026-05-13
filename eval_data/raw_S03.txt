@@ -1,1 +1,0 @@
-{"scores":{"intent_match":6,"poi_quality":8,"geo_continuity":7,"budget_fit":9,"scene_diversity":6,"overfamily":7},"bad_points":["石景山公园和野狸岛标签含'运动'，与用户期望的轻松亲子场景不符","日月贝（珠海大剧院）属文化历史类景点，被用户明确排除"],"verdict":"fail"}

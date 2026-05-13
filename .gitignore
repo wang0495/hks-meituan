@@ -1,16 +1,45 @@
-.env
-.env.*
+# Python
 *.pyc
 __pycache__/
-node_modules/
-.git/
-=42.0.0
-amap-jsapi-skill.zip
-amap-jsapi-skill/
-coverage/
-htmlcov/
-.pytest_cache/
 *.egg-info/
 dist/
 build/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+coverage_html/
+htmlcov/
+
+# Env
+.env
+.env.*
+
+# Node
+node_modules/
+
+# IDE
 .DS_Store
+.vscode/
+.idea/
+
+# Logs
+*.log
+logs/
+docs/logs/
+
+# Coverage
+coverage.json
+coverage.xml
+test_results.xml
+test_report.html
+
+# Temp/test artifacts
+=0.3.0
+=0.4.0
+amap-jsapi-skill/
+cache/
+backups/
+eval_data/
+
+# Docker volumes
+data/

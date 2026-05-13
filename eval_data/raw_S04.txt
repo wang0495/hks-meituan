@@ -1,1 +1,0 @@
-{"scores":{"intent_match":3,"poi_quality":6,"geo_continuity":7,"budget_fit":8,"scene_diversity":5,"overall":5},"bad_points":["缺乏刺激运动体验如冲浪或攀岩","路线偏重餐饮和购物，不符合冒险主题","未体现自然风光与品质体验的融合"],"verdict":"fail"}
