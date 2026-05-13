@@ -91,6 +91,14 @@ async def coordinator(state: TravelState) -> dict:
     if route and route.get("route") and food_proposals:
         route = _ensure_min_food_in_route(route, food_proposals, intent)
 
+    # ── 3.7 站数上限（防止排到凌晨）──
+    if route and route.get("route"):
+        route = _cap_route_stops(route, scene_type, intent)
+
+    # ── 3.8 场景-品类校验（踢掉不搭的POI）──
+    if route and route.get("route"):
+        route = _validate_scene_categories(route, scene_type)
+
     # ── 4. 生成文案 ──
     narrative = None
     if route:
@@ -529,6 +537,60 @@ def _enforce_time_windows(steps: list[dict]) -> list[dict]:
             break
 
     return steps
+
+# ── 场景类型对应的站数上限 ──
+_SCENE_MAX_STOPS = {
+    "美食型": 6,   # 美食路线5-6个吃喝点够了
+    "休闲型": 5,   # 慢游不超过5站
+    "目的地型": 4,  # 大景区为主，周边补充
+    "特种兵型": 8,  # 特种兵可以多
+    "观光型": 6,   # 默认
+}
+
+# 美食型场景不应出现的品类（这些跟吃无关，占位浪费）
+_FOOD_SCENE_EXCLUDED_CATS = {"购物", "酒店", "住宿"}
+
+
+def _cap_route_stops(route: dict, scene_type: str, intent: dict) -> dict:
+    """截断路线到合理站数，防止排到凌晨。"""
+    steps = route.get("route", [])
+    if not steps:
+        return route
+
+    max_stops = _SCENE_MAX_STOPS.get(scene_type, 6)
+
+    # 亲子/退休群体再减1站
+    group_type = intent.get("group", {}).get("type", "")
+    if group_type in ("亲子", "退休") and max_stops > 4:
+        max_stops -= 1
+
+    if len(steps) <= max_stops:
+        return route
+
+    # 保留前max_stops站，优先保留有_type标记的（餐饮）
+    kept = steps[:max_stops]
+    route["route"] = kept
+    return route
+
+
+def _validate_scene_categories(route: dict, scene_type: str) -> dict:
+    """踢掉与场景不搭的POI品类。"""
+    steps = route.get("route", [])
+    if not steps:
+        return route
+
+    if scene_type == "美食型":
+        # 美食路线中购物/酒店类POI不搭
+        filtered = []
+        for s in steps:
+            cat = s.get("poi", {}).get("category", "")
+            if cat in _FOOD_SCENE_EXCLUDED_CATS:
+                continue
+            filtered.append(s)
+        if filtered:  # 防止全删
+            route["route"] = filtered
+
+    return route
 
 
 def _dedup_route(steps: list[dict]) -> list[dict]:
