@@ -673,11 +673,52 @@ async def food_agent(state: TravelState) -> dict:
             if content:
                 proposals.append(_proposal("food", content, pick.get("confidence", 0.7), pick.get("reason", "LLM推荐")))
 
+    # 后验多样性检查：如果picks全是同一子类，强制替换
+    proposals = _enforce_food_diversity(proposals, stratified, _FOOD_SUBCATS)
+
     # ── 降级：智能规则 ──
     if not proposals:
         proposals = _smart_food_selection(foods, intent, user_input)
 
     return {"proposals": proposals}
+
+
+def _enforce_food_diversity(
+    proposals: list[dict],
+    stratified_pool: list[dict],
+    subcat_defs: dict[str, list[str]],
+) -> list[dict]:
+    """后验检查：如果LLM选的全是同一子类，强制替换部分。"""
+    if len(proposals) < 2:
+        return proposals
+
+    # 判断每个proposal属于哪个子类
+    def _get_subcat(name: str) -> str:
+        for sub_name, kws in subcat_defs.items():
+            if any(kw in name for kw in kws):
+                return sub_name
+        return "其他"
+
+    subcats = [_get_subcat(p.get("content", {}).get("name", "")) for p in proposals]
+    unique = set(subcats)
+
+    # 如果≥3个picks且只有1种子类，替换最后1个
+    if len(proposals) >= 2 and len(unique) == 1:
+        dominant = subcats[0]
+        # 从分层池里找不同子类的
+        replacements = [
+            f for f in stratified_pool
+            if _get_subcat(f.get("name", "")) != dominant
+            and f.get("name", "") not in {p.get("content", {}).get("name", "") for p in proposals}
+            and f.get("rating") is not None
+        ]
+        if replacements:
+            # 替换评分最低的那个
+            worst_idx = min(range(len(proposals)), key=lambda i: proposals[i].get("confidence", 0.5))
+            rep = replacements[0]
+            proposals[worst_idx] = _proposal("food", rep, 0.7, f"强制多样性替换（{dominant}→{_get_subcat(rep['name'])}）")
+
+    return proposals
 
 
 def _smart_food_selection(foods: list[dict], intent: dict, user_input: str) -> list[dict]:

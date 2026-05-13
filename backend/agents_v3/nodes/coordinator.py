@@ -426,7 +426,7 @@ def _apply_weather_advice(steps: list[dict], weather_proposal: dict) -> None:
 
 
 def _dedup_route(steps: list[dict]) -> list[dict]:
-    """路线最终去重。"""
+    """路线最终去重：精确匹配 + 模糊同类去重。"""
     seen = set()
     result = []
     for step in steps:
@@ -434,9 +434,32 @@ def _dedup_route(steps: list[dict]) -> list[dict]:
         key = _canonical_name(name)
         if key in seen:
             continue
+        # 模糊去重：同区域同类型视为重复
+        fuzzy_key = _fuzzy_dedup_key(name)
+        if fuzzy_key and fuzzy_key in seen:
+            continue
         seen.add(key)
+        if fuzzy_key:
+            seen.add(fuzzy_key)
         result.append(step)
     return result
+
+
+def _fuzzy_dedup_key(name: str) -> str | None:
+    """提取模糊去重key：同区域+同类型视为同一家。"""
+    # 湾仔海鲜街 / 湾仔海鲜夜市 / 湾仔海鲜市场 → 湾仔海鲜
+    import re
+    patterns = [
+        (r"(湾仔.*海鲜)", "湾仔海鲜"),
+        (r"(夏湾.*夜市)", "夏湾夜市"),
+        (r"(横琴.*蚝)", "横琴蚝庄"),
+        (r"(情侣路.*)", "情侣路"),
+        (r"(长隆.*)", "长隆"),
+    ]
+    for pat, key in patterns:
+        if re.search(pat, name):
+            return key
+    return None
 
 
 def _build_fallback_narrative(route: dict) -> dict:
@@ -579,7 +602,10 @@ async def _llm_assemble_route(
    如果景点太多放不下，优先选地理位置紧凑、评分高的景点，舍弃远的。
 5. 【场景适配】{'亲子：景点间距要短，带小孩不宜长途奔波' if group_type == '亲子' else ''}{'情侣：安排海滨/浪漫路线' if group_type == '情侣' else ''}{'特种兵：紧凑排列，减少空隙' if '特种兵' in pace else ''}
 6. 【住宿尾置】如有住宿，放路线最后
-7. 【类型多样性·锦上添花】在满足地理连贯的前提下，如果两个POI地理距离相近，优先选不同类型（景点/公园/文化/餐饮交替）。绝不为了多样性牺牲地理连贯性。
+7. 【类型多样性·按场景】
+   - 非美食主题：路线应包含至少3种类型（景点+餐饮+公园/文化等），避免全景点或全公园
+   - 美食主题：不需要加景点/购物！重点保证餐饮内部多样性（海鲜+茶餐厅+小吃+甜品），不同类型的餐厅交替
+   - 禁止为了多样性硬塞无关POI（如美食路线塞购物中心）
 
 注意：交通Agent已给出参考顺序(traffic_order)，你可以参考但不必完全照搬，你的排序应综合地理+时间+餐饮位置。
 
