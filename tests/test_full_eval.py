@@ -8,7 +8,6 @@ from datetime import datetime
 from pathlib import Path
 
 import httpx
-sys.path.insert(0, "backend")
 os.environ.setdefault("LLM_API_KEY", "sk-1aad8fc6f2bb4614be106bcdb747478f")
 os.environ.setdefault("LLM_BASE_URL", "https://api.deepseek.com")
 os.environ.setdefault("LLM_MODEL", "deepseek-chat")

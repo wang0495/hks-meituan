@@ -10,8 +10,6 @@ from datetime import datetime
 
 import httpx
 
-sys.path.insert(0, "backend")
-
 from backend.agents_v3 import get_graph_c, TravelState
 
 # ── LLM评分配置 ──

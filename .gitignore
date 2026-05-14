@@ -41,5 +41,17 @@ cache/
 backups/
 eval_data/
 
+# Test outputs (generate during dev, not for repo)
+test_output*.txt
+test_targeted_output*.txt
+test_full_eval_*.json
+test_results_*.json
+eval_result.json
+optuna_result.json
+
+# Dev reports (ad-hoc, not source)
+架构审计报告.txt
+ClaudeCode-*.md
+
 # Docker volumes
 data/

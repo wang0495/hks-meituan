@@ -1,8 +1,6 @@
 """方差对比测试：同一场景跑N次，统计路线一致性。"""
 import asyncio
 import json
-import os
-import sys
 import time
 
 # 确保env加载
