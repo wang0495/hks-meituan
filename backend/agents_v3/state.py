@@ -1,10 +1,10 @@
-"""C版本状态：分布式智能体网络。
+"""MoE版本状态：混合专家架构。
 
 6层架构对应：
 1. 用户输入 + 元规则
 2. 元规则防火墙检查结果
 3. 事件总线（events/proposals/counter_proposals）
-4. 7个Agent提案（真LLM决策）
+4. MoE专家提案（按需激活，LLM决策）
 5. 涌现式校验结果
 6. Live Itinerary（热力图+决策溯源）
 """
@@ -24,6 +24,11 @@ class TravelState(TypedDict, total=False):
     scene_type: str                  # 美食型/观光型/目的地型/特种兵型/休闲型
     meta_rules: list[dict]
     candidates: list[dict]
+
+    # ── MoE: 专家路由 ──
+    expert_weights: dict             # {"poi": 0.9, "food": 0.8, ...}
+    active_experts: list[str]        # ["poi", "food", "local_expert"]
+    expert_candidates: dict          # {"poi": [...], "food": [...], ...}
 
     # ── Layer 2: 元规则防火墙结果 ──
     rule_violations: list[dict]

@@ -67,6 +67,7 @@ def poi_search(
     price_max: float | None = Query(None, description="最高人均消费"),
     rating_min: float | None = Query(None, description="最低评分"),
     limit: int = Query(50, description="最大返回数", ge=1, le=200),
+    offset: int = Query(0, description="偏移量", ge=0),
 ) -> dict[str, Any]:
     """按条件搜索商户，返回POI列表。"""
     results = get_all_pois()
@@ -111,7 +112,7 @@ def poi_search(
 
     # 截断
     total = len(results)
-    results = results[:limit]
+    results = results[offset:offset + limit]
 
     # 统一输出格式（去掉内部字段）
     items = []

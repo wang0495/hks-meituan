@@ -84,18 +84,28 @@ async def fetch_pois(
         return _cache  # type: ignore
 
     async with httpx.AsyncClient(base_url=BASE, timeout=15.0) as client:
-        # 1. 搜索获取基础列表
-        params: dict[str, Any] = {"limit": 5000}
-        if category:
-            params["category"] = category
-        if price_max is not None:
-            params["price_max"] = price_max
-        if rating_min is not None:
-            params["rating_min"] = rating_min
+        # 1. 分页获取全部POI（API限制limit最大200）
+        items: list[dict] = []
+        page_size = 200
+        offset = 0
+        while True:
+            params: dict[str, Any] = {"limit": page_size, "offset": offset}
+            if category:
+                params["category"] = category
+            if price_max is not None:
+                params["price_max"] = price_max
+            if rating_min is not None:
+                params["rating_min"] = rating_min
 
-        resp = await client.get("/poi/search", params=params)
-        resp.raise_for_status()
-        items = resp.json().get("items", [])
+            resp = await client.get("/poi/search", params=params)
+            resp.raise_for_status()
+            data = resp.json()
+            batch = data.get("items", [])
+            items.extend(batch)
+            total = data.get("total", 0)
+            offset += page_size
+            if offset >= total or not batch:
+                break
 
         if not items:
             _cache = []

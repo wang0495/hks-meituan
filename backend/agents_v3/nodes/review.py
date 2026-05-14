@@ -50,31 +50,31 @@ async def review(state: TravelState) -> dict:
     # 按scene_type分化检查规则
     if scene_type == "美食型":
         check_rules = """请检查以下问题（每个问题必须指明是哪个agent的问题）：
-1. food_agent: 餐饮子类型是否多样？（不应全是海鲜排档/全是夜市/全是同一种类，应覆盖海鲜+小吃+甜品/饮品+正餐）
-2. food_agent: 是否选了太多综合性场所？（夜市+美食街+海鲜街最多选1个，它们内部已有多种）
-3. poi_agent: 美食路线不需要太多景点，1-2个散步点即可，选多了反而是问题
+1. food_expert: 餐饮子类型是否多样？（不应全是海鲜排档/全是夜市/全是同一种类，应覆盖海鲜+小吃+甜品/饮品+正餐）
+2. food_expert: 是否选了太多综合性场所？（夜市+美食街+海鲜街最多选1个，它们内部已有多种）
+3. poi_expert: 美食路线不需要太多景点，1-2个散步点即可，选多了反而是问题
 4. 整体：路线是否以餐饮为主线？不应为了多样性硬塞景点"""
     elif scene_type == "目的地型":
         check_rules = """请检查以下问题：
-1. poi_agent: 是否包含了用户指定的核心目的地？
-2. food_agent: 餐厅是否在目的地附近？（不应选很远的地方）
+1. poi_expert: 是否包含了用户指定的核心目的地？
+2. food_expert: 餐厅是否在目的地附近？（不应选很远的地方）
 3. 整体：POI是否集中在目的地周围？（不应大范围跨区域）"""
     elif scene_type == "特种兵型":
         check_rules = """请检查以下问题：
-1. poi_agent: 是否选了足够多的地标景点？（特种兵应覆盖5-8个）
-2. poi_agent: 景点类型是否多样？（自然+文化+娱乐+地标，不应全是一种）
-3. food_agent: 餐厅是否快节奏？（不应选需要久坐的正餐）
+1. poi_expert: 是否选了足够多的地标景点？（特种兵应覆盖5-8个）
+2. poi_expert: 景点类型是否多样？（自然+文化+娱乐+地标，不应全是一种）
+3. food_expert: 餐厅是否快节奏？（不应选需要久坐的正餐）
 4. 整体：路线是否紧凑无空隙？"""
     elif scene_type == "休闲型":
         check_rules = """请检查以下问题：
-1. poi_agent: 景点是否太多？（休闲应3-4个，不应超过5个）
-2. food_agent: 餐厅是否环境好、适合久坐？
+1. poi_expert: 景点是否太多？（休闲应3-4个，不应超过5个）
+2. food_expert: 餐厅是否环境好、适合久坐？
 3. 整体：路线节奏是否舒缓？"""
     else:
         check_rules = """请检查以下问题：
-1. poi_agent: 是否选了与主题无关的POI？
-2. food_agent: 餐厅位置是否和景点地理接近？菜系/类型是否多样？
-3. poi_agent: 是否覆盖了用户提到的核心需求？
+1. poi_expert: 是否选了与主题无关的POI？
+2. food_expert: 餐厅位置是否和景点地理接近？菜系/类型是否多样？
+3. poi_expert: 是否覆盖了用户提到的核心需求？
 4. 整体：路线中POI类型是否过于单一？"""
 
     prompt = f"""你是旅行路线质量审查员。检查各Agent的提案是否匹配用户意图，找出明显问题。
@@ -181,13 +181,13 @@ async def rework(state: TravelState) -> dict:
     new_proposals = []
     reworked_agents = set()
 
-    if "poi" in bad_agents:
+    if "poi" in bad_agents or "poi_expert" in bad_agents:
         poi_result = await _rework_poi(candidates, intent, user_input, old_names, feedback_text)
         if poi_result:
             new_proposals.extend(poi_result)
             reworked_agents.add("poi")
 
-    if "food" in bad_agents:
+    if "food" in bad_agents or "food_expert" in bad_agents:
         food_result = await _rework_food(candidates, intent, user_input, old_names, feedback_text)
         if food_result:
             new_proposals.extend(food_result)
