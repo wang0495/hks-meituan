@@ -44,7 +44,7 @@ import json
 import math
 import uuid
 
-from backend.agents_v3.state import TravelState
+from backend.agents_v3.state import TravelState, AGENT_META, sse_emit
 
 
 # 名称中包含这些关键词的POI应归为餐饮，不应被poi_agent选中
@@ -312,6 +312,11 @@ def _build_poi_prompt(intent: dict) -> str:
 
 async def poi_agent(state: TravelState) -> dict:
     """景点Agent：LLM直接从候选池选景点，不做算法预排序。"""
+    # ── SSE: Agent启动 ──
+    meta = AGENT_META.get("poi", {})
+    await sse_emit(state, "agent_start", {"agent": "poi", **meta})
+    await sse_emit(state, "agent_thinking", {"agent": "poi", "text": "加载候选景点，按分类分层抽样..."})
+
     # ── 感知 ──
     candidates = state.get("candidates", [])
     intent = state.get("user_intent", {})
@@ -636,6 +641,10 @@ def _smart_poi_selection(candidates: list[dict], intent: dict, user_input: str) 
 
 async def food_agent(state: TravelState) -> dict:
     """餐饮Agent：独立加载全部餐饮数据 → LLM选餐厅 → 提案。"""
+    meta = AGENT_META.get("food", {})
+    await sse_emit(state, "agent_start", {"agent": "food", **meta})
+    await sse_emit(state, "agent_thinking", {"agent": "food", "text": "加载餐饮POI，5子类各取TOP3..."})
+
     # ── 感知 ──
     intent = state.get("user_intent", {})
     user_input = state.get("user_input", "")
@@ -939,6 +948,9 @@ def _smart_food_selection(foods: list[dict], intent: dict, user_input: str) -> l
 
 async def hotel_agent(state: TravelState) -> dict:
     """住宿Agent：感知是否需要住宿 → LLM选酒店 → 提案。"""
+    meta = AGENT_META.get("hotel", {})
+    await sse_emit(state, "agent_start", {"agent": "hotel", **meta})
+    await sse_emit(state, "agent_thinking", {"agent": "hotel", "text": "分析住宿需求..."})
     # ── 感知 ──
     candidates = state.get("candidates", [])
     intent = state.get("user_intent", {})
@@ -1063,6 +1075,9 @@ async def hotel_agent(state: TravelState) -> dict:
 
 async def traffic_agent(state: TravelState) -> dict:
     """交通Agent：分析候选POI分布 → LLM规划交通方案 → 提案。"""
+    meta = AGENT_META.get("traffic", {})
+    await sse_emit(state, "agent_start", {"agent": "traffic", **meta})
+    await sse_emit(state, "agent_thinking", {"agent": "traffic", "text": "分析POI地理分布..."})
     # ── 感知 ──
     candidates = state.get("candidates", [])
     intent = state.get("user_intent", {})
@@ -1203,6 +1218,9 @@ def _nearest_neighbor_order(poi_locs: list[dict]) -> list[str]:
 
 async def weather_agent(state: TravelState) -> dict:
     """天气Agent：LLM评估天气对行程的影响。"""
+    meta = AGENT_META.get("weather", {})
+    await sse_emit(state, "agent_start", {"agent": "weather", **meta})
+    await sse_emit(state, "agent_thinking", {"agent": "weather", "text": "评估天气对行程影响..."})
     # ── 感知 ──
     intent = state.get("user_intent", {})
     user_input = state.get("user_input", "")
@@ -1269,6 +1287,9 @@ async def weather_agent(state: TravelState) -> dict:
 
 async def local_expert_agent(state: TravelState) -> dict:
     """本地达人Agent：LLM结合POI数据给本地特色建议。"""
+    meta = AGENT_META.get("local_expert", {})
+    await sse_emit(state, "agent_start", {"agent": "local_expert", **meta})
+    await sse_emit(state, "agent_thinking", {"agent": "local_expert", "text": "搜索非热门高评地点..."})
     # ── 感知 ──
     intent = state.get("user_intent", {})
     user_input = state.get("user_input", "")
@@ -1343,6 +1364,9 @@ async def local_expert_agent(state: TravelState) -> dict:
 
 async def insurance_agent(state: TravelState) -> dict:
     """保险Agent：LLM直接分析行程风险。"""
+    meta = AGENT_META.get("insurance", {})
+    await sse_emit(state, "agent_start", {"agent": "insurance", **meta})
+    await sse_emit(state, "agent_thinking", {"agent": "insurance", "text": "评估行程风险..."})
     # ── 感知 ──
     user_input = str(state.get("user_input", ""))
     intent = state.get("user_intent", {})
@@ -1403,6 +1427,9 @@ async def insurance_agent(state: TravelState) -> dict:
 
 async def negotiation_agent(state: TravelState) -> dict:
     """协商Agent：读取所有提案 → LLM分析冲突 → 生成优化建议。"""
+    meta = AGENT_META.get("negotiation", {})
+    await sse_emit(state, "agent_start", {"agent": "negotiation", **meta})
+    await sse_emit(state, "agent_thinking", {"agent": "negotiation", "text": "读取提案，分析冲突..."})
     proposals = state.get("proposals", [])
     intent = state.get("user_intent", {})
     user_input = state.get("user_input", "")

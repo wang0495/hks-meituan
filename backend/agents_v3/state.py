@@ -11,6 +11,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import operator
 from typing import Annotated, TypedDict
 
@@ -56,5 +57,33 @@ class TravelState(TypedDict, total=False):
     # 控制
     user_decision_needed: bool
 
+    # ── SSE 实时推送队列 ──
+    sse_queue: asyncio.Queue          # agent_start/agent_thinking/agent_result events
+
     # 错误（并发合并）
     errors: Annotated[list[str], operator.add]
+
+
+# ── Agent 元数据（工牌） ──
+AGENT_META: dict[str, dict] = {
+    "rule_guard":     {"name": "意图解析",   "icon": "🧠", "role": "需求理解", "color": "#ff5368"},
+    "poi":            {"name": "POI 专家",   "icon": "🏛", "role": "景点筛选", "color": "#51aef9"},
+    "food":           {"name": "美食专家",   "icon": "🍜", "role": "餐饮推荐", "color": "#ff9b54"},
+    "hotel":          {"name": "住宿专家",   "icon": "🏨", "role": "住宿推荐", "color": "#4da6ff"},
+    "traffic":        {"name": "交通专家",   "icon": "🚗", "role": "交通规划", "color": "#4dd8e8"},
+    "weather":        {"name": "天气专家",   "icon": "🌤", "role": "天气分析", "color": "#ffa54d"},
+    "local_expert":   {"name": "本地向导",   "icon": "🗺", "role": "隐藏宝藏", "color": "#7edc95"},
+    "insurance":      {"name": "保险专家",   "icon": "🛡", "role": "风险评估", "color": "#9b6dff"},
+    "negotiation":    {"name": "协商引擎",   "icon": "⚖️", "role": "冲突调解", "color": "#ff6b9d"},
+    "review":         {"name": "审查员",     "icon": "🔍", "role": "质量校验", "color": "#c49a6a"},
+    "synthesizer":    {"name": "综合师",     "icon": "✨", "role": "路线组装", "color": "#ff5a88"},
+    "expert_router":  {"name": "路由器",     "icon": "📡", "role": "专家调度", "color": "#7b6cf6"},
+}
+
+
+async def sse_emit(state: TravelState, event: str, data: dict) -> None:
+    """向 SSE 队列推送事件（安全：无 queue 时静默跳过）。"""
+    q: asyncio.Queue | None = state.get("sse_queue")
+    if q is not None:
+        await q.put((event, data))
+        await asyncio.sleep(0)  # yield control so drain loop can pick up

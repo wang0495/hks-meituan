@@ -11,11 +11,15 @@ from __future__ import annotations
 import json
 import os
 
-from backend.agents_v3.state import TravelState
+from backend.agents_v3.state import TravelState, AGENT_META, sse_emit
 
 
 async def review(state: TravelState) -> dict:
     """审查所有agent提案质量，生成反馈。"""
+    meta = AGENT_META.get("review", {})
+    await sse_emit(state, "agent_start", {"agent": "review", **meta})
+    await sse_emit(state, "agent_thinking", {"agent": "review", "text": f"审查 {len(state.get('proposals', []))} 个提案质量..."})
+
     proposals = list(state.get("reworked_proposals") or state.get("proposals", []))
     intent = state.get("user_intent", {})
     user_input = state.get("user_input", "")
@@ -115,6 +119,8 @@ Agent提案({len(proposal_summary)}个):
             "issue": issue.get("issue", ""),
             "suggestion": issue.get("suggestion", ""),
         })
+
+    await sse_emit(state, "agent_result", {"agent": "review", "summary": f"通过，{len(proposals)}个提案有效" if not feedback else f"反馈{len(feedback)}个问题"})
 
     return {"review_feedback": feedback, "review_round": round_num + 1}
 

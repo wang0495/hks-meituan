@@ -5,12 +5,14 @@ from __future__ import annotations
 import json
 
 from backend.agents_v3.experts.base import (
+    sse_expert,
     _proposal,
     _llm_decide,
 )
 from backend.agents_v3.state import TravelState
 
 
+@sse_expert("local_expert")
 async def local_expert(state: TravelState) -> dict:
     """Recommend niche / high-quality POIs and insider tips."""
     weight = state.get("expert_weights", {}).get("local_expert", 0)

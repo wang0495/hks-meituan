@@ -12,6 +12,7 @@ from __future__ import annotations
 import json
 
 from backend.agents_v3.experts.base import (
+    sse_expert,
     _FOOD_NAME_KWS,
     _LANDMARK_NAMES,
     _haversine_km,
@@ -329,6 +330,7 @@ def _smart_poi_selection(candidates: list[dict], intent: dict, user_input: str) 
 # ---------------------------------------------------------------------------
 
 
+@sse_expert("poi")
 async def poi_expert(state: TravelState) -> dict:
     """POI expert: LLM selects attractions from candidate pool, with rule fallback.
 

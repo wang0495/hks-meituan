@@ -9,12 +9,15 @@ low-level building blocks live here.
 from __future__ import annotations
 
 import asyncio
+import functools
 import json
 import math
 import os
 import uuid
 
 from openai import AsyncOpenAI
+
+from backend.agents_v3.state import AGENT_META, sse_emit
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -227,3 +230,49 @@ _LANDMARK_NAMES = {
     "唐家湾古镇", "梅溪牌坊", "农科奇观", "梦幻水城",
     "湾仔海鲜街", "拱北口岸",
 }
+
+
+# ---------------------------------------------------------------------------
+# SSE-aware expert decorator
+# ---------------------------------------------------------------------------
+
+# Thinking messages per expert type
+_THINKING_MSGS: dict[str, list[str]] = {
+    "poi": ["加载候选景点，按分类分层抽样...", "LLM 分析景点匹配度...", "筛选高匹配景点..."],
+    "food": ["加载餐饮POI，5子类各取TOP3...", "LLM 选餐厅中...", "偏好匹配..."],
+    "hotel": ["分析住宿需求...", "LLM 选酒店中...", "价格位置评分权衡..."],
+    "traffic": ["分析POI地理分布...", "LLM 规划交通方案...", "估算出行时间..."],
+    "weather": ["获取天气数据...", "LLM 评估天气影响...", "调整行程建议..."],
+    "local_expert": ["搜索非热门高评地点...", "LLM 生成本地建议...", "匹配独处场景..."],
+    "destination": ["分析目的地偏好...", "LLM 匹配目的地...", "综合推荐..."],
+    "budget_hacker": ["总预算分析...", "免费景点占比优化...", "体验杠杆优化..."],
+}
+
+
+def sse_expert(agent_id: str):
+    """Decorator: automatically emit agent_start/agent_thinking/agent_result SSE events."""
+    def decorator(func):
+        @functools.wraps(func)
+        async def wrapper(state, *args, **kwargs):
+            meta = AGENT_META.get(agent_id, {"name": agent_id, "icon": "🤖", "role": "", "color": "#5ea2ff"})
+            # Agent starts
+            await sse_emit(state, "agent_start", {"agent": agent_id, **meta})
+            # Thinking messages
+            for msg in _THINKING_MSGS.get(agent_id, ["分析中..."])[:2]:
+                await sse_emit(state, "agent_thinking", {"agent": agent_id, "text": msg})
+            # Run the actual expert
+            result = await func(state, *args, **kwargs)
+            # Agent result summary
+            proposals = result.get("proposals", []) if isinstance(result, dict) else []
+            summary = f"完成，{len(proposals)}个提案" if proposals else "完成"
+            if proposals:
+                # Try to make a nicer summary
+                first = proposals[0].get("content", {}) if proposals else {}
+                if isinstance(first, dict):
+                    names = [p.get("content", {}).get("name", "") for p in proposals[:3] if isinstance(p.get("content"), dict)]
+                    if names:
+                        summary = f"推荐: {', '.join(n for n in names if n)[:50]}"
+            await sse_emit(state, "agent_result", {"agent": agent_id, "summary": summary})
+            return result
+        return wrapper
+    return decorator

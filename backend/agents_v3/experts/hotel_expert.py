@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 
 from backend.agents_v3.experts.base import (
+    sse_expert,
     _proposal,
     _llm_decide,
     _load_all_pois,
@@ -13,6 +14,7 @@ from backend.agents_v3.experts.base import (
 from backend.agents_v3.state import TravelState
 
 
+@sse_expert("hotel")
 async def hotel_expert(state: TravelState) -> dict:
     """Recommend hotels when the user likely needs overnight stay."""
     weight = state.get("expert_weights", {}).get("hotel", 0)

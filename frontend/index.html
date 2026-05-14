@@ -3,1579 +3,940 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>CityFlow · 情绪驱动路线规划</title>
+  <title>CityFlow · 智能城市漫游</title>
   <style>
+    @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;600;700;900&display=swap');
+
     :root {
       color-scheme: dark;
-      --bg: #070b16;
-      --sidebar: #0b1020;
-      --panel: rgba(22, 28, 50, 0.82);
-      --panel-strong: rgba(27, 34, 60, 0.95);
-      --line: rgba(145, 160, 205, 0.14);
-      --line-strong: rgba(145, 160, 205, 0.26);
-      --text: #f5f7ff;
-      --muted: #a8b0c9;
-      --faint: #69738f;
-      --red: #ff5368;
-      --blue: #51aef9;
-      --green: #7edc95;
-      --purple: #925cff;
-      --pink: #ff5a88;
-      --shadow: 0 22px 70px rgba(0, 0, 0, 0.35);
-    }
-
-    * {
-      box-sizing: border-box;
-    }
-
-    html,
-    body {
-      min-height: 100%;
-    }
-
-    body {
-      margin: 0;
-      overflow: hidden;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
-      background:
-        radial-gradient(circle at 24% 12%, rgba(95, 103, 255, 0.16), transparent 28rem),
-        radial-gradient(circle at 80% 10%, rgba(255, 83, 104, 0.12), transparent 26rem),
-        linear-gradient(135deg, #080c17 0%, #0a0f1f 45%, #0b1020 100%);
-      color: var(--text);
-    }
-
-    button,
-    input,
-    textarea {
-      font: inherit;
-    }
-
-    button {
-      border: 0;
-      color: inherit;
-      cursor: pointer;
-    }
-
-    .app {
-      display: grid;
-      grid-template-columns: 420px minmax(0, 1fr);
-      min-height: 100vh;
-    }
-
-    .sidebar {
-      position: sticky;
-      top: 0;
-      display: grid;
-      grid-template-rows: auto auto auto 1fr auto;
-      gap: 2rem;
-      height: 100vh;
-      padding: 2.4rem 2.35rem;
-      background:
-        linear-gradient(180deg, rgba(17, 24, 46, 0.92), rgba(6, 10, 20, 0.98)),
-        var(--sidebar);
-      border-right: 1px solid rgba(255, 255, 255, 0.06);
-      box-shadow: inset -1px 0 rgba(255, 255, 255, 0.02);
-    }
-
-    .brand {
-      display: flex;
-      align-items: center;
-      gap: 0.8rem;
-    }
-
-    .brand-mark {
-      width: 2rem;
-      height: 2rem;
-      border-radius: 50%;
-      background:
-        radial-gradient(circle at 64% 32%, #8d6cff 0 22%, transparent 23%),
-        conic-gradient(from 30deg, #7e5cff, #4f7cff, #1b2143 42%, #8c5dff 76%, #7e5cff);
-      box-shadow: 0 0 22px rgba(126, 92, 255, 0.5);
-    }
-
-    .brand-title {
-      margin: 0;
-      font-size: 1.52rem;
-      line-height: 1;
-      font-weight: 900;
-      letter-spacing: 0;
-    }
-
-    .brand-subtitle {
-      grid-column: 2;
-      margin: 0.45rem 0 0;
-      color: var(--faint);
-      font-size: 0.86rem;
-      font-weight: 700;
-    }
-
-    .divider {
-      height: 1px;
-      background: linear-gradient(90deg, transparent, rgba(145, 160, 205, 0.16), transparent);
-    }
-
-    .prompt-block h2,
-    .tag-block h2 {
-      margin: 0 0 1rem;
-      font-size: 1.15rem;
-      font-weight: 800;
-      letter-spacing: 0;
-      color: #e9edff;
-    }
-
-    .prompt-card {
-      position: relative;
-      min-height: 10.3rem;
-      padding: 1.2rem;
-      border-radius: 18px;
-      background: linear-gradient(145deg, rgba(28, 35, 61, 0.96), rgba(20, 25, 45, 0.92));
-      border: 1px solid var(--line);
-      box-shadow: var(--shadow);
-    }
-
-    .prompt-card textarea {
-      width: 100%;
-      min-height: 6.9rem;
-      resize: none;
-      border: 0;
-      outline: none;
-      background: transparent;
-      color: var(--text);
-      font-size: 1.1rem;
-      line-height: 1.55;
-    }
-
-    .prompt-card textarea::placeholder {
-      color: #747f99;
-    }
-
-    .char-count {
-      position: absolute;
-      right: 4.35rem;
-      bottom: 1.25rem;
-      color: var(--faint);
-      font-size: 0.82rem;
-      font-weight: 800;
-    }
-
-    .send-circle {
-      position: absolute;
-      right: 1rem;
-      bottom: 0.95rem;
-      display: grid;
-      place-items: center;
-      width: 2.45rem;
-      height: 2.45rem;
-      border-radius: 50%;
-      background: linear-gradient(135deg, #6f7dff, #8f5cff);
-      box-shadow: 0 12px 35px rgba(126, 92, 255, 0.45);
-      font-size: 1.4rem;
-      transition: transform 0.18s ease, opacity 0.18s ease;
-    }
-
-    .send-circle:hover {
-      transform: translateY(-2px) scale(1.02);
-    }
-
-    .send-circle:disabled {
-      opacity: 0.55;
-      transform: none;
-      cursor: not-allowed;
-    }
-
-    .tag-grid {
-      display: grid;
-      grid-template-columns: repeat(4, minmax(0, 1fr));
-      gap: 0.7rem;
-    }
-
-    .tag {
-      min-height: 3.2rem;
-      border-radius: 11px;
-      background: rgba(32, 39, 68, 0.82);
-      border: 1px solid transparent;
-      color: #c5cce0;
-      font-weight: 800;
-      transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease;
-    }
-
-    .tag:hover,
-    .tag.is-active {
-      border-color: rgba(126, 92, 255, 0.75);
-      background: rgba(83, 70, 170, 0.32);
-      color: #f3f6ff;
-      transform: translateY(-1px);
-    }
-
-    .about-card {
-      align-self: start;
-      min-height: 13.7rem;
-      padding: 1.45rem;
-      border-radius: 16px;
-      border: 1px solid var(--line);
-      background:
-        linear-gradient(145deg, rgba(25, 31, 58, 0.9), rgba(16, 21, 40, 0.9)),
-        radial-gradient(circle at 80% 70%, rgba(129, 92, 255, 0.36), transparent 10rem);
-      box-shadow: var(--shadow);
-      overflow: hidden;
-    }
-
-    .about-card h3 {
-      margin: 0 0 1.1rem;
-      font-size: 0.98rem;
-    }
-
-    .about-card p {
-      margin: 0.5rem 0;
-      color: #c7cee2;
-      font-size: 0.9rem;
-      line-height: 1.65;
-    }
-
-    .bottom-nav {
-      display: grid;
-      grid-template-columns: 1fr 1fr auto;
-      gap: 1rem;
-      color: var(--faint);
-      font-size: 0.92rem;
-      font-weight: 800;
-    }
-
-    .bottom-nav span {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.5rem;
-    }
-
-    .workspace {
-      min-width: 0;
-      padding: 1.55rem 1.55rem 1.25rem;
-    }
-
-    .surface {
-      display: grid;
-      grid-template-rows: auto minmax(0, 1fr) auto;
-      gap: 1.35rem;
-      height: calc(100vh - 2.8rem);
-      min-height: 0;
-    }
-
-    .curve-card,
-    .planner-card,
-    .route-board,
-    .composer,
-    .budget-card {
-      border-radius: 16px;
-      background: var(--panel);
-      border: 1px solid var(--line);
-      box-shadow: var(--shadow);
-      backdrop-filter: blur(18px);
-    }
-
-    .curve-card {
-      position: relative;
-      min-height: 10.2rem;
-      padding: 1.15rem 1.25rem 0.75rem;
-      overflow: hidden;
-    }
-
-    .curve-title {
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-      margin: 0;
-      color: #dce4f8;
-      font-size: 0.98rem;
-      font-weight: 900;
-    }
-
-    .curve-title span {
-      display: grid;
-      place-items: center;
-      width: 1rem;
-      height: 1rem;
-      border-radius: 50%;
-      border: 1px solid var(--line-strong);
-      color: var(--faint);
-      font-size: 0.68rem;
-    }
-
-    .curve-legend {
-      position: absolute;
-      top: 1.2rem;
-      right: 1.4rem;
-      display: grid;
-      gap: 0.55rem;
-      color: #d9e0f1;
-      font-size: 0.82rem;
-      font-weight: 800;
-    }
-
-    .curve-legend span {
-      display: flex;
-      align-items: center;
-      gap: 0.55rem;
-    }
-
-    .dot {
-      width: 0.7rem;
-      height: 0.7rem;
-      border-radius: 50%;
-      display: inline-block;
-    }
-
-    .curve-svg {
-      width: calc(100% - 7.5rem);
-      height: 7.7rem;
-      margin-top: 0.3rem;
-      overflow: visible;
-    }
-
-    .curve-labels {
-      display: grid;
-      grid-template-columns: repeat(5, 1fr);
-      width: calc(100% - 7.5rem);
-      margin-top: -0.4rem;
-      color: var(--faint);
-      font-weight: 900;
-      font-size: 0.86rem;
-    }
-
-    .curve-labels span:nth-child(1),
-    .curve-labels span:nth-child(2) {
-      color: var(--red);
-    }
-
-    .curve-labels span:nth-child(3) {
-      color: var(--blue);
-    }
-
-    .curve-labels span:nth-child(4) {
-      color: var(--green);
-    }
-
-    .curve-labels span:nth-child(5) {
-      color: var(--purple);
-    }
-
-    .content-grid {
-      display: grid;
-      grid-template-columns: minmax(280px, 0.92fr) minmax(0, 2.1fr);
-      gap: 1.05rem;
-      min-height: 0;
-      overflow: hidden;
-    }
-
-    .planner-card {
-      padding: 1.55rem;
-      align-self: stretch;
-      overflow: hidden;
-    }
-
-    .ai-status {
-      display: flex;
-      align-items: center;
-      gap: 0.55rem;
-      margin: 0 0 2rem;
-      color: #f1f5ff;
-      font-size: 0.96rem;
-      font-weight: 900;
-    }
-
-    .spark {
-      color: #b9c9ff;
-      text-shadow: 0 0 18px rgba(126, 92, 255, 0.7);
-    }
-
-    .planner-steps {
-      position: relative;
-      display: grid;
-      gap: 1.5rem;
-    }
-
-    .planner-steps::before {
-      content: "";
-      position: absolute;
-      top: 2rem;
-      bottom: 2rem;
-      left: 1.23rem;
-      width: 2px;
-      background: linear-gradient(180deg, var(--blue), var(--purple), rgba(145, 160, 205, 0.14));
-    }
-
-    .planner-step {
-      position: relative;
-      display: grid;
-      grid-template-columns: 2.55rem minmax(0, 1fr) auto;
-      gap: 1rem;
-      align-items: center;
-      color: var(--faint);
-    }
-
-    .step-icon {
-      position: relative;
-      z-index: 1;
-      display: grid;
-      place-items: center;
-      width: 2.55rem;
-      height: 2.55rem;
-      border-radius: 50%;
-      background: rgba(31, 38, 67, 0.96);
-      border: 1px solid var(--line-strong);
-      box-shadow: 0 0 0 5px rgba(10, 15, 29, 0.7);
-      font-size: 1.05rem;
-    }
-
-    .planner-step.is-active .step-icon {
-      border-color: var(--purple);
-      color: white;
-      box-shadow: 0 0 0 5px rgba(10, 15, 29, 0.7), 0 0 28px rgba(126, 92, 255, 0.68);
-    }
-
-    .planner-step.is-done .step-icon {
-      background: linear-gradient(135deg, #326ab4, #23375f);
-      color: white;
-    }
-
-    .planner-step h3 {
-      margin: 0 0 0.35rem;
-      color: #dce3f7;
-      font-size: 1rem;
-    }
-
-    .planner-step p {
-      margin: 0;
-      line-height: 1.45;
-      font-size: 0.84rem;
-    }
-
-    .step-time {
-      color: var(--faint);
-      font-size: 0.78rem;
-      font-weight: 800;
-    }
-
-    .planner-foot {
-      margin-top: 2rem;
-      padding-top: 1.2rem;
-      border-top: 1px solid rgba(145, 160, 205, 0.08);
-      color: var(--faint);
-      font-size: 0.78rem;
-      font-weight: 800;
-    }
-
-    .route-board {
-      min-width: 0;
-      padding: 0.55rem 0.9rem 0.75rem;
-      overflow: auto;
-      min-height: 0;
-    }
-
-    .route-list {
-      display: grid;
-      gap: 0.7rem;
-    }
-
-    .route-row {
-      display: grid;
-      grid-template-columns: 5rem minmax(0, 1fr);
-      gap: 0.8rem;
-      align-items: stretch;
-    }
-
-    .time-cell {
-      position: relative;
-      padding-top: 0.8rem;
-      color: #dfe6f8;
-      font-weight: 900;
-      font-size: 0.93rem;
-      text-align: right;
-    }
-
-    .time-cell small {
-      display: block;
-      margin-top: 0.45rem;
-      color: var(--faint);
-      font-size: 0.78rem;
-    }
-
-    .time-cell::after {
-      content: "";
-      position: absolute;
-      top: 1.3rem;
-      right: -0.5rem;
-      width: 0.68rem;
-      height: 0.68rem;
-      border-radius: 50%;
-      background: var(--row-color, var(--blue));
-      box-shadow: 0 0 0 6px rgba(11, 16, 32, 0.9);
-    }
-
-    .poi-card {
-      display: grid;
-      grid-template-columns: 8.1rem minmax(0, 1fr) auto;
-      gap: 1rem;
-      min-height: 7.25rem;
-      padding: 0.75rem 1.05rem 0.75rem 0.85rem;
-      border-radius: 12px;
-      border-left: 5px solid var(--row-color, var(--blue));
-      background: linear-gradient(135deg, rgba(27, 34, 60, 0.98), rgba(17, 23, 43, 0.96));
-      box-shadow: 0 14px 35px rgba(0, 0, 0, 0.22);
-      animation: fadeIn 0.28s ease both;
-    }
-
-    @keyframes fadeIn {
-      from {
-        opacity: 0;
-        transform: translateY(8px);
-      }
-      to {
-        opacity: 1;
-        transform: translateY(0);
-      }
-    }
-
-    .thumb {
-      min-width: 0;
-      border-radius: 8px;
-      background:
-        linear-gradient(135deg, rgba(255, 255, 255, 0.08), transparent),
-        radial-gradient(circle at 25% 30%, rgba(255, 255, 255, 0.16), transparent 28%),
-        linear-gradient(135deg, #2c344e, #151b2d);
-      overflow: hidden;
-      position: relative;
-    }
-
-    .thumb::before,
-    .thumb::after {
-      content: "";
-      position: absolute;
-      inset: auto 10% 14% 10%;
-      height: 30%;
-      border-radius: 999px 999px 0 0;
-      background: rgba(255, 255, 255, 0.14);
-      filter: blur(5px);
-    }
-
-    .thumb::after {
-      inset: 14% 12% auto 58%;
-      height: 55%;
-      border-radius: 4px;
-      background: rgba(255, 255, 255, 0.22);
-      filter: blur(1px);
-    }
-
-    .thumb.culture { background: linear-gradient(135deg, #ded5ca, #8c817a 45%, #222845); }
-    .thumb.food { background: linear-gradient(135deg, #3b221c, #a86a4e 48%, #17223f); }
-    .thumb.nature { background: linear-gradient(135deg, #173324, #5fa770 48%, #17223f); }
-    .thumb.hotel { background: linear-gradient(135deg, #1e2745, #a98563 46%, #0f1428); }
-    .thumb.shop { background: linear-gradient(135deg, #27304e, #5b6bd6 48%, #151b2d); }
-
-    .poi-info {
-      min-width: 0;
-      padding: 0.1rem 0;
-    }
-
-    .poi-title {
-      display: flex;
-      align-items: center;
-      gap: 0.55rem;
-      min-width: 0;
-      margin: 0 0 0.5rem;
-      font-size: 1.06rem;
-      font-weight: 900;
-      letter-spacing: 0;
-    }
-
-    .poi-title span:first-child {
-      min-width: 0;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-
-    .emotion-chip {
-      flex: 0 0 auto;
-      padding: 0.18rem 0.48rem;
-      border-radius: 999px;
-      background: color-mix(in srgb, var(--row-color, var(--blue)) 34%, transparent);
-      color: var(--row-color, var(--blue));
-      font-size: 0.73rem;
-      font-weight: 900;
-    }
-
-    .poi-narrative {
-      margin: 0 0 0.58rem;
-      color: #dce3f4;
-      font-size: 0.88rem;
-      line-height: 1.45;
-    }
-
-    .poi-meta {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 0.35rem 0.75rem;
-      color: #b8c1d8;
-      font-size: 0.8rem;
-      font-weight: 800;
-    }
-
-    .price {
-      padding-top: 0.25rem;
-      color: var(--row-color, var(--red));
-      font-size: 1rem;
-      font-weight: 950;
-      white-space: nowrap;
-    }
-
-    .empty-route {
-      display: grid;
-      min-height: 24rem;
-      place-items: center;
-      color: var(--faint);
-      text-align: center;
-      line-height: 1.7;
-    }
-
-    .closing-card {
-      display: grid;
-      grid-template-columns: 5rem minmax(0, 1fr);
-      gap: 0.8rem;
-      align-items: stretch;
-      color: var(--faint);
-      font-weight: 800;
-    }
-
-    .closing-card .poi-card {
-      grid-template-columns: minmax(0, 1fr) auto;
-      min-height: 3.8rem;
-      color: var(--muted);
-    }
-
-    .bottom-area {
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) 280px;
-      gap: 1rem;
-      align-items: stretch;
-    }
-
-    .composer {
-      padding: 1rem;
-    }
-
-    .composer-line {
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) repeat(4, auto) 2.65rem;
-      gap: 0.65rem;
-      align-items: center;
-    }
-
-    .adjust-input {
-      min-height: 3.35rem;
-      border: 1px solid var(--line);
-      border-radius: 999px;
-      padding: 0 1.25rem;
-      outline: none;
-      background: rgba(34, 41, 70, 0.9);
-      color: var(--text);
-    }
-
-    .quick-adjust,
-    .send-adjust {
-      min-height: 2.85rem;
-      border-radius: 999px;
-      background: rgba(35, 42, 72, 0.95);
-      color: #e3e9f8;
-      padding: 0 1rem;
-      font-weight: 900;
-    }
-
-    .quick-adjust:hover,
-    .send-adjust:hover {
-      background: rgba(76, 88, 143, 0.9);
-    }
-
-    .send-adjust {
-      display: grid;
-      place-items: center;
-      width: 2.85rem;
-      padding: 0;
-      background: linear-gradient(135deg, #5e8cff, #8f5cff);
-      font-size: 1.2rem;
-    }
-
-    .reply {
-      min-height: 1.5rem;
-      margin: 0.75rem 0 0;
-      color: var(--muted);
-      font-size: 0.84rem;
-      font-weight: 800;
-    }
-
-    .reply[data-tone="error"] {
-      color: #ffb5be;
-    }
-
-    .reply[data-tone="ok"] {
-      color: #a9f2be;
-    }
-
-    .budget-card {
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) 4.2rem;
-      align-items: center;
-      gap: 1rem;
-      padding: 1rem 1.1rem;
-    }
-
-    .budget-card h3 {
-      margin: 0 0 0.55rem;
-      font-size: 0.92rem;
-    }
-
-    .budget-card strong {
-      display: block;
-      margin-bottom: 0.3rem;
-      font-size: 1.15rem;
-    }
-
-    .budget-card p {
-      margin: 0;
-      color: var(--faint);
-      font-size: 0.8rem;
-      font-weight: 800;
-    }
-
-    .budget-ring {
-      display: grid;
-      place-items: center;
-      width: 4.2rem;
-      height: 4.2rem;
-      border-radius: 50%;
-      background: conic-gradient(var(--purple) var(--budget-angle, 0deg), rgba(145, 160, 205, 0.15) 0);
-      position: relative;
-      font-weight: 950;
-    }
-
-    .budget-ring::before {
-      content: "";
-      position: absolute;
-      inset: 0.42rem;
-      border-radius: 50%;
-      background: #151b31;
-    }
-
-    .budget-ring span {
-      position: relative;
-      z-index: 1;
-    }
-
-    .hidden {
-      display: none !important;
-    }
-
-    @media (max-width: 1180px) {
-      .app {
-        grid-template-columns: 340px minmax(0, 1fr);
-      }
-
-      .tag-grid {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-      }
-
-      .content-grid,
-      .bottom-area {
-        grid-template-columns: 1fr;
-      }
-
-      .composer-line {
-        grid-template-columns: minmax(0, 1fr) 2.85rem;
-      }
-
-      .quick-adjust {
-        display: none;
-      }
-    }
-
-    @media (max-width: 820px) {
-      body {
-        overflow: auto;
-      }
-
-      .app {
-        display: block;
-      }
-
-      .sidebar {
-        position: static;
-        height: auto;
-        width: 100%;
-        max-width: 100vw;
-        overflow: hidden;
-        padding: 1.25rem;
-        gap: 1.4rem;
-      }
-
-      .workspace {
-        width: 100%;
-        max-width: 100vw;
-        overflow: hidden;
-        padding: 1rem;
-      }
-
-      .prompt-block,
-      .tag-block,
-      .prompt-card,
-      .about-card,
-      .tag-grid {
-        width: 100%;
-        max-width: 100%;
-      }
-
-      .surface {
-        height: auto;
-        min-height: 0;
-      }
-
-      .curve-svg,
-      .curve-labels {
-        width: 100%;
-      }
-
-      .curve-legend {
-        position: static;
-        display: flex;
-        flex-wrap: wrap;
-        margin-top: 0.65rem;
-      }
-
-      .route-row,
-      .closing-card {
-        grid-template-columns: 3.8rem minmax(0, 1fr);
-      }
-
-      .poi-card {
-        grid-template-columns: 5.2rem minmax(0, 1fr);
-      }
-
-      .price {
-        grid-column: 2;
-        padding-top: 0;
-      }
-
-      .bottom-nav {
-        display: none;
-      }
-    }
-
-    @media (max-width: 520px) {
-      .prompt-card {
-        min-height: 8.8rem;
-      }
-
-      .tag-grid {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-      }
-
-      .planner-card,
-      .curve-card,
-      .route-board,
-      .composer,
-      .budget-card {
-        border-radius: 14px;
-      }
-
-      .route-board {
-        padding: 0.5rem;
-      }
-
-      .poi-card {
-        grid-template-columns: 1fr;
-      }
-
-      .thumb {
-        min-height: 7rem;
-      }
-
-      .price {
-        grid-column: 1;
-      }
+      --bg: #08090f;
+      --surface: #10131c;
+      --surface2: #161a28;
+      --glass: rgba(255,255,255,.03);
+      --line: rgba(255,255,255,.06);
+      --text: #e8ecf4;
+      --text2: #b4bdd4;
+      --text3: #6a7494;
+      --accent: #7b6cf6;
+      --accent2: #5ea2ff;
+      --green: #3ee889;
+      --red: #ff4d6a;
+      --orange: #ffa54d;
+      --pink: #ff6b9d;
+      --purple: #9b6dff;
+      --cyan: #4dd8e8;
+      --R: 12px;
+      --Rs: 8px;
+    }
+    *{box-sizing:border-box;margin:0;padding:0}
+    button,input,textarea{font:inherit;border:0;outline:0;color:inherit;cursor:pointer;background:0}
+    body{
+      overflow:hidden;height:100vh;
+      font-family:'Noto Sans SC',-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;
+      background:var(--bg);color:var(--text);
+    }
+    ::-webkit-scrollbar{width:4px}
+    ::-webkit-scrollbar-track{background:transparent}
+    ::-webkit-scrollbar-thumb{background:rgba(255,255,255,.08);border-radius:4px}
+
+    /* ═══ Ambient ═══ */
+    #ambientBg{position:fixed;inset:0;z-index:0;pointer-events:none}
+
+    /* ═══ Layout ═══ */
+    .app{position:relative;z-index:1;display:grid;grid-template-columns:360px minmax(0,1fr);height:100vh}
+    .sidebar{
+      display:flex;flex-direction:column;gap:1.2rem;padding:1.6rem 1.4rem;overflow-y:auto;
+      background:linear-gradient(180deg,rgba(14,17,26,.98),rgba(8,9,15,.99));
+      border-right:1px solid var(--line);
+    }
+    .main{display:flex;flex-direction:column;min-height:0;padding:1rem 1.2rem;gap:.7rem;overflow:hidden}
+
+    /* ═══ Brand ═══ */
+    .brand{display:flex;align-items:center;gap:.7rem}
+    .brand-orb{
+      width:2.2rem;height:2.2rem;border-radius:50%;position:relative;
+      background:conic-gradient(from 0deg,#7b6cf6,#5ea2ff,#4dd8e8,#7b6cf6);
+      box-shadow:0 0 20px rgba(123,108,246,.35);
+      animation:orbRotate 10s linear infinite;
+    }
+    .brand-orb::after{content:'';position:absolute;inset:4px;border-radius:50%;background:radial-gradient(circle at 35% 30%,rgba(255,255,255,.25),transparent 55%)}
+    @keyframes orbRotate{to{rotate:360deg}}
+    .brand h1{font-size:1.3rem;font-weight:900;letter-spacing:-.01em}
+    .brand small{display:block;color:var(--text3);font-size:.68rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase}
+
+    .sep{height:1px;background:linear-gradient(90deg,transparent,rgba(255,255,255,.06),transparent)}
+
+    /* ═══ Input ═══ */
+    .input-area{display:flex;flex-direction:column;gap:.4rem}
+    .input-area h2{font-size:.82rem;font-weight:700;color:var(--text3)}
+    .input-box{
+      position:relative;padding:.8rem;border-radius:var(--R);
+      background:var(--surface2);border:1px solid var(--line);
+      box-shadow:0 8px 32px rgba(0,0,0,.25),inset 0 1px 0 rgba(255,255,255,.03);
+      transition:border-color .3s,box-shadow .3s;
+    }
+    .input-box:focus-within{border-color:rgba(123,108,246,.3);box-shadow:0 8px 32px rgba(0,0,0,.25),0 0 0 3px rgba(123,108,246,.06)}
+    .input-box textarea{width:100%;min-height:3.8rem;resize:none;background:transparent;font-size:.9rem;line-height:1.5}
+    .input-box textarea::placeholder{color:var(--text3)}
+    .char-ct{position:absolute;right:3rem;bottom:.7rem;color:var(--text3);font-size:.68rem}
+    .go-btn{
+      position:absolute;right:.5rem;bottom:.45rem;width:2rem;height:2rem;border-radius:50%;
+      background:linear-gradient(135deg,var(--accent),var(--accent2));
+      box-shadow:0 4px 14px rgba(123,108,246,.35);
+      display:grid;place-items:center;font-size:1.05rem;
+      transition:transform .2s cubic-bezier(.34,1.56,.64,1),box-shadow .2s;
+    }
+    .go-btn:hover{transform:scale(1.1);box-shadow:0 6px 20px rgba(123,108,246,.5)}
+    .go-btn:active{transform:scale(.92)}
+    .go-btn:disabled{opacity:.3;transform:none;cursor:not-allowed;box-shadow:none}
+    .go-btn.planning{animation:goPulse 1.6s ease-in-out infinite}
+    @keyframes goPulse{0%,100%{box-shadow:0 4px 14px rgba(123,108,246,.35)}50%{box-shadow:0 4px 28px rgba(123,108,246,.6)}}
+
+    /* ═══ Tags ═══ */
+    .tags{display:grid;grid-template-columns:repeat(2,1fr);gap:.35rem}
+    .tag{
+      padding:.4rem .55rem;border-radius:var(--Rs);
+      background:rgba(255,255,255,.02);border:1px solid var(--line);
+      font-size:.74rem;font-weight:700;transition:all .2s;
+    }
+    .tag:hover{background:rgba(123,108,246,.06);border-color:rgba(123,108,246,.2);transform:translateY(-1px)}
+    .tag.on{background:rgba(123,108,246,.12);border-color:rgba(123,108,246,.35);box-shadow:0 0 14px rgba(123,108,246,.08)}
+
+    /* ═══ Mode ═══ */
+    .mode-toggle{display:flex;gap:3px;background:rgba(255,255,255,.02);border-radius:var(--Rs);padding:3px;border:1px solid var(--line)}
+    .mode-btn{flex:1;padding:.35rem;border-radius:6px;font-size:.7rem;font-weight:700;text-align:center;transition:all .2s}
+    .mode-btn:hover{background:rgba(255,255,255,.03)}
+    .mode-btn.on{background:rgba(123,108,246,.18);box-shadow:0 0 10px rgba(123,108,246,.1)}
+
+    .sidebar-footer{margin-top:auto}
+    .sidebar-footer p{color:var(--text3);font-size:.68rem;line-height:1.6}
+
+    /* ═══ Agent Workbench ═══ */
+    .agent-section{flex:0 0 auto}
+    .agent-section h2{font-size:.78rem;font-weight:800;color:var(--text3);margin-bottom:.5rem;display:flex;align-items:center;gap:.5rem}
+    .agent-timer{font-size:.68rem;font-weight:600;color:var(--text3);font-variant-numeric:tabular-nums}
+
+    /* Pipeline layout */
+    .agent-pipeline{display:flex;flex-direction:column;gap:0}
+    .agent-stage{display:flex;align-items:center;gap:.3rem}
+    .agent-stage-cards{display:flex;gap:.35rem;flex:1;flex-wrap:wrap}
+    #stageCards_0 .agent-card,
+    #stageCards_2 .agent-card,
+    #stageCards_3 .agent-card{flex:1 1 calc(50% - .35rem)}
+    #stageCards_3 .agent-card{flex:1 1 100%}
+    #stageCards_1 .agent-card{flex:1 1 calc(33% - .35rem);min-width:90px}
+    .agent-arrow{
+      display:flex;align-items:center;justify-content:center;
+      height:1.2rem;color:var(--text3);font-size:.65rem;
+      opacity:.15;transition:opacity .4s,color .4s;
+    }
+    .agent-arrow.active{opacity:1;color:var(--accent)}
+    .agent-arrow.done{opacity:.4;color:var(--green)}
+    .agent-arrow svg{width:.9rem;height:.9rem}
+    .agent-arrow svg path{fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round}
+    .agent-arrow.active svg path{stroke-dasharray:4 2;animation:arrowDash .6s linear infinite}
+    @keyframes arrowDash{to{stroke-dashoffset:-6}}
+
+    /* ── Agent Card — Badge Style ── */
+    .agent-card{
+      position:relative;overflow:hidden;
+      padding:.45rem .55rem .35rem;border-radius:10px;
+      background:var(--surface);border:1px solid var(--line);
+      transition:all .35s cubic-bezier(.25,.46,.45,.94);
+      flex:1;min-width:0;min-height:2.4rem;
+    }
+    .agent-card::before{
+      content:'';position:absolute;top:0;left:0;bottom:0;width:3px;
+      background:var(--agent-color,var(--accent));
+      opacity:.3;transition:opacity .4s,background .4s;
+    }
+    /* ── idle: dimmed, waiting ── */
+    .agent-card.idle{
+      opacity:.18;filter:grayscale(.6) brightness(.7);
+      pointer-events:none;
+    }
+    /* ── active: glowing, working ── */
+    .agent-card.active{
+      opacity:1;filter:none;
+      border-color:color-mix(in srgb,var(--agent-color,var(--accent2)) 40%,transparent);
+      transform:translateY(-2px) scale(1.02);
+      box-shadow:0 4px 24px rgba(0,0,0,.3),
+        0 0 18px color-mix(in srgb,var(--agent-color,var(--accent2)) 18%,transparent),
+        inset 0 1px 0 color-mix(in srgb,var(--agent-color,var(--accent2)) 8%,transparent);
+    }
+    .agent-card.active::before{opacity:1}
+    /* ── done: completed ── */
+    .agent-card.done{
+      opacity:1;filter:none;
+      border-color:color-mix(in srgb,var(--green) 25%,transparent);
+    }
+    .agent-card.done::before{opacity:.7;background:var(--green)}
+
+    /* Badge avatar */
+    .agent-badge{
+      width:1.8rem;height:1.8rem;border-radius:50%;
+      display:grid;place-items:center;
+      font-size:.9rem;line-height:1;
+      background:color-mix(in srgb,var(--agent-color,var(--accent)) 10%,transparent);
+      border:2px solid color-mix(in srgb,var(--agent-color,var(--accent)) 18%,transparent);
+      transition:border-color .3s,box-shadow .3s,background .3s;
+      flex-shrink:0;
+    }
+    .agent-card.active .agent-badge{
+      border-color:color-mix(in srgb,var(--agent-color,var(--accent2)) 55%,transparent);
+      background:color-mix(in srgb,var(--agent-color,var(--accent2)) 15%,transparent);
+      box-shadow:0 0 0 3px color-mix(in srgb,var(--agent-color,var(--accent2)) 12%,transparent);
+      animation:badgeRing 2s ease-in-out infinite;
+    }
+    .agent-card.done .agent-badge{
+      border-color:color-mix(in srgb,var(--green) 45%,transparent);
+      background:rgba(62,232,137,.08);
+    }
+    @keyframes badgeRing{
+      0%,100%{box-shadow:0 0 0 3px color-mix(in srgb,var(--agent-color,var(--accent2)) 10%,transparent),0 0 8px color-mix(in srgb,var(--agent-color,var(--accent2)) 10%,transparent)}
+      50%{box-shadow:0 0 0 6px color-mix(in srgb,var(--agent-color,var(--accent2)) 5%,transparent),0 0 14px color-mix(in srgb,var(--agent-color,var(--accent2)) 20%,transparent)}
+    }
+
+    .agent-head{display:flex;align-items:center;gap:.4rem;position:relative;z-index:1}
+    .agent-info{flex:1;min-width:0}
+    .agent-name{font-size:.72rem;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text)}
+    .agent-role{font-size:.55rem;color:var(--text3);font-weight:600}
+
+    /* Status ring */
+    .agent-status{
+      width:.35rem;height:.35rem;border-radius:50%;
+      background:var(--text3);transition:all .3s;flex-shrink:0;
+    }
+    .agent-card.active .agent-status{
+      background:var(--agent-color,var(--accent2));
+      box-shadow:0 0 6px var(--agent-color,var(--accent2));
+      animation:statusPulse 1.5s ease-in-out infinite;
+    }
+    .agent-card.done .agent-status{background:var(--green);box-shadow:0 0 5px var(--green)}
+    @keyframes statusPulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(1.4)}}
+
+    .agent-thinking{
+      position:relative;z-index:1;
+      font-size:.58rem;color:var(--text2);line-height:1.35;
+      max-height:0;overflow:hidden;opacity:0;
+      transition:max-height .4s,opacity .3s,margin .3s;margin-top:0;
+      padding-left:.1rem;
+    }
+    .agent-card.active .agent-thinking{max-height:35px;opacity:1;margin-top:.2rem}
+    .agent-thinking .dots span{animation:dotJump 1.4s ease-in-out infinite;display:inline-block;font-size:.5rem}
+    .agent-thinking .dots span:nth-child(2){animation-delay:.12s}
+    .agent-thinking .dots span:nth-child(3){animation-delay:.24s}
+    @keyframes dotJump{0%,60%,100%{opacity:.25;transform:translateY(0)}30%{opacity:1;transform:translateY(-2px)}}
+
+    .agent-result{
+      position:relative;z-index:1;
+      font-size:.54rem;color:var(--green);font-weight:700;
+      max-height:0;overflow:hidden;opacity:0;
+      transition:max-height .4s,opacity .3s,margin .3s;margin-top:0;
+    }
+    .agent-card.done .agent-result{max-height:24px;opacity:1;margin-top:.15rem}
+
+    /* ═══ Phase Strip ═══ */
+    .phase-strip{
+      flex:0 0 auto;display:flex;align-items:center;gap:.4rem;
+      padding:.25rem .5rem;border-radius:6px;
+      background:rgba(255,255,255,.015);border:1px solid var(--line);
+      font-size:.65rem;color:var(--text3);font-weight:600;
+      min-height:1.5rem;
+    }
+    .phase-text{white-space:nowrap}
+    .phase-text.typing::after{
+      content:'';display:inline-block;width:1.5px;height:.7em;
+      background:var(--accent);margin-left:2px;vertical-align:middle;
+      animation:cursorBlink 1s steps(2) infinite;
+    }
+    @keyframes cursorBlink{0%{opacity:1}50%{opacity:0}}
+
+    /* ═══ Emotion Curve ═══ */
+    .curve-bar{
+      flex:0 0 auto;padding:.45rem .7rem;border-radius:var(--Rs);
+      background:var(--surface);border:1px solid var(--line);
+      display:flex;flex-direction:column;gap:.2rem;
+    }
+    .curve-header{display:flex;align-items:center;gap:.6rem;flex:1}
+    .curve-header h3{font-size:.72rem;font-weight:800;color:var(--text3);white-space:nowrap;flex-shrink:0}
+    .curve-svg{flex:1;min-width:0;height:3rem;overflow:visible}
+    .curve-labels{display:flex;justify-content:space-between;font-size:.56rem;color:var(--text3);padding:0 1.2rem}
+
+    /* ═══ Route ═══ */
+    .route-area{flex:1;min-height:0;display:flex;flex-direction:column;overflow:hidden}
+    .route-board{
+      flex:1;min-height:0;overflow-y:auto;padding:.5rem;
+      border-radius:var(--Rs);background:var(--surface);border:1px solid var(--line);
+    }
+    .route-empty{
+      display:grid;height:100%;min-height:12rem;place-items:center;
+      color:var(--text3);text-align:center;line-height:1.8;font-size:.82rem;
+    }
+    .route-empty .empty-icon{font-size:2rem;margin-bottom:.3rem;opacity:.35}
+    .route-list{display:grid;gap:.35rem}
+
+    /* ── POI Card (Narrative Style) ── */
+    .poi-row{
+      display:grid;grid-template-columns:3.2rem 1fr;gap:.35rem;
+      animation:poiSlide .5s cubic-bezier(.25,.46,.45,.94) both;
+    }
+    @keyframes poiSlide{
+      from{opacity:0;transform:translateY(14px) scale(.98)}
+      to{opacity:1;transform:translateY(0) scale(1)}
+    }
+
+    .t-cell{position:relative;padding-top:.4rem;text-align:right;font-size:.72rem;font-weight:800;font-variant-numeric:tabular-nums}
+    .t-cell small{display:block;margin-top:.12rem;font-size:.56rem;color:var(--text3);font-weight:600}
+    .t-cell::after{
+      content:'';position:absolute;top:.7rem;right:-.25rem;
+      width:.45rem;height:.45rem;border-radius:50%;
+      background:var(--c,var(--accent));
+      box-shadow:0 0 0 2.5px var(--bg),0 0 8px color-mix(in srgb,var(--c,var(--accent)) 40%,transparent);
+      z-index:1;
+    }
+
+    .poi-card{
+      padding:.55rem .65rem;border-radius:8px;
+      border-left:3px solid var(--c,var(--accent));
+      background:linear-gradient(135deg,rgba(20,24,44,.92),rgba(12,15,30,.95));
+      transition:transform .2s,box-shadow .2s;
+    }
+    .poi-card:hover{transform:translateX(3px);box-shadow:0 2px 12px rgba(0,0,0,.2)}
+
+    .poi-top{display:flex;align-items:flex-start;justify-content:space-between;gap:.4rem;margin-bottom:.2rem}
+    .poi-name{font-size:.84rem;font-weight:900;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0}
+    .poi-price{font-size:.78rem;font-weight:900;color:var(--c,var(--orange));white-space:nowrap;flex-shrink:0}
+    .poi-meta-row{display:flex;flex-wrap:wrap;align-items:center;gap:.15rem .4rem;font-size:.62rem;color:var(--text3);font-weight:700;margin-bottom:.2rem}
+    .poi-badge{
+      padding:.02rem .25rem;border-radius:999px;font-size:.56rem;font-weight:800;
+      background:color-mix(in srgb,var(--c,var(--accent)) 15%,transparent);
+      color:var(--c,var(--accent));
+    }
+
+    /* Narrative text - the storytelling part */
+    .poi-narr{
+      font-size:.72rem;line-height:1.55;color:var(--text2);
+      padding:.35rem .4rem;margin:.2rem 0;
+      border-radius:6px;
+      background:rgba(255,255,255,.015);
+      border-left:2px solid color-mix(in srgb,var(--c,var(--accent)) 30%,transparent);
+      font-style:italic;
+    }
+
+    .poi-tags{display:flex;flex-wrap:wrap;gap:.1rem;margin-top:.15rem}
+    .poi-tags span{
+      padding:.02rem .22rem;border-radius:3px;
+      background:rgba(255,255,255,.03);font-size:.55rem;color:var(--text3);
+    }
+
+    /* ── Travel ── */
+    .travel-row{display:grid;grid-template-columns:3.2rem 1fr;gap:.35rem;padding:.08rem 0}
+    .travel-row .t-cell{visibility:hidden}
+    .travel-line{height:1px;position:relative;background:linear-gradient(90deg,transparent,rgba(255,255,255,.06),transparent)}
+    .travel-line span{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);background:var(--surface);padding:0 .3rem;font-size:.56rem;color:var(--text3);white-space:nowrap;font-weight:600}
+
+    /* ═══ Bottom ═══ */
+    .bottom{flex:0 0 auto;display:grid;grid-template-columns:1fr 190px;gap:.5rem}
+    .composer{
+      display:flex;flex-direction:column;gap:.3rem;
+      padding:.45rem .5rem;border-radius:var(--Rs);
+      background:var(--surface);border:1px solid var(--line);
+    }
+    .comp-row{display:grid;grid-template-columns:1fr repeat(4,auto) 1.8rem;gap:.3rem;align-items:center}
+    .comp-input{
+      padding:0 .6rem;height:1.8rem;border-radius:999px;
+      background:rgba(255,255,255,.02);border:1px solid var(--line);
+      font-size:.76rem;transition:border-color .2s;
+    }
+    .comp-input:focus{border-color:rgba(123,108,246,.25)}
+    .qb{
+      padding:0 .45rem;height:1.8rem;border-radius:999px;
+      background:rgba(255,255,255,.02);border:1px solid var(--line);
+      font-size:.64rem;font-weight:700;transition:all .2s;
+    }
+    .qb:hover{background:rgba(123,108,246,.08);border-color:rgba(123,108,246,.2)}
+    .send-b{
+      width:1.8rem;height:1.8rem;border-radius:50%;
+      background:linear-gradient(135deg,var(--accent),var(--accent2));
+      display:grid;place-items:center;font-size:.85rem;
+      box-shadow:0 3px 10px rgba(123,108,246,.25);
+      transition:transform .2s;
+    }
+    .send-b:hover{transform:scale(1.05)}
+    .send-b:disabled{opacity:.3;transform:none}
+
+    .reply{min-height:.7rem;font-size:.66rem;font-weight:700;color:var(--text3);transition:color .3s}
+    .reply.ok{color:var(--green)}
+    .reply.err{color:#ff8a98}
+
+    .budget{
+      padding:.45rem .6rem;border-radius:var(--Rs);
+      background:var(--surface);border:1px solid var(--line);
+      display:flex;align-items:center;gap:.5rem;
+    }
+    .budget h3{font-size:.68rem;font-weight:700}
+    .budget strong{font-size:.86rem;font-weight:900}
+    .budget p{font-size:.58rem;color:var(--text3)}
+    .ring{
+      width:2.8rem;height:2.8rem;border-radius:50%;position:relative;
+      background:conic-gradient(var(--accent) var(--deg,0deg),rgba(255,255,255,.03) 0);
+      display:grid;place-items:center;font-weight:900;font-size:.62rem;
+      transition:--deg .6s;
+    }
+    .ring::before{content:'';position:absolute;inset:.3rem;border-radius:50%;background:var(--bg)}
+    .ring span{position:relative;z-index:1}
+
+    /* ═══ Responsive ═══ */
+    @media(max-width:1000px){
+      .app{grid-template-columns:1fr}
+      .sidebar{height:auto;max-height:35vh}
+      body{overflow:auto}
+      .agent-stage-cards{flex-wrap:wrap}
     }
   </style>
 </head>
 <body>
-  <div class="app">
-    <aside class="sidebar">
-      <header>
-        <div class="brand">
-          <div class="brand-mark" aria-hidden="true"></div>
-          <div>
-            <h1 class="brand-title">CityFlow</h1>
-            <p class="brand-subtitle">情绪驱动的城市体验编排系统</p>
-          </div>
+<canvas id="ambientBg"></canvas>
+<div class="app">
+  <!-- ═══ Sidebar ═══ -->
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-orb"></div>
+      <div><h1>CityFlow</h1><small>智能城市漫游规划</small></div>
+    </div>
+    <div class="sep"></div>
+    <div class="input-area">
+      <h2>描述你的出行需求</h2>
+      <div class="input-box">
+        <textarea id="inp" maxlength="80" placeholder="周末想一个人安静走走..."></textarea>
+        <span class="char-ct" id="charCt">0/80</span>
+        <button class="go-btn" id="goBtn">→</button>
+      </div>
+    </div>
+    <div class="tags">
+      <button class="tag" data-v="周末想一个人安静走走，偏独处">⌂ 独处</button>
+      <button class="tag" data-v="情侣约会浪漫一点，拍照喝咖啡">♡ 约会</button>
+      <button class="tag" data-v="带孩子出去玩，轻松安全有休息点">☻ 亲子</button>
+      <button class="tag" data-v="朋友聚餐热闹点，吃好喝好">♣ 聚餐</button>
+    </div>
+    <div class="mode-toggle">
+      <button class="mode-btn on" id="modeMock" data-port="8002">🎭 Mock</button>
+      <button class="mode-btn" id="modeReal" data-port="8003">🧠 Real</button>
+    </div>
+    <div class="sidebar-footer">
+      <p>Mock 模式不消耗 Token。<br>Real 模式连接后端 DeepSeek。</p>
+    </div>
+  </aside>
+
+  <!-- ═══ Main ═══ -->
+  <div class="main">
+    <section class="agent-section">
+      <h2>MoE 智能体 <span class="agent-timer" id="agentTimer"></span></h2>
+      <div class="agent-pipeline" id="agentPipeline">
+        <!-- Stage 0: Intent -->
+        <div class="agent-stage" id="stage_0">
+          <div class="agent-stage-cards" id="stageCards_0"></div>
         </div>
-      </header>
-
-      <div class="divider"></div>
-
-      <section class="prompt-block" aria-label="出行需求">
-        <h2>今天想怎么过？</h2>
-        <div class="prompt-card">
-          <textarea id="userInput" maxlength="50" placeholder="周末想一个人安静走走">周末想一个人安静走走</textarea>
-          <span class="char-count" id="charCount">10/50</span>
-          <button class="send-circle" id="submitBtn" type="button" aria-label="开始规划">→</button>
+        <div class="agent-stage">
+          <div class="agent-arrow" id="arrow_0"><svg viewBox="0 0 16 16"><path d="M8 2 L8 11 M4 8 L8 12 L12 8"/></svg></div>
         </div>
-      </section>
-
-      <section class="tag-block" aria-label="快捷标签">
-        <h2>快捷标签</h2>
-        <div class="tag-grid">
-          <button class="tag is-active" type="button" data-input="周末想一个人安静走走，偏独处、安静、放松、探索">⌂ 独处</button>
-          <button class="tag" type="button" data-input="情侣约会浪漫一点，想拍照、喝咖啡、慢慢逛">♡ 约会</button>
-          <button class="tag" type="button" data-input="带孩子出去玩，少排队、轻松、安全、有休息点">☻ 亲子</button>
-          <button class="tag" type="button" data-input="带宠物散步，优先户外、公园、宠物友好">♣ 宠物</button>
+        <!-- Stage 1: Parallel experts -->
+        <div class="agent-stage" id="stage_1">
+          <div class="agent-stage-cards" id="stageCards_1"></div>
         </div>
-      </section>
-
-      <section class="about-card" aria-label="CityFlow 简介">
-        <h3>✦ CityFlow 是什么？</h3>
-        <p>我们不靠你找最热的路，而是帮你找到最对的感受。</p>
-        <p>告诉我们你想要的情绪，AI 为你编排独一无二的城市体验。</p>
-      </section>
-
-      <nav class="bottom-nav" aria-label="底部导航">
-        <span>♧ 我的行程</span>
-        <span>♡ 收藏夹</span>
-        <span>⚙</span>
-      </nav>
-    </aside>
-
-    <main class="workspace">
-      <div class="surface">
-        <section class="curve-card" aria-label="情绪节奏曲线">
-          <h2 class="curve-title">情绪节奏曲线 <span>i</span></h2>
-          <div class="curve-legend">
-            <span><i class="dot" style="background:var(--red)"></i>兴奋</span>
-            <span><i class="dot" style="background:var(--blue)"></i>宁静</span>
-            <span><i class="dot" style="background:var(--green)"></i>自然</span>
-            <span><i class="dot" style="background:var(--purple)"></i>文化</span>
-          </div>
-          <svg class="curve-svg" viewBox="0 0 940 112" preserveAspectRatio="none" aria-hidden="true">
-            <defs>
-              <linearGradient id="curveStroke" x1="0" x2="1" y1="0" y2="0">
-                <stop offset="0%" stop-color="#ff5368"/>
-                <stop offset="36%" stop-color="#ff5368"/>
-                <stop offset="52%" stop-color="#51aef9"/>
-                <stop offset="72%" stop-color="#7edc95"/>
-                <stop offset="100%" stop-color="#925cff"/>
-              </linearGradient>
-              <linearGradient id="curveFill" x1="0" x2="1" y1="0" y2="0">
-                <stop offset="0%" stop-color="#ff5368" stop-opacity=".24"/>
-                <stop offset="50%" stop-color="#51aef9" stop-opacity=".15"/>
-                <stop offset="78%" stop-color="#7edc95" stop-opacity=".16"/>
-                <stop offset="100%" stop-color="#925cff" stop-opacity=".22"/>
-              </linearGradient>
-            </defs>
-            <path d="M34 80 C112 72 126 22 210 18 C286 15 330 57 416 76 C505 96 563 72 638 28 C726 -24 780 50 862 22 C900 9 918 14 936 18" fill="none" stroke="rgba(145,160,205,.12)" stroke-width="1"/>
-            <path d="M34 80 C112 72 126 22 210 18 C286 15 330 57 416 76 C505 96 563 72 638 28 C726 -24 780 50 862 22 C900 9 918 14 936 18 L936 96 L34 96 Z" fill="url(#curveFill)"/>
-            <path d="M34 80 C112 72 126 22 210 18 C286 15 330 57 416 76 C505 96 563 72 638 28 C726 -24 780 50 862 22 C900 9 918 14 936 18" fill="none" stroke="url(#curveStroke)" stroke-width="3"/>
-            <g fill="none" stroke="rgba(145,160,205,.11)">
-              <path d="M34 22 H936"/><path d="M34 80 H936"/>
-              <path d="M90 20 V100"/><path d="M330 20 V100"/><path d="M570 20 V100"/><path d="M810 20 V100"/>
-            </g>
-            <circle cx="210" cy="18" r="5" fill="#ff5368"/>
-            <circle cx="416" cy="76" r="5" fill="#51aef9"/>
-            <circle cx="638" cy="28" r="5" fill="#7edc95"/>
-            <circle cx="862" cy="22" r="5" fill="#925cff"/>
-          </svg>
-          <div class="curve-labels">
-            <span>启程</span>
-            <span>探索</span>
-            <span>沉静</span>
-            <span>自然</span>
-            <span>回味</span>
-          </div>
-        </section>
-
-        <div class="content-grid">
-          <section class="planner-card" aria-label="规划状态">
-            <p class="ai-status"><span class="spark">✦</span> AI 正在为你规划中</p>
-            <div class="planner-steps">
-              <article class="planner-step is-active" data-phase="parsing">
-                <span class="step-icon">✓</span>
-                <div>
-                  <h3>解析你的意图</h3>
-                  <p id="intentHint">已识别：独处、安静、放松、探索</p>
-                </div>
-                <span class="step-time" id="phaseParsingTime">00:02</span>
-              </article>
-              <article class="planner-step" data-phase="identifying">
-                <span class="step-icon">◉</span>
-                <div>
-                  <h3>识别用户身份</h3>
-                  <p>匹配历史偏好与画像</p>
-                </div>
-                <span class="step-time" id="phaseIdentifyingTime">--:--</span>
-              </article>
-              <article class="planner-step" data-phase="ltm_predict">
-                <span class="step-icon">◎</span>
-                <div>
-                  <h3>LTM 预测</h3>
-                  <p>长短期记忆分析</p>
-                </div>
-                <span class="step-time" id="phaseLtmPredictTime">--:--</span>
-              </article>
-              <article class="planner-step" data-phase="weight_mapping">
-                <span class="step-icon">⚖</span>
-                <div>
-                  <h3>权重分析</h3>
-                  <p>需求向量转求解权重</p>
-                </div>
-                <span class="step-time" id="phaseWeightMappingTime">--:--</span>
-              </article>
-              <article class="planner-step" data-phase="searching">
-                <span class="step-icon">⌕</span>
-                <div>
-                  <h3>搜索合适的地点</h3>
-                  <p>正在寻找契合情绪的城市角落</p>
-                </div>
-                <span class="step-time" id="phaseSearchingTime">--:--</span>
-              </article>
-              <article class="planner-step" data-phase="solving">
-                <span class="step-icon">◌</span>
-                <div>
-                  <h3>编排体验路线</h3>
-                  <p>平衡时间、情绪与体验密度</p>
-                </div>
-                <span class="step-time" id="phaseSolvingTime">--:--</span>
-              </article>
-              <article class="planner-step" data-phase="narrating">
-                <span class="step-icon">✎</span>
-                <div>
-                  <h3>生成路线文案</h3>
-                  <p>为你的旅程注入文字与温度</p>
-                </div>
-                <span class="step-time" id="phaseNarratingTime">--:--</span>
-              </article>
-              <article class="planner-step" data-phase="saving">
-                <span class="step-icon">💾</span>
-                <div>
-                  <h3>记忆保存</h3>
-                  <p>记录偏好用于下次优化</p>
-                </div>
-                <span class="step-time" id="phaseSavingTime">--:--</span>
-              </article>
-            </div>
-            <p class="planner-foot" id="statusMessage">ⓘ AI 会综合天气、人流、你过往的偏好来为你优化</p>
-          </section>
-
-          <section class="route-board" aria-label="路线结果">
-            <div class="route-list" id="routeList">
-              <div class="empty-route">
-                <p>点击左侧箭头开始规划。<br>路线会按时间线逐站出现。</p>
-              </div>
-            </div>
-          </section>
+        <div class="agent-stage">
+          <div class="agent-arrow" id="arrow_1"><svg viewBox="0 0 16 16"><path d="M8 2 L8 11 M4 8 L8 12 L12 8"/></svg></div>
         </div>
-
-        <div class="bottom-area">
-          <section class="composer" aria-label="对话调整">
-            <div class="composer-line">
-              <input class="adjust-input" id="dialogueInput" type="text" placeholder="对行程有什么想法？告诉我吧">
-              <button class="quick-adjust" type="button" data-adjust="换一个">换一个</button>
-              <button class="quick-adjust" type="button" data-adjust="太赶了">太赶了</button>
-              <button class="quick-adjust" type="button" data-adjust="多些自然">多些自然</button>
-              <button class="quick-adjust" type="button" data-adjust="预算控制在100元内">预算控制在100元</button>
-              <button class="send-adjust" id="adjustBtn" type="button" aria-label="发送调整">↗</button>
-            </div>
-            <p class="reply" id="adjustReply">AI 已匹配画像：杜弱独居青年　<span style="color:#6f7dff">重新匹配</span></p>
-          </section>
-
-          <aside class="budget-card" aria-label="预算概览">
-            <div>
-              <h3>预算概览</h3>
-              <strong>¥<span id="totalBudget">0</span> / ¥<span id="budgetLimit">200</span></strong>
-              <p>预计总花费　预算上限</p>
-            </div>
-            <div class="budget-ring" id="budgetRing"><span id="budgetPercent">0%</span></div>
-          </aside>
+        <!-- Stage 2: Budget -->
+        <div class="agent-stage" id="stage_2">
+          <div class="agent-stage-cards" id="stageCards_2"></div>
+        </div>
+        <div class="agent-stage">
+          <div class="agent-arrow" id="arrow_2"><svg viewBox="0 0 16 16"><path d="M8 2 L8 11 M4 8 L8 12 L12 8"/></svg></div>
+        </div>
+        <!-- Stage 3: Synthesizer -->
+        <div class="agent-stage" id="stage_3">
+          <div class="agent-stage-cards" id="stageCards_3"></div>
         </div>
       </div>
-    </main>
+    </section>
+
+    <div class="phase-strip" id="phaseStrip">
+      <span class="phase-text" id="phaseText">等待输入</span>
+    </div>
+
+    <div class="curve-bar" id="curveBar">
+      <div class="curve-header">
+        <h3>情绪节奏</h3>
+        <svg class="curve-svg" id="curveSvg" viewBox="0 0 940 60" preserveAspectRatio="none"></svg>
+      </div>
+      <div class="curve-labels" id="curveLabels"></div>
+    </div>
+
+    <div class="route-area">
+      <div class="route-board">
+        <div class="route-list" id="routeList">
+          <div class="route-empty">
+            <div><div class="empty-icon">◈</div><p>描述需求 → 观察智能体实时工作</p></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="bottom">
+      <div class="composer">
+        <div class="comp-row">
+          <input class="comp-input" id="dlgInp" placeholder="微调路线...">
+          <button class="qb" data-a="换一个">换</button>
+          <button class="qb" data-a="太赶了">缓</button>
+          <button class="qb" data-a="多些自然">野</button>
+          <button class="qb" data-a="预算100内">省</button>
+          <button class="send-b" id="dlgBtn">↗</button>
+        </div>
+        <p class="reply" id="reply"></p>
+      </div>
+      <div class="budget">
+        <div><h3>预算</h3><strong>¥<span id="bUsed">0</span> / ¥<span id="bLimit">200</span></strong><p>花费 · 上限</p></div>
+        <div class="ring" id="ring"><span id="bPct">0%</span></div>
+      </div>
+    </div>
   </div>
+</div>
 
-  <script>
-    const CONFIG = {
-      apiBase: 'http://localhost:8000',
-      timeoutMs: 15000,
-      budgetLimit: 200
-    };
+<script>
+const $ = id => document.getElementById(id);
 
-    const MOCK_EVENTS = [
-      {"event":"phase","data":{"phase":"parsing","message":"正在理解你的需求..."}},
-      {"event":"phase","data":{"phase":"searching","message":"正在为你寻找合适的地方..."}},
-      {"event":"step","data":{"index":1,"poi":{"id":"poi_00001","name":"Tiny Pieces 小片咖啡","city":"上海","category":"咖啡馆","rating":4.7,"avg_price":36,"tags":["独处","靠窗","安静"],"avg_stay_min":40,"emotion_tags":{"excitement":0.72,"tranquility":0.45,"sociability":0.2,"culture_depth":0.35,"physical_demand":0.05}},"arrival_time":"10:00","departure_time":"10:40","narrative":"一杯拿铁，开启属于你的周末。"}},
-      {"event":"step","data":{"index":2,"poi":{"id":"poi_00002","name":"钟书阁（芮欧百货店）","city":"上海","category":"书店","rating":4.6,"avg_price":0,"tags":["书店","安静区"],"avg_stay_min":60,"emotion_tags":{"excitement":0.2,"tranquility":0.82,"sociability":0.25,"culture_depth":0.65,"physical_demand":0.08}},"arrival_time":"11:00","departure_time":"12:00","narrative":"在书的海洋里，时间慢了下来。"}},
-      {"event":"step","data":{"index":3,"poi":{"id":"poi_00003","name":"静安雕塑公园","city":"上海","category":"公园","rating":4.8,"avg_price":0,"tags":["绿荫","自然","散步"],"avg_stay_min":60,"emotion_tags":{"excitement":0.25,"tranquility":0.65,"sociability":0.25,"culture_depth":0.25,"physical_demand":0.28,"nature":0.92}},"arrival_time":"12:30","departure_time":"13:30","narrative":"绿影摇曳，呼吸城市里的自然气息。"}},
-      {"event":"step","data":{"index":4,"poi":{"id":"poi_00004","name":"上海市摄影艺术中心","city":"上海","category":"艺术展馆","rating":4.5,"avg_price":30,"tags":["展览","摄影","文化"],"avg_stay_min":90,"emotion_tags":{"excitement":0.25,"tranquility":0.58,"sociability":0.18,"culture_depth":0.88,"physical_demand":0.1}},"arrival_time":"14:00","departure_time":"15:30","narrative":"光影的故事，安静地打动人心。"}},
-      {"event":"budget","data":{"total":66,"budget_limit":200,"remaining":134,"total_hours":5.5,"total_steps":4}},
-      {"event":"phase","data":{"phase":"solving","message":"正在编排体验路线..."}},
-      {"event":"phase","data":{"phase":"narrating","message":"正在生成路线文案..."}},
-      {"event":"done","data":{"route_id":"mock001","full_route":{"route":[],"total_budget":66,"total_hours":5.5,"budget_summary":{"总预算":200,"已用":66,"剩余":134},"narrative":{"closing":"回到你喜欢的角落，写下今天的感受吧。"}}}}
-    ];
+// ── Ambient Particles ──
+(function(){
+  const c=$('ambientBg'),ctx=c.getContext('2d');let W,H,ps=[];
+  function rz(){W=c.width=innerWidth;H=c.height=innerHeight}
+  rz();addEventListener('resize',rz);
+  class P{constructor(){this.rz()}rz(){this.x=Math.random()*W;this.y=Math.random()*H;this.r=Math.random()*1+.3;this.dx=(Math.random()-.5)*.12;this.dy=(Math.random()-.5)*.08;this.a=Math.random()*.2+.04;this.h=Math.random()>.6?255:230}up(){this.x+=this.dx;this.y+=this.dy;if(this.x<-5||this.x>W+5||this.y<-5||this.y>H+5)this.rz()}dr(){ctx.beginPath();ctx.arc(this.x,this.y,this.r,0,6.28);ctx.fillStyle=`hsla(${this.h},50%,65%,${this.a})`;ctx.fill()}}
+  for(let i=0;i<50;i++)ps.push(new P);
+  (function f(){ctx.clearRect(0,0,W,H);ps.forEach(p=>{p.up();p.dr()});for(let i=0;i<ps.length;i++)for(let j=i+1;j<ps.length;j++){const dx=ps[i].x-ps[j].x,dy=ps[i].y-ps[j].y,d=dx*dx+dy*dy;if(d<16000){ctx.beginPath();ctx.moveTo(ps[i].x,ps[i].y);ctx.lineTo(ps[j].x,ps[j].y);ctx.strokeStyle=`rgba(123,108,246,${.025*(1-d/16000)})`;ctx.stroke()}}requestAnimationFrame(f)})();
+})();
 
-    const EMOTION_META = {
-      excitement: { label: '兴奋', color: '#ff5368' },
-      tranquility: { label: '宁静', color: '#51aef9' },
-      nature: { label: '自然', color: '#7edc95' },
-      culture_depth: { label: '文化', color: '#925cff' },
-      sociability: { label: '社交', color: '#ff9b54' },
-      physical_demand: { label: '活力', color: '#7edc95' }
-    };
+// ── State ──
+let PORT = 8002;
+const S = { routeId:null, steps:[], fullRoute:null, planning:false, done:false, abort:null, t0:0, agents:{} };
 
-    const PHASE_ORDER = ['parsing', 'identifying', 'ltm_predict', 'weight_mapping', 'searching', 'solving', 'narrating', 'saving'];
+// ── Mode ──
+$('modeMock').onclick=()=>{PORT=8002;$('modeMock').classList.add('on');$('modeReal').classList.remove('on')};
+$('modeReal').onclick=()=>{PORT=8003;$('modeReal').classList.add('on');$('modeMock').classList.remove('on')};
 
-    const AppState = {
-      routeId: null,
-      routeSteps: [],
-      currentRoute: null,
-      isPlanning: false,
-      streamFinished: false,
-      abortController: null,
-      timeoutId: null,
-      startedAt: 0
-    };
+// ── Helpers ──
+const txt=(v,fb='')=>(v==null||v==='')?fb:String(v);
+const num=v=>{const n=Number(v||0);return Number.isFinite(n)?Math.round(n):0};
+const elapsed=()=>{const s=Math.floor((Date.now()-S.t0)/1000);return`${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`};
 
-    const $ = (id) => document.getElementById(id);
-    const el = {
-      userInput: $('userInput'),
-      charCount: $('charCount'),
-      submitBtn: $('submitBtn'),
-      routeList: $('routeList'),
-      statusMessage: $('statusMessage'),
-      dialogueInput: $('dialogueInput'),
-      adjustBtn: $('adjustBtn'),
-      adjustReply: $('adjustReply'),
-      totalBudget: $('totalBudget'),
-      budgetLimit: $('budgetLimit'),
-      budgetRing: $('budgetRing'),
-      budgetPercent: $('budgetPercent'),
-      intentHint: $('intentHint')
-    };
+// Emotion mapping for curve
+const EMOTIONS = {
+  '运动健身': { label:'活力', emoji:'⚡', v:.85 },
+  '拍照出片': { label:'惊喜', emoji:'✨', v:.75 },
+  '自然风光': { label:'宁静', emoji:'🌿', v:.55 },
+  '休闲放松': { label:'惬意', emoji:'☁️', v:.35 },
+  '咖啡': { label:'舒适', emoji:'☕', v:.3 },
+  '文艺': { label:'灵感', emoji:'🎭', v:.65 },
+  '怀旧': { label:'回忆', emoji:'📻', v:.45 },
+  '公园': { label:'清新', emoji:'🍃', v:.5 },
+  '约会': { label:'甜蜜', emoji:'💕', v:.6 },
+};
+function getEmotion(tags) {
+  for (const t of tags || []) if (EMOTIONS[t]) return EMOTIONS[t];
+  return { label:'探索', emoji:'🧭', v:.5 };
+}
 
-    function text(value, fallback = '') {
-      if (value === null || value === undefined || value === '') return fallback;
-      return String(value);
+function tagColor(t) {
+  const m = {'自然风光':'#3ee889','公园':'#3ee889','休闲放松':'#5ea2ff','拍照出片':'#ff6b9d','运动健身':'#3ee889','文化':'#9b6dff','美食':'#ffa54d','咖啡':'#c49a6a','文艺':'#9b6dff','怀旧':'#b88a5a'};
+  return m[t]||'#8b93b0';
+}
+function poiColor(poi) {
+  const tags = [...(poi?.tags || []), ...(poi?._scene_tags || [])];
+  for (const t of tags) { const c = tagColor(t); if (c !== '#8b93b0') return c; }
+  const c = poi?.category || '';
+  if (c.includes('餐') || c.includes('咖啡')) return '#ffa54d';
+  if (c.includes('公园')) return '#3ee889';
+  return '#9b6dff';
+}
+
+// ── Agent Pipeline ──
+// All agents definition — pre-created in pipeline, idle until activated
+const AGENT_STAGE = {
+  'intent_parser': 0, 'rule_guard': 0, 'expert_router': 0,
+  'poi_expert': 1, 'poi': 1,
+  'food_expert': 1, 'food': 1,
+  'local_expert': 1, 'local_expert_agent': 1,
+  'hotel_expert': 1, 'hotel': 1,
+  'traffic_expert': 1, 'traffic': 1,
+  'weather_expert': 1, 'weather': 1,
+  'destination_expert': 1, 'destination': 1,
+  'insurance': 1,
+  'negotiation': 1,
+  'review': 2,
+  'budget_hacker': 2,
+  'synthesizer': 3,
+};
+const ALL_AGENTS = [
+  {agent:'rule_guard',name:'意图解析',icon:'🧠',role:'需求理解',color:'#ff5368'},
+  {agent:'expert_router',name:'路由器',icon:'📡',role:'专家调度',color:'#7b6cf6'},
+  {agent:'poi',name:'POI专家',icon:'🏛',role:'景点筛选',color:'#51aef9'},
+  {agent:'food',name:'美食专家',icon:'🍜',role:'餐饮推荐',color:'#ff9b54'},
+  {agent:'hotel',name:'住宿专家',icon:'🏨',role:'住宿推荐',color:'#4da6ff'},
+  {agent:'traffic',name:'交通专家',icon:'🚗',role:'交通规划',color:'#4dd8e8'},
+  {agent:'weather',name:'天气专家',icon:'🌤',role:'天气分析',color:'#ffa54d'},
+  {agent:'local_expert',name:'本地向导',icon:'🗺',role:'隐藏宝藏',color:'#7edc95'},
+  {agent:'insurance',name:'保险专家',icon:'🛡',role:'风险评估',color:'#9b6dff'},
+  {agent:'negotiation',name:'协商引擎',icon:'⚖️',role:'冲突调解',color:'#ff6b9d'},
+  {agent:'review',name:'审查员',icon:'🔍',role:'质量校验',color:'#c49a6a'},
+  {agent:'budget_hacker',name:'预算师',icon:'💰',role:'预算优化',color:'#ffcc00'},
+  {agent:'synthesizer',name:'综合师',icon:'✨',role:'路线组装',color:'#ff5a88'},
+];
+
+function agentCard(a) {
+  const el = document.createElement('div');
+  el.className = 'agent-card';
+  el.id = 'ag_' + a.agent;
+  el.style.setProperty('--agent-color', a.color || '#5ea2ff');
+  el.innerHTML = `
+    <div class="agent-head">
+      <div class="agent-badge">${a.icon || '🤖'}</div>
+      <div class="agent-info">
+        <div class="agent-name">${a.name || a.agent}</div>
+        <div class="agent-role">${a.role || ''}</div>
+      </div>
+      <div class="agent-status"></div>
+    </div>
+    <div class="agent-thinking"><span class="ag-think-text"></span> <span class="dots"><span>·</span><span>·</span><span>·</span></span></div>
+    <div class="agent-result"></div>`;
+  return el;
+}
+
+function ensureAgentCard(data) {
+  let el = $('ag_' + data.agent);
+  if (!el) {
+    el = agentCard(data);
+    const stageIdx = AGENT_STAGE[data.agent] ?? 0;
+    const container = $('stageCards_' + stageIdx);
+    if (container) {
+      el.classList.add('idle');
+      container.appendChild(el);
     }
+  }
+  return el;
+}
 
-    function money(value) {
-      const num = Number(value || 0);
-      return Number.isFinite(num) ? Math.round(num) : 0;
+// Arrow animation between stages
+function activateArrow(stageIdx) {
+  const arrow = $('arrow_' + stageIdx);
+  if (arrow) arrow.classList.add('active');
+}
+function doneArrow(stageIdx) {
+  const arrow = $('arrow_' + stageIdx);
+  if (arrow) { arrow.classList.remove('active'); arrow.classList.add('done'); }
+}
+
+function resetPipeline() {
+  for (let i = 0; i < 4; i++) {
+    const c = $('stageCards_' + i);
+    if (c) c.innerHTML = '';
+    const a = $('arrow_' + i);
+    if (a) { a.classList.remove('active','done'); }
+  }
+  // Pre-create ALL agent cards in idle state — "亮灯" starts here
+  ALL_AGENTS.forEach(def => {
+    const card = agentCard(def);
+    card.classList.add('idle');
+    const stageIdx = AGENT_STAGE[def.agent] ?? 0;
+    const container = $('stageCards_' + stageIdx);
+    if (container) container.appendChild(card);
+  });
+}
+
+// ── Phase ──
+function setPhase(msg) {
+  const el = $('phaseText');
+  el.textContent = msg;
+  el.classList.add('typing');
+}
+
+// ── UI ──
+function setReply(msg,tone=''){const r=$('reply');r.textContent=msg;r.className='reply'+(tone?' '+tone:'')}
+function setPlanning(on){
+  S.planning=on;const btn=$('goBtn');btn.disabled=on;btn.textContent=on?'…':'→';
+  btn.classList.toggle('planning',on);
+}
+function updateBudget(used,limit){
+  const pct=limit?Math.min(100,Math.round(used/limit*100)):0;
+  $('bUsed').textContent=used;$('bLimit').textContent=limit;
+  $('bPct').textContent=pct+'%';$('ring').style.setProperty('--deg',(pct*3.6)+'deg');
+}
+
+// ── Curve with Labels ──
+function renderCurve() {
+  const svg = $('curveSvg');
+  const labels = $('curveLabels');
+  svg.innerHTML = ''; labels.innerHTML = '';
+  if (!S.steps.length) return;
+  const PX = 20, W = 900, H = 40, n = S.steps.length;
+  const pts = S.steps.map((step, i) => {
+    const tags = step.poi?.tags || [];
+    const emo = getEmotion(tags);
+    let v = emo.v;
+    if (i === 0) v *= .8;
+    if (i === n - 1) v *= .7;
+    const x = n === 1 ? PX + W / 2 : PX + (i / (n - 1)) * W;
+    const y = (1 - v) * H;
+    return { x, y, c: poiColor(step.poi), name: step.poi?.name || '', emo };
+  });
+
+  const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+  const g = document.createElementNS('http://www.w3.org/2000/svg', 'linearGradient');
+  g.id = 'cs'; g.setAttribute('x1', '0'); g.setAttribute('x2', '1');
+  pts.forEach((p, i) => {
+    const s = document.createElementNS('http://www.w3.org/2000/svg', 'stop');
+    s.setAttribute('offset', (i / Math.max(1, n - 1) * 100) + '%'); s.setAttribute('stop-color', p.c); g.appendChild(s);
+  });
+  const fg = g.cloneNode(true); fg.id = 'cf';
+  fg.querySelectorAll('s'+'top').forEach(s => s.setAttribute('stop-opacity', '.1'));
+  defs.appendChild(g); defs.appendChild(fg); svg.appendChild(defs);
+
+  const d = pts.map((p, i) =>
+    i === 0 ? `M${p.x} ${p.y}` : `C${pts[i-1].x+(p.x-pts[i-1].x)*.4} ${pts[i-1].y} ${pts[i-1].x+(p.x-pts[i-1].x)*.6} ${p.y} ${p.x} ${p.y}`
+  ).join(' ');
+  const fp = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  fp.setAttribute('d', d + ` L${pts.at(-1).x} ${H} L${pts[0].x} ${H} Z`); fp.setAttribute('fill', 'url(#cf)'); svg.appendChild(fp);
+  const sp = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  sp.setAttribute('d', d); sp.setAttribute('fill', 'none'); sp.setAttribute('stroke', 'url(#cs)'); sp.setAttribute('stroke-width', '2'); sp.setAttribute('stroke-linecap', 'round'); svg.appendChild(sp);
+  pts.forEach(p => {
+    const c = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    c.setAttribute('cx', p.x); c.setAttribute('cy', p.y); c.setAttribute('r', '3');
+    c.setAttribute('fill', p.c); c.style.filter = `drop-shadow(0 0 4px ${p.c})`; svg.appendChild(c);
+    // Emotion label
+    const t = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    t.setAttribute('x', p.x); t.setAttribute('y', p.y - 8);
+    t.setAttribute('text-anchor', 'middle'); t.setAttribute('fill', p.c);
+    t.setAttribute('font-size', '8'); t.setAttribute('font-weight', '700');
+    t.textContent = p.emo.emoji; svg.appendChild(t);
+  });
+
+  // Bottom labels with POI names
+  labels.innerHTML = pts.map(p =>
+    `<span style="color:${p.c}">${p.emo.emoji} ${p.name.slice(0, 4)}</span>`
+  ).join('');
+}
+
+// ── POI Rendering ──
+function clearEmpty(){const e=$('routeList').querySelector('.route-empty');if(e)e.remove()}
+
+function renderTravel(travel) {
+  if (!travel) return;
+  const d = travel.distance_m >= 1000 ? (travel.distance_m / 1000).toFixed(1) + 'km' : travel.distance_m + 'm';
+  const t = travel.time_min ? ` · ${travel.time_min}min` : '';
+  const row = document.createElement('div');
+  row.className = 'travel-row';
+  row.innerHTML = `<div class="t-cell"></div><div class="travel-line"><span>${d}${t}</span></div>`;
+  $('routeList').appendChild(row);
+}
+
+function renderStep(step) {
+  if (!step?.poi) return;
+  clearEmpty(); S.steps.push(step);
+  const poi = step.poi, c = poiColor(poi);
+  const tags = [...(poi.tags || []), ...(step.scene_tags || []), ...(poi._scene_tags || [])].filter(Boolean);
+  const emo = getEmotion([...(poi.tags || []), ...(step.scene_tags || []), ...(poi._scene_tags || [])]);
+
+  const row = document.createElement('div');
+  row.className = 'poi-row'; row.style.setProperty('--c', c);
+
+  // Build narrative with emotion context
+  const narrative = step.narrative || '';
+  const emotionLine = narrative
+    ? `<div class="poi-narr">${narrative}</div>`
+    : '';
+
+  row.innerHTML = `
+    <div class="t-cell" style="--c:${c}">${txt(step.arrival_time,'--')}<small>${txt(step.departure_time,'--')}</small></div>
+    <div class="poi-card" style="--c:${c}">
+      <div class="poi-top">
+        <span class="poi-name">${txt(poi.name,'未命名')}</span>
+        <span class="poi-price">${poi.avg_price ? '¥'+num(poi.avg_price) : '免费'}</span>
+      </div>
+      <div class="poi-meta-row">
+        ${step.emotion_design ? `<span class="poi-badge" style="--c:${c}">${emo.emoji} ${step.emotion_design}</span>` : ''}
+        ${txt(poi.category,'')}
+        ${poi.rating ? ` ★${Number(poi.rating).toFixed(1)}` : ''}
+        ${poi.avg_stay_min ? ` · 停留${poi.avg_stay_min}min` : ''}
+        ${poi.business_hours ? ` · ${poi.business_hours}` : ''}
+      </div>
+      ${emotionLine}
+      ${tags.length ? `<div class="poi-tags">${tags.slice(0,5).map(t=>`<span style="color:${tagColor(t)}">${t}</span>`).join('')}</div>` : ''}
+    </div>`;
+  $('routeList').appendChild(row);
+  row.scrollIntoView({ behavior:'smooth', block:'nearest' });
+  renderCurve();
+}
+
+function renderClosing() {
+  const last = S.steps[S.steps.length - 1];
+  const row = document.createElement('div');
+  row.className = 'poi-row'; row.style.setProperty('--c','#555e7a');
+  row.innerHTML = `<div class="t-cell" style="--c:#555e7a">${last?.departure_time||'--'}<small>☁</small></div><div class="poi-card" style="--c:#555e7a;border-left-color:#555e7a"><div style="color:var(--text3);font-size:.74rem;font-style:italic;padding:.2rem 0">希望这段旅程为你带来片刻宁静。</div></div>`;
+  $('routeList').appendChild(row);
+}
+
+// ── Timer ──
+let timerInterval = null;
+function startTimer(){S.t0=Date.now();clearInterval(timerInterval);timerInterval=setInterval(()=>{if(!S.planning)return;$('agentTimer').textContent=elapsed()},500)}
+function stopTimer(){clearInterval(timerInterval)}
+
+// ── SSE ──
+function onPhase(data){if(data.message)setPhase(data.message)}
+
+function onAgentStart(data){
+  const card = ensureAgentCard(data);
+  // Update visual from SSE data
+  if (data.icon) card.querySelector('.agent-badge').textContent = data.icon;
+  if (data.name) card.querySelector('.agent-name').textContent = data.name;
+  if (data.role) card.querySelector('.agent-role').textContent = data.role;
+  if (data.color) card.style.setProperty('--agent-color', data.color);
+  // Light up! idle → active
+  card.classList.remove('idle','done');
+  card.classList.add('active');
+  const stageIdx = AGENT_STAGE[data.agent] ?? 0;
+  if (stageIdx > 0) activateArrow(stageIdx - 1);
+}
+function onAgentThinking(data){
+  const card=ensureAgentCard({agent:data.agent});
+  const t=card.querySelector('.ag-think-text');
+  if(t)t.textContent=data.text;
+}
+function onAgentResult(data){
+  const card=$('ag_'+data.agent);
+  if(!card)return;
+  card.classList.remove('idle','active');
+  card.classList.add('done');
+  const resultEl=card.querySelector('.agent-result');
+  resultEl.textContent='✓ '+(data.summary||'完成');
+  const stageIdx = AGENT_STAGE[data.agent] ?? 0;
+  if (stageIdx > 0) doneArrow(stageIdx - 1);
+}
+
+function onStep(data){renderStep(data)}
+
+function onDone(data){
+  S.routeId=data.route_id;S.fullRoute=data.full_route||{};
+  const route=S.fullRoute.route||[];
+  // If step events already rendered these POIs, don't re-render — just patch travel info
+  if(route.length && S.steps.length===0){
+    // No step events received, render from full_route
+    route.forEach((rs,i)=>{
+      if(rs.travel_from_prev)renderTravel(rs.travel_from_prev);
+      renderStep({index:i+1,poi:rs.poi,arrival_time:rs.arrival_time,departure_time:rs.departure_time,narrative:rs.narrative||'',emotion_design:rs.emotion_design||'',scene_tags:rs.scene_tags||[]});
+    });
+  }
+  renderClosing();
+  const tc=S.fullRoute.total_cost||{};
+  updateBudget(num(tc.budget_used),tc.budget_limit||200);
+  const ver=data.version?` · ${data.version}`:'';
+  setReply(`规划完成${ver} · ${S.steps.length}站 · ${elapsed()}`,'ok');
+  $('phaseText').classList.remove('typing');
+  setPhase('规划完成 ✓');
+  S.done=true;setPlanning(false);stopTimer();
+}
+function onError(data){setReply(data.error||'规划失败','err');setPhase('出错了');S.done=true;setPlanning(false);stopTimer()}
+
+function handleEvent(type,data){
+  if(type==='phase')return onPhase(data);
+  if(type==='agent_start')return onAgentStart(data);
+  if(type==='agent_thinking')return onAgentThinking(data);
+  if(type==='agent_result')return onAgentResult(data);
+  if(type==='step')return onStep(data);
+  if(type==='done')return onDone(data);
+  if(type==='error')return onError(data);
+  if(type==='debug_agents'){(data.agents||[]).forEach(aid=>ensureAgentCard({agent:aid,name:aid,icon:'🤖',role:'',color:'#5ea2ff'}))}
+}
+
+// Yield to browser rendering between events
+function waitForFrame(){return new Promise(r=>requestAnimationFrame(r))}
+
+// ── SSE Stream ──
+async function parseSSE(chunk,buf){
+  buf.s+=chunk;const msgs=buf.s.split(/\r?\n\r?\n/);buf.s=msgs.pop()||'';
+  for(const msg of msgs){
+    let type='message';const dl=[];
+    for(const line of msg.split(/\r?\n/)){
+      if(line.startsWith('event:'))type=line.slice(6).trim();
+      if(line.startsWith('data:'))dl.push(line.slice(5).trimStart());
     }
+    if(!dl.length)continue;
+    try{handleEvent(type,JSON.parse(dl.join('\n')))}catch(e){console.error('SSE:',e)}
+    await waitForFrame();  // Let browser render between events
+  }
+}
 
-    function elapsed() {
-      const seconds = Math.max(0, Math.floor((Date.now() - AppState.startedAt) / 1000));
-      return `00:${String(seconds).padStart(2, '0')}`;
+async function submitPlan(input){
+  if(S.planning)return;
+  S.routeId=null;S.steps=[];S.fullRoute=null;S.done=false;S.agents={};
+  $('routeList').innerHTML='<div class="route-empty"><p>Agent 工作中...</p></div>';
+  resetPipeline();
+  setReply('');updateBudget(0,200);setPlanning(true);startTimer();
+  setPhase('正在理解你的需求...');
+  S.abort=new AbortController();
+  const timeout=setTimeout(()=>{if(!S.planning)return;S.abort?.abort();setPlanning(false);stopTimer();setReply('请求超时','err');setPhase('超时')},120_000);
+  try{
+    const res=await fetch(`http://localhost:${PORT}/api/plan`,{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({user_input:input}),signal:S.abort.signal,
+    });
+    if(!res.ok)throw new Error(`HTTP ${res.status}`);
+    const reader=res.body.getReader(),dec=new TextDecoder(),buf={s:''};
+    while(true){
+      const{done,value}=await reader.read();
+      if(done)break;
+      await parseSSE(dec.decode(value,{stream:true}),buf);
+      if(S.done){await reader.cancel();break}
     }
+  }catch(e){
+    if(e.name==='AbortError')return;
+    console.error(e);setPlanning(false);stopTimer();
+    setReply('连接失败 (端口 '+PORT+')','err');setPhase('连接失败');
+  }finally{clearTimeout(timeout)}
+}
 
-    function setReply(message, tone = '') {
-      el.adjustReply.textContent = message || '';
-      if (tone) el.adjustReply.dataset.tone = tone;
-      else el.adjustReply.removeAttribute('data-tone');
+// ── Dialogue ──
+async function sendAdj(inst){
+  if(!inst||!S.routeId){setReply('请先完成一次规划','err');return}
+  $('dlgBtn').disabled=true;setReply('调整中...');
+  try{
+    const res=await fetch(`http://localhost:${PORT}/api/dialogue/${encodeURIComponent(S.routeId)}`,{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({instruction:inst}),
+    });
+    if(!res.ok)throw new Error(`HTTP ${res.status}`);
+    const data=await res.json();setReply(data.reply||'已调整','ok');
+    if(data.route?.route?.length){
+      $('routeList').innerHTML='';S.steps=[];
+      data.route.route.forEach((rs,i)=>renderStep({index:i+1,poi:rs.poi,arrival_time:rs.arrival_time,departure_time:rs.departure_time,narrative:rs.narrative||''}));
+      renderClosing();S.fullRoute=data.route;
+      const tc=data.route.total_cost||{};
+      updateBudget(num(tc.budget_used),tc.budget_limit||200);
     }
+  }catch(e){console.error(e);setReply('调整失败','err')}
+  finally{$('dlgBtn').disabled=false}
+}
 
-    function setStatus(message, tone = '') {
-      el.statusMessage.textContent = message || '';
-      if (tone) el.statusMessage.dataset.tone = tone;
-      else el.statusMessage.removeAttribute('data-tone');
-    }
-
-    function getDominantEmotion(poi = {}) {
-      const tags = poi.emotion_tags || {};
-      let bestKey = 'tranquility';
-      let bestVal = -1;
-      for (const key of Object.keys(EMOTION_META)) {
-        const val = Number(tags[key] || 0);
-        if (val > bestVal) {
-          bestKey = key;
-          bestVal = val;
-        }
-      }
-      return { key: bestKey, value: bestVal, ...EMOTION_META[bestKey] };
-    }
-
-    function thumbClass(poi = {}) {
-      const category = `${poi.category || ''}`;
-      const emotion = getDominantEmotion(poi).key;
-      if (emotion === 'nature' || category.includes('公园') || category.includes('运动')) return 'nature';
-      if (category.includes('餐') || category.includes('咖啡')) return 'food';
-      if (category.includes('酒店')) return 'hotel';
-      if (category.includes('购物')) return 'shop';
-      return 'culture';
-    }
-
-    function updateCharCount() {
-      el.charCount.textContent = `${el.userInput.value.length}/50`;
-    }
-
-    function setLoading(isLoading) {
-      AppState.isPlanning = isLoading;
-      el.submitBtn.disabled = isLoading;
-      el.submitBtn.textContent = isLoading ? '…' : '→';
-    }
-
-    function updatePlanner(phase) {
-      const activeIndex = Math.max(0, PHASE_ORDER.indexOf(phase));
-      document.querySelectorAll('.planner-step').forEach((step) => {
-        const stepIndex = PHASE_ORDER.indexOf(step.dataset.phase);
-        step.classList.toggle('is-active', stepIndex === activeIndex);
-        step.classList.toggle('is-done', stepIndex < activeIndex);
-      });
-      const timeTarget = document.getElementById(`phase${phase.charAt(0).toUpperCase()}${phase.slice(1)}Time`);
-      if (timeTarget) timeTarget.textContent = elapsed();
-    }
-
-    function resetPlan() {
-      AppState.routeId = null;
-      AppState.routeSteps = [];
-      AppState.currentRoute = null;
-      AppState.streamFinished = false;
-      AppState.startedAt = Date.now();
-      el.routeList.innerHTML = '<div class="empty-route"><p>AI 正在挑选地点。<br>路线会按时间线逐站出现。</p></div>';
-      setReply('AI 已匹配画像：杜弱独居青年　重新匹配');
-      setStatus('ⓘ AI 会综合天气、人流、你过往的偏好来为你优化');
-      updateBudget({ total: 0, budget_limit: CONFIG.budgetLimit });
-      PHASE_ORDER.forEach((phase) => {
-        const node = document.getElementById(`phase${phase.charAt(0).toUpperCase()}${phase.slice(1)}Time`);
-        if (node) node.textContent = phase === 'parsing' ? '00:00' : '--:--';
-      });
-      updatePlanner('parsing');
-      el.intentHint.textContent = `已识别：${extractIntentWords(el.userInput.value)}`;
-    }
-
-    function extractIntentWords(input) {
-      const words = [];
-      if (/独|一人|一个人/.test(input)) words.push('独处');
-      if (/安静|静|放松/.test(input)) words.push('安静');
-      if (/自然|公园|散步/.test(input)) words.push('自然');
-      if (/约会|情侣/.test(input)) words.push('约会');
-      if (/孩子|亲子/.test(input)) words.push('亲子');
-      if (/宠物|狗/.test(input)) words.push('宠物');
-      if (!words.length) words.push('探索', '放松');
-      return words.join('、');
-    }
-
-    function startTimeoutGuard() {
-      clearTimeout(AppState.timeoutId);
-      AppState.timeoutId = setTimeout(() => {
-        if (!AppState.isPlanning) return;
-        if (AppState.abortController) AppState.abortController.abort();
-        setLoading(false);
-        setStatus('请求超过 15 秒仍未完成，已保留当前返回的路线。', 'error');
-      }, CONFIG.timeoutMs);
-    }
-
-    function updateBudget(data = {}) {
-      // 兼容 narrative.budget_breakdown / total_cost / 直接字段三种格式
-      const total = money(data.total ?? data.total_budget ?? data.total_cost?.budget_used ?? 0);
-      const limit = money(data.budget_limit ?? data.budget_summary?.['总预算'] ?? data.total_cost?.budget_limit ?? CONFIG.budgetLimit);
-      const percent = limit ? Math.min(100, Math.round((total / limit) * 100)) : 0;
-      el.totalBudget.textContent = total;
-      el.budgetLimit.textContent = limit;
-      el.budgetPercent.textContent = `${percent}%`;
-      el.budgetRing.style.setProperty('--budget-angle', `${percent * 3.6}deg`);
-    }
-
-    function clearEmptyRoute() {
-      const empty = el.routeList.querySelector('.empty-route');
-      if (empty) empty.remove();
-    }
-
-    function addStep(step) {
-      if (!step || !step.poi) return;
-      clearEmptyRoute();
-      AppState.routeSteps.push(step);
-      const poi = step.poi;
-      const emotion = getDominantEmotion(poi);
-      const row = document.createElement('article');
-      row.className = 'route-row';
-      row.style.setProperty('--row-color', emotion.color);
-
-      const time = document.createElement('div');
-      time.className = 'time-cell';
-      time.innerHTML = `${text(step.arrival_time, '--')}<small>${text(step.departure_time, '--')}</small>`;
-
-      const card = document.createElement('div');
-      card.className = 'poi-card';
-      card.style.setProperty('--row-color', emotion.color);
-
-      const thumb = document.createElement('div');
-      thumb.className = `thumb ${thumbClass(poi)}`;
-
-      const info = document.createElement('div');
-      info.className = 'poi-info';
-      const title = document.createElement('h3');
-      title.className = 'poi-title';
-      const name = document.createElement('span');
-      name.textContent = text(poi.name, '未命名地点');
-      const chip = document.createElement('span');
-      chip.className = 'emotion-chip';
-      chip.textContent = emotion.label;
-      title.append(name, chip);
-
-      const narrative = document.createElement('p');
-      narrative.className = 'poi-narrative';
-      narrative.textContent = text(step.narrative, '为你保留一段合适的城市体验。');
-
-      const meta = document.createElement('div');
-      meta.className = 'poi-meta';
-      const place = text(poi.category, '地点');
-      const district = text(poi.city, '城市');
-      meta.textContent = `${place}　|　${district}　　预计消费 ¥${money(poi.avg_price)}`;
-
-      info.append(title, narrative, meta);
-
-      const price = document.createElement('div');
-      price.className = 'price';
-      price.textContent = `¥${money(poi.avg_price)}`;
-
-      card.append(thumb, info, price);
-      row.append(time, card);
-      el.routeList.appendChild(row);
-    }
-
-    function addClosingCard(route = {}) {
-      const closing = route.narrative?.closing || '回到你喜欢的角落，写下今天的感受吧。';
-      const row = document.createElement('article');
-      row.className = 'closing-card';
-      row.style.setProperty('--row-color', '#9aa5bd');
-      const time = document.createElement('div');
-      time.className = 'time-cell';
-      time.innerHTML = '16:00<small>☁</small>';
-      const card = document.createElement('div');
-      card.className = 'poi-card';
-      card.innerHTML = `<div>▱　${closing}</div><div class="price" style="color:#7edc95">¥0</div>`;
-      row.append(time, card);
-      el.routeList.appendChild(row);
-    }
-
-    function renderFullRoute(route = {}) {
-      if (Array.isArray(route.route) && route.route.length) {
-        el.routeList.innerHTML = '';
-        AppState.routeSteps = [];
-        route.route.forEach(addStep);
-      }
-      addClosingCard(route);
-      updateBudget(route);
-    }
-
-    function handleSSEEvent(eventType, data) {
-      if (eventType === 'phase') {
-        updatePlanner(data.phase);
-        setStatus(data.message || '正在处理...');
-        return;
-      }
-      if (eventType === 'step') {
-        addStep(data);
-        return;
-      }
-      if (eventType === 'budget') {
-        updateBudget(data);
-        return;
-      }
-      if (eventType === 'done') {
-        clearTimeout(AppState.timeoutId);
-        AppState.routeId = data.route_id || 'mock001';
-        AppState.currentRoute = data.full_route || {};
-        renderFullRoute(AppState.currentRoute);
-        updatePlanner('narrating');
-        document.querySelectorAll('.planner-step').forEach((step) => step.classList.add('is-done'));
-        setStatus('路线规划完成');
-        setReply('AI 已匹配画像：杜弱独居青年　重新匹配', 'ok');
-        AppState.streamFinished = true;
-        setLoading(false);
-        return;
-      }
-      if (eventType === 'error') {
-        clearTimeout(AppState.timeoutId);
-        setStatus(data.error || '规划失败，请稍后重试。', 'error');
-        AppState.streamFinished = true;
-        setLoading(false);
-      }
-    }
-
-    function parseSSEChunk(chunk, parser) {
-      parser.buffer += chunk;
-      const messages = parser.buffer.split(/\r?\n\r?\n/);
-      parser.buffer = messages.pop() || '';
-      messages.forEach((message) => {
-        let eventType = 'message';
-        const dataLines = [];
-        message.split(/\r?\n/).forEach((line) => {
-          if (line.startsWith('event:')) eventType = line.slice(6).trim();
-          if (line.startsWith('data:')) dataLines.push(line.slice(5).trimStart());
-        });
-        if (!dataLines.length) return;
-        try {
-          handleSSEEvent(eventType, JSON.parse(dataLines.join('\n')));
-        } catch (error) {
-          console.error('SSE 解析失败:', error, message);
-          setStatus('收到无法解析的流式数据，已跳过。', 'error');
-        }
-      });
-    }
-
-    async function submitPlan(input) {
-      if (AppState.isPlanning) return;
-      resetPlan();
-      setLoading(true);
-      startTimeoutGuard();
-      AppState.abortController = new AbortController();
-      try {
-        const response = await fetch(`${CONFIG.apiBase}/api/plan`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ user_input: input }),
-          signal: AppState.abortController.signal
-        });
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        const reader = response.body.getReader();
-        const decoder = new TextDecoder();
-        const parser = { buffer: '' };
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          parseSSEChunk(decoder.decode(value, { stream: true }), parser);
-          if (AppState.streamFinished) {
-            await reader.cancel();
-            break;
-          }
-        }
-      } catch (error) {
-        if (error.name === 'AbortError') return;
-        console.error(error);
-        clearTimeout(AppState.timeoutId);
-        setLoading(false);
-        setStatus('连接后端失败，已切换为本地演示。', 'error');
-        playMockEvents();
-      }
-    }
-
-    function playMockEvents() {
-      resetPlan();
-      setLoading(true);
-      let index = 0;
-      function next() {
-        if (index >= MOCK_EVENTS.length) {
-          setLoading(false);
-          return;
-        }
-        const event = MOCK_EVENTS[index++];
-        if (event.event === 'done' && !event.data.full_route.route.length) {
-          event.data.full_route.route = AppState.routeSteps.slice();
-        }
-        handleSSEEvent(event.event, event.data);
-        const delay = event.event === 'phase' ? 520 : event.event === 'step' ? 180 : 300;
-        setTimeout(next, delay);
-      }
-      setTimeout(next, 180);
-    }
-
-    async function sendAdjustment(instruction) {
-      if (!instruction) return;
-      if (!AppState.routeId || AppState.routeId.startsWith('mock')) {
-        const reversed = AppState.routeSteps.slice(0, 4).reverse().map((step, index) => ({
-          ...step,
-          index: index + 1,
-          arrival_time: ['10:10', '11:20', '13:00', '14:20'][index] || step.arrival_time,
-          departure_time: ['10:50', '12:10', '13:50', '15:40'][index] || step.departure_time,
-          narrative: `已根据“${instruction}”调整：${step.poi.name}`
-        }));
-        el.routeList.innerHTML = '';
-        AppState.routeSteps = [];
-        reversed.forEach(addStep);
-        addClosingCard(AppState.currentRoute || {});
-        setReply(`已按“${instruction}”调整路线。`, 'ok');
-        return;
-      }
-
-      el.adjustBtn.disabled = true;
-      setReply('正在调整路线...');
-      try {
-        const response = await fetch(`${CONFIG.apiBase}/api/dialogue/${encodeURIComponent(AppState.routeId)}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ instruction })
-        });
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        const data = await response.json();
-        setReply(data.reply || '路线已调整。', 'ok');
-        if (data.route) {
-          el.routeList.innerHTML = '';
-          AppState.routeSteps = [];
-          renderFullRoute(data.route);
-          AppState.currentRoute = data.route;
-        }
-      } catch (error) {
-        console.error(error);
-        setReply('调整失败，请检查后端接口。', 'error');
-      } finally {
-        el.adjustBtn.disabled = false;
-      }
-    }
-
-    function bindEvents() {
-      el.userInput.addEventListener('input', updateCharCount);
-      el.submitBtn.addEventListener('click', () => {
-        const input = el.userInput.value.trim();
-        if (!input) {
-          el.userInput.focus();
-          return;
-        }
-        submitPlan(input);
-      });
-      el.userInput.addEventListener('keydown', (event) => {
-        if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
-          el.submitBtn.click();
-        }
-      });
-
-      document.querySelectorAll('.tag').forEach((button) => {
-        button.addEventListener('click', () => {
-          document.querySelectorAll('.tag').forEach((item) => item.classList.remove('is-active'));
-          button.classList.add('is-active');
-          el.userInput.value = button.dataset.input || '';
-          updateCharCount();
-        });
-      });
-
-      document.querySelectorAll('[data-adjust]').forEach((button) => {
-        button.addEventListener('click', () => sendAdjustment(button.dataset.adjust));
-      });
-
-      el.adjustBtn.addEventListener('click', () => {
-        const value = el.dialogueInput.value.trim();
-        el.dialogueInput.value = '';
-        sendAdjustment(value);
-      });
-      el.dialogueInput.addEventListener('keydown', (event) => {
-        if (event.key === 'Enter') el.adjustBtn.click();
-      });
-    }
-
-    bindEvents();
-    updateCharCount();
-    updateBudget({ total: 0, budget_limit: CONFIG.budgetLimit });
-
-    const params = new URLSearchParams(window.location.search);
-    const autoPlan = params.get('plan');
-    if (params.get('mock') === '1') {
-      setTimeout(playMockEvents, 220);
-    } else if (autoPlan) {
-      el.userInput.value = autoPlan;
-      updateCharCount();
-      setTimeout(() => submitPlan(autoPlan), 220);
-    }
-  </script>
+// ── Bind ──
+$('inp').addEventListener('input',()=>$('charCt').textContent=$('inp').value.length+'/80');
+$('goBtn').addEventListener('click',()=>{const v=$('inp').value.trim();if(v)submitPlan(v)});
+$('inp').addEventListener('keydown',e=>{if(e.key==='Enter'&&(e.ctrlKey||e.metaKey))$('goBtn').click()});
+document.querySelectorAll('.tag').forEach(b=>b.addEventListener('click',()=>{
+  document.querySelectorAll('.tag').forEach(t=>t.classList.remove('on'));
+  b.classList.add('on');$('inp').value=b.dataset.v;$('charCt').textContent=b.dataset.v.length+'/80';
+}));
+document.querySelectorAll('.qb').forEach(b=>b.addEventListener('click',()=>sendAdj(b.dataset.a)));
+$('dlgBtn').addEventListener('click',()=>{const v=$('dlgInp').value.trim();$('dlgInp').value='';sendAdj(v)});
+$('dlgInp').addEventListener('keydown',e=>{if(e.key==='Enter')$('dlgBtn').click()});
+</script>
 </body>
 </html>

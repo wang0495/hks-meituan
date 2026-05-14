@@ -69,6 +69,7 @@ class SecuritySettings(BaseSettings):
     max_request_size: int = 10 * 1024 * 1024  # 10 MB
     allowed_origins: list[str] = [
         "http://localhost:3000",
+        "http://localhost:3001",
         "http://localhost:8000",
     ]
     api_key: str = ""

@@ -15,6 +15,7 @@ import json
 from collections import Counter
 
 from backend.agents_v3.experts.base import (
+    sse_expert,
     _food_intent_hint,
     _haversine_km,
     _is_likely_macau,
@@ -191,6 +192,7 @@ def _smart_food_selection(foods: list[dict], intent: dict, user_input: str) -> l
 # ---------------------------------------------------------------------------
 
 
+@sse_expert("food")
 async def food_expert(state: TravelState) -> dict:
     """Food expert: LLM selects restaurants from food POI pool, with diversity checks.
 

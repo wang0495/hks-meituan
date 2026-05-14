@@ -217,8 +217,8 @@ setup_error_handlers(app)
 # CORS -- 最外层，处理 OPTIONS 预检请求
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.security.allowed_origins,
-    allow_credentials=True,
+    allow_origins=["*"],
+    allow_credentials=False,
     allow_methods=["GET", "POST", "PUT", "DELETE"],
     allow_headers=["*"],
     expose_headers=["X-RateLimit-Limit", "X-RateLimit-Remaining", "X-RateLimit-Reset"],
@@ -798,13 +798,39 @@ async def plan_route(request: PlanRequest):
                 yield _sse("phase", {"phase": "agents", "message": "7个智能体正在并行规划..."})
 
                 c_graph = get_graph_c()
+
+                # SSE queue for real-time agent events
+                sse_queue: asyncio.Queue = asyncio.Queue()
                 c_state: TravelState = {
                     "user_input": request.user_input,
                     "proposals": [],
                     "negotiation_msgs": [],
                     "errors": [],
+                    "sse_queue": sse_queue,
                 }
-                c_result = await asyncio.wait_for(c_graph.ainvoke(c_state), timeout=120)
+
+                # Run graph + drain SSE queue in parallel
+                async def _run_graph():
+                    return await asyncio.wait_for(c_graph.ainvoke(c_state), timeout=120)
+
+                graph_task = asyncio.create_task(_run_graph())
+
+                # Drain SSE events from agents while graph runs
+                while not graph_task.done():
+                    try:
+                        event_type, event_data = await asyncio.wait_for(sse_queue.get(), timeout=0.3)
+                        yield _sse(event_type, event_data)
+                        await asyncio.sleep(0)  # yield control → flush to network
+                    except asyncio.TimeoutError:
+                        continue
+
+                # Drain remaining events after graph completes
+                while not sse_queue.empty():
+                    event_type, event_data = sse_queue.get_nowait()
+                    yield _sse(event_type, event_data)
+                    await asyncio.sleep(0)
+
+                c_result = await graph_task
 
                 c_route = c_result.get("route", {})
                 c_narrative = c_result.get("narrative", {})

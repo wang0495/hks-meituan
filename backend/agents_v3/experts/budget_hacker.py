@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 
 from backend.agents_v3.experts.base import (
+    sse_expert,
     _proposal,
     _llm_decide,
     _is_likely_macau,
@@ -21,6 +22,7 @@ _PRICE_CAP = 50
 _EXCLUDE_CATS = {"住宿", "酒店", "民宿"}
 
 
+@sse_expert("budget_hacker")
 async def budget_hacker(state: TravelState) -> dict:
     """Select free/cheap POIs optimized for budget-conscious travelers."""
     weight = state.get("expert_weights", {}).get("budget_hacker", 0)

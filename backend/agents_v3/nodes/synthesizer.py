@@ -19,7 +19,7 @@ from backend.agents_v3.experts.base import (
     _is_likely_macau,
     _llm_decide,
 )
-from backend.agents_v3.state import TravelState
+from backend.agents_v3.state import TravelState, AGENT_META, sse_emit
 
 
 # ── 名称去重组 ──
@@ -804,6 +804,10 @@ def _fallback_assemble(proposals: list[dict], intent: dict) -> dict | None:
 # ═══════════════════════════════════════════════════════════
 async def synthesizer(state: TravelState) -> dict:
     """MoE Synthesizer：按expert_weights组装路线。"""
+    meta = AGENT_META.get("synthesizer", {})
+    await sse_emit(state, "agent_start", {"agent": "synthesizer", **meta})
+    await sse_emit(state, "agent_thinking", {"agent": "synthesizer", "text": "收集提案，地理聚类，时间窗校验..."})
+
     proposals = list(state.get("reworked_proposals") or state.get("proposals", []))
     intent = dict(state.get("user_intent", {}))
     scene_type = state.get("scene_type", "观光型")
@@ -866,5 +870,8 @@ async def synthesizer(state: TravelState) -> dict:
         except Exception as e:
             errors.append(f"文案生成失败: {e}")
             narrative = _build_fallback_narrative(route)
+
+    steps_count = len(route.get("route", [])) if route else 0
+    await sse_emit(state, "agent_result", {"agent": "synthesizer", "summary": f"组装完成: {steps_count}站路线"})
 
     return {"route": route, "narrative": narrative, "errors": errors}

@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 
 from backend.agents_v3.experts.base import (
+    sse_expert,
     _proposal,
     _llm_decide,
     _haversine_km,
@@ -36,6 +37,7 @@ def _detect_destination(user_input: str) -> tuple[str | None, tuple[float, float
     return None, _DEFAULT_COORDS
 
 
+@sse_expert("destination")
 async def destination_expert(state: TravelState) -> dict:
     """Select supplementary POIs near a user-specified destination."""
     weight = state.get("expert_weights", {}).get("destination", 0)

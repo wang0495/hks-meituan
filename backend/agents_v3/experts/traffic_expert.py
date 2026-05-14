@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 
 from backend.agents_v3.experts.base import (
+    sse_expert,
     _proposal,
     _llm_decide,
     _haversine_km,
@@ -39,6 +40,7 @@ def _nearest_neighbor_order(poi_locs: list[dict]) -> list[str]:
     return order
 
 
+@sse_expert("traffic")
 async def traffic_expert(state: TravelState) -> dict:
     """Analyze POI distribution and plan transport + route ordering."""
     weight = state.get("expert_weights", {}).get("traffic", 0)

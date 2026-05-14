@@ -31,11 +31,15 @@ ADR-R4: intent_parser超时重试3次再降级
 from __future__ import annotations
 
 from backend.agents_v3.firewall.meta_rule_firewall import check_hard_rules
-from backend.agents_v3.state import TravelState
+from backend.agents_v3.state import TravelState, AGENT_META, sse_emit
 
 
 async def rule_guard(state: TravelState) -> dict:
     """入口节点：解析意图 → 加载POI → 硬约束预筛。"""
+    meta = AGENT_META.get("rule_guard", {})
+    await sse_emit(state, "agent_start", {"agent": "rule_guard", **meta})
+    await sse_emit(state, "agent_thinking", {"agent": "rule_guard", "text": "解析自然语言意图..."})
+
     user_input = state.get("user_input", "")
     errors = []
 
@@ -48,6 +52,7 @@ async def rule_guard(state: TravelState) -> dict:
         user_intent = _fallback_intent(user_input)
 
     # ── 从美团API加载POI ──
+    await sse_emit(state, "agent_thinking", {"agent": "rule_guard", "text": f"加载POI数据，硬约束预筛..."})
     try:
         from backend.agents_v3.meituan_client import fetch_pois
         all_pois = await fetch_pois()
@@ -91,6 +96,8 @@ async def rule_guard(state: TravelState) -> dict:
     rule_violations = check_hard_rules(user_intent, candidates)
 
     # scene_type 由 expert_router 设置，这里不设置
+
+    await sse_emit(state, "agent_result", {"agent": "rule_guard", "summary": f"意图已解析，{len(candidates)}个候选POI"})
 
     return {
         "user_intent": user_intent,

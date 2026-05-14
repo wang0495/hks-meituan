@@ -49,7 +49,7 @@ from backend.agents_v3.experts.base import (
     _haversine_km,
     _is_likely_macau,
 )
-from backend.agents_v3.state import TravelState
+from backend.agents_v3.state import TravelState, AGENT_META, sse_emit
 
 # ---------------------------------------------------------------------------
 # LLM client (singleton, same pattern as experts/base.py)
@@ -299,12 +299,11 @@ def _compute_pools(candidates: list[dict], state: TravelState) -> dict[str, list
 # Main exported function
 # ---------------------------------------------------------------------------
 async def expert_router(state: TravelState) -> dict:
-    """LLM-based expert router: classify scene, activate experts, compute pools.
+    """LLM-based expert router: classify scene, activate experts, compute pools."""
+    meta = AGENT_META.get("expert_router", {})
+    await sse_emit(state, "agent_start", {"agent": "expert_router", **meta})
+    await sse_emit(state, "agent_thinking", {"agent": "expert_router", "text": "LLM 分析场景类型，决定激活哪些专家..."})
 
-    ADR-003: 所有场景必须走LLM分类，不使用规则预检。
-    规则预检曾导致 preferred_categories 中"餐饮"触发误分类，绕过LLM。
-    规则仅作为LLM失败时的fallback。
-    """
     user_input = state.get("user_input", "")
     user_intent = state.get("user_intent", {})
     candidates = state.get("candidates", [])
@@ -352,6 +351,8 @@ async def expert_router(state: TravelState) -> dict:
     if "poi" not in active:
         active.append("poi")
     pools = _compute_pools(candidates, state)
+
+    await sse_emit(state, "agent_result", {"agent": "expert_router", "summary": f"场景: {result['scene_type']}，激活: {', '.join(active)}"})
 
     return {
         "scene_type": result["scene_type"],

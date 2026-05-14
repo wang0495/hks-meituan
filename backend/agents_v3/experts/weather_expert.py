@@ -6,12 +6,14 @@ import json
 from datetime import datetime
 
 from backend.agents_v3.experts.base import (
+    sse_expert,
     _proposal,
     _llm_decide,
 )
 from backend.agents_v3.state import TravelState
 
 
+@sse_expert("weather")
 async def weather_expert(state: TravelState) -> dict:
     """Assess weather impact on the itinerary via LLM."""
     weight = state.get("expert_weights", {}).get("weather", 0)
