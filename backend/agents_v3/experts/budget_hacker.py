@@ -51,6 +51,23 @@ async def budget_hacker(state: TravelState) -> dict:
         if is_free_or_cheap or is_budget_category:
             budget_pois.append(c)
 
+    # Geo-constraint: use poi_expert's candidate center as anchor
+    # Only pick free POIs within 10km of the main cluster
+    poi_pool = state.get("expert_candidates", {}).get("poi", [])
+    if poi_pool and len(poi_pool) >= 2:
+        # Calculate center of poi pool
+        lats = [p.get("lat", 0) for p in poi_pool if p.get("lat")]
+        lngs = [p.get("lng", 0) for p in poi_pool if p.get("lng")]
+        if lats and lngs:
+            center_lat = sum(lats) / len(lats)
+            center_lng = sum(lngs) / len(lngs)
+            from backend.agents_v3.experts.base import _haversine_km
+            budget_pois = [
+                p for p in budget_pois
+                if p.get("lat") and p.get("lng")
+                and _haversine_km(center_lat, center_lng, p["lat"], p["lng"]) <= 10.0
+            ]
+
     if not budget_pois:
         return {"proposals": []}
 

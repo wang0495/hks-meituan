@@ -363,11 +363,12 @@ async def poi_expert(state: TravelState) -> dict:
         )
 
     # 只做最基本过滤：去掉非景点、澳门、无评分垃圾POI
+    _EXCLUDE_CATS = {"住宿", "酒店", "民宿", "餐饮", "美食", "小吃", "夜市小吃", "海鲜", "茶餐厅", "甜品", "饮品", "酒吧"}
     pool = []
     for c in candidates:
         name = c.get("name", "")
         cat = c.get("category", "")
-        if cat in ["住宿", "酒店", "民宿", "餐饮", "美食"]:
+        if cat in _EXCLUDE_CATS:
             continue
         # 名称包含餐饮关键词的也排除（防止美食街/海鲜街等被误选为景点）
         if any(kw in name for kw in _FOOD_NAME_KWS):
@@ -488,5 +489,9 @@ async def poi_expert(state: TravelState) -> dict:
     # ── 降级：智能规则引擎（非简单fallback） ──
     if not proposals:
         proposals = _smart_poi_selection(candidates, intent, user_input)
+
+    # ── 地理聚类：替换离群POI，确保路线紧凑 ──
+    if proposals and len(proposals) >= 2:
+        proposals = _geo_cluster_filter(proposals, pool)
 
     return {"proposals": proposals, "errors": errors}

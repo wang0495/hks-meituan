@@ -599,8 +599,18 @@ def _build_route_from_llm_order(
 
         content = name_map.get(name)
         if not content:
+            # 模糊匹配：name_map的key包含stop名，或stop名包含key
             for n, c in name_map.items():
                 if name in n or n in name:
+                    content = c
+                    name = n
+                    break
+        if not content:
+            # 二次模糊：去掉括号/空格后再匹配
+            clean = name.replace("（", "(").replace("）", ")").replace(" ", "")
+            for n, c in name_map.items():
+                clean_n = n.replace("（", "(").replace("）", ")").replace(" ", "")
+                if clean in clean_n or clean_n in clean:
                     content = c
                     name = n
                     break
@@ -800,8 +810,8 @@ async def synthesizer(state: TravelState) -> dict:
     expert_weights = state.get("expert_weights", {})
     errors = []
 
-    # 按agent类型分类（兼容新旧agent名）
-    _POI_AGENTS = {"poi", "poi_expert"}
+    # 按agent类型分类（兼容新旧agent名 + budget_hacker/destination/local_expert归入poi）
+    _POI_AGENTS = {"poi", "poi_expert", "budget_hacker", "destination", "local_expert"}
     _FOOD_AGENTS = {"food", "food_expert"}
     _HOTEL_AGENTS = {"hotel", "hotel_expert"}
 
@@ -814,6 +824,11 @@ async def synthesizer(state: TravelState) -> dict:
     poi_proposals = [p for p in poi_proposals if not _is_likely_macau(p.get("content", {}).get("name", ""))]
     food_proposals = [p for p in food_proposals if not _is_likely_macau(p.get("content", {}).get("name", ""))]
     hotel_proposals = [p for p in hotel_proposals if not _is_likely_macau(p.get("content", {}).get("name", ""))]
+
+    # 美食场景：poi_proposals只保留最多2个（散步消食点），不要塞满景点
+    if scene_type == "美食型" and len(poi_proposals) > 2:
+        # 优先保留评分高的、距离餐厅近的
+        poi_proposals = sorted(poi_proposals, key=lambda p: p.get("content", {}).get("rating", 0), reverse=True)[:2]
 
     if not poi_proposals and not food_proposals:
         errors.append("无有效POI提案")
