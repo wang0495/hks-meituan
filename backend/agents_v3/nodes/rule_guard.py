@@ -164,14 +164,22 @@ async def _ensure_key_pois_llm(
             base_url=os.getenv("LLM_BASE_URL", "https://api.deepseek.com"),
             api_key=os.getenv("LLM_API_KEY", os.getenv("OPENAI_API_KEY", "")),
         )
-        resp = await client.chat.completions.create(
+        is_ds = "deepseek" in os.getenv("LLM_MODEL", "deepseek-chat").lower() or "deepseek" in os.getenv("LLM_BASE_URL", "")
+        kwargs: dict = dict(
             model=os.getenv("LLM_MODEL", "deepseek-chat"),
             messages=[{"role": "user", "content": prompt}],
             temperature=0.1,
-            response_format={"type": "json_object"},
-            extra_body={"thinking": {"type": "disabled"}},
         )
+        if is_ds:
+            kwargs["response_format"] = {"type": "json_object"}
+            kwargs["extra_body"] = {"thinking": {"type": "disabled"}}
+        resp = await client.chat.completions.create(**kwargs)
         text = resp.choices[0].message.content or ""
+        if "```" in text:
+            text = text.split("```")[1].split("```")[0]
+            if text.startswith("json"):
+                text = text[4:]
+            text = text.strip()
         result = json.loads(text)
         must_have = result.get("must_have", [])
     except Exception:

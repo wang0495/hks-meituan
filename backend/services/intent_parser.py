@@ -418,19 +418,22 @@ def _get_llm_model() -> str:
 async def _call_llm(user_input: str) -> dict | None:
     """调用 LLM 解析意图，返回解析结果或 None（失败时）。"""
     client = _get_client()
+    is_ds = "deepseek" in _get_llm_model().lower() or "deepseek" in os.getenv("LLM_BASE_URL", "")
     try:
         messages = [
             {"role": "system", "content": _SYSTEM_PROMPT},
             {"role": "user", "content": user_input},
         ]
-        resp = await client.chat.completions.create(
+        kwargs: dict = dict(
             model=_get_llm_model(),
             messages=messages,
             temperature=0.1,
             max_tokens=1500,
-            response_format={"type": "json_object"},
-            extra_body={"thinking": {"type": "disabled"}},
         )
+        if is_ds:
+            kwargs["response_format"] = {"type": "json_object"}
+            kwargs["extra_body"] = {"thinking": {"type": "disabled"}}
+        resp = await client.chat.completions.create(**kwargs)
         raw = resp.choices[0].message.content or ""
         # 提取 JSON（兼容 markdown 代码块）
         json_match = re.search(r"\{[\s\S]*\}", raw)

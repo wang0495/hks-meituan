@@ -142,16 +142,27 @@ def _get_review_client():
 async def _llm_review(prompt: str) -> dict | None:
     """调用LLM做review。"""
     client = _get_review_client()
+    model = os.getenv("LLM_MODEL", "deepseek-chat")
+    is_ds = "deepseek" in model.lower() or "deepseek" in os.getenv("LLM_BASE_URL", "")
     for _ in range(2):
         try:
-            resp = await client.chat.completions.create(
-                model=os.getenv("LLM_MODEL", "deepseek-chat"),
+            kwargs: dict = dict(
+                model=model,
                 messages=[{"role": "user", "content": prompt}],
                 temperature=0.1,
-                response_format={"type": "json_object"},
-                extra_body={"thinking": {"type": "disabled"}},
             )
+            if is_ds:
+                kwargs["response_format"] = {"type": "json_object"}
+                kwargs["extra_body"] = {"thinking": {"type": "disabled"}}
+            elif "qwen3" in model.lower():
+                kwargs["extra_body"] = {"enable_thinking": False}
+            resp = await client.chat.completions.create(**kwargs)
             text = resp.choices[0].message.content or ""
+            if "```" in text:
+                text = text.split("```")[1].split("```")[0]
+                if text.startswith("json"):
+                    text = text[4:]
+                text = text.strip()
             return json.loads(text)
         except Exception:
             pass

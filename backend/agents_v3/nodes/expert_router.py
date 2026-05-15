@@ -312,19 +312,28 @@ async def expert_router(state: TravelState) -> dict:
     result = None
     try:
         client = _get_client()
+        is_ds = "deepseek" in os.getenv("LLM_MODEL", "deepseek-chat").lower() or "deepseek" in os.getenv("LLM_BASE_URL", "")
         for _ in range(2):
             try:
-                resp = await client.chat.completions.create(
+                kwargs: dict = dict(
                     model=os.getenv("LLM_MODEL", "deepseek-chat"),
                     messages=[
                         {"role": "system", "content": _SYSTEM_PROMPT + "\n你必须输出合法JSON。"},
                         {"role": "user", "content": f"用户输入：{user_input}"},
                     ],
                     temperature=0.05,
-                    response_format={"type": "json_object"},
-                    extra_body={"thinking": {"type": "disabled"}},
                 )
-                parsed = json.loads(resp.choices[0].message.content or "")
+                if is_ds:
+                    kwargs["response_format"] = {"type": "json_object"}
+                    kwargs["extra_body"] = {"thinking": {"type": "disabled"}}
+                resp = await client.chat.completions.create(**kwargs)
+                text = resp.choices[0].message.content or ""
+                if "```" in text:
+                    text = text.split("```")[1].split("```")[0]
+                    if text.startswith("json"):
+                        text = text[4:]
+                    text = text.strip()
+                parsed = json.loads(text)
                 if parsed.get("scene_type") and parsed.get("expert_weights"):
                     result = parsed
                     break

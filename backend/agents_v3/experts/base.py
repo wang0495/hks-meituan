@@ -110,13 +110,22 @@ _llm_client: AsyncOpenAI | None = None
 
 
 def _get_llm_client() -> AsyncOpenAI:
-    """Return a reused AsyncOpenAI client (singleton)."""
+    """Return a reused AsyncOpenAI client (singleton).
+
+    Supports EXPERT_LLM_* env vars for expert-specific model override.
+    Falls back to LLM_* then defaults.
+    """
     global _llm_client
     if _llm_client is None:
-        _llm_client = AsyncOpenAI(
-            base_url=os.getenv("LLM_BASE_URL", "https://api.deepseek.com"),
-            api_key=os.getenv("LLM_API_KEY", os.getenv("OPENAI_API_KEY", "")),
+        base_url = (
+            os.getenv("EXPERT_LLM_BASE_URL")
+            or os.getenv("LLM_BASE_URL", "https://api.deepseek.com")
         )
+        api_key = (
+            os.getenv("EXPERT_LLM_API_KEY")
+            or os.getenv("LLM_API_KEY", os.getenv("OPENAI_API_KEY", ""))
+        )
+        _llm_client = AsyncOpenAI(base_url=base_url, api_key=api_key)
     return _llm_client
 
 
@@ -125,22 +134,47 @@ def _get_llm_client() -> AsyncOpenAI:
 # ---------------------------------------------------------------------------
 
 
+def _is_deepseek() -> bool:
+    """Check if current LLM provider is DeepSeek (needs special params)."""
+    model = (
+        os.getenv("EXPERT_LLM_MODEL")
+        or os.getenv("LLM_MODEL", "deepseek-chat")
+    )
+    base_url = (
+        os.getenv("EXPERT_LLM_BASE_URL")
+        or os.getenv("LLM_BASE_URL", "https://api.deepseek.com")
+    )
+    return "deepseek" in model.lower() or "deepseek" in base_url
+
+
 async def _llm_decide(system_prompt: str, user_prompt: str, retries: int = 2) -> dict | None:
-    """Call DeepSeek LLM for a decision, returning structured JSON output."""
+    """Call LLM for a decision, returning structured JSON output."""
     client = _get_llm_client()
+    is_ds = _is_deepseek()
+    model = os.getenv("EXPERT_LLM_MODEL") or os.getenv("LLM_MODEL", "deepseek-chat")
     for attempt in range(retries):
         try:
-            resp = await client.chat.completions.create(
-                model=os.getenv("LLM_MODEL", "deepseek-chat"),
+            kwargs: dict = dict(
+                model=model,
                 messages=[
                     {"role": "system", "content": system_prompt + "\n你必须输出合法JSON。"},
                     {"role": "user", "content": user_prompt},
                 ],
                 temperature=0.1,
-                response_format={"type": "json_object"},
-                extra_body={"thinking": {"type": "disabled"}},
             )
+            if is_ds:
+                kwargs["response_format"] = {"type": "json_object"}
+                kwargs["extra_body"] = {"thinking": {"type": "disabled"}}
+            elif "qwen3" in model.lower():
+                kwargs["extra_body"] = {"enable_thinking": False}
+            resp = await client.chat.completions.create(**kwargs)
             text = resp.choices[0].message.content or ""
+            # 提取JSON（markdown包裹的情况）
+            if "```" in text:
+                text = text.split("```")[1].split("```")[0]
+                if text.startswith("json"):
+                    text = text[4:]
+                text = text.strip()
             return json.loads(text)
         except Exception:
             if attempt < retries - 1:

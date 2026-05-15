@@ -179,7 +179,7 @@ async def run_test(scenario: dict) -> dict:
 
     try:
         t0 = time.time()
-        result = await asyncio.wait_for(graph.ainvoke(initial), timeout=120)
+        result = await asyncio.wait_for(graph.ainvoke(initial), timeout=300)
         elapsed = time.time() - t0
 
         route = result.get("route", {})

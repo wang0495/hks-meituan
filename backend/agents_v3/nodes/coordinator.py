@@ -1275,19 +1275,31 @@ async def _llm_decide(system_prompt: str, user_prompt: str, retries: int = 2) ->
     from backend.agents_v3.nodes.agents import _get_llm_client
 
     client = _get_llm_client()
+    model = _os.getenv("EXPERT_LLM_MODEL") or _os.getenv("LLM_MODEL", "deepseek-chat")
+    base_url = _os.getenv("EXPERT_LLM_BASE_URL") or _os.getenv("LLM_BASE_URL", "https://api.deepseek.com")
+    is_ds = "deepseek" in model.lower() or "deepseek" in base_url
     for attempt in range(retries):
         try:
-            resp = await client.chat.completions.create(
-                model=os.getenv("LLM_MODEL", "deepseek-chat"),
+            kwargs: dict = dict(
+                model=model,
                 messages=[
                     {"role": "system", "content": system_prompt + "\n你必须输出合法JSON。"},
                     {"role": "user", "content": user_prompt},
                 ],
                 temperature=0.1,
-                response_format={"type": "json_object"},
-                extra_body={"thinking": {"type": "disabled"}},
             )
+            if is_ds:
+                kwargs["response_format"] = {"type": "json_object"}
+                kwargs["extra_body"] = {"thinking": {"type": "disabled"}}
+            elif "qwen3" in model.lower():
+                kwargs["extra_body"] = {"enable_thinking": False}
+            resp = await client.chat.completions.create(**kwargs)
             text = resp.choices[0].message.content or ""
+            if "```" in text:
+                text = text.split("```")[1].split("```")[0]
+                if text.startswith("json"):
+                    text = text[4:]
+                text = text.strip()
             return _json.loads(text)
         except Exception:
             if attempt < retries - 1:
