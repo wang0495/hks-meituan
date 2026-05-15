@@ -853,17 +853,17 @@ async def synthesizer(state: TravelState) -> dict:
     if not route or not route.get("route"):
         route = _fallback_assemble(proposals, intent)
 
-    # 补回遗漏
+    # 站数上限（在ensure之前，避免截断ensure追加的站点）
+    if route and route.get("route"):
+        route = _cap_route_stops(route, scene_type, intent)
+
+    # 补回遗漏（在cap之后，追加的不受截断影响）
     if route and route.get("route"):
         route = _ensure_food_in_route(route, food_proposals, intent)
         route = _ensure_poi_in_route(route, poi_proposals, intent)
 
     if route and route.get("route") and food_proposals:
         route = _ensure_min_food_in_route(route, food_proposals, intent)
-
-    # 站数上限
-    if route and route.get("route"):
-        route = _cap_route_stops(route, scene_type, intent)
 
     # 文案
     narrative = None
