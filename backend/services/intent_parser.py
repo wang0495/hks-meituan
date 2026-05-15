@@ -285,91 +285,24 @@ PROFILES: dict[str, dict] = {
 # LLM Prompt 模板
 # ---------------------------------------------------------------------------
 
-_SYSTEM_PROMPT = """你是 CityFlow 城市出行路线规划系统的意图解析器。
-用户会用自然语言描述出行需求，你需要解析为严格的 JSON 格式。
+# V1长prompt(~2000tok)已验证可精简为V2短prompt(~300tok)而不影响质量(5/5满分)
+# V1保留在docs/baseline/prompt_optimization.md供回退参考
 
-输出格式（只输出 JSON，不要任何其他文字）：
-{
-  "city": "珠海/广州/湛江",
-  "time": {"period": "上午/下午/全天", "start": "HH:MM", "end": "HH:MM"},
-  "budget": {"per_person": 金额整数, "type": "硬约束/弹性"},
-  "group": {"size": 人数整数, "type": "独居/情侣/亲子/朋友/退休"},
-  "preferences": {"culture": 0到1的小数, "food": 0到1的小数, "nature": 0到1的小数, "social": 0到1的小数},
-  "pace": "特种兵型/平衡型/闲逛型",
-  "hard_constraints": ["约束1", "约束2"],
-  "scene_requirements": ["场景元素1", "场景元素2"],
-  "preferred_categories": ["类别1", "类别2", "类别3"],
-  "demand_vector": {
-    "efficiency_seeking": 0~1,
-    "excitement_seeking": 0~1,
-    "tranquility_seeking": 0~1,
-    "budget_sensitivity": 0~1,
-    "novelty_seeking": 0~1,
-    "social_desire": 0~1,
-    "physical_energy": 0~1
-  },
-  "location": "用户在哪个区域/地标附近，如'拱北''香洲''天河'，不知道则填null"
-}
+_SYSTEM_PROMPT = """你是CityFlow意图解析器。输出JSON:
+{"city":"珠海","time":{"period":"上午/下午/全天","start":"HH:MM","end":"HH:MM"},"budget":{"per_person":金额,"type":"硬约束/弹性"},"group":{"size":人数,"type":"独居/情侣/亲子/朋友/退休"},"preferences":{"culture":0~1,"food":0~1,"nature":0~1,"social":0~1},"pace":"特种兵型/平衡型/闲逛型","hard_constraints":[],"scene_requirements":["关键词1","关键词2"],"preferred_categories":["类别1","类别2","类别3"],"demand_vector":{"efficiency_seeking":0~1,"excitement_seeking":0~1,"tranquility_seeking":0~1,"budget_sensitivity":0~1,"novelty_seeking":0~1,"social_desire":0~1,"physical_energy":0~1},"location":"区域或null"}
 
 规则：
-- city: 根据用户提到的城市判断，无明确城市则默认"珠海"
+- city: 无明确城市则默认"珠海"
 - budget: 无明确预算则 per_person=500, type="弹性"
 - group.type: 根据同行人判断，默认"独居"
-- time: 如果用户提到"3小时""半天""2小时搞定"等时长，根据start计算end。如start="14:00"且"3小时"→end="17:00"
-- time: 如果用户提到"凌晨""深夜"，start和end应为对应时段（如00:00-06:00）
-- preferences: 根据关键词推断偏好强度（0=完全不感兴趣, 1=非常感兴趣）
-  - culture: 文化/历史/艺术/博物馆/展览
-  - food: 美食/餐厅/小吃/探店
-  - nature: 自然/公园/山/湖/植物
-  - social: 社交/聚会/热闹/人多
-- pace: "特种兵型"=赶场打卡, "平衡型"=适中, "闲逛型"=慢节奏
-- hard_constraints: 提取明确的限制条件，支持以下类型：
-  - "不想排队" → "queue_intolerant"
-  - "无障碍/轮椅/婴儿车" → "accessible"
-  - "带宠物/狗/猫" → "pet_friendly"
-  - "室内/空调/下雨天/别中暑" → "indoor_only"
-  - "海边/户外/露天" → "outdoor_preferred"
-  - "凌晨/深夜/宵夜/通宵" → "late_night"
-  - "游乐园/海洋馆/动物园" → "needs_entertainment"
-  - "烧烤/火锅/茶馆/咖啡馆/书店" → add specific activity to hard_constraints
-- scene_requirements: 【必须填写】从用户输入中提取所有场景关键词和具体需求。
-  不要因为某个需求已体现在preferred_categories或preferences中就省略。
-  必须把用户提到的每个具体需求都提取出来。
-  例如：
-  - "珠海美食一日游，想吃海鲜和本地特色" → ["美食", "海鲜", "本地特色", "小吃"]
-  - "一天打卡珠海所有著名景点，时间紧" → ["著名景点", "打卡", "地标"]
-  - "喝茶听曲" → ["茶馆", "曲艺表演", "传统文化"]
-  - "街边小吃" → ["街边小店", "本地小吃", "便宜实惠"]
-  - "拍照出片" → ["拍照打卡", "网红景点", "出片"]
-  - "游乐园海洋馆" → ["游乐园", "海洋馆", "儿童游乐"]
-  - "蹦迪" → ["酒吧", "夜店", "LiveHouse"]
-  - "烧烤聚会" → ["烧烤", "聚餐", "户外用餐"]
-  - "带6岁孩子去长隆海洋王国" → ["海洋王国", "亲子", "儿童", "游乐园"]
-  - "珠海两日游，节奏慢，喜欢公园和海边" → ["公园", "海边", "慢节奏", "休闲"]
-  - 即使用户需求看起来很简单，也必须至少提取1-3个关键词，绝不允许填空数组[]
-- preferred_categories: 根据用户意图选择3-6个最相关的POI类别，按优先级排序。可选类别：
-  餐饮, 景点, 购物, 文化, 运动, 娱乐, 温泉SPA, 海景咖啡馆, 夜市, 夜市小吃,
-  书店, 咖啡馆, 密室逃脱, 剧本杀, 恐怖密室, 室内攀岩, 户外攀岩, 水上运动场所,
-  游戏, 益智, 科技, 科技体验, 网吧/电竞馆, 自然风光, 文艺, 休闲, 便利店
-  示例：
-  - "朋友聚会要能玩又能吃" → ["餐饮", "娱乐", "购物"]
-  - "下午想蹦迪" → ["娱乐", "餐饮"]
-  - "凌晨吃宵夜" → ["餐饮", "夜市", "夜市小吃"]
-  - "带孩子玩游乐园" → ["景点", "运动", "娱乐"]
-  - "安静画画" → ["文化", "文艺", "咖啡馆"]
-  - "拍日出日落夜景" → ["景点", "自然风光"]
-  - "情侣约会" → ["餐饮", "文化", "景点", "海景咖啡馆"]
-  - "老两口公园喝茶" → ["文化", "景点", "餐饮"]
-- 社恐/不想人多 → social 设低值(0.1-0.2)
-- demand_vector: 语义需求向量（0~1），与preferences互补但更侧重行为倾向
-  - efficiency_seeking: 是否在意效率/赶时间
-  - excitement_seeking: 是否想要兴奋刺激
-  - tranquility_seeking: 是否想要宁静放松
-  - budget_sensitivity: 预算敏感度
-  - novelty_seeking: 是否想尝试新东西
-  - social_desire: 社交需求
-  - physical_energy: 体力意愿
-"""
+- time: "3小时""半天"等时长需计算end；"凌晨""深夜"→00:00-06:00
+- preferences: culture=文化/历史, food=美食/小吃, nature=自然/公园, social=社交/热闹
+- pace: "特种兵型"=赶场, "平衡型"=适中, "闲逛型"=慢节奏
+- hard_constraints: queue_intolerant/accessible/pet_friendly/indoor_only/outdoor_preferred/late_night/needs_entertainment
+- scene_requirements: 必须提取所有关键词，至少3个，绝不允许空数组
+- preferred_categories: 3-6个，从[餐饮,景点,购物,文化,运动,娱乐,温泉SPA,海景咖啡馆,夜市,夜市小吃,书店,咖啡馆,自然风光,文艺,休闲]选
+- 社恐/不想人多 → social设低值(0.1-0.2)
+- 只输出JSON。"""
 
 # ---------------------------------------------------------------------------
 # LLM 调用（带超时降级）

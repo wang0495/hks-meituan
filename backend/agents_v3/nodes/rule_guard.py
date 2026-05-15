@@ -124,78 +124,80 @@ async def _ensure_key_pois_llm(
     user_input: str,
     intent: dict,
 ) -> list[dict]:
-    """用LLM判断用户意图隐含需要哪些核心景点，确保它们在候选池中。"""
-    import json
-    import os
+    """规则匹配：根据用户意图推断应补回候选池的核心景点。"""
+    return _ensure_key_pois_rules(candidates, all_pois, user_input, intent)
 
-    from openai import AsyncOpenAI
 
+# 群体→核心景点映射
+_GROUP_POI_MAP: dict[str, list[str]] = {
+    "亲子": ["长隆海洋王国", "长隆马戏城", "横琴长隆海洋科学馆", "海滨泳场"],
+    "情侣": ["情侣路", "日月贝", "珠海大剧院", "海滨泳场", "野狸岛"],
+    "朋友": ["外伶仃岛", "淇澳岛", "东澳岛", "港珠澳大桥"],
+    "退休": ["圆明新园", "海滨公园", "御温泉"],
+    "独居": ["情侣路", "珠海渔女", "圆明新园"],
+}
+
+# 场景关键词→核心景点映射
+_SCENE_POI_MAP: dict[str, list[str]] = {
+    "海岛": ["外伶仃岛", "东澳岛", "淇澳岛"],
+    "温泉": ["御温泉"],
+    "海洋": ["长隆海洋王国"],
+    "海洋王国": ["长隆海洋王国"],
+    "长隆": ["长隆海洋王国", "长隆马戏城"],
+    "沙滩": ["金海滩", "飞沙滩", "海滨泳场"],
+    "海滩": ["金海滩", "飞沙滩", "海滨泳场"],
+    "海鲜": ["湾仔海鲜街", "梅华海鲜城"],
+    "拍照": ["珠海渔女", "情侣路", "日月贝", "珠海大剧院"],
+    "打卡": ["珠海渔女", "情侣路", "港珠澳大桥"],
+    "日落": ["海滨泳场", "情侣路"],
+    "夜景": ["日月贝", "珠海大剧院", "港珠澳大桥"],
+}
+
+
+def _ensure_key_pois_rules(
+    candidates: list[dict],
+    all_pois: list[dict],
+    user_input: str,
+    intent: dict,
+) -> list[dict]:
+    """规则匹配推断缺失的核心景点，加入候选池。"""
     cand_names = {c.get("name", "") for c in candidates}
+    needed_names: set[str] = set()
 
-    # 从全部POI中取高评分的知名景点（供LLM选择）
-    well_known = [
-        {"name": p.get("name", ""), "category": p.get("category", ""), "rating": p.get("rating", 0)}
-        for p in all_pois
-        if p.get("rating") and p.get("rating", 0) >= 4.0
-        and p.get("category", "") not in ["住宿", "酒店", "民宿"]
-    ][:80]
+    # 1. 显式名称匹配：用户输入中直接提到的景点
+    for kp in _KEY_POIS:
+        if kp in user_input:
+            needed_names.add(kp)
 
-    group_type = intent.get("group", {}).get("type", "未知")
+    # 2. group_type推断
+    group_type = intent.get("group", {}).get("type", "")
+    for gt in (group_type,):
+        if gt in _GROUP_POI_MAP:
+            needed_names.update(_GROUP_POI_MAP[gt])
 
-    prompt = f"""根据用户的出行需求，判断以下哪些知名景点/地点应该在候选池中（即使用户没有直接点名，只要是该需求下理应包含的）。
+    # 3. scene_requirements推断
+    scene_reqs = " ".join(intent.get("scene_requirements", []))
+    user_text = user_input + " " + scene_reqs
+    for keyword, pois in _SCENE_POI_MAP.items():
+        if keyword in user_text:
+            needed_names.update(pois)
 
-用户需求: {user_input}
-场景类型: {intent.get('scene_requirements', [])}
-偏好类别: {intent.get('preferred_categories', [])}
-群体: {group_type}
+    # 4. preferred_categories推断
+    cats = intent.get("preferred_categories", [])
+    if "餐饮" in cats or "夜市" in cats or "夜市小吃" in cats:
+        needed_names.update(["湾仔海鲜街", "梅华海鲜城"])
 
-已知知名景点:
-{json.dumps(well_known, ensure_ascii=False)}
+    # 5. 无匹配时兜底
+    if not needed_names:
+        needed_names = {"长隆海洋王国", "珠海渔女", "情侣路", "圆明新园", "海滨泳场"}
 
-当前候选池中已有的:
-{json.dumps(list(cand_names)[:30], ensure_ascii=False)}
-
-请选出必须在候选池中但目前缺失的景点名。输出JSON: {{"must_have": ["景点名1", "景点名2"]}}
-如果候选池已经足够，输出: {{"must_have": []}}
-只输出JSON。"""
-
-    try:
-        client = AsyncOpenAI(
-            base_url=os.getenv("LLM_BASE_URL", "https://api.deepseek.com"),
-            api_key=os.getenv("LLM_API_KEY", os.getenv("OPENAI_API_KEY", "")),
-        )
-        is_ds = "deepseek" in os.getenv("LLM_MODEL", "deepseek-chat").lower() or "deepseek" in os.getenv("LLM_BASE_URL", "")
-        kwargs: dict = dict(
-            model=os.getenv("LLM_MODEL", "deepseek-chat"),
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0.1,
-        )
-        if is_ds:
-            kwargs["response_format"] = {"type": "json_object"}
-            kwargs["extra_body"] = {"thinking": {"type": "disabled"}}
-        elif "qwen" in os.getenv("LLM_MODEL", "deepseek-chat").lower():
-            kwargs["response_format"] = {"type": "json_object"}
-            kwargs["extra_body"] = {"enable_thinking": False}
-        resp = await client.chat.completions.create(**kwargs)
-        text = resp.choices[0].message.content or ""
-        if "```" in text:
-            text = text.split("```")[1].split("```")[0]
-            if text.startswith("json"):
-                text = text[4:]
-            text = text.strip()
-        result = json.loads(text)
-        must_have = result.get("must_have", [])
-    except Exception:
-        # LLM失败降级到正则
-        must_have = _fallback_must_have(user_input)
-
-    # 把缺失的加入候选池
+    # 6. 从all_pois中找到匹配的POI，加入候选池
     missing = []
     for poi in all_pois:
         name = poi.get("name", "")
         if name in cand_names:
             continue
-        for needed_name in must_have:
+        for needed_name in needed_names:
             if needed_name in name or name in needed_name:
                 missing.append(poi)
                 cand_names.add(name)
@@ -205,17 +207,6 @@ async def _ensure_key_pois_llm(
         candidates = list(candidates) + missing
 
     return candidates
-
-
-def _fallback_must_have(user_input: str) -> list[str]:
-    """LLM不可用时降级：关键词匹配。"""
-    needed = set()
-    for kp in _KEY_POIS:
-        if kp in user_input:
-            needed.add(kp)
-    if not needed:
-        needed = {"长隆海洋王国", "珠海渔女", "情侣路", "圆明新园", "海滨泳场"}
-    return list(needed)
 
 
 def _fallback_intent(user_input: str) -> dict:
