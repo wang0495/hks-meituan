@@ -9,8 +9,8 @@
 from __future__ import annotations
 
 import json
-import os
 
+from backend.agents_v3.experts.base import _llm_decide
 from backend.agents_v3.state import TravelState, AGENT_META, sse_emit
 
 
@@ -125,49 +125,9 @@ Agent提案({len(proposal_summary)}个):
     return {"review_feedback": feedback, "review_round": round_num + 1}
 
 
-_review_client: "AsyncOpenAI | None" = None
-
-
-def _get_review_client():
-    global _review_client
-    if _review_client is None:
-        from openai import AsyncOpenAI
-        _review_client = AsyncOpenAI(
-            base_url=os.getenv("LLM_BASE_URL", "https://api.deepseek.com"),
-            api_key=os.getenv("LLM_API_KEY", os.getenv("OPENAI_API_KEY", "")),
-        )
-    return _review_client
-
-
 async def _llm_review(prompt: str) -> dict | None:
-    """调用LLM做review。"""
-    client = _get_review_client()
-    model = os.getenv("LLM_MODEL", "deepseek-chat")
-    is_ds = "deepseek" in model.lower() or "deepseek" in os.getenv("LLM_BASE_URL", "")
-    for _ in range(2):
-        try:
-            kwargs: dict = dict(
-                model=model,
-                messages=[{"role": "user", "content": prompt}],
-                temperature=0.1,
-            )
-            if is_ds:
-                kwargs["response_format"] = {"type": "json_object"}
-                kwargs["extra_body"] = {"thinking": {"type": "disabled"}}
-            elif "qwen" in model.lower():
-                kwargs["response_format"] = {"type": "json_object"}
-                kwargs["extra_body"] = {"enable_thinking": False}
-            resp = await client.chat.completions.create(**kwargs)
-            text = resp.choices[0].message.content or ""
-            if "```" in text:
-                text = text.split("```")[1].split("```")[0]
-                if text.startswith("json"):
-                    text = text[4:]
-                text = text.strip()
-            return json.loads(text)
-        except Exception:
-            pass
-    return None
+    """调用LLM做review（委托给base._llm_decide）。"""
+    return await _llm_decide("你是旅行路线质量审查员。", prompt, prefix="LLM")
 
 
 # ---------------------------------------------------------------------------

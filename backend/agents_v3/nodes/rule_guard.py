@@ -126,9 +126,8 @@ async def _ensure_key_pois_llm(
 ) -> list[dict]:
     """用LLM判断用户意图隐含需要哪些核心景点，确保它们在候选池中。"""
     import json
-    import os
 
-    from openai import AsyncOpenAI
+    from backend.agents_v3.experts.base import _llm_decide
 
     cand_names = {c.get("name", "") for c in candidates}
 
@@ -160,31 +159,8 @@ async def _ensure_key_pois_llm(
 只输出JSON。"""
 
     try:
-        client = AsyncOpenAI(
-            base_url=os.getenv("LLM_BASE_URL", "https://api.deepseek.com"),
-            api_key=os.getenv("LLM_API_KEY", os.getenv("OPENAI_API_KEY", "")),
-        )
-        is_ds = "deepseek" in os.getenv("LLM_MODEL", "deepseek-chat").lower() or "deepseek" in os.getenv("LLM_BASE_URL", "")
-        kwargs: dict = dict(
-            model=os.getenv("LLM_MODEL", "deepseek-chat"),
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0.1,
-        )
-        if is_ds:
-            kwargs["response_format"] = {"type": "json_object"}
-            kwargs["extra_body"] = {"thinking": {"type": "disabled"}}
-        elif "qwen" in os.getenv("LLM_MODEL", "deepseek-chat").lower():
-            kwargs["response_format"] = {"type": "json_object"}
-            kwargs["extra_body"] = {"enable_thinking": False}
-        resp = await client.chat.completions.create(**kwargs)
-        text = resp.choices[0].message.content or ""
-        if "```" in text:
-            text = text.split("```")[1].split("```")[0]
-            if text.startswith("json"):
-                text = text[4:]
-            text = text.strip()
-        result = json.loads(text)
-        must_have = result.get("must_have", [])
+        result = await _llm_decide("", prompt, prefix="LLM")
+        must_have = result.get("must_have", []) if result else []
     except Exception:
         # LLM失败降级到正则
         must_have = _fallback_must_have(user_input)

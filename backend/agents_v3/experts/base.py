@@ -103,55 +103,69 @@ async def _load_all_pois() -> list[dict]:
 
 
 # ---------------------------------------------------------------------------
-# LLM client (singleton)
+# LLM client pool (parameterised by env var prefix)
 # ---------------------------------------------------------------------------
 
-_llm_client: AsyncOpenAI | None = None
+_llm_clients: dict[str, AsyncOpenAI] = {}
 
 
-def _get_llm_client() -> AsyncOpenAI:
-    """Return a reused AsyncOpenAI client (singleton).
+def _get_llm_client(prefix: str = "EXPERT_LLM") -> AsyncOpenAI:
+    """Return a reused AsyncOpenAI client keyed by env var prefix.
 
-    Supports EXPERT_LLM_* env vars for expert-specific model override.
-    Falls back to LLM_* then defaults.
+    prefix="EXPERT_LLM" → reads EXPERT_LLM_BASE_URL/API_KEY, fallback LLM_*
+    prefix="LLM"         → reads LLM_BASE_URL/API_KEY
     """
-    global _llm_client
-    if _llm_client is None:
-        base_url = (
-            os.getenv("EXPERT_LLM_BASE_URL")
-            or os.getenv("LLM_BASE_URL", "https://api.deepseek.com")
-        )
-        api_key = (
-            os.getenv("EXPERT_LLM_API_KEY")
-            or os.getenv("LLM_API_KEY", os.getenv("OPENAI_API_KEY", ""))
-        )
-        _llm_client = AsyncOpenAI(base_url=base_url, api_key=api_key)
-    return _llm_client
+    if prefix not in _llm_clients:
+        base_url = os.getenv(f"{prefix}_BASE_URL") or os.getenv("LLM_BASE_URL", "https://api.deepseek.com")
+        api_key = os.getenv(f"{prefix}_API_KEY") or os.getenv("LLM_API_KEY", os.getenv("OPENAI_API_KEY", ""))
+        _llm_clients[prefix] = AsyncOpenAI(base_url=base_url, api_key=api_key)
+    return _llm_clients[prefix]
 
 
-# ---------------------------------------------------------------------------
-# LLM decision helper
-# ---------------------------------------------------------------------------
+def _llm_model(prefix: str = "EXPERT_LLM") -> str:
+    """Return the model name for a given prefix."""
+    return os.getenv(f"{prefix}_MODEL") or os.getenv("LLM_MODEL", "deepseek-chat")
 
 
-def _is_deepseek() -> bool:
+def _is_deepseek(prefix: str = "EXPERT_LLM") -> bool:
     """Check if current LLM provider is DeepSeek (needs special params)."""
-    model = (
-        os.getenv("EXPERT_LLM_MODEL")
-        or os.getenv("LLM_MODEL", "deepseek-chat")
-    )
-    base_url = (
-        os.getenv("EXPERT_LLM_BASE_URL")
-        or os.getenv("LLM_BASE_URL", "https://api.deepseek.com")
-    )
+    model = _llm_model(prefix)
+    base_url = os.getenv(f"{prefix}_BASE_URL") or os.getenv("LLM_BASE_URL", "https://api.deepseek.com")
     return "deepseek" in model.lower() or "deepseek" in base_url
 
 
-async def _llm_decide(system_prompt: str, user_prompt: str, retries: int = 2) -> dict | None:
-    """Call LLM for a decision, returning structured JSON output."""
-    client = _get_llm_client()
-    is_ds = _is_deepseek()
-    model = os.getenv("EXPERT_LLM_MODEL") or os.getenv("LLM_MODEL", "deepseek-chat")
+def _extract_json(text: str) -> dict:
+    """Parse JSON from LLM output, handling markdown code fences.
+
+    Returns dict only. Raises ValueError if LLM returns non-dict JSON
+    (e.g. a bare string or array) so the retry loop in _llm_decide catches it.
+    """
+    if "```" in text:
+        text = text.split("```")[1].split("```")[0]
+        if text.startswith("json"):
+            text = text[4:]
+        text = text.strip()
+    result = json.loads(text)
+    if not isinstance(result, dict):
+        raise ValueError(f"Expected JSON dict, got {type(result).__name__}: {str(result)[:80]}")
+    return result
+
+
+async def _llm_decide(
+    system_prompt: str,
+    user_prompt: str,
+    *,
+    retries: int = 2,
+    prefix: str = "EXPERT_LLM",
+    temperature: float = 0.1,
+) -> dict | None:
+    """Call LLM for a decision, returning structured JSON output.
+
+    prefix controls which env vars to read for model/client selection.
+    """
+    client = _get_llm_client(prefix)
+    model = _llm_model(prefix)
+    is_ds = _is_deepseek(prefix)
     for attempt in range(retries):
         try:
             kwargs: dict = dict(
@@ -160,7 +174,7 @@ async def _llm_decide(system_prompt: str, user_prompt: str, retries: int = 2) ->
                     {"role": "system", "content": system_prompt + "\n你必须输出合法JSON。"},
                     {"role": "user", "content": user_prompt},
                 ],
-                temperature=0.1,
+                temperature=temperature,
             )
             if is_ds:
                 kwargs["response_format"] = {"type": "json_object"}
@@ -170,13 +184,14 @@ async def _llm_decide(system_prompt: str, user_prompt: str, retries: int = 2) ->
                 kwargs["extra_body"] = {"enable_thinking": False}
             resp = await client.chat.completions.create(**kwargs)
             text = resp.choices[0].message.content or ""
-            # 提取JSON（markdown包裹的情况）
-            if "```" in text:
-                text = text.split("```")[1].split("```")[0]
-                if text.startswith("json"):
-                    text = text[4:]
-                text = text.strip()
-            return json.loads(text)
+            result = _extract_json(text)
+            # Ensure list items are dicts (LLM sometimes returns
+            # {"picks": ["name"]} instead of {"picks": [{"name": "name"}]})
+            for key in ("picks", "issues", "ordered_stops"):
+                items = result.get(key)
+                if isinstance(items, list):
+                    result[key] = [i for i in items if isinstance(i, dict)]
+            return result
         except Exception:
             if attempt < retries - 1:
                 await asyncio.sleep(1)

@@ -1268,45 +1268,10 @@ def _build_route_from_llm_order(
 
 
 async def _llm_decide(system_prompt: str, user_prompt: str, retries: int = 2) -> dict | None:
-    """调用DeepSeek LLM做决策。"""
-    import json as _json
-    import os
+    """调用LLM做决策（委托给base._llm_decide）。"""
+    from backend.agents_v3.experts.base import _llm_decide as _base_llm_decide
 
-    from backend.agents_v3.nodes.agents import _get_llm_client
-
-    client = _get_llm_client()
-    model = _os.getenv("EXPERT_LLM_MODEL") or _os.getenv("LLM_MODEL", "deepseek-chat")
-    base_url = _os.getenv("EXPERT_LLM_BASE_URL") or _os.getenv("LLM_BASE_URL", "https://api.deepseek.com")
-    is_ds = "deepseek" in model.lower() or "deepseek" in base_url
-    for attempt in range(retries):
-        try:
-            kwargs: dict = dict(
-                model=model,
-                messages=[
-                    {"role": "system", "content": system_prompt + "\n你必须输出合法JSON。"},
-                    {"role": "user", "content": user_prompt},
-                ],
-                temperature=0.1,
-            )
-            if is_ds:
-                kwargs["response_format"] = {"type": "json_object"}
-                kwargs["extra_body"] = {"thinking": {"type": "disabled"}}
-            elif "qwen" in model.lower():
-                kwargs["response_format"] = {"type": "json_object"}
-                kwargs["extra_body"] = {"enable_thinking": False}
-            resp = await client.chat.completions.create(**kwargs)
-            text = resp.choices[0].message.content or ""
-            if "```" in text:
-                text = text.split("```")[1].split("```")[0]
-                if text.startswith("json"):
-                    text = text[4:]
-                text = text.strip()
-            return _json.loads(text)
-        except Exception:
-            if attempt < retries - 1:
-                import asyncio
-                await asyncio.sleep(2)
-    return None
+    return await _base_llm_decide(system_prompt, user_prompt, retries=retries)
 
 
 def _fallback_assemble(proposals: list[dict], intent: dict) -> dict | None:

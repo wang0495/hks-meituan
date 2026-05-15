@@ -113,62 +113,8 @@ async def _load_all_pois() -> list[dict]:
         return []
 
 
-import os as _os
-from openai import AsyncOpenAI as _AsyncOpenAI
-
-# 复用client（避免每次调用都new）
-_llm_client: _AsyncOpenAI | None = None
-
-
-def _get_llm_client() -> _AsyncOpenAI:
-    global _llm_client
-    if _llm_client is None:
-        base_url = (
-            _os.getenv("EXPERT_LLM_BASE_URL")
-            or _os.getenv("LLM_BASE_URL", "https://api.deepseek.com")
-        )
-        api_key = (
-            _os.getenv("EXPERT_LLM_API_KEY")
-            or _os.getenv("LLM_API_KEY", _os.getenv("OPENAI_API_KEY", ""))
-        )
-        _llm_client = _AsyncOpenAI(base_url=base_url, api_key=api_key)
-    return _llm_client
-
-
-async def _llm_decide(system_prompt: str, user_prompt: str, retries: int = 2) -> dict | None:
-    """调用LLM做决策，JSON mode直接返回结构化输出。"""
-    client = _get_llm_client()
-    model = _os.getenv("EXPERT_LLM_MODEL") or _os.getenv("LLM_MODEL", "deepseek-chat")
-    base_url = _os.getenv("EXPERT_LLM_BASE_URL") or _os.getenv("LLM_BASE_URL", "https://api.deepseek.com")
-    is_ds = "deepseek" in model.lower() or "deepseek" in base_url
-    for attempt in range(retries):
-        try:
-            kwargs: dict = dict(
-                model=model,
-                messages=[
-                    {"role": "system", "content": system_prompt + "\n你必须输出合法JSON。"},
-                    {"role": "user", "content": user_prompt},
-                ],
-                temperature=0.1,
-            )
-            if is_ds:
-                kwargs["response_format"] = {"type": "json_object"}
-                kwargs["extra_body"] = {"thinking": {"type": "disabled"}}
-            elif "qwen" in model.lower():
-                kwargs["response_format"] = {"type": "json_object"}
-                kwargs["extra_body"] = {"enable_thinking": False}
-            resp = await client.chat.completions.create(**kwargs)
-            text = resp.choices[0].message.content or ""
-            if "```" in text:
-                text = text.split("```")[1].split("```")[0]
-                if text.startswith("json"):
-                    text = text[4:]
-                text = text.strip()
-            return json.loads(text)
-        except Exception:
-            if attempt < retries - 1:
-                await asyncio.sleep(1)
-    return None
+# LLM调用统一委托给experts/base.py
+from backend.agents_v3.experts.base import _llm_decide, _get_llm_client  # noqa: F401
 
 
 def _haversine_km(lat1: float, lng1: float, lat2: float, lng2: float) -> float:
