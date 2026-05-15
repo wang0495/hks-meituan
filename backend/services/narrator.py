@@ -458,12 +458,20 @@ async def generate_narrative(
     total_cost = 0
     for i, step in enumerate(route):
         step_data = _generate_step(step, i, len(route), city=city)
-
-        if enable_llm_polish:
-            step_data["description"] = await _llm_generate_description(step, user_intent, city)
-
         steps.append(step_data)
         total_cost += step_data["cost"]
+
+    # LLM润色：并行调用所有step的description
+    if enable_llm_polish and steps:
+        import asyncio
+        llm_tasks = [
+            _llm_generate_description(route[i], user_intent, city)
+            for i in range(min(len(steps), len(route)))
+        ]
+        llm_results = await asyncio.gather(*llm_tasks, return_exceptions=True)
+        for i, result in enumerate(llm_results):
+            if isinstance(result, str):
+                steps[i]["description"] = result
 
     closing = _generate_closing(route_result)
     highlights = _extract_emotion_highlights(route_result)

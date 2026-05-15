@@ -871,7 +871,7 @@ async def synthesizer(state: TravelState) -> dict:
         try:
             from backend.services.narrator import generate_narrative
             city = intent.get("city", "珠海")
-            narrative = await generate_narrative(route, intent, city=city)
+            narrative = await generate_narrative(route, intent, city=city, enable_llm_polish=False)
         except Exception as e:
             errors.append(f"文案生成失败: {e}")
             narrative = _build_fallback_narrative(route)
