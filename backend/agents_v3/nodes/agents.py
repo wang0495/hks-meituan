@@ -154,7 +154,8 @@ async def _llm_decide(system_prompt: str, user_prompt: str, retries: int = 2) ->
             if is_ds:
                 kwargs["response_format"] = {"type": "json_object"}
                 kwargs["extra_body"] = {"thinking": {"type": "disabled"}}
-            elif "qwen3" in model.lower():
+            elif "qwen" in model.lower():
+                kwargs["response_format"] = {"type": "json_object"}
                 kwargs["extra_body"] = {"enable_thinking": False}
             resp = await client.chat.completions.create(**kwargs)
             text = resp.choices[0].message.content or ""

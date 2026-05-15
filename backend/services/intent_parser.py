@@ -383,8 +383,8 @@ def _get_client() -> AsyncOpenAI:
     if _client is None:
         # 手动加载 .env（pydantic-settings 嵌套模型有时不传递 LLM_ 前缀）
         _ensure_env_loaded()
-        base_url = os.getenv("LLM_BASE_URL", "https://api.deepseek.com")
-        api_key = os.getenv("LLM_API_KEY", os.getenv("OPENAI_API_KEY", ""))
+        base_url = os.getenv("INTENT_LLM_BASE_URL") or os.getenv("LLM_BASE_URL", "https://api.deepseek.com")
+        api_key = os.getenv("INTENT_LLM_API_KEY") or os.getenv("LLM_API_KEY", os.getenv("OPENAI_API_KEY", ""))
         if not base_url.rstrip("/").endswith("/v1"):
             base_url = base_url.rstrip("/") + "/v1"
         _client = AsyncOpenAI(base_url=base_url, api_key=api_key)
@@ -410,9 +410,9 @@ def _ensure_env_loaded():
 
 
 def _get_llm_model() -> str:
-    """获取 LLM 模型名，优先 settings 再 os.getenv 兜底。"""
+    """获取 LLM 模型名，优先 INTENT_LLM_MODEL 再 LLM_MODEL 兜底。"""
     _ensure_env_loaded()
-    return os.getenv("LLM_MODEL", "deepseek-chat")
+    return os.getenv("INTENT_LLM_MODEL") or os.getenv("LLM_MODEL", "deepseek-chat")
 
 
 async def _call_llm(user_input: str) -> dict | None:
@@ -433,6 +433,9 @@ async def _call_llm(user_input: str) -> dict | None:
         if is_ds:
             kwargs["response_format"] = {"type": "json_object"}
             kwargs["extra_body"] = {"thinking": {"type": "disabled"}}
+        elif "qwen" in _get_llm_model().lower():
+            kwargs["response_format"] = {"type": "json_object"}
+            kwargs["extra_body"] = {"enable_thinking": False}
         resp = await client.chat.completions.create(**kwargs)
         raw = resp.choices[0].message.content or ""
         # 提取 JSON（兼容 markdown 代码块）

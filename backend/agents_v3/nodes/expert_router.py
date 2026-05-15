@@ -326,6 +326,9 @@ async def expert_router(state: TravelState) -> dict:
                 if is_ds:
                     kwargs["response_format"] = {"type": "json_object"}
                     kwargs["extra_body"] = {"thinking": {"type": "disabled"}}
+                elif "qwen" in os.getenv("LLM_MODEL", "deepseek-chat").lower():
+                    kwargs["response_format"] = {"type": "json_object"}
+                    kwargs["extra_body"] = {"enable_thinking": False}
                 resp = await client.chat.completions.create(**kwargs)
                 text = resp.choices[0].message.content or ""
                 if "```" in text:
