@@ -5,17 +5,22 @@
 评分模型: deepseek-chat (统一)
 及格线: overall >= 6.5
 
-## 最终排名
+## 最终排名 (10组A/B测试)
 
-| intent_parser | experts+coordinator | review | 通过 | overall | 成本 |
+| intent_parser | experts+coordinator | review | 通过 | overall | 说明 |
 |---------------|---------------------|--------|------|---------|------|
-| qwen-turbo | DeepSeek | DeepSeek | **5/5** | **7.0** | 省intent部分 |
-| DeepSeek | qwen3.5-flash | DeepSeek | **5/5** | **7.0** | 省60%+ token成本 |
+| **DeepSeek** | **qwen3.5-flash** | **DeepSeek** | **5/5** | **7.0** | 最优方案 |
+| qwen-turbo | DeepSeek | DeepSeek | **5/5** | **7.0** | 也可行 |
 | DeepSeek | DeepSeek | DeepSeek | 4/5 | 6.4 | 基线 |
-| turbo | flash | DeepSeek | 3/5 | 6.4 | 叠加翻车 |
-| turbo | flash | flash | 3/5 | 6.4 | 全百炼 |
-| flash | flash | DeepSeek | 3/5 | 6.6 | |
-| turbo | turbo | DS(2轮) | 3/5~2/5 | 6.4~6.6 | coordinator扛不住 |
+| qwen-turbo | qwen3.5-flash | DeepSeek | 3/5 | 6.4 | 叠加翻车 |
+| qwen-turbo | qwen3.5-flash | qwen3.5-flash | 3/5 | 6.4 | 全百炼 |
+| qwen3.5-flash | qwen3.5-flash | DeepSeek | 3/5 | 6.6 | intent换flash掉分 |
+| qwen-turbo | qwen-turbo | DeepSeek | 2~3/5 | 6.4~6.6 | coordinator扛不住 |
+
+### 结论
+- 两个5/5方案**不能叠加**, 替换越多节点随机性越大
+- review必须留DeepSeek, flash审查判断力不够(3/5→2/5)
+- coordinator也必须留DeepSeek, turbo综合判断力不够
 
 ## 最优方案: qwen3.5-flash替换experts+coordinator
 
