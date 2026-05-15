@@ -27,11 +27,21 @@
 env vars:
 ```
 EXPERT_LLM_BASE_URL=https://dashscope.aliyuncs.com/compatible-mode/v1
-EXPERT_LLM_API_KEY=<bailian-key>
+EXPERT_LLM_API_KEY=sk-85c5888f0a61425c8e206d5dec4c88a6
 EXPERT_LLM_MODEL=qwen3.5-flash
 ```
 
 LLM_BASE_URL/LLM_MODEL 保持 DeepSeek (intent_parser + review 用)
+
+### 基线验证 (2026-05-15 复测, 4轮)
+
+| 模型 | overall | 通过 | intent | poi | geo | diverse |
+|------|---------|------|--------|-----|-----|---------|
+| qwen3.5-flash | 6.8 | 4/5 | 7.6 | 6.8 | 7.2 | 5.2 |
+| qwen3-flash | 6.4 | 2/5 | 7.4 | 6.4 | 7.2 | 5.4 |
+| qwen-flash | 6.2 | 2/5 | 7.2 | 6.4 | 5.0 | 5.6 |
+
+注意: 之前用了错误的API key导致基线偏低(6.4), 正确key(sk-85c5...)稳定在6.8
 
 ## 价格对比
 
