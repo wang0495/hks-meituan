@@ -6,6 +6,54 @@
 - 简化 _llm_assemble_route（感知expert_weights）
 - 保留: _enforce_time_windows, _cap_route_stops, _dedup_route
 - 保留轻量: _ensure_food_in_route, _ensure_poi_in_route, _ensure_min_food_in_route
+
+═════════════════════════════════════════════════════════════
+  架构决策记录（ADR）— 别瞎改，每条都是踩过坑的
+═════════════════════════════════════════════════════════════
+
+ADR-S1: _cap_route_stops 必须在 _ensure_* 之前执行
+  - _ensure_food/poi 将遗漏站点追加到列表末尾
+  - _cap_route_stops 用 steps[:max] 从头部截断
+  - 如果 cap 在 ensure 之后，追加的餐饮站点会被截掉 → 路线无餐饮
+  - 修复：调换顺序为 cap → ensure，追加的站点不受截断影响
+  - 2026-05-15 实测：修复前 4/5通过(6.8)，修复后首次 5/5通过(7.0)
+
+ADR-S2: 不要在 _cap_route_stops 里做餐饮保留逻辑
+  - 尝试过：截断时优先保留 _type=lunch/dinner 的站点
+  - 失败原因：餐饮站点被保留但位置乱了，LLM编排的地理顺序被破坏
+  - geo_continuity 从 7-8 暴跌到 4-5，overall 从 6.8 降到 6.0
+  - 结论：不能在后处理阶段破坏LLM的时间/地理编排
+
+ADR-S3: 不要用后处理规则强制多样性
+  - 尝试过：按category多样性替换同质POI、黑名单连锁餐厅、去重同category
+  - 全部失败：替换的POI破坏了地理连续性，或者LLM方差把效果吃掉
+  - 根因：diversity瓶颈不在后处理，在数据——娱乐类只有39个(3.5%多为夜店)，
+    自然风光只有1个(0.05%)。路线永远只能在景点+文化+运动+餐饮里打转。
+  - 详见 docs/optimization_log.md
+
+ADR-S4: LLM prompt微调对diversity效果不可控
+  - 尝试过：在观光/特种兵/休闲的diversity_rule中加"至少N种类型"
+  - 效果：某个场景diversity+1，但另一个场景geo-2或overall-1
+  - 根因：LLM对prompt中"多样性"的理解是随机飘的，无法稳定控制
+  - 同一个prompt跑2次，场景3可能得6也可能得7，场景4可能得7也可能得5
+  - 结论：prompt微调只能修复逻辑矛盾（如美食型2家上限），不能用来提升指标
+
+ADR-S5: 美食型的餐厅上限矛盾必须修复
+  - 原代码：第7条说"最多选4家"，第8条说"总共不超过2家" → LLM困惑
+  - 修复：第8条区分"美食型"和"非美食型"，美食型不受2家限制
+  - 效果：美食场景diversity从5→6，overall从6→7
+  - 注意：这只是修复逻辑矛盾，不是提升上限。盲目提高上限会导致路线过长
+
+ADR-S6: food_list 必须包含 category/tags 字段
+  - 原代码：food_list只有name/price/lat/lng，LLM无法判断餐厅类型
+  - 修复：补充category/rating/tags，让LLM能做类型多样性选择
+  - 效果：配合ADR-S5，美食场景能选出不同子类型的餐厅
+
+ADR-S7: narrator 必须用 enable_llm_polish=False
+  - synthesizer内部调generate_narrative，SSE路由也会调一次
+  - 如果都用True，6站路线 = 12次LLM调用（synthesizer 6次 + SSE 6次）
+  - 修复：synthesizer传False（模板），SSE路径独立做LLM润色
+  - 同时narrator内部改为asyncio.gather并行，6站从串行30s→并行5s
 """
 
 from __future__ import annotations

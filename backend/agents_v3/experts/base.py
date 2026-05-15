@@ -4,6 +4,31 @@ Extracted from agents.py so every expert (poi, food, hotel, traffic, weather,
 local_expert, insurance) can import from a single place instead of duplicating
 helpers.  Keep this module free of agent-specific business logic -- only
 low-level building blocks live here.
+
+═════════════════════════════════════════════════════════════
+  架构决策记录（ADR）
+═════════════════════════════════════════════════════════════
+
+ADR-B1: LLM client池必须用prefix参数化，不用单例
+  - 原来：4个文件各自有独立的AsyncOpenAI client（agents.py, expert_router.py,
+    rule_guard.py, review.py），共~190行重复代码
+  - 问题1：rule_guard每次调用都new一个client（不是singleton），浪费连接
+  - 问题2：review.py、expert_router.py只读LLM_*不读EXPERT_LLM_*，无法按节点分模型
+  - 修复：统一到_llm_clients池，prefix="EXPERT_LLM"读qwen3.5-flash，
+    prefix="LLM"读DeepSeek。所有节点通过_llm_decide(prefix=...)指定模型
+
+ADR-B2: _extract_json 必须校验返回类型
+  - LLM有时返回 {"picks": ["景点名"]} 而非 {"picks": [{"name": "景点名"}]}
+  - 导致下游 pick.get("name") 调用 str.get → AttributeError 间歇性崩溃
+  - 修复：_extract_json 检查 json.loads 结果必须是dict，否则 raise ValueError
+  - 同步修复：_llm_decide 中过滤非dict列表项，防御 str 被当成 dict
+
+ADR-B3: 不要把expert规则化来省LLM调用
+  - 尝试过：把hotel/traffic/weather/destination/budget_hacker改为纯规则（不调LLM）
+  - 失败：这些expert在baseline用的是qwen3.5-flash（不是DeepSeek），
+    规则化不是"省一个DeepSeek调用"，而是"用规则替代qwen3.5-flash的智能"
+  - 效果：从4/5通过(6.8)降到3-4/5通过(6.4-6.6)
+  - 教训：先搞清楚baseline用的什么模型再优化，不要假设"规则化=省成本"
 """
 
 from __future__ import annotations
