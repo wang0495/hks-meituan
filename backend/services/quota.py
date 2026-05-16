@@ -21,6 +21,7 @@ import time
 from dataclasses import dataclass
 from enum import Enum
 from typing import Any
+from urllib.parse import quote_plus
 
 import redis.asyncio as aioredis
 
@@ -370,7 +371,7 @@ def get_quota_manager() -> QuotaManager:
         if redis_cfg.host:
             url = f"redis://{redis_cfg.host}:{redis_cfg.port}/{redis_cfg.db}"
             if redis_cfg.password:
-                url = f"redis://:{redis_cfg.password}@{redis_cfg.host}:{redis_cfg.port}/{redis_cfg.db}"
+                url = f"redis://:{quote_plus(redis_cfg.password)}@{redis_cfg.host}:{redis_cfg.port}/{redis_cfg.db}"
             redis_client = aioredis.from_url(
                 url,
                 encoding="utf-8",

@@ -19,6 +19,7 @@ import logging
 import os
 from pathlib import Path
 from typing import Any
+from urllib.parse import quote_plus
 
 from backend.services.holiday_utils import (
     build_context,
@@ -179,7 +180,7 @@ class PreferenceManager:
             from backend.config import settings
             rs = settings.redis
             if rs.password:
-                return f"redis://:{rs.password}@{rs.host}:{rs.port}/{rs.db}"
+                return f"redis://:{quote_plus(rs.password)}@{rs.host}:{rs.port}/{rs.db}"
             return f"redis://{rs.host}:{rs.port}/{rs.db}"
         except (ImportError, AttributeError):
             return None

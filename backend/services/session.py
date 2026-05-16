@@ -14,6 +14,7 @@ import logging
 import uuid
 from datetime import datetime
 from typing import Any
+from urllib.parse import quote_plus
 
 import redis.asyncio as aioredis
 
@@ -202,7 +203,7 @@ def get_session_manager() -> SessionManager:
 
         rs = settings.redis
         redis_url = (
-            f"redis://:{rs.password}@{rs.host}:{rs.port}/{rs.db}"
+            f"redis://:{quote_plus(rs.password)}@{rs.host}:{rs.port}/{rs.db}"
             if rs.password
             else f"redis://{rs.host}:{rs.port}/{rs.db}"
         )

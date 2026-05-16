@@ -20,6 +20,7 @@ import logging
 import re
 from datetime import datetime, timedelta
 from typing import Any
+from urllib.parse import quote_plus
 
 from backend.errors import DialogueError
 from backend.services.solver import _GAMMA, _BETA  # V2: 权重基线常量
@@ -849,7 +850,7 @@ def _create_dialogue_persistence() -> DialoguePersistence | None:
 
         rs = settings.redis
         redis_url = (
-            f"redis://:{rs.password}@{rs.host}:{rs.port}/{rs.db}"
+            f"redis://:{quote_plus(rs.password)}@{rs.host}:{rs.port}/{rs.db}"
             if rs.password
             else f"redis://{rs.host}:{rs.port}/{rs.db}"
         )

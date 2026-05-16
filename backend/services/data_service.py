@@ -85,10 +85,15 @@ async def get_poi_data_async(
             from backend.database.poi_repository import POIRepository
 
             session = async_session_factory()
-            _poi_repo_instance = POIRepository(session)
-            # 验证连接
-            await session.execute(text("SELECT 1"))
-            logger.info("DB 模式已激活，连接成功")
+            try:
+                _poi_repo_instance = POIRepository(session)
+                await session.execute(text("SELECT 1"))
+                logger.info("DB 模式已激活，连接成功")
+            except Exception:
+                await session.close()
+                logger.warning("DB 模式不可用，回退 JSON（检查 PostgreSQL 是否运行）")
+                _poi_repo_instance = _DB_FALLBACK_SENTINEL
+                return get_data("city_poi_db", filters)
         except Exception:
             logger.warning("DB 模式不可用，回退 JSON（检查 PostgreSQL 是否运行）")
             _poi_repo_instance = _DB_FALLBACK_SENTINEL

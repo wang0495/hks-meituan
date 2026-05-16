@@ -21,6 +21,7 @@ import time
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any
+from urllib.parse import quote_plus
 
 import redis.asyncio as aioredis
 
@@ -392,7 +393,7 @@ def get_user_rate_limiter() -> UserRateLimiter:
             url = f"redis://{redis_cfg.host}:{redis_cfg.port}/{redis_cfg.db}"
             if redis_cfg.password:
                 url = (
-                    f"redis://:{redis_cfg.password}"
+                    f"redis://:{quote_plus(redis_cfg.password)}"
                     f"@{redis_cfg.host}:{redis_cfg.port}/{redis_cfg.db}"
                 )
             redis_client = aioredis.from_url(

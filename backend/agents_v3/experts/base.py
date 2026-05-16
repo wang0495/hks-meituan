@@ -38,9 +38,12 @@ import functools
 import json
 import math
 import os
+import logging
 import uuid
 
 from openai import AsyncOpenAI
+
+logger = logging.getLogger(__name__)
 
 from backend.agents_v3.state import AGENT_META, sse_emit
 
@@ -238,6 +241,7 @@ async def _llm_decide(
             error_feedback = f"解析失败: {str(e)[:200]}"
             if attempt < retries - 1:
                 await asyncio.sleep(1)
+    logger.warning("_llm_decide failed after %d retries: prefix=%s, error=%s", retries, prefix, error_feedback)
     return None
 
 

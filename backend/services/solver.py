@@ -13,7 +13,7 @@ from __future__ import annotations
 import logging
 import threading
 from datetime import timedelta
-from typing import Any
+from typing import Any, Callable
 
 from backend.services.cache import distance_cache
 
@@ -93,6 +93,23 @@ _DELTA = 2.0  # 同类惩罚权重（强制多样性，避免连续同类POI）
 _EPSILON = 0.5  # category多样性权重
 _REACTION_WEIGHT = 0.3  # 化学反应评分权重
 _SENSORY_WEIGHT = 0.2  # 感官交替评分权重
+
+# 场景同义词映射（统一模块常量，避免重复创建）
+_SCENE_SYNONYMS: dict[str, list[str]] = {
+    "茶馆": ["茶室", "茶楼", "品茶", "茶舍", "茶座", "茶"],
+    "街边小店": ["夜市", "小吃街", "小吃", "大排档", "美食街"],
+    "街边小吃": ["夜市", "小吃街", "小吃", "大排档", "美食街", "路边摊", "小吃街", "小吃", "大排档", "路边摊", "美食街"],
+    "本地小吃": ["夜市", "小吃", "本地美食", "老字号", "传统美食", "地道"],
+    "烧烤": ["BBQ", "烤肉", "烧烤", "烤"],
+    "蹦迪": ["酒吧", "夜店", "LiveHouse", "音乐现场", "夜生活", "清吧", "居酒屋"],
+    "游乐园": ["乐园", "游乐", "主题公园", "长隆"],
+    "海洋馆": ["海洋", "水族", "海洋王国", "长隆"],
+    "曲艺表演": ["曲艺", "粤曲", "戏曲", "表演", "传统文化"],
+    "室内": ["室内", "空调", "封闭"],
+    "宵夜": ["夜市", "深夜", "宵夜", "大排档", "小吃", "排档", "夜排档"],
+    "便宜实惠": ["便宜", "实惠", "经济", "平价"],
+    "安静画画": ["画室", "美术馆", "艺术", "写生", "手作", "陶艺"],
+}
 
 # V2: 线程局部状态（替代模块级全局变量，防止并发竞态）
 _tl = threading.local()
@@ -671,27 +688,13 @@ def _select_diverse_candidates(
     if _is_late_night_active and _scene_reqs and all(sr in _VAGUE_LATE_NIGHT_SR for sr in _scene_reqs):
         _scene_reqs = []  # 跳过预过滤，让late_night filter处理
     if _scene_reqs:
-        _SCENE_SYN = {
-            "茶馆": ["茶室", "茶楼", "品茶", "茶舍", "茶座"],
-            "街边小店": ["夜市", "小吃街", "小吃", "大排档", "美食街"],
-            "街边小吃": ["夜市", "小吃街", "小吃", "大排档", "美食街", "路边摊", "小吃街", "小吃", "大排档", "美食街"],
-            "本地小吃": ["夜市", "小吃", "本地美食", "老字号"],
-            "烧烤": ["BBQ", "烤肉", "烧烤"],
-            "蹦迪": ["酒吧", "夜店", "LiveHouse", "音乐现场", "夜生活", "清吧"],
-            "游乐园": ["乐园", "游乐", "主题公园", "长隆"],
-            "海洋馆": ["海洋", "水族", "海洋王国"],
-            "宵夜": ["夜市", "深夜", "宵夜", "大排档", "小吃", "排档", "夜排档"],
-            "便宜实惠": ["便宜", "实惠", "经济", "平价"],
-            "安静画画": ["画室", "美术馆", "艺术", "写生", "手作", "陶艺"],
-            "曲艺表演": ["曲艺", "粤曲", "戏曲", "表演", "传统文化"],
-        }
         def _matches_sr(p):
             """ANY-match: 匹配任意一个scene_requirement即可。"""
             text = p.get("name","") + " " + " ".join(p.get("tags",[])) + " " + " ".join(p.get("_scene_tags",[]))
             for sr in _scene_reqs:
                 if sr in text:
                     return True
-                for syn in _SCENE_SYN.get(sr, []):
+                for syn in _SCENE_SYNONYMS.get(sr, []):
                     if syn in text:
                         return True
             return False
@@ -861,19 +864,6 @@ def _select_diverse_candidates(
                     break
         # 场景需求语义匹配（scene_requirements，含同义词扩展）
         if _scene_requirements:
-            _SCENE_SYNONYMS = {
-                "茶馆": ["茶室", "茶楼", "品茶", "茶舍", "茶座", "茶"],
-                "街边小店": ["夜市", "小吃街", "小吃", "大排档", "美食街"],
-            "街边小吃": ["夜市", "小吃街", "小吃", "大排档", "美食街", "路边摊", "小吃街", "小吃", "大排档", "路边摊", "美食街"],
-                "本地小吃": ["夜市", "小吃", "本地美食", "老字号", "传统美食", "地道"],
-                "烧烤": ["BBQ", "烤肉", "烧烤", "烤"],
-                "蹦迪": ["酒吧", "夜店", "LiveHouse", "音乐现场", "夜生活"],
-                "游乐园": ["乐园", "游乐", "主题公园", "长隆"],
-                "海洋馆": ["海洋", "水族", "海洋王国", "长隆"],
-                "曲艺表演": ["曲艺", "粤曲", "戏曲", "表演", "传统文化"],
-                "安静画画": ["画室", "美术馆", "艺术", "写生", "手作"],
-                "室内": ["室内", "空调", "封闭"],
-            }
             matched_scenes = 0
             for sr in _scene_requirements:
                 if sr in poi_text:
@@ -1105,22 +1095,6 @@ def _phase1_initialize(
 
     # ── 方案一+五：约束层级 — scene_requirements作为Level 0硬约束 ──
     # 如果用户有明确场景需求，先锁定匹配的POI子集，再在子集内做情绪阶段选择
-    _SCENE_SYNONYMS_P1 = {
-        "茶馆": ["茶室", "茶楼", "品茶", "茶舍", "茶座"],
-        "街边小店": ["夜市", "小吃街", "小吃", "大排档", "美食街"],
-            "街边小吃": ["夜市", "小吃街", "小吃", "大排档", "美食街", "路边摊", "小吃街", "小吃", "大排档", "美食街"],
-        "本地小吃": ["夜市", "小吃", "本地美食", "老字号", "传统美食"],
-        "烧烤": ["BBQ", "烤肉", "烧烤"],
-        "蹦迪": ["酒吧", "夜店", "LiveHouse", "音乐现场", "夜生活", "清吧", "居酒屋"],
-        "游乐园": ["乐园", "游乐", "主题公园", "长隆"],
-        "海洋馆": ["海洋", "水族", "海洋王国"],
-        "曲艺表演": ["曲艺", "粤曲", "戏曲", "表演"],
-        "室内": ["室内", "空调"],
-        "宵夜": ["夜市", "深夜", "宵夜", "大排档", "小吃", "排档", "夜排档"],
-        "便宜实惠": ["便宜", "实惠", "经济", "平价"],
-        "街边小店": ["夜市", "小吃街", "小吃", "大排档", "美食街"],
-            "街边小吃": ["夜市", "小吃街", "小吃", "大排档", "美食街", "路边摊", "小吃街", "大排档", "路边摊"],
-    }
 
     def _matches_scene(poi: dict) -> bool:
         """检查POI是否匹配任意一个scene_requirement（含同义词）。"""
@@ -1128,33 +1102,19 @@ def _phase1_initialize(
         for sr in _scene_requirements:
             if sr in text:
                 return True
-            synonyms = _SCENE_SYNONYMS_P1.get(sr, [])
+            synonyms = _SCENE_SYNONYMS.get(sr, [])
             if any(syn in text for syn in synonyms):
                 return True
         return False
 
     # scene_requirements已在Phase 0预过滤，Phase 1中对匹配的POI加分
     # 构建scene_requirements匹配集合（ANY-match: 匹配任意一个即可）
-    _SCENE_SYN_P1 = {
-        "茶馆": ["茶室", "茶楼", "品茶", "茶舍", "茶座"],
-        "街边小店": ["夜市", "小吃街", "小吃", "大排档", "美食街"],
-            "街边小吃": ["夜市", "小吃街", "小吃", "大排档", "美食街", "路边摊", "小吃街", "小吃", "大排档", "美食街"],
-        "本地小吃": ["夜市", "小吃", "本地美食", "老字号"],
-        "烧烤": ["BBQ", "烤肉", "烧烤"],
-        "蹦迪": ["酒吧", "夜店", "LiveHouse", "音乐现场", "夜生活", "清吧"],
-        "游乐园": ["乐园", "游乐", "主题公园", "长隆"],
-        "海洋馆": ["海洋", "水族", "海洋王国"],
-        "宵夜": ["夜市", "深夜", "宵夜", "大排档", "小吃", "排档", "夜排档"],
-        "便宜实惠": ["便宜", "实惠", "经济", "平价"],
-        "安静画画": ["画室", "美术馆", "艺术", "写生", "手作", "陶艺"],
-        "曲艺表演": ["曲艺", "粤曲", "戏曲", "表演"],
-    }
     _scene_matched_ids = set()
     if _scene_requirements:
         for p in candidates:
             text = p.get("name","") + " " + " ".join(p.get("tags",[])) + " " + " ".join(p.get("_scene_tags",[]))
             for sr in _scene_requirements:
-                if sr in text or any(syn in text for syn in _SCENE_SYN_P1.get(sr, [])):
+                if sr in text or any(syn in text for syn in _SCENE_SYNONYMS.get(sr, [])):
                     _scene_matched_ids.add(p.get("id"))
                     break  # ANY-match: 匹配一个就够了
 
@@ -1384,25 +1344,13 @@ def _phase1_initialize(
 
             # 场景需求语义匹配（含同义词扩展）
             if _scene_requirements:
-                _SCENE_SYNONYMS_P1 = {
-                    "茶馆": ["茶室", "茶楼", "品茶", "茶舍", "茶座"],
-                    "街边小店": ["夜市", "小吃街", "小吃", "大排档", "美食街"],
-            "街边小吃": ["夜市", "小吃街", "小吃", "大排档", "美食街", "路边摊", "小吃街", "小吃", "大排档", "美食街"],
-                    "本地小吃": ["夜市", "小吃", "本地美食", "老字号", "传统美食"],
-                    "烧烤": ["BBQ", "烤肉", "烧烤"],
-                    "蹦迪": ["酒吧", "夜店", "LiveHouse", "音乐现场", "夜生活", "清吧", "居酒屋"],
-                    "游乐园": ["乐园", "游乐", "主题公园", "长隆"],
-                    "海洋馆": ["海洋", "水族", "海洋王国", "长隆"],
-                    "曲艺表演": ["曲艺", "粤曲", "戏曲", "表演"],
-                    "室内": ["室内", "空调"],
-                }
                 poi_text = poi.get("name", "") + " " + " ".join(poi.get("tags", [])) + " " + " ".join(poi.get("_scene_tags", []))
                 matched_scenes = 0
                 for sr in _scene_requirements:
                     if sr in poi_text:
                         matched_scenes += 1
                     else:
-                        synonyms = _SCENE_SYNONYMS_P1.get(sr, [])
+                        synonyms = _SCENE_SYNONYMS.get(sr, [])
                         if any(syn in poi_text for syn in synonyms):
                             matched_scenes += 1
                 if matched_scenes > 0:
@@ -1920,7 +1868,7 @@ def solve_route(
     start_time: str = "09:00",
     perception_ctx: Any = None,
     dynamic_weights: dict[str, float] | None = None,
-    progress_callback: callable | None = None,
+    progress_callback: Callable | None = None,
 ) -> dict[str, Any]:
     """求解最优路线。
 

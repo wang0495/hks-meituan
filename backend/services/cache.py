@@ -15,8 +15,10 @@ import functools
 import hashlib
 import json
 import logging
+import threading
 import time
 from typing import Any, Callable
+from urllib.parse import quote_plus
 
 import redis.asyncio as aioredis
 
@@ -41,37 +43,42 @@ class MemoryCache:
         self._ttl = ttl_seconds
         self._hits = 0
         self._misses = 0
+        self._lock = threading.Lock()
 
     def get(self, key: str) -> Any | None:
         """获取缓存值，过期则删除并返回 None。命中时更新访问时间（LRU）。"""
-        if key in self._cache:
-            value, write_ts, _ = self._cache[key]
-            if time.monotonic() - write_ts < self._ttl:
-                self._hits += 1
-                # 更新最后访问时间，实现 LRU
-                self._cache[key] = (value, write_ts, time.monotonic())
-                return value
-            # 过期，删除
-            del self._cache[key]
-        self._misses += 1
-        return None
+        with self._lock:
+            if key in self._cache:
+                value, write_ts, _ = self._cache[key]
+                if time.monotonic() - write_ts < self._ttl:
+                    self._hits += 1
+                    # 更新最后访问时间，实现 LRU
+                    self._cache[key] = (value, write_ts, time.monotonic())
+                    return value
+                # 过期，删除
+                del self._cache[key]
+            self._misses += 1
+            return None
 
     def set(self, key: str, value: Any) -> None:
         """写入缓存，满时按 LRU 淘汰。"""
-        now = time.monotonic()
-        if len(self._cache) >= self._max_size and key not in self._cache:
-            self._evict_one()
-        self._cache[key] = (value, now, now)
+        with self._lock:
+            now = time.monotonic()
+            if len(self._cache) >= self._max_size and key not in self._cache:
+                self._evict_one()
+            self._cache[key] = (value, now, now)
 
     def delete(self, key: str) -> None:
         """删除指定缓存条目。"""
-        self._cache.pop(key, None)
+        with self._lock:
+            self._cache.pop(key, None)
 
     def clear(self) -> None:
         """清空全部缓存。"""
-        self._cache.clear()
-        self._hits = 0
-        self._misses = 0
+        with self._lock:
+            self._cache.clear()
+            self._hits = 0
+            self._misses = 0
 
     def _evict_one(self) -> None:
         """淘汰最近最少访问的条目（LRU）。"""
@@ -317,7 +324,7 @@ def get_multilevel_cache() -> MultiLevelCache:
         if redis_cfg.host:
             url = f"redis://{redis_cfg.host}:{redis_cfg.port}/{redis_cfg.db}"
             if redis_cfg.password:
-                url = f"redis://:{redis_cfg.password}@{redis_cfg.host}:{redis_cfg.port}/{redis_cfg.db}"
+                url = f"redis://:{quote_plus(redis_cfg.password)}@{redis_cfg.host}:{redis_cfg.port}/{redis_cfg.db}"
             l2 = RedisCache(redis_url=url)
         _multilevel_cache = MultiLevelCache(
             l1=MemoryCache(max_size=500, ttl_seconds=60),

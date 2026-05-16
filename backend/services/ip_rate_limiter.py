@@ -22,6 +22,7 @@ import time
 from collections import defaultdict
 from dataclasses import dataclass, field
 from typing import Any
+from urllib.parse import quote_plus
 
 import redis.asyncio as aioredis
 
@@ -486,7 +487,7 @@ def get_ip_rate_limiter() -> IPRateLimiter:
             url = f"redis://{redis_cfg.host}:{redis_cfg.port}/{redis_cfg.db}"
             if redis_cfg.password:
                 url = (
-                    f"redis://:{redis_cfg.password}"
+                    f"redis://:{quote_plus(redis_cfg.password)}"
                     f"@{redis_cfg.host}:{redis_cfg.port}/{redis_cfg.db}"
                 )
             redis_client = aioredis.from_url(
