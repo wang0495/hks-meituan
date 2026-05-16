@@ -128,3 +128,42 @@ evaluator期望路线包含4种以上大类（景点+餐饮+文化+自然+娱乐
 1. **补数据**: 加日间娱乐POI（海洋馆、动物园、科技馆）和自然风光POI → 唯一能根本提升diversity的方案
 2. **多次run取最优**: 跑2-3次pipeline取overall最高的 → 从4/5稳定到5/5
 3. **evaluator稳定性**: 用多次eval取平均，减少单次评分的随机性
+
+---
+
+## 第二轮优化：架构探索 (2026-05-16)
+
+### 评估系统诊断
+
+对评估系统进行了深度分析，发现：
+
+1. **评分不算苛刻**：有5条"防苛政"规则，如"不可能需求给5-6分"、"合理路线geo至少给5分"
+2. **scene_diversity是结构性不公平**：娱乐类POI只有39个(3.5%多为夜店)，自然风光仅1个(0.05%)。路线永远只能在景点+文化+运动+餐饮里打转，但evaluator期望4种以上大类
+3. **LLM方差是主要问题**：同一代码、同一prompt，overall波动6-8分。4/5和5/5之间只差一次LLM随机选择
+4. **美食型是短板**：geo_continuity=5（折返），poi_quality=6（非本地特色）
+5. **"全相同分数"过滤**（test_c_version.py line 140）：如果LLM给所有维度打相同分数，结果被丢弃——偏向"差异化"评分
+
+### 5个新架构方案
+
+所有架构通过 `SYNTHESIZER_MODE` 环境变量切换，不影响default模式。
+
+| 架构 | 模式名 | 核心思路 | 目标维度 |
+|------|--------|---------|---------|
+| A1: Best-of-N | `best_of_n` | 并行跑3次LLM组装，启发式评分选最优 | 减少方差 |
+| A2: Geo-Cluster | `geo_cluster` | 先按坐标聚类，选最优簇，TSP排序，LLM只分配时间 | geo_continuity |
+| A3: Self-Refine | `self_refine` | 先组装→规则critique→带反馈重新组装 | 针对性改进 |
+| A4: Tournament | `tournament` | 并行3种策略(地理/类型/体验优先)，选最优 | 全维度平衡 |
+| A5: Constraint | `constraint` | 从锚点开始，最近邻填充，自动约束满足 | 可预测性 |
+
+测试方法：
+```bash
+# 基线对照
+SYNTHESIZER_MODE=default python tests/test_c_version.py
+
+# 测试各架构
+SYNTHESIZER_MODE=best_of_n python tests/test_c_version.py
+SYNTHESIZER_MODE=geo_cluster python tests/test_c_version.py
+SYNTHESIZER_MODE=self_refine python tests/test_c_version.py
+SYNTHESIZER_MODE=tournament python tests/test_c_version.py
+SYNTHESIZER_MODE=constraint python tests/test_c_version.py
+```

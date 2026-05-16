@@ -58,8 +58,10 @@ ADR-S7: narrator 必须用 enable_llm_polish=False
 
 from __future__ import annotations
 
+import asyncio
 import json
 import math
+import os
 from datetime import datetime, timedelta
 
 from backend.agents_v3.experts.base import (
@@ -68,6 +70,15 @@ from backend.agents_v3.experts.base import (
     _llm_decide,
 )
 from backend.agents_v3.state import TravelState, AGENT_META, sse_emit
+
+# ── 合成器架构模式 ──
+# "default": 单次LLM组装（基线）
+# "best_of_n": 多候选投票，跑N次取最优
+# "geo_cluster": 地理聚类+TSP排序
+# "self_refine": 维度导向自精炼
+# "tournament": 并行策略锦标赛
+# "constraint": 迭代约束满足
+SYNTHESIZER_MODE = os.getenv("SYNTHESIZER_MODE", "default")
 
 
 # ── 名称去重组 ──
@@ -452,6 +463,9 @@ async def _llm_assemble_route(
     user_input: str,
     scene_type: str,
     expert_weights: dict,
+    *,
+    temperature: float = 0.1,
+    strategy_hint: str = "",
 ) -> dict | None:
     """LLM编排路线，感知expert_weights影响推荐优先级。"""
     poi_list = []
@@ -575,6 +589,7 @@ async def _llm_assemble_route(
    - 禁止为了"多样性"硬塞与用户意图无关的POI类型
 
 专家权重: {weight_desc}
+{f"策略提示: {strategy_hint}" if strategy_hint else ""}
 
 输出JSON格式：
 {{"ordered_stops":[{{"name":"景点/餐厅名","type":"poi/lunch/dinner/hotel","reason":"为什么排这里"}}],"route_design":"路线设计思路（2句话）"}}
@@ -602,7 +617,7 @@ async def _llm_assemble_route(
 
 请编排最优路线。"""
 
-    result = await _llm_decide(system, user)
+    result = await _llm_decide(system, user, temperature=temperature)
     if not result or "ordered_stops" not in result:
         return None
 
@@ -736,6 +751,862 @@ def _build_route_from_llm_order(
         "route": steps,
         "total_cost": {
             "time_min": total_time,
+            "budget_used": sum(s.get("poi", {}).get("avg_price", 0) for s in steps),
+        },
+        "emotion_curve": [],
+    }
+
+
+# ═══════════════════════════════════════════════════════════
+# 启发式路线评分（不调LLM，用于多候选比较）
+# ═══════════════════════════════════════════════════════════
+
+def _score_route_heuristic(
+    route: dict,
+    poi_proposals: list[dict],
+    food_proposals: list[dict],
+    intent: dict,
+) -> float:
+    """启发式评分路线质量(0-100)，越高越好。不调LLM，纯规则。
+
+    评分维度（与evaluator对齐）:
+    - geo_continuity (权重40): 总距离越短越好
+    - diversity (权重25): 唯一类别越多越好
+    - coverage (权重20): 覆盖了多少expert提案
+    - time_fit (权重15): 时间利用率
+    """
+    steps = route.get("route", [])
+    if not steps:
+        return -1.0
+
+    # ── 1. 地理连续性 (0-25) ──
+    total_dist = 0.0
+    max_segment = 0.0
+    for i in range(1, len(steps)):
+        prev = steps[i - 1].get("poi", {})
+        cur = steps[i].get("poi", {})
+        lat1, lng1 = prev.get("lat", 0), prev.get("lng", 0)
+        lat2, lng2 = cur.get("lat", 0), cur.get("lng", 0)
+        if lat1 and lat2:
+            d = _haversine_km(lat1, lng1, lat2, lng2)
+            total_dist += d
+            max_segment = max(max_segment, d)
+    # 0km总距离=25分, 每增加1km扣0.5分; 单段超过15km额外扣分
+    geo_score = max(0, 25 - total_dist * 0.5)
+    if max_segment > 15:
+        geo_score -= (max_segment - 15) * 2  # 跨区大惩罚
+
+    # ── 2. 类别多样性 (0-25) ──
+    categories = set()
+    for s in steps:
+        cat = s.get("poi", {}).get("category", "")
+        if cat:
+            categories.add(cat)
+    # 还检查_type: lunch/dinner也算不同类型
+    meal_types = {s.get("_type", "") for s in steps if s.get("_type")}
+    unique_types = len(categories) + len(meal_types)
+    diversity_score = min(25, unique_types * 5)  # 5种类型=满分
+
+    # ── 3. 覆盖率 (0-20) ──
+    route_names = set()
+    for s in steps:
+        n = s.get("poi", {}).get("name", "")
+        route_names.add(n)
+        route_names.add(_canonical_name(n))
+    covered = 0
+    for p in poi_proposals + food_proposals:
+        pn = p.get("content", {}).get("name", "")
+        if any(pn in rn or rn in pn for rn in route_names):
+            covered += 1
+    total_proposals = len(poi_proposals) + len(food_proposals)
+    coverage_ratio = covered / total_proposals if total_proposals > 0 else 0
+    coverage_score = coverage_ratio * 20
+
+    # ── 4. 时间利用率 (0-15) ──
+    start_time_str = intent.get("time", {}).get("start", "09:00")
+    end_time_str = intent.get("time", {}).get("end", "21:00")
+    try:
+        first = datetime.strptime(steps[0]["arrival_time"], "%H:%M")
+        last = datetime.strptime(steps[-1]["departure_time"], "%H:%M")
+        route_min = (last - first).total_seconds() / 60
+        available = (
+            datetime.strptime(end_time_str, "%H:%M")
+            - datetime.strptime(start_time_str, "%H:%M")
+        ).total_seconds() / 60
+        if available > 0:
+            ratio = route_min / available
+            # 80-100%利用率最优, <50%或>110%扣分
+            if 0.8 <= ratio <= 1.0:
+                time_score = 15
+            elif 0.5 <= ratio < 0.8:
+                time_score = ratio * 15
+            elif ratio > 1.0:
+                time_score = max(0, 15 - (ratio - 1.0) * 30)
+            else:
+                time_score = ratio * 10
+        else:
+            time_score = 7
+    except (ValueError, KeyError):
+        time_score = 7
+
+    # ── 5. 步数合理性 (0-15) ──
+    # 过少(< 3)或过多(> 8)扣分
+    n_steps = len(steps)
+    if 4 <= n_steps <= 7:
+        steps_score = 15
+    elif 3 <= n_steps <= 8:
+        steps_score = 10
+    else:
+        steps_score = 5
+
+    total = geo_score + diversity_score + coverage_score + time_score + steps_score
+    return total
+
+
+# ═══════════════════════════════════════════════════════════
+# Architecture A1: Best-of-N 多候选投票
+# ═══════════════════════════════════════════════════════════
+#
+# 动机：LLM输出方差大（同一prompt跑2次，overall可能差1-2分）。
+#       单次组装的结果是随机的"好"或"坏"。
+#       跑3次取最优 = 用计算量换稳定性。
+#
+# 方法：
+#   1. 并行调用 _llm_assemble_route 3次，分别用 temperature=0.1/0.4/0.7
+#   2. 用 _score_route_heuristic 对每条路线打分
+#   3. 返回分数最高的路线
+#
+# 预期：
+#   - 减少"倒霉"跑次的概率（3次都差的可能性远低于1次差）
+#   - overall方差从 ±1.0 降到 ±0.3
+#   - LLM调用从7-12次增加到9-14次（多2次assembler）
+#
+# 风险：
+#   - 3次并行 = 3倍assembler token消耗
+#   - 启发式评分可能与LLM评分不一致
+# ═══════════════════════════════════════════════════════════
+
+_BEST_OF_N = 3
+
+
+async def _best_of_n_assemble(
+    poi_proposals: list[dict],
+    food_proposals: list[dict],
+    hotel_proposals: list[dict],
+    traffic_proposal: dict | None,
+    intent: dict,
+    user_input: str,
+    scene_type: str,
+    expert_weights: dict,
+) -> dict | None:
+    """并行生成N条候选路线，启发式评分选最优。"""
+    temps = [0.1, 0.4, 0.7]
+
+    tasks = [
+        _llm_assemble_route(
+            poi_proposals, food_proposals, hotel_proposals,
+            traffic_proposal, intent, user_input, scene_type, expert_weights,
+            temperature=t,
+        )
+        for t in temps[:_BEST_OF_N]
+    ]
+
+    results = await asyncio.gather(*tasks, return_exceptions=True)
+
+    scored: list[tuple[float, dict]] = []
+    for route in results:
+        if route and isinstance(route, dict) and route.get("route"):
+            score = _score_route_heuristic(route, poi_proposals, food_proposals, intent)
+            scored.append((score, route))
+
+    if not scored:
+        # 全失败，返回第一个非异常结果
+        for route in results:
+            if isinstance(route, dict):
+                return route
+        return None
+
+    scored.sort(key=lambda x: x[0], reverse=True)
+    return scored[0][1]
+
+
+# ═══════════════════════════════════════════════════════════
+# Architecture A2: 地理预聚类 + TSP排序
+# ═══════════════════════════════════════════════════════════
+#
+# 动机：美食型路线geo_continuity=5（折返）。
+#       LLM在地理推理上不如算法——它能判断"近不近"，但不能精确计算距离。
+#       把地理排序交给算法，LLM只负责"选哪些"。
+#
+# 方法：
+#   1. 将所有候选POI按坐标聚类（简单k-means，k=2-3）
+#   2. 选择POI数量最多且平均质量最高的簇
+#   3. 在该簇内用最近邻TSP确定访问顺序
+#   4. 将排序后的POI列表发给LLM，让LLM只做时间分配和餐饮插入
+#
+# 预期：
+#   - geo_continuity 从 5-6 提升到 8-9（算法保证）
+#   - 可能牺牲一些POI质量（远距离的好POI被排除）
+#
+# 风险：
+#   - 过度聚类可能排除用户指定的目的地
+#   - 对目的地型场景（用户指定了"长隆"）不适用
+# ═══════════════════════════════════════════════════════════
+
+async def _geo_cluster_assemble(
+    poi_proposals: list[dict],
+    food_proposals: list[dict],
+    hotel_proposals: list[dict],
+    traffic_proposal: dict | None,
+    intent: dict,
+    user_input: str,
+    scene_type: str,
+    expert_weights: dict,
+) -> dict | None:
+    """地理预聚类：先按区域分簇，选最优簇，再用TSP排序。"""
+    # 1. 收集所有候选POI的坐标
+    all_items = []  # (name, lat, lng, content, is_food, proposal)
+    for p in poi_proposals:
+        c = p.get("content", {})
+        lat, lng = c.get("lat", 0), c.get("lng", 0)
+        if lat and lng:
+            all_items.append((c.get("name", ""), lat, lng, c, False, p))
+    for p in food_proposals:
+        c = p.get("content", {})
+        lat, lng = c.get("lat", 0), c.get("lng", 0)
+        if lat and lng:
+            all_items.append((c.get("name", ""), lat, lng, c, True, p))
+
+    if len(all_items) < 2:
+        # 太少无法聚类，回退到普通LLM
+        return await _llm_assemble_route(
+            poi_proposals, food_proposals, hotel_proposals,
+            traffic_proposal, intent, user_input, scene_type, expert_weights,
+        )
+
+    # 2. 简单距离聚类（不引入sklearn）
+    #    策略：选第一个POI为种子，把距离<5km的归为同一簇
+    clusters: list[list[int]] = []
+    assigned = set()
+    items = all_items
+
+    for i, (name, lat, lng, *_) in enumerate(items):
+        if i in assigned:
+            continue
+        cluster = [i]
+        assigned.add(i)
+        for j, (name2, lat2, lng2, *_) in enumerate(items):
+            if j in assigned:
+                continue
+            d = _haversine_km(lat, lng, lat2, lng2)
+            if d < 8:  # 8km半径内为同一区域
+                cluster.append(j)
+                assigned.add(j)
+        clusters.append(cluster)
+
+    # 3. 选择最优簇：POI数 × 平均rating
+    best_cluster = None
+    best_score = -1
+    for cluster in clusters:
+        n_items = len(cluster)
+        avg_rating = 0
+        n_rated = 0
+        for idx in cluster:
+            content = items[idx][3]
+            r = content.get("rating", 0)
+            if r:
+                avg_rating += r
+                n_rated += 1
+        avg_rating = avg_rating / n_rated if n_rated > 0 else 3.5
+        # 必须：至少有1个景点 + 1个餐厅（如果有的话）
+        has_poi = any(not items[idx][4] for idx in cluster)
+        has_food = any(items[idx][4] for idx in cluster)
+        score = n_items * avg_rating
+        if has_poi:
+            score *= 1.5
+        if has_food or not food_proposals:
+            score *= 1.3
+        if score > best_score:
+            best_score = score
+            best_cluster = cluster
+
+    if not best_cluster or len(best_cluster) < 2:
+        return await _llm_assemble_route(
+            poi_proposals, food_proposals, hotel_proposals,
+            traffic_proposal, intent, user_input, scene_type, expert_weights,
+        )
+
+    # 4. 在簇内用最近邻TSP排序
+    cluster_items = [items[idx] for idx in best_cluster]
+    ordered = [cluster_items[0]]
+    remaining = list(cluster_items[1:])
+
+    while remaining:
+        cur = ordered[-1]
+        _, cur_lat, cur_lng, *_ = cur
+        best_next = None
+        best_dist = float("inf")
+        for r in remaining:
+            _, r_lat, r_lng, *_ = r
+            d = _haversine_km(cur_lat, cur_lng, r_lat, r_lng)
+            if d < best_dist:
+                best_dist = d
+                best_next = r
+        if best_next:
+            ordered.append(best_next)
+            remaining.remove(best_next)
+        else:
+            break
+
+    # 5. 用排序后的POI构建ordered_stops，传给LLM做时间分配
+    #    这次LLM的任务更简单：只需分配时间，不需要排顺序
+    sorted_poi_list = []
+    sorted_food_list = []
+    for name, lat, lng, content, is_food, proposal in ordered:
+        entry = {
+            "name": name,
+            "category": content.get("category", ""),
+            "lat": round(lat, 3),
+            "lng": round(lng, 3),
+            "price": content.get("avg_price", 0),
+            "rating": content.get("rating", 0),
+            "tags": content.get("tags", [])[:3],
+        }
+        if is_food:
+            sorted_food_list.append(entry)
+        else:
+            sorted_poi_list.append(entry)
+
+    # 构建建议顺序
+    suggested_order = [item[0] for item in ordered]
+
+    group_type = intent.get("group", {}).get("type", "")
+    pace = intent.get("pace", "平衡型")
+    start_time = intent.get("time", {}).get("start", "09:00")
+    end_time = intent.get("time", {}).get("end", "21:00")
+    budget = intent.get("budget", {}).get("per_person", 0)
+
+    system = f"""你是旅行路线编排专家。地理排序已由算法完成，你只需分配时间。
+
+你的任务：
+1. 按建议顺序为每个POI分配到达/离开时间
+2. 标记餐厅为lunch(11:30-14:00)或dinner(17:30-20:00)
+3. 确保总行程在{start_time}-{end_time}内
+4. 不要改变POI顺序（已经是最短路径）
+
+时间节奏：
+- 上午({start_time}-12:00)：主力景点（停留60-90min）
+- 午餐(11:30-13:00)：停留50min
+- 下午(13:00-17:00)：次级景点（停留45-75min）
+- 晚餐(17:30-19:00)：停留50min
+- 傍晚/晚上：休闲收尾
+
+群体: {group_type} 节奏: {pace}
+预算: {'¥' + str(budget) if budget else '不限'}
+
+输出JSON格式：
+{{"ordered_stops":[{{"name":"景点/餐厅名","type":"poi/lunch/dinner/hotel","reason":"为什么排这里"}}],"route_design":"路线设计思路（2句话）"}}
+只输出JSON。"""
+
+    user = f"""用户需求: {user_input}
+场景类型: {scene_type}
+
+建议顺序（已按最短路径排序，不要改变）:
+{json.dumps(suggested_order, ensure_ascii=False)}
+
+景点:
+{json.dumps(sorted_poi_list, ensure_ascii=False)}
+
+餐厅:
+{json.dumps(sorted_food_list, ensure_ascii=False)}
+
+请按建议顺序分配时间。"""
+
+    result = await _llm_decide(system, user)
+    if not result or "ordered_stops" not in result:
+        # 回退：直接用ordered构建route
+        return _build_route_from_ordered_items(ordered, intent)
+
+    return _build_route_from_llm_order(result["ordered_stops"], poi_proposals, food_proposals,
+                                        hotel_proposals, intent)
+
+
+def _build_route_from_ordered_items(
+    ordered: list[tuple],
+    intent: dict,
+) -> dict:
+    """从地理排序后的items直接构建route（LLM失败时的fallback）。"""
+    start_time_str = intent.get("time", {}).get("start", "09:00")
+    try:
+        t = datetime.strptime(start_time_str, "%H:%M")
+    except ValueError:
+        t = datetime.strptime("09:00", "%H:%M")
+
+    steps = []
+    prev_lat, prev_lng = 0.0, 0.0
+    for name, lat, lng, content, is_food, proposal in ordered:
+        stay_min = 50 if is_food else int(content.get("avg_stay_min", 90))
+        travel_min = 15
+        if prev_lat and lat:
+            dist = _haversine_km(prev_lat, prev_lng, lat, lng)
+            travel_min = max(5, min(60, int(dist * 8)))
+
+        meal_type = ""
+        if is_food:
+            meal_type = "dinner" if t >= datetime.strptime("15:00", "%H:%M") else "lunch"
+
+        steps.append({
+            "poi": content,
+            "arrival_time": t.strftime("%H:%M"),
+            "departure_time": (t + timedelta(minutes=stay_min)).strftime("%H:%M"),
+            "travel_from_prev": {"distance_m": int(travel_min * 120), "time_min": travel_min},
+            "_type": meal_type,
+        })
+        t = t + timedelta(minutes=stay_min + travel_min)
+        prev_lat, prev_lng = lat, lng
+
+    steps = _dedup_route(steps)
+    steps = _enforce_time_windows(steps)
+
+    return {
+        "route": steps,
+        "total_cost": {
+            "time_min": 0,
+            "budget_used": sum(s.get("poi", {}).get("avg_price", 0) for s in steps),
+        },
+        "emotion_curve": [],
+    }
+
+
+# ═══════════════════════════════════════════════════════════
+# Architecture A3: 维度导向自精炼
+# ═══════════════════════════════════════════════════════════
+#
+# 动机：当前review/rework检查的是"提案质量"，不是"组装后的路线质量"。
+#       路线可能在组装阶段引入新问题（如地理折返、时间冲突），
+#       但这些只有在组装完成后才能发现。
+#
+# 方法：
+#   1. 先正常组装路线（调用_llm_assemble_route）
+#   2. 用启发式评分找出最弱维度
+#   3. 将弱项反馈给LLM，让它针对性改进
+#   4. 用改进后的路线替换原路线（只在分数更高时）
+#
+# 预期：
+#   - 精准修复特定维度的弱点（如geo折返、类型单一）
+#   - 只多1次LLM调用
+#
+# 风险：
+#   - LLM可能"修了A坏了B"（改了geo但破坏了时间）
+#   - 启发式评分可能与evaluator不一致
+# ═══════════════════════════════════════════════════════════
+
+async def _self_refine_assemble(
+    poi_proposals: list[dict],
+    food_proposals: list[dict],
+    hotel_proposals: list[dict],
+    traffic_proposal: dict | None,
+    intent: dict,
+    user_input: str,
+    scene_type: str,
+    expert_weights: dict,
+) -> dict | None:
+    """自精炼：先组装，再评价，再改进。"""
+    # Pass 1: 正常组装
+    route = await _llm_assemble_route(
+        poi_proposals, food_proposals, hotel_proposals,
+        traffic_proposal, intent, user_input, scene_type, expert_weights,
+    )
+    if not route or not route.get("route"):
+        return route
+
+    # 评价：找出具体问题
+    critique = _critique_route(route, poi_proposals, food_proposals, intent)
+    if not critique["issues"]:
+        return route  # 没有问题，直接返回
+
+    # Pass 2: 带反馈的改进组装
+    issue_text = "\n".join(f"- {issue}" for issue in critique["issues"])
+    strategy_hint = f"""⚠️ 上一版路线有以下问题，必须修复：
+{issue_text}
+
+请特别注意以上问题，重新编排路线。"""
+
+    refined = await _llm_assemble_route(
+        poi_proposals, food_proposals, hotel_proposals,
+        traffic_proposal, intent, user_input, scene_type, expert_weights,
+        temperature=0.1,
+        strategy_hint=strategy_hint,
+    )
+
+    if not refined or not refined.get("route"):
+        return route  # 改进失败，返回原路线
+
+    # 比较分数
+    orig_score = _score_route_heuristic(route, poi_proposals, food_proposals, intent)
+    refined_score = _score_route_heuristic(refined, poi_proposals, food_proposals, intent)
+
+    return refined if refined_score >= orig_score else route
+
+
+def _critique_route(
+    route: dict,
+    poi_proposals: list[dict],
+    food_proposals: list[dict],
+    intent: dict,
+) -> dict:
+    """纯规则critique：找出路线的具体问题。"""
+    issues: list[str] = []
+    steps = route.get("route", [])
+    if not steps:
+        return {"issues": ["路线为空"]}
+
+    # 检查1: 地理折返（相邻站点距离>10km）
+    for i in range(1, len(steps)):
+        prev = steps[i - 1].get("poi", {})
+        cur = steps[i].get("poi", {})
+        lat1, lng1 = prev.get("lat", 0), prev.get("lng", 0)
+        lat2, lng2 = cur.get("lat", 0), cur.get("lng", 0)
+        if lat1 and lat2:
+            d = _haversine_km(lat1, lng1, lat2, lng2)
+            if d > 10:
+                issues.append(
+                    f"地理折返：{prev.get('name', '?')}→{cur.get('name', '?')} "
+                    f"距离{d:.1f}km，超过10km"
+                )
+
+    # 检查2: 类型过于单一（超过60%是同一类别）
+    from collections import Counter
+    cats = [s.get("poi", {}).get("category", "") for s in steps]
+    cat_counts = Counter(cats)
+    if cat_counts:
+        top_cat, top_count = cat_counts.most_common(1)[0]
+        if top_count / len(cats) > 0.6 and len(cats) > 3:
+            issues.append(f"类型单一：{top_cat}占{top_count}/{len(cats)}，超过60%")
+
+    # 检查3: 无餐饮
+    has_food = any(
+        s.get("_type") in ("lunch", "dinner")
+        or s.get("poi", {}).get("category", "") in ("餐饮", "美食", "小吃")
+        for s in steps
+    )
+    if not has_food and food_proposals:
+        issues.append("路线无餐饮安排，应插入午餐或晚餐")
+
+    # 检查4: 超出时间窗口
+    start_str = intent.get("time", {}).get("start", "09:00")
+    end_str = intent.get("time", {}).get("end", "21:00")
+    try:
+        route_start = datetime.strptime(steps[0].get("arrival_time", "09:00"), "%H:%M")
+        route_end = datetime.strptime(steps[-1].get("departure_time", "18:00"), "%H:%M")
+        limit_start = datetime.strptime(start_str, "%H:%M")
+        limit_end = datetime.strptime(end_str, "%H:%M")
+        if route_start < limit_start:
+            issues.append(f"路线开始时间{steps[0].get('arrival_time')}早于用户要求{start_str}")
+        if route_end > limit_end:
+            issues.append(f"路线结束时间{steps[-1].get('departure_time')}晚于用户要求{end_str}")
+    except ValueError:
+        pass
+
+    # 检查5: 步数过多或过少
+    n = len(steps)
+    if n > 8:
+        issues.append(f"路线步数{n}过多，建议不超过8站")
+    elif n < 3:
+        issues.append(f"路线步数{n}过少，建议至少3站")
+
+    return {"issues": issues}
+
+
+# ═══════════════════════════════════════════════════════════
+# Architecture A4: 并行策略锦标赛
+# ═══════════════════════════════════════════════════════════
+#
+# 动机：不同场景适合不同"策略偏好"。
+#       美食型应该"类型优先"，亲子型应该"地理优先"，特种兵应该"体验优先"。
+#       与其让LLM自己平衡，不如并行跑3种策略让它们竞争。
+#
+# 方法：
+#   1. 并行运行3个LLM组装，分别注入不同策略提示：
+#      - 地理优先："最小化总路程，绝不折返"
+#      - 类型优先："最大化类别多样性，4种以上大类"
+#      - 体验优先："只选高评分POI(>=4.5)，宁缺毋滥"
+#   2. 用启发式评分选最优
+#
+# 预期：
+#   - 每种策略会在某个维度特别强
+#   - 最优策略自动适配场景
+#   - 3次LLM调用并行，不增加延迟
+#
+# 风险：
+#   - 3倍token消耗
+#   - 启发式评分可能偏向某一种策略
+# ═══════════════════════════════════════════════════════════
+
+async def _tournament_assemble(
+    poi_proposals: list[dict],
+    food_proposals: list[dict],
+    hotel_proposals: list[dict],
+    traffic_proposal: dict | None,
+    intent: dict,
+    user_input: str,
+    scene_type: str,
+    expert_weights: dict,
+) -> dict | None:
+    """并行跑3种策略，锦标赛选最优。"""
+    strategies = [
+        ("🏆 地理优先策略：最小化总路程，同区域景点连走，绝不折返。距离>10km的不要排在同一条路线。",
+         0.1),
+        ("🎯 类型优先策略：最大化类别多样性，确保覆盖景点+餐饮+文化/运动/购物等至少4种不同类型。宁可路线长一点也要保证多样性。",
+         0.3),
+        ("⭐ 体验优先策略：只选高评分POI(rating>=4.0)，宁缺毋滥。质量比数量重要，3个优质POI胜过8个平庸的。",
+         0.2),
+    ]
+
+    tasks = [
+        _llm_assemble_route(
+            poi_proposals, food_proposals, hotel_proposals,
+            traffic_proposal, intent, user_input, scene_type, expert_weights,
+            temperature=t,
+            strategy_hint=hint,
+        )
+        for hint, t in strategies
+    ]
+
+    results = await asyncio.gather(*tasks, return_exceptions=True)
+
+    scored: list[tuple[float, dict]] = []
+    for route in results:
+        if route and isinstance(route, dict) and route.get("route"):
+            score = _score_route_heuristic(route, poi_proposals, food_proposals, intent)
+            scored.append((score, route))
+
+    if not scored:
+        for route in results:
+            if isinstance(route, dict):
+                return route
+        return None
+
+    scored.sort(key=lambda x: x[0], reverse=True)
+    return scored[0][1]
+
+
+# ═══════════════════════════════════════════════════════════
+# Architecture A5: 迭代约束满足
+# ═══════════════════════════════════════════════════════════
+#
+# 动机：当前方法是"LLM一次性编排所有POI"，容易出现：
+#   - 选了太多POI导致超时
+#   - 选了太少的POI导致路线单薄
+#   - 忘记插入餐饮
+#   - 地理排序不合理
+#
+# 方法：把路线构建分解为一系列约束满足步骤：
+#   1. 锚定核心目的地（用户明确提到的/最高权重的expert推荐）
+#   2. 插入午餐（选离上午最后一个景点最近的餐厅）
+#   3. 插入晚餐（选离下午最后一个景点最近的餐厅）
+#   4. 填充上午景点（从核心目的地附近选，按距离排序）
+#   5. 填充下午景点（剩余景点，按距离排序）
+#   6. 验证约束（时间、预算、步数）
+#
+# 预期：
+#   - 路线结构更可预测
+#   - 餐饮不会遗漏
+#   - 地理顺序由算法保证
+#
+# 风险：
+#   - 不如LLM灵活（无法做"创意"安排）
+#   - 对复杂需求（如"先去长隆再去海鲜街再去情侣路"）处理不好
+#   - 不使用LLM的"审美判断"
+# ═══════════════════════════════════════════════════════════
+
+async def _constraint_assemble(
+    poi_proposals: list[dict],
+    food_proposals: list[dict],
+    hotel_proposals: list[dict],
+    traffic_proposal: dict | None,
+    intent: dict,
+    user_input: str,
+    scene_type: str,
+    expert_weights: dict,
+) -> dict | None:
+    """迭代约束满足：按规则逐步填充路线。"""
+    start_time_str = intent.get("time", {}).get("start", "09:00")
+    end_time_str = intent.get("time", {}).get("end", "21:00")
+    try:
+        t_start = datetime.strptime(start_time_str, "%H:%M")
+        t_end = datetime.strptime(end_time_str, "%H:%M")
+    except ValueError:
+        t_start = datetime.strptime("09:00", "%H:%M")
+        t_end = datetime.strptime("21:00", "%H:%M")
+
+    available_min = (t_end - t_start).total_seconds() / 60
+    group_type = intent.get("group", {}).get("type", "")
+    pace = intent.get("pace", "平衡型")
+
+    if "特种兵" in pace:
+        stay_mult = 0.7
+    elif "闲逛" in pace or "慢" in pace:
+        stay_mult = 1.3
+    else:
+        stay_mult = 1.0
+
+    # Step 1: 选锚点（最高置信度的POI）
+    poi_pool = [
+        (p, p.get("confidence", 0.5), p.get("content", {}))
+        for p in poi_proposals
+        if p.get("content", {}).get("name") and p.get("content", {}).get("lat")
+    ]
+    food_pool = [
+        (p, p.get("confidence", 0.5), p.get("content", {}))
+        for p in food_proposals
+        if p.get("content", {}).get("name") and p.get("content", {}).get("lat")
+    ]
+
+    if not poi_pool and not food_pool:
+        return await _llm_assemble_route(
+            poi_proposals, food_proposals, hotel_proposals,
+            traffic_proposal, intent, user_input, scene_type, expert_weights,
+        )
+
+    # 美食型：餐厅就是锚点
+    if scene_type == "美食型" and food_pool:
+        anchors = food_pool
+    elif poi_pool:
+        # 按confidence排序，取最高的
+        poi_pool.sort(key=lambda x: x[1], reverse=True)
+        anchors = poi_pool
+    else:
+        anchors = food_pool
+
+    # Step 2: 从锚点开始，最近邻填充
+    anchor_content = anchors[0][2]
+    anchor_lat = anchor_content.get("lat", 0)
+    anchor_lng = anchor_content.get("lng", 0)
+
+    # 所有候选（排除澳门）
+    all_candidates = []
+    for p, conf, c in poi_pool:
+        if not _is_likely_macau(c.get("name", "")):
+            all_candidates.append(("poi", c))
+    for p, conf, c in food_pool:
+        if not _is_likely_macau(c.get("name", "")):
+            all_candidates.append(("food", c))
+
+    # 最近邻排序（从锚点开始）
+    ordered: list[tuple[str, dict]] = []
+    used_names = set()
+    cur_lat, cur_lng = anchor_lat, anchor_lng
+    remaining = list(all_candidates)
+
+    while remaining:
+        best = None
+        best_dist = float("inf")
+        for item_type, content in remaining:
+            name = content.get("name", "")
+            canon = _canonical_name(name)
+            if canon in used_names:
+                continue
+            lat, lng = content.get("lat", 0), content.get("lng", 0)
+            if not lat:
+                continue
+            d = _haversine_km(cur_lat, cur_lng, lat, lng)
+            if d < best_dist:
+                best_dist = d
+                best = (item_type, content)
+        if best is None:
+            break
+        ordered.append(best)
+        name = best[1].get("name", "")
+        used_names.add(_canonical_name(name))
+        remaining = [(t, c) for t, c in remaining if _canonical_name(c.get("name", "")) not in used_names]
+        cur_lat = best[1].get("lat", cur_lat)
+        cur_lng = best[1].get("lng", cur_lng)
+
+    # Step 3: 构建route，自动插入餐食标记
+    t = t_start
+    steps = []
+    prev_lat, prev_lng = 0.0, 0.0
+    total_budget = 0
+    budget_limit = intent.get("budget", {}).get("per_person", 0)
+
+    for item_type, content in ordered:
+        lat = content.get("lat", 0)
+        lng = content.get("lng", 0)
+        stay_min = 50 if item_type == "food" else int(content.get("avg_stay_min", 90) * stay_mult)
+        travel_min = 15
+        if prev_lat and lat:
+            dist = _haversine_km(prev_lat, prev_lng, lat, lng)
+            travel_min = max(5, min(60, int(dist * 8)))
+
+        arrival = t + timedelta(minutes=travel_min)
+        if arrival >= t_end:
+            break  # 超时，停止
+
+        departure = arrival + timedelta(minutes=stay_min)
+        price = content.get("avg_price", 0)
+        if budget_limit and total_budget + price > budget_limit * 1.2:
+            continue  # 超预算，跳过
+
+        meal_type = ""
+        if item_type == "food":
+            meal_type = "dinner" if arrival >= datetime.strptime("15:00", "%H:%M") else "lunch"
+
+        steps.append({
+            "poi": content,
+            "arrival_time": arrival.strftime("%H:%M"),
+            "departure_time": departure.strftime("%H:%M"),
+            "travel_from_prev": {"distance_m": int(travel_min * 120), "time_min": travel_min},
+            "_type": meal_type,
+        })
+        t = departure
+        prev_lat, prev_lng = lat or prev_lat, lng or prev_lng
+        total_budget += price
+
+    # 确保有餐饮
+    has_food = any(s.get("_type") in ("lunch", "dinner") for s in steps)
+    if not has_food and food_pool:
+        # 插入最近的餐厅到合适位置
+        best_food = None
+        best_score = -1
+        for _, _, c in food_pool:
+            score = c.get("rating", 0)
+            if best_food is None or score > best_score:
+                best_score = score
+                best_food = c
+        if best_food:
+            insert_idx = min(2, len(steps))
+            if insert_idx < len(steps):
+                prev = steps[insert_idx - 1]
+                try:
+                    food_time = datetime.strptime(prev["departure_time"], "%H:%M") + timedelta(minutes=15)
+                except ValueError:
+                    food_time = datetime.strptime("12:00", "%H:%M")
+            else:
+                food_time = t + timedelta(minutes=15)
+
+            meal_type = "dinner" if food_time >= datetime.strptime("15:00", "%H:%M") else "lunch"
+            steps.insert(insert_idx, {
+                "poi": best_food,
+                "arrival_time": food_time.strftime("%H:%M"),
+                "departure_time": (food_time + timedelta(minutes=50)).strftime("%H:%M"),
+                "travel_from_prev": {"distance_m": 1500, "time_min": 15},
+                "_type": meal_type,
+            })
+
+    if not steps:
+        return await _llm_assemble_route(
+            poi_proposals, food_proposals, hotel_proposals,
+            traffic_proposal, intent, user_input, scene_type, expert_weights,
+        )
+
+    steps = _dedup_route(steps)
+    steps = _enforce_time_windows(steps)
+
+    return {
+        "route": steps,
+        "total_cost": {
+            "time_min": 0,
             "budget_used": sum(s.get("poi", {}).get("avg_price", 0) for s in steps),
         },
         "emotion_curve": [],
@@ -891,12 +1762,43 @@ async def synthesizer(state: TravelState) -> dict:
         errors.append("无有效POI提案")
         return {"route": None, "narrative": None, "errors": errors}
 
-    # LLM编排
-    route = await _llm_assemble_route(
-        poi_proposals, food_proposals, hotel_proposals,
-        traffic_proposal, intent, state.get("user_input", ""),
-        scene_type, expert_weights,
-    )
+    # LLM编排 —— 根据SYNTHESIZER_MODE选择架构
+    if SYNTHESIZER_MODE == "best_of_n":
+        route = await _best_of_n_assemble(
+            poi_proposals, food_proposals, hotel_proposals,
+            traffic_proposal, intent, state.get("user_input", ""),
+            scene_type, expert_weights,
+        )
+    elif SYNTHESIZER_MODE == "geo_cluster":
+        route = await _geo_cluster_assemble(
+            poi_proposals, food_proposals, hotel_proposals,
+            traffic_proposal, intent, state.get("user_input", ""),
+            scene_type, expert_weights,
+        )
+    elif SYNTHESIZER_MODE == "self_refine":
+        route = await _self_refine_assemble(
+            poi_proposals, food_proposals, hotel_proposals,
+            traffic_proposal, intent, state.get("user_input", ""),
+            scene_type, expert_weights,
+        )
+    elif SYNTHESIZER_MODE == "tournament":
+        route = await _tournament_assemble(
+            poi_proposals, food_proposals, hotel_proposals,
+            traffic_proposal, intent, state.get("user_input", ""),
+            scene_type, expert_weights,
+        )
+    elif SYNTHESIZER_MODE == "constraint":
+        route = await _constraint_assemble(
+            poi_proposals, food_proposals, hotel_proposals,
+            traffic_proposal, intent, state.get("user_input", ""),
+            scene_type, expert_weights,
+        )
+    else:
+        route = await _llm_assemble_route(
+            poi_proposals, food_proposals, hotel_proposals,
+            traffic_proposal, intent, state.get("user_input", ""),
+            scene_type, expert_weights,
+        )
 
     if not route or not route.get("route"):
         route = _fallback_assemble(proposals, intent)
