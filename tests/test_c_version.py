@@ -111,7 +111,7 @@ async def llm_score(user_input: str, route_text: str) -> dict | None:
                         "model": MODEL,
                         "max_tokens": 2000,
                         "messages": [{"role": "user", "content": prompt}],
-                        "temperature": 0.1,
+                        "temperature": 0,  # 贪婪解码，保证评估确定性
                         "response_format": {"type": "json_object"},
                     },
                 )
@@ -138,7 +138,12 @@ async def llm_score(user_input: str, route_text: str) -> dict | None:
                         return None
                 vals = list(scores.values())
                 if len(set(vals)) == 1 and len(vals) > 1:
-                    return None
+                    # 全同分数：可能是LLM偷懒，但也可能是合理评分
+                    # 如果分数>=7则保留（均匀好路线是合理的），否则重试
+                    if all(v >= 7 for v in vals):
+                        pass  # 全7或全8是合理的，保留
+                    else:
+                        continue  # 可能是偷懒，触发重试
 
                 return {
                     "scores": scores,

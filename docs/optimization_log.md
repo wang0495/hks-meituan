@@ -167,3 +167,33 @@ SYNTHESIZER_MODE=self_refine python tests/test_c_version.py
 SYNTHESIZER_MODE=tournament python tests/test_c_version.py
 SYNTHESIZER_MODE=constraint python tests/test_c_version.py
 ```
+
+---
+
+## 开源架构研究摘要
+
+参考了6个方向的学术研究和开源项目：
+
+### 最相关：Google Research LLM+Optimizer混合方案
+- **论文**: Personal Travel Solver (ACL 2025), Google Research Blog
+- **核心**: LLM生成初始路线 → 优化器修正约束违规 → 输出可行路线
+- **关键创新**: 分数函数 = "与LLM初始方案的相似度 × 可行性"，负面约束权重是正面的2倍
+- **PTS通过率96.6%** vs GPT-4o直接规划0.4%
+- **对我们的启示**: 当前synthesizer的LLM输出直接作为最终路线，缺少约束修正环节
+
+### 其他参考方向
+- **MCTS+自精炼**: 适用于复杂约束场景，但计算成本高（10-50次LLM调用）
+- **MoE Chamber**: 分层专家室（美食室、景点室），按领域路由而非扁平列表
+- **Multi-agent辩论+投票**: 投票协议在推理任务中提升13.2%，群体多样性比结构更重要
+- **Graph of Thoughts (GoT)**: DAG结构支持中间结果融合，表达能力最强但复杂度高
+- **LangGraph并行fan-out**: 类似当前架构，但缺少迭代细化
+
+### 评估器改进发现
+- **temperature=0.1 → 0**: DeepSeek API支持贪婪解码，消除评估方差源
+- **"全同分数"过滤过于激进**: 全7/全8可能是合理的均匀好路线，不应丢弃
+- **混合评估策略**: 日常CI用纯规则（零成本、确定性），发布前用LLM抽查
+
+### POI数据层面
+- "景点"(335个)实际包含5种不同体验，但evaluator只看到1种 → scene_diversity系统性低分
+- 已创建enrichment脚本拆分为: 自然风光/海滨景点/文化景点/亲子游乐/夜景地标/地标景点
+- 预期diversity从3种category提升到5-6种
