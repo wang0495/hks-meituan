@@ -78,7 +78,7 @@ from backend.agents_v3.state import TravelState, AGENT_META, sse_emit
 # "self_refine": 维度导向自精炼
 # "tournament": 并行策略锦标赛
 # "constraint": 迭代约束满足
-SYNTHESIZER_MODE = os.getenv("SYNTHESIZER_MODE", "default")
+SYNTHESIZER_MODE = os.getenv("SYNTHESIZER_MODE", "tournament")
 
 
 # ── 名称去重组 ──
