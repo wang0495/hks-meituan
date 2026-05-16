@@ -78,6 +78,8 @@ from backend.agents_v3.state import TravelState, AGENT_META, sse_emit
 # "self_refine": 维度导向自精炼
 # "tournament": 并行策略锦标赛
 # "constraint": 迭代约束满足
+# "pts": Google PTS — LLM选点+算法排序
+# "tournament_geo": Tournament + GoT地理预合并
 SYNTHESIZER_MODE = os.getenv("SYNTHESIZER_MODE", "tournament")
 
 
@@ -1633,6 +1635,143 @@ async def _pts_assemble(
 
 
 # ═══════════════════════════════════════════════════════════
+# Architecture A7: Tournament + GoT地理预合并
+# ═══════════════════════════════════════════════════════════
+#
+# 动机：参考Graph of Thoughts(GoT)的"中间结果融合"思路：
+#   - 当前poi_expert和food_expert各选各的，synthesizer才合并
+#   - 如果先按地理位置把POI+Food配对成"地理组"，再喂给LLM
+#   - LLM能更清楚地看到"这几个在同一区域，应该连排"
+#   - 同时剔除距离主cluster太远的离群POI
+#
+# 方法：
+#   1. 对所有proposals做DBSCAN式聚类（按坐标）
+#   2. 选最大的cluster（POI+Food最多的）
+#   3. 剔除不在主cluster的离群POI
+#   4. 在cluster内按地理位置给food分配"推荐插入位置"
+#   5. 喂给tournament的3条策略（只改输入，不改LLM prompt）
+#
+# 优势：
+#   - 消除跨区POI，geo_continuity天然好
+#   - LLM只需要在同一区域内做微调排序
+#   - 不增加LLM调用次数
+#
+# 风险：
+#   - 过度剔除可能导致POI太少
+#   - 美食型场景POI分散是正常的，不应强制聚类
+# ═══════════════════════════════════════════════════════════
+
+
+def _geo_cluster_proposals(
+    poi_proposals: list[dict],
+    food_proposals: list[dict],
+    radius_km: float = 8.0,
+) -> tuple[list[dict], list[dict]]:
+    """GoT地理预合并：按坐标聚类，只保留最大cluster的proposals。
+
+    返回过滤后的(poi_proposals, food_proposals)。
+    """
+    all_items = []
+    for p in poi_proposals:
+        c = p.get("content", {})
+        if c.get("lat") and c.get("lng"):
+            all_items.append(("poi", p, c["lat"], c["lng"]))
+    for p in food_proposals:
+        c = p.get("content", {})
+        if c.get("lat") and c.get("lng"):
+            all_items.append(("food", p, c["lat"], c["lng"]))
+
+    if len(all_items) <= 3:
+        return poi_proposals, food_proposals  # 太少，不过滤
+
+    # 简单单链接聚类
+    n = len(all_items)
+    cluster_id = list(range(n))
+
+    def find(x):
+        while cluster_id[x] != x:
+            cluster_id[x] = cluster_id[cluster_id[x]]
+            x = cluster_id[x]
+        return x
+
+    def union(a, b):
+        ra, rb = find(a), find(b)
+        if ra != rb:
+            cluster_id[ra] = rb
+
+    for i in range(n):
+        for j in range(i + 1, n):
+            d = _haversine_km(all_items[i][2], all_items[i][3], all_items[j][2], all_items[j][3])
+            if d <= radius_km:
+                union(i, j)
+
+    # 找最大cluster
+    from collections import Counter
+    clusters = Counter(find(i) for i in range(n))
+    biggest_root = clusters.most_common(1)[0][0]
+    biggest_size = clusters.most_common(1)[0][1]
+
+    # 如果最大cluster太小（<40%），不过滤
+    if biggest_size < len(all_items) * 0.4:
+        return poi_proposals, food_proposals
+
+    # 保留最大cluster的proposals
+    filtered_poi = []
+    filtered_food = []
+    for i, (kind, prop, lat, lng) in enumerate(all_items):
+        if find(i) == biggest_root:
+            if kind == "poi":
+                filtered_poi.append(prop)
+            else:
+                filtered_food.append(prop)
+
+    # 确保不会全过滤掉
+    if not filtered_poi and not filtered_food:
+        return poi_proposals, food_proposals
+
+    # 补回被过滤掉的（如果结果太少，保留至少原始的60%）
+    min_keep = max(2, int(len(poi_proposals) * 0.6))
+    if len(filtered_poi) < min_keep:
+        # 按距离主cluster中心的距离排序，补回最近的
+        center_lat = sum(all_items[i][2] for i in range(n) if find(i) == biggest_root) / biggest_size
+        center_lng = sum(all_items[i][3] for i in range(n) if find(i) == biggest_root) / biggest_size
+        remaining = [(p, _haversine_km(center_lat, center_lng, p.get("content", {}).get("lat", 0), p.get("content", {}).get("lng", 0)))
+                     for p in poi_proposals if p not in filtered_poi and p.get("content", {}).get("lat")]
+        remaining.sort(key=lambda x: x[1])
+        for p, d in remaining:
+            if len(filtered_poi) >= min_keep:
+                break
+            if d < radius_km * 2:  # 不要太远的
+                filtered_poi.append(p)
+
+    return filtered_poi, filtered_food
+
+
+async def _tournament_geo_assemble(
+    poi_proposals: list[dict],
+    food_proposals: list[dict],
+    hotel_proposals: list[dict],
+    traffic_proposal: dict | None,
+    intent: dict,
+    user_input: str,
+    scene_type: str,
+    expert_weights: dict,
+) -> dict | None:
+    """Tournament + GoT地理预合并：先聚类过滤，再跑tournament。"""
+    # 美食型不过滤——餐厅分散是正常的
+    if scene_type == "美食型":
+        filtered_poi, filtered_food = poi_proposals, food_proposals
+    else:
+        filtered_poi, filtered_food = _geo_cluster_proposals(poi_proposals, food_proposals)
+
+    # 复用tournament逻辑
+    return await _tournament_assemble(
+        filtered_poi, filtered_food, hotel_proposals,
+        traffic_proposal, intent, user_input, scene_type, expert_weights,
+    )
+
+
+# ═══════════════════════════════════════════════════════════
 # Architecture A5: 迭代约束满足
 # ═══════════════════════════════════════════════════════════
 #
@@ -2036,6 +2175,12 @@ async def synthesizer(state: TravelState) -> dict:
         )
     elif SYNTHESIZER_MODE == "pts":
         route = await _pts_assemble(
+            poi_proposals, food_proposals, hotel_proposals,
+            traffic_proposal, intent, state.get("user_input", ""),
+            scene_type, expert_weights,
+        )
+    elif SYNTHESIZER_MODE == "tournament_geo":
+        route = await _tournament_geo_assemble(
             poi_proposals, food_proposals, hotel_proposals,
             traffic_proposal, intent, state.get("user_input", ""),
             scene_type, expert_weights,
