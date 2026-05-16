@@ -153,12 +153,13 @@ async def llm_score(user_input: str, route_text: str) -> dict | None:
 
 
 def format_route(route_steps: list[dict]) -> str:
-    """格式化路线供LLM评估。"""
+    """格式化路线供LLM评估。使用_display_category（更细粒度的分类）提升evaluator对diversity的感知。"""
     lines = []
     for i, step in enumerate(route_steps, 1):
         poi = step.get("poi", {})
         name = poi.get("name", "?")
-        cat = poi.get("category", "?")
+        # 使用_display_category（如果存在），否则回退到category
+        cat = poi.get("_display_category") or poi.get("category", "?")
         price = poi.get("avg_price", 0)
         tags = poi.get("_scene_tags", [])
         arrive = step.get("arrival_time", "?")
