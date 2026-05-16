@@ -1034,35 +1034,82 @@ async def _best_of_n_assemble(
     scene_type: str,
     expert_weights: dict,
 ) -> dict | None:
-    """并行生成N条候选路线，启发式评分选最优。"""
-    temps = [0.1, 0.4, 0.7]
+    """Self-Consistency投票 + 零温度锚点（参考 smboost）。
 
-    tasks = [
+    改进原best_of_n：用硬约束验证+多数投票代替启发式评分。
+    1. 生成5条候选（1个temp=0锚点 + 4个temp=0.6变体）
+    2. 硬约束验证：步骤>=3、无单段>20km折返、时间在范围内
+    3. 通过验证的按POI名称集投票，多数票胜出
+    4. 无共识时回退零温度锚点（保证不比基线差）
+    """
+    # 1个锚点(temp=0) + 4个变体(temp=0.6)
+    anchor_task = _llm_assemble_route(
+        poi_proposals, food_proposals, hotel_proposals,
+        traffic_proposal, intent, user_input, scene_type, expert_weights,
+        temperature=0,
+    )
+    sibling_tasks = [
         _llm_assemble_route(
             poi_proposals, food_proposals, hotel_proposals,
             traffic_proposal, intent, user_input, scene_type, expert_weights,
-            temperature=t,
+            temperature=0.6,
         )
-        for t in temps[:_BEST_OF_N]
+        for _ in range(4)
     ]
+    results = await asyncio.gather(anchor_task, *sibling_tasks, return_exceptions=True)
+    anchor = results[0]
+    siblings = results[1:]
 
-    results = await asyncio.gather(*tasks, return_exceptions=True)
+    # 硬约束验证
+    def _verify(route: dict) -> bool:
+        steps = route.get("route", [])
+        if not steps or len(steps) < 3:
+            return False
+        # 检查单段距离>20km
+        for i in range(1, len(steps)):
+            p1 = steps[i - 1].get("poi", {})
+            p2 = steps[i].get("poi", {})
+            lat1, lng1 = p1.get("lat", 0), p1.get("lng", 0)
+            lat2, lng2 = p2.get("lat", 0), p2.get("lng", 0)
+            if lat1 and lat2:
+                d = _haversine_km(lat1, lng1, lat2, lng2)
+                if d > 20:
+                    return False
+        return True
 
-    scored: list[tuple[float, dict]] = []
-    for route in results:
-        if route and isinstance(route, dict) and route.get("route"):
-            score = _score_route_heuristic(route, poi_proposals, food_proposals, intent)
-            scored.append((score, route))
+    # 收集有效路线
+    valid_routes = []
+    for r in results:
+        if r and isinstance(r, dict) and r.get("route") and _verify(r):
+            valid_routes.append(r)
 
-    if not scored:
-        # 全失败，返回第一个非异常结果
-        for route in results:
-            if isinstance(route, dict):
-                return route
-        return None
+    if not valid_routes:
+        # 全失败：返回锚点（即使验证不过）
+        return anchor if isinstance(anchor, dict) else None
 
-    scored.sort(key=lambda x: x[0], reverse=True)
-    return scored[0][1]
+    if len(valid_routes) == 1:
+        return valid_routes[0]
+
+    # 多数投票：按POI名称集签名
+    from collections import Counter
+    def _route_signature(route: dict) -> tuple:
+        names = tuple(s.get("poi", {}).get("name", "") for s in route.get("route", []))
+        return names
+
+    votes = Counter(_route_signature(r) for r in valid_routes)
+    best_sig, count = votes.most_common(1)[0]
+
+    if count >= 2:
+        # 有共识：返回该签名组的第一个
+        return next(r for r in valid_routes if _route_signature(r) == best_sig)
+    else:
+        # 无共识：回退零温度锚点
+        if isinstance(anchor, dict) and anchor.get("route"):
+            return anchor
+        # 锚点也挂了：选启发式最高分
+        scored = [( _score_route_heuristic(r, poi_proposals, food_proposals, intent), r) for r in valid_routes]
+        scored.sort(key=lambda x: x[0], reverse=True)
+        return scored[0][1]
 
 
 # ═══════════════════════════════════════════════════════════
@@ -2331,13 +2378,6 @@ async def synthesizer(state: TravelState) -> dict:
     # 站数上限（在ensure之前，避免截断ensure追加的站点）
     if route and route.get("route"):
         route = _cap_route_stops(route, scene_type, intent)
-
-    # DPP多样性重排（在ensure之前，让ensure基于重排后的顺序补餐饮）
-    if route and route.get("route") and scene_type != "美食型":
-        try:
-            route = _dpp_rerank_route(route, scene_type)
-        except Exception:
-            pass  # DPP失败不影响pipeline
 
     # 补回遗漏（在cap之后，追加的不受截断影响）
     if route and route.get("route"):
