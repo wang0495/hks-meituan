@@ -250,3 +250,62 @@ SYNTHESIZER_MODE=constraint python tests/test_c_version.py
 - **POI enrichment有效** — diversity从之前的~5.0提升到5.6
 - **全qwen不可行** — intent解析需要DeepSeek级别模型
 - **diversity仍有天花板** — 即使有enrichment，5.6已经是数据能撑到的上限
+
+---
+
+## 第三轮优化：开源架构落地实验 (2026-05-16)
+
+### 实验1: A6 PTS — LLM选点+算法排序
+
+参考Google PTS论文(ACL 2025)的核心发现：LLM擅长理解偏好但不擅长硬约束，应该分工。
+
+实现：
+- `_pts_select_pois`: LLM只输出POI名称列表（无序），不排顺序、不分配时间
+- `_nearest_neighbor_tsp`: 最近邻贪心TSP排序
+- `_insert_food_by_geo`: 按地理距离将餐饮插入到最近POI旁边
+- `_pts_assemble`: 串起全流程
+
+| 指标 | baseline(tournament) | PTS | 变化 |
+|------|---------------------|-----|------|
+| 通过 | 2/5 | **3/5** | +1 |
+| overall | 6.2 | **6.4** | +0.2 |
+| intent | 7.0 | **7.4** | +0.4 |
+| poi | 6.4 | **6.6** | +0.2 |
+| geo | **7.8** | 7.0 | -0.8 |
+| diversity | 4.6 | **5.8** | **+1.2** |
+
+**PTS创造了diversity历史最高(5.8)**。LLM只做"选择"时天然倾向选不同类型的POI。
+但geo掉了——最近邻TSP不如LLM的地理直觉（LLM能感知"这个景点应该排在上午"等语义信息）。
+
+结论：PTS的选点策略有价值，但排序需要更强算法或保留LLM。
+
+### 实验2: A7 Tournament+GoT地理预合并
+
+参考Graph of Thoughts的"中间结果融合"思路：在tournament之前对POI+Food做地理聚类，剔除离群。
+
+实现：
+- `_geo_cluster_proposals`: 单链接聚类(8km半径)，保留最大cluster
+- `_tournament_geo_assemble`: 过滤后复用tournament逻辑
+
+| 指标 | baseline(tournament) | tournament_geo | 变化 |
+|------|---------------------|----------------|------|
+| 通过 | 2/5 | 2/5 | 持平 |
+| overall | 6.2 | **6.4** | +0.2 |
+| geo | **7.8** | 6.6 | **-1.2** |
+| diversity | 4.6 | **5.4** | +0.8 |
+
+结论：**地理预合并没有帮助geo**。剔除离群POI后，cluster内仍有距离跨度（8km半径内各点可能分散）。而且某些被剔除的POI恰好是高质量POI。
+
+### LLM方差问题持续
+
+同一架构(A4 tournament)多次测试波动巨大：
+- 5/5 (overall 7.0) → 2/5 (overall 6.2) → 4/5 (overall 6.8)
+- 根因：pipeline LLM温度0.1导致POI选择不同 → 路线不同 → 分数波动±1分
+- 及格线6.5恰好卡在波动区间(6-7)中间
+
+### 后续方向
+
+最有前景的组合：**PTS的选点策略 + tournament的多策略竞争**
+- LLM只选POI子集（不排序），最大化diversity
+- 3种算法策略并行排序（TSP/时间窗优先/体验优先），选geo最优的
+- 消除LLM排序的方差，保留LLM选择的优势
