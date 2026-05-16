@@ -187,17 +187,23 @@ async def _llm_decide(
     """Call LLM for a decision, returning structured JSON output.
 
     prefix controls which env vars to read for model/client selection.
+    Uses Instructor-style error-informed retry: on failure, feeds the
+    specific error back to the LLM so it can correct its output.
     """
     client = _get_llm_client(prefix)
     model = _llm_model(prefix)
     is_ds = _is_deepseek(prefix)
+    error_feedback = ""
     for attempt in range(retries):
         try:
+            user_content = user_prompt
+            if error_feedback:
+                user_content += f"\n\n【上次输出有误，请修正】\n{error_feedback}\n请重新输出正确的JSON。"
             kwargs: dict = dict(
                 model=model,
                 messages=[
                     {"role": "system", "content": system_prompt + "\n你必须输出合法JSON。"},
-                    {"role": "user", "content": user_prompt},
+                    {"role": "user", "content": user_content},
                 ],
                 temperature=temperature,
             )
@@ -212,12 +218,20 @@ async def _llm_decide(
             result = _extract_json(text)
             # Ensure list items are dicts (LLM sometimes returns
             # {"picks": ["name"]} instead of {"picks": [{"name": "name"}]})
+            bad_keys = []
             for key in ("picks", "issues", "ordered_stops"):
                 items = result.get(key)
                 if isinstance(items, list):
+                    before = len(items)
                     result[key] = [i for i in items if isinstance(i, dict)]
-            return result
-        except Exception:
+                    if len(result[key]) < before:
+                        bad_keys.append(f"{key}: 列表中有{before - len(result[key])}个非dict元素被过滤")
+            if bad_keys:
+                error_feedback = "JSON结构问题: " + "; ".join(bad_keys)
+            else:
+                return result
+        except Exception as e:
+            error_feedback = f"解析失败: {str(e)[:200]}"
             if attempt < retries - 1:
                 await asyncio.sleep(1)
     return None
