@@ -1,0 +1,1220 @@
+[
+  {
+    "id": "missing_001",
+    "name": "珠海长隆宇宙飞船",
+    "city": "珠海",
+    "category": "科技体验",
+    "rating": 4.7,
+    "avg_price": 395,
+    "lat": 22.0960,
+    "lng": 113.5300,
+    "business_hours": "10:00-18:00",
+    "tags": ["太空", "室内乐园", "虎鲸", "科普", "亲子"],
+    "queue_prone": true,
+    "avg_stay_min": 360,
+    "emotion_tags": {
+      "excitement": 0.9,
+      "tranquility": 0.2,
+      "sociability": 0.7,
+      "culture_depth": 0.5,
+      "surprise": 0.85,
+      "physical_demand": 0.4
+    },
+    "constraints": {
+      "accessible": true,
+      "pet_friendly": false,
+      "queue_time_min": 30,
+      "opening_hours": "10:00-18:00",
+      "has_restroom": true
+    }
+  },
+  {
+    "id": "missing_002",
+    "name": "横琴狮门娱乐天地",
+    "city": "珠海",
+    "category": "科技体验",
+    "rating": 4.3,
+    "avg_price": 123,
+    "lat": 22.1120,
+    "lng": 113.5180,
+    "business_hours": "11:00-19:00",
+    "tags": ["电影主题", "VR体验", "室内", "互动", "亲子"],
+    "queue_prone": false,
+    "avg_stay_min": 180,
+    "emotion_tags": {
+      "excitement": 0.85,
+      "tranquility": 0.2,
+      "sociability": 0.6,
+      "culture_depth": 0.3,
+      "surprise": 0.8,
+      "physical_demand": 0.3
+    },
+    "constraints": {
+      "accessible": true,
+      "pet_friendly": false,
+      "queue_time_min": 10,
+      "opening_hours": "11:00-19:00",
+      "has_restroom": true
+    }
+  },
+  {
+    "id": "missing_003",
+    "name": "横琴国家地理探险家中心",
+    "city": "珠海",
+    "category": "科技体验",
+    "rating": 4.4,
+    "avg_price": 105,
+    "lat": 22.1120,
+    "lng": 113.5180,
+    "business_hours": "10:00-18:00",
+    "tags": ["探险", "科普", "自然教育", "亲子", "互动体验"],
+    "queue_prone": false,
+    "avg_stay_min": 180,
+    "emotion_tags": {
+      "excitement": 0.75,
+      "tranquility": 0.3,
+      "sociability": 0.6,
+      "culture_depth": 0.6,
+      "surprise": 0.7,
+      "physical_demand": 0.4
+    },
+    "constraints": {
+      "accessible": true,
+      "pet_friendly": false,
+      "queue_time_min": 10,
+      "opening_hours": "10:00-18:00",
+      "has_restroom": true
+    }
+  },
+  {
+    "id": "missing_004",
+    "name": "横琴紫檀博物馆",
+    "city": "珠海",
+    "category": "文化景点",
+    "rating": 4.2,
+    "avg_price": 50,
+    "lat": 22.1150,
+    "lng": 113.5150,
+    "business_hours": "09:00-17:00",
+    "tags": ["紫檀", "传统工艺", "博物馆", "文化", "雕刻"],
+    "queue_prone": false,
+    "avg_stay_min": 120,
+    "emotion_tags": {
+      "excitement": 0.3,
+      "tranquility": 0.7,
+      "sociability": 0.3,
+      "culture_depth": 0.9,
+      "surprise": 0.5,
+      "physical_demand": 0.2
+    },
+    "constraints": {
+      "accessible": true,
+      "pet_friendly": false,
+      "queue_time_min": 0,
+      "opening_hours": "09:00-17:00",
+      "has_restroom": true
+    }
+  },
+  {
+    "id": "missing_005",
+    "name": "汤臣倍健透明工厂",
+    "city": "珠海",
+    "category": "科技体验",
+    "rating": 4.1,
+    "avg_price": 0,
+    "lat": 22.0680,
+    "lng": 113.3650,
+    "business_hours": "09:00-17:00",
+    "tags": ["工业旅游", "科普", "透明工厂", "营养学", "AAAA景区"],
+    "queue_prone": false,
+    "avg_stay_min": 120,
+    "emotion_tags": {
+      "excitement": 0.4,
+      "tranquility": 0.4,
+      "sociability": 0.4,
+      "culture_depth": 0.5,
+      "surprise": 0.6,
+      "physical_demand": 0.2
+    },
+    "constraints": {
+      "accessible": true,
+      "pet_friendly": false,
+      "queue_time_min": 0,
+      "opening_hours": "09:00-17:00",
+      "has_restroom": true
+    }
+  },
+  {
+    "id": "missing_006",
+    "name": "罗西尼工业旅游园区",
+    "city": "珠海",
+    "category": "科技体验",
+    "rating": 4.0,
+    "avg_price": 0,
+    "lat": 22.3500,
+    "lng": 113.5500,
+    "business_hours": "09:00-16:30",
+    "tags": ["钟表", "工业旅游", "博物馆", "AAAA景区", "制造工艺"],
+    "queue_prone": false,
+    "avg_stay_min": 90,
+    "emotion_tags": {
+      "excitement": 0.3,
+      "tranquility": 0.5,
+      "sociability": 0.3,
+      "culture_depth": 0.7,
+      "surprise": 0.5,
+      "physical_demand": 0.2
+    },
+    "constraints": {
+      "accessible": true,
+      "pet_friendly": false,
+      "queue_time_min": 0,
+      "opening_hours": "09:00-16:30",
+      "has_restroom": true
+    }
+  },
+  {
+    "id": "missing_007",
+    "name": "横琴二井湾湿地公园",
+    "city": "珠海",
+    "category": "自然风光",
+    "rating": 4.3,
+    "avg_price": 0,
+    "lat": 22.1350,
+    "lng": 113.5000,
+    "business_hours": "09:00-18:00",
+    "tags": ["湿地", "红树林", "生态岛", "咸水沼泽", "预约"],
+    "queue_prone": false,
+    "avg_stay_min": 120,
+    "emotion_tags": {
+      "excitement": 0.25,
+      "tranquility": 0.9,
+      "sociability": 0.3,
+      "culture_depth": 0.3,
+      "surprise": 0.4,
+      "physical_demand": 0.25
+    },
+    "constraints": {
+      "accessible": true,
+      "pet_friendly": false,
+      "queue_time_min": 0,
+      "opening_hours": "09:00-18:00",
+      "has_restroom": true
+    }
+  },
+  {
+    "id": "missing_008",
+    "name": "珠海白石桥观景台",
+    "city": "珠海",
+    "category": "观景地标",
+    "rating": 4.2,
+    "avg_price": 0,
+    "lat": 22.2250,
+    "lng": 113.5300,
+    "business_hours": "00:00-23:59",
+    "tags": ["网红打卡", "夜景", "桥梁", "前山河", "日落"],
+    "queue_prone": false,
+    "avg_stay_min": 45,
+    "emotion_tags": {
+      "excitement": 0.4,
+      "tranquility": 0.6,
+      "sociability": 0.6,
+      "culture_depth": 0.2,
+      "surprise": 0.4,
+      "physical_demand": 0.15
+    },
+    "constraints": {
+      "accessible": true,
+      "pet_friendly": true,
+      "queue_time_min": 0,
+      "opening_hours": "00:00-23:59",
+      "has_restroom": false
+    }
+  },
+  {
+    "id": "missing_009",
+    "name": "景山公园观景台",
+    "city": "珠海",
+    "category": "观景地标",
+    "rating": 4.7,
+    "avg_price": 75,
+    "lat": 22.2705,
+    "lng": 113.5772,
+    "business_hours": "09:00-20:00",
+    "tags": ["360度全景", "缆车", "滑道", "珠海最佳观景", "日落"],
+    "queue_prone": true,
+    "avg_stay_min": 120,
+    "emotion_tags": {
+      "excitement": 0.7,
+      "tranquility": 0.5,
+      "sociability": 0.6,
+      "culture_depth": 0.2,
+      "surprise": 0.7,
+      "physical_demand": 0.3
+    },
+    "constraints": {
+      "accessible": true,
+      "pet_friendly": false,
+      "queue_time_min": 15,
+      "opening_hours": "09:00-20:00",
+      "has_restroom": true
+    }
+  },
+  {
+    "id": "missing_010",
+    "name": "珠海普陀寺",
+    "city": "珠海",
+    "category": "文化景点",
+    "rating": 4.3,
+    "avg_price": 0,
+    "lat": 22.2900,
+    "lng": 113.5300,
+    "business_hours": "08:00-17:30",
+    "tags": ["佛教", "古建筑", "皇家园林", "素斋", "清净"],
+    "queue_prone": false,
+    "avg_stay_min": 90,
+    "emotion_tags": {
+      "excitement": 0.15,
+      "tranquility": 0.9,
+      "sociability": 0.3,
+      "culture_depth": 0.8,
+      "surprise": 0.3,
+      "physical_demand": 0.3
+    },
+    "constraints": {
+      "accessible": true,
+      "pet_friendly": false,
+      "queue_time_min": 0,
+      "opening_hours": "08:00-17:30",
+      "has_restroom": true
+    }
+  },
+  {
+    "id": "missing_011",
+    "name": "会同古村",
+    "city": "珠海",
+    "category": "文化景点",
+    "rating": 4.4,
+    "avg_price": 0,
+    "lat": 22.3550,
+    "lng": 113.5650,
+    "business_hours": "00:00-23:59",
+    "tags": ["岭南古村", "碉楼", "祠堂", "三百年历史", "免费"],
+    "queue_prone": false,
+    "avg_stay_min": 120,
+    "emotion_tags": {
+      "excitement": 0.2,
+      "tranquility": 0.8,
+      "sociability": 0.4,
+      "culture_depth": 0.85,
+      "surprise": 0.5,
+      "physical_demand": 0.3
+    },
+    "constraints": {
+      "accessible": true,
+      "pet_friendly": true,
+      "queue_time_min": 0,
+      "opening_hours": "00:00-23:59",
+      "has_restroom": true
+    }
+  },
+  {
+    "id": "missing_012",
+    "name": "淇澳岛红树林保护区",
+    "city": "珠海",
+    "category": "自然风光",
+    "rating": 4.5,
+    "avg_price": 0,
+    "lat": 22.4000,
+    "lng": 113.6200,
+    "business_hours": "08:00-17:00",
+    "tags": ["红树林", "候鸟", "生态", "预约", "免费"],
+    "queue_prone": false,
+    "avg_stay_min": 150,
+    "emotion_tags": {
+      "excitement": 0.25,
+      "tranquility": 0.9,
+      "sociability": 0.3,
+      "culture_depth": 0.4,
+      "surprise": 0.5,
+      "physical_demand": 0.3
+    },
+    "constraints": {
+      "accessible": true,
+      "pet_friendly": false,
+      "queue_time_min": 0,
+      "opening_hours": "08:00-17:00",
+      "has_restroom": true
+    }
+  },
+  {
+    "id": "missing_013",
+    "name": "淇澳岛白石街",
+    "city": "珠海",
+    "category": "文化景点",
+    "rating": 4.2,
+    "avg_price": 0,
+    "lat": 22.4050,
+    "lng": 113.6150,
+    "business_hours": "00:00-23:59",
+    "tags": ["古街", "抗英历史", "苏兆征故居", "海岛", "文艺"],
+    "queue_prone": false,
+    "avg_stay_min": 90,
+    "emotion_tags": {
+      "excitement": 0.3,
+      "tranquility": 0.65,
+      "sociability": 0.5,
+      "culture_depth": 0.8,
+      "surprise": 0.4,
+      "physical_demand": 0.25
+    },
+    "constraints": {
+      "accessible": true,
+      "pet_friendly": true,
+      "queue_time_min": 0,
+      "opening_hours": "00:00-23:59",
+      "has_restroom": false
+    }
+  },
+  {
+    "id": "missing_014",
+    "name": "海泉湾海洋温泉",
+    "city": "珠海",
+    "category": "休闲体验",
+    "rating": 4.4,
+    "avg_price": 168,
+    "lat": 22.0500,
+    "lng": 113.2500,
+    "business_hours": "09:30-23:59",
+    "tags": ["温泉", "海洋温泉", "120余种池", "AAAAA配套", "度假"],
+    "queue_prone": false,
+    "avg_stay_min": 240,
+    "emotion_tags": {
+      "excitement": 0.3,
+      "tranquility": 0.85,
+      "sociability": 0.5,
+      "culture_depth": 0.3,
+      "surprise": 0.5,
+      "physical_demand": 0.2
+    },
+    "constraints": {
+      "accessible": true,
+      "pet_friendly": false,
+      "queue_time_min": 0,
+      "opening_hours": "09:30-23:59",
+      "has_restroom": true
+    }
+  },
+  {
+    "id": "missing_015",
+    "name": "珠海天湖风景区",
+    "city": "珠海",
+    "category": "自然风光",
+    "rating": 3.8,
+    "avg_price": 25,
+    "lat": 22.1100,
+    "lng": 113.4800,
+    "business_hours": "09:00-17:30",
+    "tags": ["湖泊", "山水", "水库", "休闲", "深度40米"],
+    "queue_prone": false,
+    "avg_stay_min": 90,
+    "emotion_tags": {
+      "excitement": 0.2,
+      "tranquility": 0.85,
+      "sociability": 0.3,
+      "culture_depth": 0.2,
+      "surprise": 0.3,
+      "physical_demand": 0.3
+    },
+    "constraints": {
+      "accessible": true,
+      "pet_friendly": true,
+      "queue_time_min": 0,
+      "opening_hours": "09:00-17:30",
+      "has_restroom": true
+    }
+  },
+  {
+    "id": "missing_016",
+    "name": "横琴星乐度露营小镇",
+    "city": "珠海",
+    "category": "亲子游乐",
+    "rating": 4.5,
+    "avg_price": 200,
+    "lat": 22.1250,
+    "lng": 113.5200,
+    "business_hours": "09:00-21:00",
+    "tags": ["露营", "亲子", "星空", "帐篷", "户外体验"],
+    "queue_prone": false,
+    "avg_stay_min": 360,
+    "emotion_tags": {
+      "excitement": 0.6,
+      "tranquility": 0.7,
+      "sociability": 0.6,
+      "culture_depth": 0.2,
+      "surprise": 0.6,
+      "physical_demand": 0.4
+    },
+    "constraints": {
+      "accessible": true,
+      "pet_friendly": true,
+      "queue_time_min": 0,
+      "opening_hours": "09:00-21:00",
+      "has_restroom": true
+    }
+  },
+  {
+    "id": "missing_017",
+    "name": "港珠澳大桥游船",
+    "city": "珠海",
+    "category": "休闲体验",
+    "rating": 4.4,
+    "avg_price": 198,
+    "lat": 22.2400,
+    "lng": 113.5800,
+    "business_hours": "09:00-21:00",
+    "tags": ["港珠澳大桥", "游船", "海上观光", "澳门远眺", "日落"],
+    "queue_prone": false,
+    "avg_stay_min": 90,
+    "emotion_tags": {
+      "excitement": 0.6,
+      "tranquility": 0.5,
+      "sociability": 0.6,
+      "culture_depth": 0.3,
+      "surprise": 0.7,
+      "physical_demand": 0.15
+    },
+    "constraints": {
+      "accessible": true,
+      "pet_friendly": false,
+      "queue_time_min": 10,
+      "opening_hours": "09:00-21:00",
+      "has_restroom": true
+    }
+  },
+  {
+    "id": "missing_018",
+    "name": "珠海渔女观景平台",
+    "city": "珠海",
+    "category": "观景地标",
+    "rating": 4.5,
+    "avg_price": 0,
+    "lat": 22.2450,
+    "lng": 113.5800,
+    "business_hours": "00:00-23:59",
+    "tags": ["珠海地标", "拍照", "情侣路", "海景", "日出"],
+    "queue_prone": true,
+    "avg_stay_min": 30,
+    "emotion_tags": {
+      "excitement": 0.35,
+      "tranquility": 0.6,
+      "sociability": 0.7,
+      "culture_depth": 0.4,
+      "surprise": 0.3,
+      "physical_demand": 0.1
+    },
+    "constraints": {
+      "accessible": true,
+      "pet_friendly": true,
+      "queue_time_min": 5,
+      "opening_hours": "00:00-23:59",
+      "has_restroom": false
+    }
+  },
+  {
+    "id": "missing_019",
+    "name": "斗门接霞庄",
+    "city": "珠海",
+    "category": "文化景点",
+    "rating": 4.1,
+    "avg_price": 0,
+    "lat": 22.2050,
+    "lng": 113.2700,
+    "business_hours": "00:00-23:59",
+    "tags": ["清代古村", "赵氏家族", "岭南建筑", "古井", "护城河"],
+    "queue_prone": false,
+    "avg_stay_min": 90,
+    "emotion_tags": {
+      "excitement": 0.2,
+      "tranquility": 0.8,
+      "sociability": 0.3,
+      "culture_depth": 0.85,
+      "surprise": 0.5,
+      "physical_demand": 0.25
+    },
+    "constraints": {
+      "accessible": true,
+      "pet_friendly": true,
+      "queue_time_min": 0,
+      "opening_hours": "00:00-23:59",
+      "has_restroom": false
+    }
+  },
+  {
+    "id": "missing_020",
+    "name": "珠海湾仔旅游码头",
+    "city": "珠海",
+    "category": "观景地标",
+    "rating": 4.1,
+    "avg_price": 0,
+    "lat": 22.2100,
+    "lng": 113.5350,
+    "business_hours": "08:00-22:00",
+    "tags": ["澳门全景", "游船", "海味市场", "拍照", "珠澳边界"],
+    "queue_prone": false,
+    "avg_stay_min": 60,
+    "emotion_tags": {
+      "excitement": 0.45,
+      "tranquility": 0.5,
+      "sociability": 0.6,
+      "culture_depth": 0.3,
+      "surprise": 0.5,
+      "physical_demand": 0.15
+    },
+    "constraints": {
+      "accessible": true,
+      "pet_friendly": false,
+      "queue_time_min": 0,
+      "opening_hours": "08:00-22:00",
+      "has_restroom": true
+    }
+  },
+  {
+    "id": "missing_021",
+    "name": "珠海石博园",
+    "city": "珠海",
+    "category": "文化景点",
+    "rating": 3.7,
+    "avg_price": 40,
+    "lat": 22.0450,
+    "lng": 113.3400,
+    "business_hours": "08:30-17:30",
+    "tags": ["奇石", "化石", "矿物", "科普", "园林"],
+    "queue_prone": false,
+    "avg_stay_min": 90,
+    "emotion_tags": {
+      "excitement": 0.25,
+      "tranquility": 0.6,
+      "sociability": 0.3,
+      "culture_depth": 0.6,
+      "surprise": 0.5,
+      "physical_demand": 0.25
+    },
+    "constraints": {
+      "accessible": true,
+      "pet_friendly": true,
+      "queue_time_min": 0,
+      "opening_hours": "08:30-17:30",
+      "has_restroom": true
+    }
+  },
+  {
+    "id": "missing_022",
+    "name": "珠海长南迳古道",
+    "city": "珠海",
+    "category": "文化景点",
+    "rating": 4.1,
+    "avg_price": 0,
+    "lat": 22.3000,
+    "lng": 113.5480,
+    "business_hours": "06:00-18:00",
+    "tags": ["古道", "徒步", "凤凰山", "历史", "石板路"],
+    "queue_prone": false,
+    "avg_stay_min": 120,
+    "emotion_tags": {
+      "excitement": 0.3,
+      "tranquility": 0.8,
+      "sociability": 0.3,
+      "culture_depth": 0.7,
+      "surprise": 0.4,
+      "physical_demand": 0.7
+    },
+    "constraints": {
+      "accessible": false,
+      "pet_friendly": true,
+      "queue_time_min": 0,
+      "opening_hours": "06:00-18:00",
+      "has_restroom": false
+    }
+  },
+  {
+    "id": "missing_023",
+    "name": "珠海前山河滨水步道",
+    "city": "珠海",
+    "category": "休闲体验",
+    "rating": 4.1,
+    "avg_price": 0,
+    "lat": 22.2200,
+    "lng": 113.5320,
+    "business_hours": "06:00-22:00",
+    "tags": ["河景", "散步", "白石桥夜景", "城市休闲", "骑行"],
+    "queue_prone": false,
+    "avg_stay_min": 60,
+    "emotion_tags": {
+      "excitement": 0.2,
+      "tranquility": 0.75,
+      "sociability": 0.5,
+      "culture_depth": 0.15,
+      "surprise": 0.2,
+      "physical_demand": 0.2
+    },
+    "constraints": {
+      "accessible": true,
+      "pet_friendly": true,
+      "queue_time_min": 0,
+      "opening_hours": "06:00-22:00",
+      "has_restroom": false
+    }
+  },
+  {
+    "id": "missing_024",
+    "name": "海泉湾海洋科普中心",
+    "city": "珠海",
+    "category": "科技体验",
+    "rating": 4.1,
+    "avg_price": 60,
+    "lat": 22.0530,
+    "lng": 113.2500,
+    "business_hours": "10:00-17:00",
+    "tags": ["海洋生物", "科普", "亲子", "水族展示", "互动"],
+    "queue_prone": false,
+    "avg_stay_min": 90,
+    "emotion_tags": {
+      "excitement": 0.5,
+      "tranquility": 0.4,
+      "sociability": 0.5,
+      "culture_depth": 0.4,
+      "surprise": 0.6,
+      "physical_demand": 0.2
+    },
+    "constraints": {
+      "accessible": true,
+      "pet_friendly": false,
+      "queue_time_min": 5,
+      "opening_hours": "10:00-17:00",
+      "has_restroom": true
+    }
+  },
+  {
+    "id": "missing_025",
+    "name": "珠海斗门旧街",
+    "city": "珠海",
+    "category": "文化景点",
+    "rating": 4.0,
+    "avg_price": 0,
+    "lat": 22.2150,
+    "lng": 113.2650,
+    "business_hours": "00:00-23:59",
+    "tags": ["骑楼", "百年老街", "中西合璧", "美食", "拍照"],
+    "queue_prone": false,
+    "avg_stay_min": 90,
+    "emotion_tags": {
+      "excitement": 0.3,
+      "tranquility": 0.65,
+      "sociability": 0.6,
+      "culture_depth": 0.75,
+      "surprise": 0.5,
+      "physical_demand": 0.2
+    },
+    "constraints": {
+      "accessible": true,
+      "pet_friendly": true,
+      "queue_time_min": 0,
+      "opening_hours": "00:00-23:59",
+      "has_restroom": false
+    }
+  },
+  {
+    "id": "missing_026",
+    "name": "珠海尖峰山森林公园",
+    "city": "珠海",
+    "category": "自然风光",
+    "rating": 4.0,
+    "avg_price": 0,
+    "lat": 22.2000,
+    "lng": 113.2750,
+    "business_hours": "06:00-18:00",
+    "tags": ["登山", "斗门", "城市绿肺", "徒步", "森林"],
+    "queue_prone": false,
+    "avg_stay_min": 120,
+    "emotion_tags": {
+      "excitement": 0.3,
+      "tranquility": 0.8,
+      "sociability": 0.3,
+      "culture_depth": 0.2,
+      "surprise": 0.3,
+      "physical_demand": 0.6
+    },
+    "constraints": {
+      "accessible": false,
+      "pet_friendly": true,
+      "queue_time_min": 0,
+      "opening_hours": "06:00-18:00",
+      "has_restroom": false
+    }
+  },
+  {
+    "id": "missing_027",
+    "name": "珠海太空中心",
+    "city": "珠海",
+    "category": "科技体验",
+    "rating": 4.5,
+    "avg_price": 168,
+    "lat": 22.0086,
+    "lng": 113.3753,
+    "business_hours": "10:00-17:00",
+    "tags": ["航天", "空间站", "航空", "VR体验", "国防"],
+    "queue_prone": true,
+    "avg_stay_min": 240,
+    "emotion_tags": {
+      "excitement": 0.85,
+      "tranquility": 0.2,
+      "sociability": 0.6,
+      "culture_depth": 0.6,
+      "surprise": 0.9,
+      "physical_demand": 0.3
+    },
+    "constraints": {
+      "accessible": true,
+      "pet_friendly": false,
+      "queue_time_min": 15,
+      "opening_hours": "10:00-17:00",
+      "has_restroom": true
+    }
+  },
+  {
+    "id": "missing_028",
+    "name": "小横琴山步道",
+    "city": "珠海",
+    "category": "自然风光",
+    "rating": 4.4,
+    "avg_price": 0,
+    "lat": 22.1200,
+    "lng": 113.5300,
+    "business_hours": "08:30-16:30",
+    "tags": ["观澳台", "澳门全景", "徒步", "乘风台", "生态"],
+    "queue_prone": false,
+    "avg_stay_min": 120,
+    "emotion_tags": {
+      "excitement": 0.35,
+      "tranquility": 0.8,
+      "sociability": 0.3,
+      "culture_depth": 0.2,
+      "surprise": 0.5,
+      "physical_demand": 0.5
+    },
+    "constraints": {
+      "accessible": false,
+      "pet_friendly": true,
+      "queue_time_min": 0,
+      "opening_hours": "08:30-16:30",
+      "has_restroom": false
+    }
+  },
+  {
+    "id": "missing_029",
+    "name": "十字门体育公园",
+    "city": "珠海",
+    "category": "休闲体验",
+    "rating": 4.1,
+    "avg_price": 0,
+    "lat": 22.2050,
+    "lng": 113.5250,
+    "business_hours": "06:00-22:00",
+    "tags": ["滨海", "体育公园", "澳门远眺", "日落", "亲子"],
+    "queue_prone": false,
+    "avg_stay_min": 60,
+    "emotion_tags": {
+      "excitement": 0.3,
+      "tranquility": 0.65,
+      "sociability": 0.6,
+      "culture_depth": 0.1,
+      "surprise": 0.2,
+      "physical_demand": 0.35
+    },
+    "constraints": {
+      "accessible": true,
+      "pet_friendly": true,
+      "queue_time_min": 0,
+      "opening_hours": "06:00-22:00",
+      "has_restroom": true
+    }
+  },
+  {
+    "id": "missing_030",
+    "name": "横琴金融岛观景步道",
+    "city": "珠海",
+    "category": "观景地标",
+    "rating": 4.3,
+    "avg_price": 0,
+    "lat": 22.1080,
+    "lng": 113.5400,
+    "business_hours": "00:00-23:59",
+    "tags": ["城市天际线", "澳门塔", "夜景", "IFC", "现代建筑"],
+    "queue_prone": false,
+    "avg_stay_min": 45,
+    "emotion_tags": {
+      "excitement": 0.35,
+      "tranquility": 0.5,
+      "sociability": 0.5,
+      "culture_depth": 0.2,
+      "surprise": 0.4,
+      "physical_demand": 0.15
+    },
+    "constraints": {
+      "accessible": true,
+      "pet_friendly": true,
+      "queue_time_min": 0,
+      "opening_hours": "00:00-23:59",
+      "has_restroom": false
+    }
+  },
+  {
+    "id": "missing_031",
+    "name": "珠海香山云道",
+    "city": "珠海",
+    "category": "自然风光",
+    "rating": 4.3,
+    "avg_price": 0,
+    "lat": 22.2750,
+    "lng": 113.5600,
+    "business_hours": "06:00-22:00",
+    "tags": ["空中步道", "全景", "城市绿道", "日落", "免费"],
+    "queue_prone": false,
+    "avg_stay_min": 90,
+    "emotion_tags": {
+      "excitement": 0.4,
+      "tranquility": 0.7,
+      "sociability": 0.4,
+      "culture_depth": 0.2,
+      "surprise": 0.5,
+      "physical_demand": 0.3
+    },
+    "constraints": {
+      "accessible": true,
+      "pet_friendly": true,
+      "queue_time_min": 0,
+      "opening_hours": "06:00-22:00",
+      "has_restroom": true
+    }
+  },
+  {
+    "id": "missing_032",
+    "name": "珠海景山道（板樟山步道）",
+    "city": "珠海",
+    "category": "自然风光",
+    "rating": 4.4,
+    "avg_price": 0,
+    "lat": 22.2350,
+    "lng": 113.5480,
+    "business_hours": "06:00-22:00",
+    "tags": ["无障碍步道", "10公里", "圆明新园", "景山公园", "全景"],
+    "queue_prone": false,
+    "avg_stay_min": 120,
+    "emotion_tags": {
+      "excitement": 0.35,
+      "tranquility": 0.75,
+      "sociability": 0.4,
+      "culture_depth": 0.3,
+      "surprise": 0.45,
+      "physical_demand": 0.4
+    },
+    "constraints": {
+      "accessible": true,
+      "pet_friendly": true,
+      "queue_time_min": 0,
+      "opening_hours": "06:00-22:00",
+      "has_restroom": true
+    }
+  },
+  {
+    "id": "missing_033",
+    "name": "珠海梅溪牌坊旅游区",
+    "city": "珠海",
+    "category": "文化景点",
+    "rating": 4.0,
+    "avg_price": 30,
+    "lat": 22.2850,
+    "lng": 113.5450,
+    "business_hours": "08:30-17:30",
+    "tags": ["清代牌坊", "陈芳故居", "华侨文化", "历史建筑", "AAA景区"],
+    "queue_prone": false,
+    "avg_stay_min": 60,
+    "emotion_tags": {
+      "excitement": 0.2,
+      "tranquility": 0.65,
+      "sociability": 0.3,
+      "culture_depth": 0.85,
+      "surprise": 0.3,
+      "physical_demand": 0.2
+    },
+    "constraints": {
+      "accessible": true,
+      "pet_friendly": false,
+      "queue_time_min": 0,
+      "opening_hours": "08:30-17:30",
+      "has_restroom": true
+    }
+  },
+  {
+    "id": "missing_034",
+    "name": "珠海湾仔海鲜街",
+    "city": "珠海",
+    "category": "休闲体验",
+    "rating": 4.0,
+    "avg_price": 100,
+    "lat": 22.2100,
+    "lng": 113.5380,
+    "business_hours": "10:00-22:00",
+    "tags": ["海鲜", "现买现做", "澳门景观", "美食街", "特色体验"],
+    "queue_prone": false,
+    "avg_stay_min": 90,
+    "emotion_tags": {
+      "excitement": 0.4,
+      "tranquility": 0.4,
+      "sociability": 0.8,
+      "culture_depth": 0.2,
+      "surprise": 0.4,
+      "physical_demand": 0.15
+    },
+    "constraints": {
+      "accessible": true,
+      "pet_friendly": false,
+      "queue_time_min": 0,
+      "opening_hours": "10:00-22:00",
+      "has_restroom": true
+    }
+  },
+  {
+    "id": "missing_035",
+    "name": "珠海金台寺",
+    "city": "珠海",
+    "category": "文化景点",
+    "rating": 4.3,
+    "avg_price": 0,
+    "lat": 22.2150,
+    "lng": 113.2680,
+    "business_hours": "08:00-17:00",
+    "tags": ["寺庙", "黄杨山下", "风水宝地", "佛教", "山水"],
+    "queue_prone": false,
+    "avg_stay_min": 60,
+    "emotion_tags": {
+      "excitement": 0.15,
+      "tranquility": 0.9,
+      "sociability": 0.3,
+      "culture_depth": 0.7,
+      "surprise": 0.3,
+      "physical_demand": 0.3
+    },
+    "constraints": {
+      "accessible": true,
+      "pet_friendly": false,
+      "queue_time_min": 0,
+      "opening_hours": "08:00-17:00",
+      "has_restroom": true
+    }
+  },
+  {
+    "id": "missing_036",
+    "name": "珠海九州港观景平台",
+    "city": "珠海",
+    "category": "观景地标",
+    "rating": 4.0,
+    "avg_price": 0,
+    "lat": 22.2500,
+    "lng": 113.5850,
+    "business_hours": "06:00-22:00",
+    "tags": ["港珠澳大桥远眺", "游船码头", "海景", "日落", "拍照"],
+    "queue_prone": false,
+    "avg_stay_min": 45,
+    "emotion_tags": {
+      "excitement": 0.35,
+      "tranquility": 0.55,
+      "sociability": 0.5,
+      "culture_depth": 0.15,
+      "surprise": 0.3,
+      "physical_demand": 0.1
+    },
+    "constraints": {
+      "accessible": true,
+      "pet_friendly": true,
+      "queue_time_min": 0,
+      "opening_hours": "06:00-22:00",
+      "has_restroom": true
+    }
+  },
+  {
+    "id": "missing_037",
+    "name": "珠海情侣路海滨步道",
+    "city": "珠海",
+    "category": "休闲体验",
+    "rating": 4.5,
+    "avg_price": 0,
+    "lat": 22.2450,
+    "lng": 113.5770,
+    "business_hours": "00:00-23:59",
+    "tags": ["情侣路", "骑行", "海景", "日落", "城市名片"],
+    "queue_prone": false,
+    "avg_stay_min": 90,
+    "emotion_tags": {
+      "excitement": 0.3,
+      "tranquility": 0.75,
+      "sociability": 0.7,
+      "culture_depth": 0.15,
+      "surprise": 0.2,
+      "physical_demand": 0.2
+    },
+    "constraints": {
+      "accessible": true,
+      "pet_friendly": true,
+      "queue_time_min": 0,
+      "opening_hours": "00:00-23:59",
+      "has_restroom": false
+    }
+  },
+  {
+    "id": "missing_038",
+    "name": "珠海大剧院内部参观",
+    "city": "珠海",
+    "category": "文化景点",
+    "rating": 4.6,
+    "avg_price": 80,
+    "lat": 22.2620,
+    "lng": 113.5900,
+    "business_hours": "10:00-17:00",
+    "tags": ["日月贝", "歌剧院", "建筑奇观", "演出", "海岛"],
+    "queue_prone": false,
+    "avg_stay_min": 120,
+    "emotion_tags": {
+      "excitement": 0.5,
+      "tranquility": 0.5,
+      "sociability": 0.6,
+      "culture_depth": 0.7,
+      "surprise": 0.7,
+      "physical_demand": 0.2
+    },
+    "constraints": {
+      "accessible": true,
+      "pet_friendly": false,
+      "queue_time_min": 5,
+      "opening_hours": "10:00-17:00",
+      "has_restroom": true
+    }
+  },
+  {
+    "id": "missing_039",
+    "name": "横琴口岸广场观景",
+    "city": "珠海",
+    "category": "观景地标",
+    "rating": 4.0,
+    "avg_price": 0,
+    "lat": 22.1180,
+    "lng": 113.5350,
+    "business_hours": "06:00-23:59",
+    "tags": ["澳门天际线", "口岸", "夜景", "拍照", "免费"],
+    "queue_prone": false,
+    "avg_stay_min": 30,
+    "emotion_tags": {
+      "excitement": 0.3,
+      "tranquility": 0.5,
+      "sociability": 0.5,
+      "culture_depth": 0.1,
+      "surprise": 0.3,
+      "physical_demand": 0.1
+    },
+    "constraints": {
+      "accessible": true,
+      "pet_friendly": true,
+      "queue_time_min": 0,
+      "opening_hours": "06:00-23:59",
+      "has_restroom": true
+    }
+  },
+  {
+    "id": "missing_040",
+    "name": "珠海横琴狮门VR体验馆",
+    "city": "珠海",
+    "category": "科技体验",
+    "rating": 4.2,
+    "avg_price": 150,
+    "lat": 22.1125,
+    "lng": 113.5185,
+    "business_hours": "11:00-19:00",
+    "tags": ["VR", "沉浸体验", "电影", "科技", "室内"],
+    "queue_prone": false,
+    "avg_stay_min": 90,
+    "emotion_tags": {
+      "excitement": 0.85,
+      "tranquility": 0.15,
+      "sociability": 0.5,
+      "culture_depth": 0.2,
+      "surprise": 0.8,
+      "physical_demand": 0.2
+    },
+    "constraints": {
+      "accessible": true,
+      "pet_friendly": false,
+      "queue_time_min": 10,
+      "opening_hours": "11:00-19:00",
+      "has_restroom": true
+    }
+  },
+  {
+    "id": "missing_041",
+    "name": "珠海唐家湾古镇",
+    "city": "珠海",
+    "category": "文化景点",
+    "rating": 4.3,
+    "avg_price": 0,
+    "lat": 22.3700,
+    "lng": 113.5900,
+    "business_hours": "00:00-23:59",
+    "tags": ["近代名人故里", "共乐园", "古街", "留学文化", "免费"],
+    "queue_prone": false,
+    "avg_stay_min": 150,
+    "emotion_tags": {
+      "excitement": 0.25,
+      "tranquility": 0.75,
+      "sociability": 0.5,
+      "culture_depth": 0.9,
+      "surprise": 0.5,
+      "physical_demand": 0.25
+    },
+    "constraints": {
+      "accessible": true,
+      "pet_friendly": true,
+      "queue_time_min": 0,
+      "opening_hours": "00:00-23:59",
+      "has_restroom": true
+    }
+  },
+  {
+    "id": "missing_042",
+    "name": "珠海古元故居",
+    "city": "珠海",
+    "category": "文化景点",
+    "rating": 3.9,
+    "avg_price": 0,
+    "lat": 22.3580,
+    "lng": 113.5620,
+    "business_hours": "09:00-17:00",
+    "tags": ["版画家", "名人故居", "艺术", "历史", "免费"],
+    "queue_prone": false,
+    "avg_stay_min": 45,
+    "emotion_tags": {
+      "excitement": 0.15,
+      "tranquility": 0.7,
+      "sociability": 0.2,
+      "culture_depth": 0.8,
+      "surprise": 0.25,
+      "physical_demand": 0.15
+    },
+    "constraints": {
+      "accessible": true,
+      "pet_friendly": false,
+      "queue_time_min": 0,
+      "opening_hours": "09:00-17:00",
+      "has_restroom": false
+    }
+  }
+]
