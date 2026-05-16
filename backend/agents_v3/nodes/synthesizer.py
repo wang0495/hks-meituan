@@ -64,6 +64,8 @@ import math
 import os
 from datetime import datetime, timedelta
 
+import numpy as np
+
 from backend.agents_v3.experts.base import (
     _haversine_km,
     _is_likely_macau,
@@ -240,6 +242,137 @@ def _cap_route_stops(route: dict, scene_type: str, intent: dict) -> dict:
         return route
 
     route["route"] = steps[:max_stops]
+    return route
+
+
+# ── DPP多样性重排 (参考 github.com/laming-chen/fast-map-dpp) ──
+
+def _dpp_select(kernel_matrix: np.ndarray, max_length: int, epsilon: float = 1e-10) -> list[int]:
+    """贪心DPP选择：最大化log det(L_S)，平衡质量(对角线)和多样性(非对角线)。"""
+    n = kernel_matrix.shape[0]
+    if n <= max_length:
+        return list(range(n))
+    cis = np.zeros((max_length, n))
+    di2s = np.copy(np.diag(kernel_matrix))
+    selected = []
+    selected.append(int(np.argmax(di2s)))
+    while len(selected) < max_length:
+        k = len(selected) - 1
+        ci_opt = cis[:k, selected[-1]]
+        di_opt = math.sqrt(max(di2s[selected[-1]], epsilon))
+        elements = kernel_matrix[selected[-1], :]
+        eis = (elements - np.dot(ci_opt, cis[:k, :])) / di_opt
+        cis[k, :] = eis
+        di2s -= np.square(eis)
+        for s in selected:
+            di2s[s] = -np.inf
+        best = int(np.argmax(di2s))
+        if di2s[best] < epsilon:
+            break
+        selected.append(best)
+    return selected
+
+
+def _build_category_vector(cat: str) -> float:
+    """把category映射成数值，同类型=相似值。"""
+    _GROUPS = {
+        # 自然/海滨类（组内相似度高）
+        "自然风光": 0.0, "海滨景点": 0.05, "水上运动场所": 0.1,
+        # 文化/地标类
+        "文化景点": 0.2, "文化": 0.2, "地标景点": 0.25, "夜景地标": 0.3,
+        # 运动/亲子类
+        "运动": 0.4, "亲子游乐": 0.45,
+        # 餐饮类（子类也要区分）
+        "正餐": 0.55, "海鲜餐饮": 0.6, "地方小吃": 0.65, "夜市小吃": 0.7,
+        "甜品饮品": 0.75, "茶餐厅": 0.8,
+        # 休闲/购物类
+        "购物": 0.85, "海景咖啡馆": 0.9, "温泉SPA": 0.92,
+        "休闲娱乐": 0.95, "密室逃脱": 0.95, "攀岩": 0.95,
+    }
+    # _display_category优先
+    return _GROUPS.get(cat, 0.5)
+
+
+def _dpp_rerank_route(route: dict, scene_type: str) -> dict:
+    """用DPP对路线步骤做多样性重排。
+
+    核心思路：构建核矩阵L，对角线=POI质量分，非对角线=类型相似度。
+    DPP贪心选择最大化det(L_S)的子集 → 天然平衡质量和多样性。
+    """
+    steps = route.get("route", [])
+    if len(steps) <= 3:
+        return route  # 太少不重排
+
+    n = len(steps)
+
+    # 构建核矩阵
+    kernel = np.zeros((n, n))
+    for i in range(n):
+        poi_i = steps[i].get("poi", {})
+        # 对角线：质量分（rating或固定值）
+        rating = poi_i.get("rating", 4.0)
+        price = poi_i.get("avg_price", 0)
+        # 价格>0说明是消费场所，权重稍低
+        quality = rating / 5.0
+        if price == 0:
+            quality = min(quality * 1.1, 1.0)  # 免费景点加分
+        kernel[i, i] = quality
+
+    for i in range(n):
+        cat_i = steps[i].get("poi", {}).get("_display_category") or steps[i].get("poi", {}).get("category", "")
+        val_i = _build_category_vector(cat_i)
+        for j in range(i + 1, n):
+            cat_j = steps[j].get("poi", {}).get("_display_category") or steps[j].get("poi", {}).get("category", "")
+            val_j = _build_category_vector(cat_j)
+            # 同类型→相似度高→DPP倾向于只选一个
+            # 不同类型→相似度低→DPP倾向于都选
+            similarity = max(0, 1.0 - abs(val_i - val_j) * 2)  # 0~1
+            # 同category额外惩罚
+            if cat_i == cat_j:
+                similarity = 0.9
+            quality_avg = (kernel[i, i] + kernel[j, j]) / 2
+            kernel[i, j] = similarity * quality_avg
+            kernel[j, i] = kernel[i, j]
+
+    # DPP选择（保留全部步骤，只是重排序）
+    selected = _dpp_select(kernel, n)
+
+    # 按DPP选择顺序重排
+    reordered = [steps[i] for i in selected]
+
+    # 重新计算到达/离开时间
+    start_time_str = reordered[0].get("arrival_time", "09:00") if reordered else "09:00"
+    try:
+        t = datetime.strptime(start_time_str, "%H:%M")
+    except ValueError:
+        t = datetime.strptime("09:00", "%H:%M")
+
+    prev_lat, prev_lng = 0.0, 0.0
+    for step in reordered:
+        poi = step.get("poi", {})
+        lat, lng = poi.get("lat", 0), poi.get("lng", 0)
+        # 旅行时间
+        if prev_lat and lat:
+            dist = _haversine_km(prev_lat, prev_lng, lat, lng)
+            travel = max(5, min(60, int(dist * 8)))
+        else:
+            travel = 15
+
+        t = t + timedelta(minutes=travel)
+        stay = int(poi.get("avg_stay_min", 90))
+        # 餐饮停留50分钟
+        if step.get("_type") in ("lunch", "dinner"):
+            stay = 50
+        step["arrival_time"] = t.strftime("%H:%M")
+        step["departure_time"] = (t + timedelta(minutes=stay)).strftime("%H:%M")
+        step["travel_from_prev"] = {"distance_m": travel * 120, "time_min": travel}
+        t = t + timedelta(minutes=stay)
+        prev_lat, prev_lng = lat, lng
+
+    reordered = _dedup_route(reordered)
+    reordered = _enforce_time_windows(reordered)
+
+    route["route"] = reordered
     return route
 
 
@@ -2198,6 +2331,13 @@ async def synthesizer(state: TravelState) -> dict:
     # 站数上限（在ensure之前，避免截断ensure追加的站点）
     if route and route.get("route"):
         route = _cap_route_stops(route, scene_type, intent)
+
+    # DPP多样性重排（在ensure之前，让ensure基于重排后的顺序补餐饮）
+    if route and route.get("route") and scene_type != "美食型":
+        try:
+            route = _dpp_rerank_route(route, scene_type)
+        except Exception:
+            pass  # DPP失败不影响pipeline
 
     # 补回遗漏（在cap之后，追加的不受截断影响）
     if route and route.get("route"):
