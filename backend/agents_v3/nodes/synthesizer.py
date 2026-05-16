@@ -1392,6 +1392,247 @@ async def _tournament_assemble(
 
 
 # ═══════════════════════════════════════════════════════════
+# Architecture A6: Google PTS — LLM选点 + 算法排序
+# ═══════════════════════════════════════════════════════════
+#
+# 动机：参考Google PTS论文(ACL 2025)的核心发现：
+#   - LLM擅长"理解用户想要什么"，但不擅长"满足硬约束"
+#   - 约束求解器擅长"满足时间窗、最短路径、不超预算"
+#   - PTS通过率96.6% vs GPT-4o直接规划0.4%
+#
+# 方法：
+#   1. LLM只输出"选哪些POI"（无序列表），不排顺序、不分配时间
+#   2. 算法做最近邻TSP排序
+#   3. 算法分配时间（基于距离+停留时长）
+#   4. 用场景规则选择性地插入餐饮
+#
+# 优势：
+#   - LLM只需做"选择"（分类任务），不需要做"排序"（组合优化）
+#   - 算法排序是确定性的，消除LLM排序的方差
+#   - 时间分配基于实际距离，不会出现LLM瞎编的时间
+#
+# 风险：
+#   - LLM可能选了地理分散的POI（不知道排序后会怎样）
+#   - 最近邻TSP可能不是全局最优
+# ═══════════════════════════════════════════════════════════
+
+
+async def _pts_select_pois(
+    poi_proposals: list[dict],
+    food_proposals: list[dict],
+    intent: dict,
+    user_input: str,
+    scene_type: str,
+) -> dict | None:
+    """LLM只选POI子集，不排序。返回选中的名称列表。"""
+    poi_names = [p.get("content", {}).get("name", "") for p in poi_proposals if p.get("content", {}).get("name")]
+    food_names = [p.get("content", {}).get("name", "") for p in food_proposals if p.get("content", {}).get("name")]
+
+    group_type = intent.get("group", {}).get("type", "")
+    pace = intent.get("pace", "平衡型")
+    start_time = intent.get("time", {}).get("start", "09:00")
+    end_time = intent.get("time", {}).get("end", "21:00")
+    budget = intent.get("budget", {}).get("per_person", 0)
+
+    # 场景目标站数
+    target_stops = {"美食型": "3-5家餐厅+0-1个散步点", "目的地型": "1-2个景点+1个餐厅",
+                    "特种兵型": "6-8个景点+2家餐厅", "休闲型": "2-3个景点+1个餐厅",
+                    "观光型": "4-6个景点+1-2家餐厅"}.get(scene_type, "4-6个景点+1-2家餐厅")
+
+    system = f"""你是旅行POI选择器。你只需要从候选列表中选择合适的POI，不需要排序或分配时间。
+
+选择规则：
+1. 根据用户需求选择最匹配的POI
+2. 目标数量：{target_stops}
+3. 预算限制：{'¥'+str(budget) if budget else '不限'}
+4. 美食型场景：以餐厅为主；其他场景：以景点为主，穿插1-2家餐厅
+5. 优先选评分高、与用户意图最匹配的
+6. 不要选重复类型的POI（如已有海鲜餐厅就不要再选另一家海鲜餐厅）
+
+输出JSON格式：
+{{"selected_pois":["名称1","名称2",...],"selected_foods":["餐厅1","餐厅2",...],"reason":"选择理由（1句话）"}}
+只输出JSON。"""
+
+    user = f"""用户需求: {user_input}
+场景类型: {scene_type}
+群体: {group_type or '未知'}
+节奏: {pace}
+时间: {start_time}-{end_time}
+
+候选景点（{len(poi_names)}个）: {json.dumps(poi_names, ensure_ascii=False)}
+候选餐厅（{len(food_names)}个）: {json.dumps(food_names, ensure_ascii=False)}
+
+请选择最合适的POI子集。"""
+
+    return await _llm_decide(system, user, temperature=0.1)
+
+
+def _nearest_neighbor_tsp(items: list[tuple]) -> list[tuple]:
+    """最近邻TSP排序。items = [(name, lat, lng, content, is_food, proposal), ...]"""
+    if len(items) <= 1:
+        return items
+
+    ordered = [items[0]]
+    remaining = list(items[1:])
+
+    while remaining:
+        last_lat, last_lng = ordered[-1][1], ordered[-1][2]
+        best_idx = 0
+        best_dist = float("inf")
+        for i, item in enumerate(remaining):
+            if item[1] and last_lat:
+                d = _haversine_km(last_lat, last_lng, item[1], item[2])
+            else:
+                d = 99
+            if d < best_dist:
+                best_dist = d
+                best_idx = i
+        ordered.append(remaining.pop(best_idx))
+
+    return ordered
+
+
+def _insert_food_by_geo(
+    ordered_pois: list[tuple],
+    food_items: list[tuple],
+    intent: dict,
+) -> list[tuple]:
+    """将餐饮按地理位置插入到最近的POI旁边。"""
+    if not food_items:
+        return ordered_pois
+    if not ordered_pois:
+        return food_items
+
+    result = list(ordered_pois)
+    start_time_str = intent.get("time", {}).get("start", "09:00")
+    try:
+        t = datetime.strptime(start_time_str, "%H:%M")
+    except ValueError:
+        t = datetime.strptime("09:00", "%H:%M")
+
+    # 估算每个POI的到达时间
+    poi_times = []
+    prev_lat, prev_lng = 0.0, 0.0
+    current_t = t
+    for name, lat, lng, content, is_food, proposal in result:
+        travel_min = 15
+        if prev_lat and lat:
+            dist = _haversine_km(prev_lat, prev_lng, lat, lng)
+            travel_min = max(5, min(60, int(dist * 8)))
+        current_t = current_t + timedelta(minutes=travel_min)
+        poi_times.append(current_t)
+        stay = int(content.get("avg_stay_min", 90))
+        current_t = current_t + timedelta(minutes=stay)
+        prev_lat, prev_lng = lat, lng
+
+    # 午餐和晚餐时间窗
+    lunch_start = datetime.strptime("11:00", "%H:%M")
+    lunch_end = datetime.strptime("14:00", "%H:%M")
+    dinner_start = datetime.strptime("17:00", "%H:%M")
+    dinner_end = datetime.strptime("20:00", "%H:%M")
+
+    # 为每个food找最佳插入位置
+    inserted = set()
+    for food_name, flat, flng, fcontent, _, fproposal in food_items:
+        if not flat:
+            continue
+        best_pos = -1
+        best_dist = float("inf")
+        for i, (name, lat, lng, content, is_food, proposal) in enumerate(result):
+            if lat:
+                d = _haversine_km(flat, flng, lat, lng)
+            else:
+                d = 99
+            if d < best_dist:
+                best_dist = d
+                best_pos = i
+
+        # 决定插在best_pos之后还是之前
+        if best_pos >= 0 and best_dist < 15:
+            # 插在最近POI之后
+            insert_at = best_pos + 1
+        else:
+            # 找时间合适的位置
+            insert_at = len(result)  # 默认末尾
+            for i, pt in enumerate(poi_times):
+                if lunch_start <= pt <= lunch_end:
+                    insert_at = i + 1
+                    break
+                if dinner_start <= pt <= dinner_end:
+                    insert_at = i + 1
+                    break
+
+        if insert_at not in inserted:
+            result.insert(insert_at, (food_name, flat, flng, fcontent, True, fproposal))
+            inserted.add(insert_at)
+
+    return result
+
+
+async def _pts_assemble(
+    poi_proposals: list[dict],
+    food_proposals: list[dict],
+    hotel_proposals: list[dict],
+    traffic_proposal: dict | None,
+    intent: dict,
+    user_input: str,
+    scene_type: str,
+    expert_weights: dict,
+) -> dict | None:
+    """Google PTS架构：LLM选点 + 算法排序 + 算法分配时间。"""
+    # Step 1: LLM选POI子集
+    selection = await _pts_select_pois(poi_proposals, food_proposals, intent, user_input, scene_type)
+    if not selection:
+        return None
+
+    selected_poi_names = selection.get("selected_pois", [])
+    selected_food_names = selection.get("selected_foods", [])
+
+    # Step 2: 匹配到proposal数据
+    poi_map = {p.get("content", {}).get("name", ""): p for p in poi_proposals}
+    food_map = {p.get("content", {}).get("name", ""): p for p in food_proposals}
+
+    # 模糊匹配（LLM可能输出不完全一致的名称）
+    def _fuzzy_match(name: str, mapping: dict) -> dict | None:
+        if name in mapping:
+            return mapping[name]
+        for key in mapping:
+            if name in key or key in name:
+                return mapping[key]
+        return None
+
+    poi_items = []  # (name, lat, lng, content, is_food, proposal)
+    for name in selected_poi_names:
+        prop = _fuzzy_match(name, poi_map)
+        if prop:
+            c = prop.get("content", {})
+            if c.get("lat"):
+                poi_items.append((name, c["lat"], c["lng"], c, False, prop))
+
+    food_items = []
+    for name in selected_food_names:
+        prop = _fuzzy_match(name, food_map)
+        if not prop:
+            prop = _fuzzy_match(name, poi_map)  # 可能LLM把餐厅放到poi列表
+        if prop:
+            c = prop.get("content", {})
+            if c.get("lat"):
+                food_items.append((name, c["lat"], c["lng"], c, True, prop))
+
+    if not poi_items and not food_items:
+        return None
+
+    # Step 3: 最近邻TSP排序POI
+    ordered_pois = _nearest_neighbor_tsp(poi_items)
+
+    # Step 4: 按地理位置插入餐饮
+    all_ordered = _insert_food_by_geo(ordered_pois, food_items, intent)
+
+    # Step 5: 构建路线
+    return _build_route_from_ordered_items(all_ordered, intent)
+
+
+# ═══════════════════════════════════════════════════════════
 # Architecture A5: 迭代约束满足
 # ═══════════════════════════════════════════════════════════
 #
@@ -1789,6 +2030,12 @@ async def synthesizer(state: TravelState) -> dict:
         )
     elif SYNTHESIZER_MODE == "constraint":
         route = await _constraint_assemble(
+            poi_proposals, food_proposals, hotel_proposals,
+            traffic_proposal, intent, state.get("user_input", ""),
+            scene_type, expert_weights,
+        )
+    elif SYNTHESIZER_MODE == "pts":
+        route = await _pts_assemble(
             poi_proposals, food_proposals, hotel_proposals,
             traffic_proposal, intent, state.get("user_input", ""),
             scene_type, expert_weights,
