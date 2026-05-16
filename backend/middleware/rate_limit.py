@@ -31,10 +31,12 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         app,
         requests_per_minute: int = 60,
         cleanup_interval: int = 300,
+        trusted_proxies: list[str] | None = None,
     ):
         super().__init__(app)
         self.requests_per_minute = requests_per_minute
         self.cleanup_interval = cleanup_interval
+        self._trusted_proxies: frozenset[str] = frozenset(trusted_proxies or [])
         # {ip: [timestamp, ...]}
         self._requests: dict[str, list[float]] = defaultdict(list)
         self._last_cleanup = time.monotonic()
@@ -85,19 +87,25 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
 
     # ------------------------------------------------------------------
 
-    @staticmethod
-    def _get_client_ip(request: Request) -> str:
-        """获取客户端真实 IP，优先读取反向代理头。"""
-        # 如果有反向代理（Nginx / Cloudflare），优先用 X-Forwarded-For
-        forwarded = request.headers.get("X-Forwarded-For")
-        if forwarded:
-            return forwarded.split(",")[0].strip()
-        real_ip = request.headers.get("X-Real-IP")
-        if real_ip:
-            return real_ip.strip()
-        if request.client:
-            return request.client.host
-        return "unknown"
+    def _get_client_ip(self, request: Request) -> str:
+        """获取客户端真实 IP，仅在可信代理链中读取转发头。"""
+        direct_ip = request.client.host if request.client else "unknown"
+
+        # 仅当直连 IP 是可信代理时，才读取 X-Forwarded-For
+        if self._trusted_proxies and direct_ip in self._trusted_proxies:
+            forwarded = request.headers.get("X-Forwarded-For")
+            if forwarded:
+                # 取最右边的非可信条目（最接近客户端的真实 IP）
+                parts = [p.strip() for p in forwarded.split(",")]
+                for ip in reversed(parts):
+                    if ip not in self._trusted_proxies:
+                        return ip
+                return parts[-1]  # 全部都是代理，取最后一个
+            real_ip = request.headers.get("X-Real-IP")
+            if real_ip:
+                return real_ip.strip()
+
+        return direct_ip
 
     def _maybe_cleanup(self, now: float) -> None:
         """定期清理超过 2 分钟无请求的 IP 条目。"""

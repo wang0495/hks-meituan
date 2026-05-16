@@ -80,6 +80,7 @@ class SecuritySettings(BaseSettings):
     ]
     api_key: str = ""
     encryption_key: str = ""  # 数据加密主密钥，留空则从 ENCRYPTION_KEY 环境变量读取
+    trusted_proxies: list[str] = []  # 可信反向代理 IP 列表，如 ["10.0.0.1", "172.16.0.1"]
 
 
 class AgentSettings(BaseSettings):

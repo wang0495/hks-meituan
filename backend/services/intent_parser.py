@@ -415,8 +415,24 @@ def _get_llm_model() -> str:
     return os.getenv("INTENT_LLM_MODEL") or os.getenv("LLM_MODEL", "deepseek-chat")
 
 
+# Intent parser response cache (same user_input → same intent, 30min TTL)
+_intent_cache: dict[str, tuple[dict, float]] = {}
+_INTENT_CACHE_TTL = 1800  # 30 minutes
+
+
 async def _call_llm(user_input: str) -> dict | None:
-    """调用 LLM 解析意图，返回解析结果或 None（失败时）。"""
+    """调用 LLM 解析意图，返回解析结果或 None（失败时）。带缓存。"""
+    # Check cache
+    import hashlib, time as _time
+    cache_key = hashlib.md5(user_input.encode()).hexdigest()
+    entry = _intent_cache.get(cache_key)
+    if entry is not None:
+        result, ts = entry
+        if _time.monotonic() - ts < _INTENT_CACHE_TTL:
+            logger.debug("intent cache hit")
+            return {**result}  # shallow copy to avoid mutation
+        del _intent_cache[cache_key]
+
     client = _get_client()
     is_ds = "deepseek" in _get_llm_model().lower() or "deepseek" in os.getenv("LLM_BASE_URL", "")
     try:
@@ -446,6 +462,8 @@ async def _call_llm(user_input: str) -> dict | None:
             # 防止通过API/GraphQL泄露给客户端
             result["_llm_raw_response"] = raw[:200]
             result["_llm_model"] = _get_llm_model()
+            # Cache the result
+            _intent_cache[cache_key] = (result.copy(), _time.monotonic())
             return result
     except Exception as e:
         logger.warning(f"LLM 调用失败: {e}")

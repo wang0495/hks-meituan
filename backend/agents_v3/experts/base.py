@@ -35,15 +35,54 @@ from __future__ import annotations
 
 import asyncio
 import functools
+import hashlib
 import json
 import math
 import os
 import logging
+import time
 import uuid
 
 from openai import AsyncOpenAI
 
 logger = logging.getLogger(__name__)
+
+# ---------------------------------------------------------------------------
+# LLM response cache (in-memory, TTL-based)
+# ---------------------------------------------------------------------------
+
+_llm_cache: dict[str, tuple[dict, float]] = {}  # key -> (result, timestamp)
+_LLM_CACHE_TTL = 300  # 5 minutes
+
+
+def _llm_cache_key(system_prompt: str, user_prompt: str, prefix: str, temperature: float) -> str:
+    """Generate a deterministic cache key for an LLM call."""
+    model = _llm_model(prefix)
+    raw = f"{model}|{temperature}|{system_prompt}|{user_prompt}"
+    return hashlib.md5(raw.encode()).hexdigest()
+
+
+def _llm_cache_get(key: str) -> dict | None:
+    """Check LLM cache; return result if still valid."""
+    entry = _llm_cache.get(key)
+    if entry is None:
+        return None
+    result, ts = entry
+    if time.monotonic() - ts > _LLM_CACHE_TTL:
+        del _llm_cache[key]
+        return None
+    return result
+
+
+def _llm_cache_set(key: str, result: dict) -> None:
+    """Store LLM result in cache."""
+    _llm_cache[key] = (result, time.monotonic())
+    # Evict expired entries if cache grows too large
+    if len(_llm_cache) > 500:
+        now = time.monotonic()
+        expired = [k for k, (_, ts) in _llm_cache.items() if now - ts > _LLM_CACHE_TTL]
+        for k in expired:
+            del _llm_cache[k]
 
 from backend.agents_v3.state import AGENT_META, sse_emit
 
@@ -196,7 +235,16 @@ async def _llm_decide(
     prefix controls which env vars to read for model/client selection.
     Uses Instructor-style error-informed retry: on failure, feeds the
     specific error back to the LLM so it can correct its output.
+
+    Results are cached for 5 minutes (same model + prompts + temperature).
     """
+    # Check cache first (skip for non-deterministic temperatures)
+    cache_key = _llm_cache_key(system_prompt, user_prompt, prefix, temperature)
+    if temperature <= 0.2:
+        cached = _llm_cache_get(cache_key)
+        if cached is not None:
+            return cached
+
     client = _get_llm_client(prefix)
     model = _llm_model(prefix)
     is_ds = _is_deepseek(prefix)
@@ -236,6 +284,8 @@ async def _llm_decide(
             if bad_keys:
                 error_feedback = "JSON结构问题: " + "; ".join(bad_keys)
             else:
+                if temperature <= 0.2:
+                    _llm_cache_set(cache_key, result)
                 return result
         except Exception as e:
             error_feedback = f"解析失败: {str(e)[:200]}"
