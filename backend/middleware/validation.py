@@ -38,6 +38,15 @@ class InputValidationMiddleware(BaseHTTPMiddleware):
         re.compile(r"\.\./\.\./", re.IGNORECASE),
     ]
 
+    # LLM prompt injection 模式（警告但不禁断 — 业务需要处理）
+    LLM_INJECTION_PATTERNS: list[re.Pattern] = [
+        re.compile(r"ignore\s+(previous|above|all)\s+(instructions?|rules?|prompts?)", re.IGNORECASE),
+        re.compile(r"system\s*prompt", re.IGNORECASE),
+        re.compile(r"you\s+are\s+now\s+(admin|root|superuser|debug)", re.IGNORECASE),
+        re.compile(r"output\s+(all\s+)?(system|your)\s+instructions", re.IGNORECASE),
+        re.compile(r"\[ignore\s+previous\]", re.IGNORECASE),
+    ]
+
     # 不需要检查的路径（静态文件、健康检查等）
     SKIP_PATHS: set[str] = {"/api/health", "/docs", "/redoc", "/openapi.json"}
 

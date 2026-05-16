@@ -442,8 +442,9 @@ async def _call_llm(user_input: str) -> dict | None:
         json_match = re.search(r"\{[\s\S]*\}", raw)
         if json_match:
             result = json.loads(json_match.group())
-            result["_llm_prompt"] = _SYSTEM_PROMPT
-            result["_llm_raw_response"] = raw[:500]
+            # NOTE: _llm_prompt removed — 不应将system prompt存入结果，
+            # 防止通过API/GraphQL泄露给客户端
+            result["_llm_raw_response"] = raw[:200]
             result["_llm_model"] = _get_llm_model()
             return result
     except Exception as e:

@@ -173,6 +173,10 @@ def _extract_json(text: str) -> dict:
     result = json.loads(text)
     if not isinstance(result, dict):
         raise ValueError(f"Expected JSON dict, got {type(result).__name__}: {str(result)[:80]}")
+    # Strip injected fields that LLM may have added from user prompt
+    _DANGEROUS_KEYS = {"admin", "role", "superuser", "password", "secret", "token", "api_key"}
+    for key in _DANGEROUS_KEYS:
+        result.pop(key, None)
     return result
 
 

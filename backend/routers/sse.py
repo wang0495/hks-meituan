@@ -12,6 +12,7 @@ import asyncio
 import logging
 
 from fastapi import APIRouter, Request
+from pydantic import BaseModel, Field
 
 from backend.sse.stream import SSEStream, create_sse_response
 
@@ -20,6 +21,10 @@ logger = logging.getLogger(__name__)
 router = APIRouter(tags=["SSE"])
 
 _LLM_POLISH_TIMEOUT = 15.0  # LLM 润色超时秒数
+
+
+class SSERequest(BaseModel):
+    user_input: str = Field(..., min_length=1, max_length=500)
 
 
 @router.post("/api/plan/stream")
@@ -31,7 +36,9 @@ async def plan_route_stream(request: Request):
     from backend.services.solver import solve_route
 
     body = await request.json()
-    user_input = body.get("user_input", "")
+    # Pydantic 风格验证
+    validated = SSERequest(**body)
+    user_input = validated.user_input
 
     stream = SSEStream()
 

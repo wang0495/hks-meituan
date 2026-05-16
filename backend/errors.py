@@ -90,8 +90,11 @@ class CityFlowException(Exception):
         self.status_code = status_code or _STATUS_MAP.get(code, 500)
         super().__init__(message)
 
+    # 不应暴露给客户端的 details key
+    _SENSITIVE_KEYS = {"original_error", "stack_trace", "traceback", "api_key", "secret"}
+
     def to_dict(self) -> dict[str, Any]:
-        """转换为 API 响应字典。"""
+        """转换为 API 响应字典。自动过滤敏感字段。"""
         result: dict[str, Any] = {
             "error": {
                 "code": self.code.value,
@@ -99,7 +102,10 @@ class CityFlowException(Exception):
             }
         }
         if self.details:
-            result["error"]["details"] = self.details
+            safe_details = {k: v for k, v in self.details.items()
+                           if k not in self._SENSITIVE_KEYS}
+            if safe_details:
+                result["error"]["details"] = safe_details
         return result
 
 
