@@ -130,7 +130,7 @@ async def plan_route_stream(request: Request):
 
         except Exception as e:
             logger.exception("SSE 流式规划出错")
-            await stream.send("error", {"error": str(e)})
+            await stream.send("error", {"error": "路线规划失败，请重试"})
 
     asyncio.create_task(process())
 

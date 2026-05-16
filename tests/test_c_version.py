@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
 import sys
 import time
 from datetime import datetime
@@ -13,7 +14,7 @@ import httpx
 from backend.agents_v3 import get_graph_c, TravelState
 
 # ── LLM评分配置 ──
-API_KEY = "sk-1aad8fc6f2bb4614be106bcdb747478f"
+API_KEY = os.getenv("LLM_API_KEY", "")
 API_URL = "https://api.deepseek.com/chat/completions"
 MODEL = "deepseek-chat"
 PASS_THRESHOLD = 6.5

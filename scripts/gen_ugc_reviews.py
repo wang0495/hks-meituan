@@ -11,7 +11,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-API_KEY = "sk-1aad8fc6f2bb4614be106bcdb747478f"
+API_KEY = os.getenv("LLM_API_KEY", "")
 API_URL = "https://api.deepseek.com/chat/completions"
 MODEL = "deepseek-chat"
 DATA_PATH = Path(__file__).parent.parent / "backend" / "data" / "city_poi_db.json"

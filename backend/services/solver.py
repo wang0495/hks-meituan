@@ -10,11 +10,15 @@
 
 from __future__ import annotations
 
+import logging
 import threading
 from datetime import timedelta
 from typing import Any
 
 from backend.services.cache import distance_cache
+
+logger = logging.getLogger(__name__)
+
 from backend.services.economy import enrich_poi_economics
 from backend.services.emotion import (calculate_emotion_curve,
                                       chemical_reaction,
@@ -630,10 +634,12 @@ def _select_diverse_candidates(
         main_city = max(city_counts, key=city_counts.get)
         all_pois = [p for p in all_pois if p.get("city") == main_city or not p.get("city")]
 
+    # 浅拷贝避免修改全局缓存的POI对象
+    all_pois = [{**p} for p in all_pois]
+
     # 预计算旅游相关性，过滤低质量POI
     for poi in all_pois:
-        if "_tourist_relevance" not in poi:
-            poi["_tourist_relevance"] = _calc_tourist_relevance(poi)
+        poi["_tourist_relevance"] = _calc_tourist_relevance(poi)
 
     # 只保留相关性 >= 0.4 的POI（排除汽配店、社区设施等）
     TOURIST_THRESHOLD = 0.4
@@ -692,7 +698,7 @@ def _select_diverse_candidates(
         sr_matched = [p for p in quality_pois if _matches_sr(p)]
         if len(sr_matched) >= 3:
             quality_pois = sr_matched
-            print(f"[Solver] scene_requirements Phase0预过滤(ANY-match): {len(sr_matched)} 个匹配")
+            logger.debug("scene_requirements Phase0预过滤(ANY-match): %d 个匹配", len(sr_matched))
 
     # ── 场景感知过滤 ──
     # 1. 便利店/快餐不适合美食/宵夜场景
@@ -704,7 +710,7 @@ def _select_diverse_candidates(
         quality_pois = [p for p in quality_pois
                         if not any(kw in p.get("name", "") for kw in _CONVENIENCE_KEYWORDS)]
         if len(quality_pois) < before:
-            print(f"[Solver] 美食场景过滤: 移除便利店{before - len(quality_pois)}个, 剩余{len(quality_pois)}")
+            logger.debug("美食场景过滤: 移除便利店%d个, 剩余%d", before - len(quality_pois), len(quality_pois))
 
     # 2. 深夜场景过滤白天专属景点
     _night_scene = any(kw in str(user_intent.get("scene_requirements", [])) + str(user_intent.get("_raw_input", ""))
@@ -715,26 +721,26 @@ def _select_diverse_candidates(
         quality_pois = [p for p in quality_pois
                         if not any(kw in p.get("name", "") for kw in _DAY_ONLY_KEYWORDS)]
         if len(quality_pois) < before:
-            print(f"[Solver] 深夜场景过滤: 移除白天专属景点{before - len(quality_pois)}个")
+            logger.debug("深夜场景过滤: 移除白天专属景点%d个", before - len(quality_pois))
 
     # late_night: 深夜/凌晨营业过滤
     # 只在时间窗口确实跨午夜时才激活（如 22:00-06:00）
     # 晚上场景（如 18:00-22:00）不激活，避免误杀娱乐/餐饮POI
-    print(f"[Solver] hard_constraints: {hard_constraints}, type={type(hard_constraints)}, late_night in={('late_night' in hard_constraints)}")
+    logger.debug("hard_constraints: %s, type=%s", hard_constraints, type(hard_constraints))
     if "late_night" in hard_constraints:
-        print("[Solver] late_night filter ACTIVATED")
+        logger.debug("late_night filter ACTIVATED")
         time_info = user_intent.get("time", {})
         start_str = time_info.get("start", "22:00")
         end_str = time_info.get("end", "06:00")
         try:
             sh, sm = start_str.split(":")
             start_min = int(sh) * 60 + int(sm)
-        except:
+        except (ValueError, AttributeError):
             start_min = 22 * 60
         try:
             eh, em = end_str.split(":")
             end_min = int(eh) * 60 + int(em)
-        except:
+        except (ValueError, AttributeError):
             end_min = 6 * 60
 
         # 只在深夜时段才做严格过滤
@@ -767,7 +773,7 @@ def _select_diverse_candidates(
                 ch, cm = parts[1].strip().split(":")
                 open_min = int(oh) * 60 + int(om)
                 close_min = int(ch) * 60 + int(cm)
-            except:
+            except (ValueError, AttributeError, IndexError):
                 tags = ' '.join(p.get("tags", []) + p.get("_scene_tags", []))
                 if any(kw in tags for kw in ["24小时", "通宵", "深夜", "夜市"]):
                     return True
@@ -798,7 +804,7 @@ def _select_diverse_candidates(
             late_pois = [p for p in quality_pois if _is_open_in_window(p)]
         else:
             late_pois = quality_pois  # 不过滤，让正常时间窗检查处理
-        print(f"[Solver] late_night filter: {len(quality_pois)} → {len(late_pois)} POIs (window={start_str}-{end_str}, crosses_midnight={_crosses_midnight})")
+        logger.debug("late_night filter: %d → %d POIs (window=%s-%s, crosses_midnight=%s)", len(quality_pois), len(late_pois), start_str, end_str, _crosses_midnight)
         if late_pois:
             quality_pois = late_pois
 
@@ -1095,7 +1101,7 @@ def _phase1_initialize(
 
     # 场景需求关键词
     _scene_requirements = user_intent.get("scene_requirements", [])
-    print(f"[Solver-Phase1] scene_requirements: {_scene_requirements}, candidates: {len(candidates)}")
+    logger.debug("Phase1 scene_requirements: %s, candidates: %d", _scene_requirements, len(candidates))
 
     # ── 方案一+五：约束层级 — scene_requirements作为Level 0硬约束 ──
     # 如果用户有明确场景需求，先锁定匹配的POI子集，再在子集内做情绪阶段选择
@@ -1186,13 +1192,13 @@ def _phase1_initialize(
         # 只保留餐饮类的scene_matched POI
         _scene_matched_ids = {pid for pid in _scene_matched_ids
                              if any(p.get("id") == pid and p.get("category") == "餐饮" for p in candidates)}
-    print(f"[Solver-Phase1] _scene_matched_ids: {len(_scene_matched_ids)}, remaining: {len(remaining)}, is_food_req: {_is_food_req}")
+    logger.debug("Phase1 _scene_matched_ids: %d, remaining: %d, is_food_req: %s", len(_scene_matched_ids), len(remaining), _is_food_req)
     # 只有匹配POI足够多（>=4个）时才锁定，否则保留全部候选让情绪阶段自由选择
     if _scene_matched_ids and len(_scene_matched_ids) >= 4:
         scene_remaining = [p for p in remaining if p.get("id") in _scene_matched_ids]
         if len(scene_remaining) >= 4:
             remaining = scene_remaining
-            print(f"[Solver-Phase1] 两阶段锁定: 只从{len(remaining)}个scene_matched POI中选")
+            logger.debug("Phase1 两阶段锁定: 只从%d个scene_matched POI中选", len(remaining))
 
     # 深夜场景：户外类POI跳过营业时间检查
     _is_late_night = user_intent.get("_is_late_night", False)
@@ -1944,7 +1950,7 @@ def solve_route(
             _eh, _em = _end_str.split(":")
             _end_m = int(_eh) * 60 + int(_em)
             _is_late_night = _end_m < _start_m or _start_m >= 22 * 60 or _start_m <= 6 * 60
-        except:
+        except (ValueError, AttributeError):
             pass
     user_intent["_is_late_night"] = _is_late_night
 
@@ -2076,7 +2082,7 @@ def solve_route(
                     },
                 })
                 used_ids.add(poi.get("id"))
-        print(f"[Solver] 最低长度保护: 补充到{len(route)}站")
+        logger.debug("最低长度保护: 补充到%d站", len(route))
 
     if not route:
         return empty_result

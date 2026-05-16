@@ -5,7 +5,7 @@ import asyncio, json, re, sys, httpx
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-API_KEY = "ak_2C232w6Wj58e9Pw8a86gd2id76U58"
+API_KEY = "os.getenv("AMAP_API_KEY", "")"
 DATA_PATH = Path("backend/data/city_poi_db.json")
 
 async def llm_json(prompt: str, max_tokens=4000) -> dict | list | None:

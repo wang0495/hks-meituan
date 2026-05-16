@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import math
 import re
 from typing import Any
@@ -11,6 +12,8 @@ from backend.services.emotion import (emotion_compatibility,
                                       fatigue_penalty)
 from backend.services.time_utils import (parse_hours_to_minutes,
                                          parse_time_window)
+
+logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # 0. 地理位置过滤器（by 王启龙 2026-05-09: POI筛选应基于用户位置就近规划）
@@ -150,8 +153,8 @@ def filter_candidates(
     if user_lat is not None and user_lng is not None:
         pois = _filter_by_radius(pois, user_lat, user_lng)
         if pois:
-            print(f"[过滤] 位置过滤: {len(pois)}个POI在半径内")
-            print(f"[过滤] 最近: {pois[0]['name']} ({pois[0].get('distance_km', '?')}km)")
+            logger.debug("位置过滤: %d个POI在半径内", len(pois))
+            logger.debug("最近: %s (%skm)", pois[0]['name'], pois[0].get('distance_km', '?'))
 
     hard_constraints = user_intent.get("hard_constraints", [])
     budget_pp = user_intent.get("budget", {}).get("per_person", float("inf"))
@@ -193,7 +196,7 @@ def filter_candidates(
                 close_m = int(parts[1].strip().split(":")[1])
                 poi_open_min = open_h * 60 + open_m
                 poi_close_min = close_h * 60 + close_m
-            except:
+            except (ValueError, AttributeError, IndexError):
                 # 无法解析营业时间，检查标签判断是否24h
                 tags_str = ' '.join(poi.get("tags", [])) + ' ' + poi.get("name", "")
                 if "24小时" in tags_str or "通宵" in tags_str:
@@ -240,23 +243,23 @@ def filter_candidates(
         # 排队
         q_time = poi.get("constraints", {}).get("queue_time_min", 0)
         if queue_tol is not None and q_time > queue_tol:
-            print(f"[过滤] {poi['name']} - 排队{q_time}min > 容忍{queue_tol}min")
+            logger.debug("%s - 排队%dmin > 容忍%dmin", poi['name'], q_time, queue_tol)
             continue
 
         # 无障碍
         if need_access and not poi.get("constraints", {}).get("accessible", False):
-            print(f"[过滤] {poi['name']} - 不支持无障碍通行")
+            logger.debug("%s - 不支持无障碍通行", poi['name'])
             continue
 
         # 宠物友好
         if need_pet and not poi.get("constraints", {}).get("pet_friendly", False):
-            print(f"[过滤] {poi['name']} - 不支持宠物")
+            logger.debug("%s - 不支持宠物", poi['name'])
             continue
 
         # 预算（硬约束：超预算 1.0 倍直接排除）
         price = poi.get("avg_price", 0)
         if price > budget_pp * 1.0:
-            print(f"[过滤] {poi['name']} - 价格{price} > 预算{budget_pp}")
+            logger.debug("%s - 价格%d > 预算%d", poi['name'], price, budget_pp)
             continue
 
         result.append(poi)

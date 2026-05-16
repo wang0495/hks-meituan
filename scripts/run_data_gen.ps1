@@ -7,7 +7,7 @@ $job = Start-Job -Name "CityFlowDataGen" -ScriptBlock {
     param($root, $log)
     Set-Location $root
     $env:PYTHONPATH = $root
-    python -m backend.tools.data_generator.main --task all --provider LongCatProvider --provider-args '{"api_key": "ak_2C232w6Wj58e9Pw8a86gd2id76U58"}' *>&1 | Out-File -FilePath $log -Encoding utf8
+    python -m backend.tools.data_generator.main --task all --provider LongCatProvider --provider-args '{"api_key": "os.getenv("AMAP_API_KEY", "")"}' *>&1 | Out-File -FilePath $log -Encoding utf8
     $exitCode = $LASTEXITCODE
     "`n=== 进程退出码: $exitCode ===" | Out-File -FilePath $log -Encoding utf8 -Append
 } -ArgumentList $projectRoot, $logFile

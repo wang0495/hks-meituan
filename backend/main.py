@@ -217,7 +217,7 @@ setup_error_handlers(app)
 # CORS -- 最外层，处理 OPTIONS 预检请求
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=settings.security.allowed_origins,
     allow_credentials=False,
     allow_methods=["GET", "POST", "PUT", "DELETE"],
     allow_headers=["*"],
@@ -550,7 +550,7 @@ def _generate_simplified_route(
         sh, sm = start_time.split(":")
         start_h = int(sh)
         start_m = int(sm)
-    except:
+    except (ValueError, AttributeError):
         start_h, start_m = 9, 0
     return {
         "route": [
@@ -883,7 +883,7 @@ async def plan_route(request: PlanRequest):
 
             except Exception as c_err:
                 logger.error(f"C版本执行失败: {c_err}")
-                yield _sse("error", {"error": f"路线规划失败: {str(c_err)}"})
+                yield _sse("error", {"error": "路线规划失败，请重试"})
                 return
 
         except Exception:

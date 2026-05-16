@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
 import statistics
 import sys
 from pathlib import Path
@@ -23,7 +24,7 @@ import httpx
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-API_KEY = "sk-1aad8fc6f2bb4614be106bcdb747478f"
+API_KEY = os.getenv("LLM_API_KEY", "")
 API_URL = "https://api.deepseek.com/chat/completions"
 MODEL = "deepseek-chat"
 N_RUNS = 5

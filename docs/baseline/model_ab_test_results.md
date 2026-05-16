@@ -27,7 +27,7 @@
 env vars:
 ```
 EXPERT_LLM_BASE_URL=https://dashscope.aliyuncs.com/compatible-mode/v1
-EXPERT_LLM_API_KEY=sk-85c5888f0a61425c8e206d5dec4c88a6
+EXPERT_LLM_API_KEY=<your-api-key>
 EXPERT_LLM_MODEL=qwen3.5-flash
 ```
 

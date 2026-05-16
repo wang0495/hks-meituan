@@ -3,7 +3,7 @@ import asyncio, json, sys, time
 from pathlib import Path
 import httpx
 
-API_KEY = "ak_2C232w6Wj58e9Pw8a86gd2id76U58"
+API_KEY = "os.getenv("AMAP_API_KEY", "")"
 API_URL = "https://api.longcat.chat/anthropic/v1/messages"
 MODEL = "LongCat-Flash-Lite"
 BASE = "http://localhost:8001"

@@ -71,6 +71,12 @@ class SecuritySettings(BaseSettings):
         "http://localhost:3000",
         "http://localhost:3001",
         "http://localhost:8000",
+        "http://localhost:8001",
+        "http://localhost:8002",
+        "http://127.0.0.1:3000",
+        "http://127.0.0.1:8000",
+        "http://127.0.0.1:8001",
+        "http://127.0.0.1:8002",
     ]
     api_key: str = ""
     encryption_key: str = ""  # 数据加密主密钥，留空则从 ENCRYPTION_KEY 环境变量读取

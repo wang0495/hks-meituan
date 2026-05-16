@@ -1,7 +1,7 @@
 """Debug LLM scoring response."""
 import asyncio, httpx, json, re
 
-API_KEY = "ak_2C232w6Wj58e9Pw8a86gd2id76U58"
+API_KEY = "os.getenv("AMAP_API_KEY", "")"
 
 async def test():
     route_str = "  1. 淇沙湾 [文化] ¥29 标签:['海滨','文化','经济']"

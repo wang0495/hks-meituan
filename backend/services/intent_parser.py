@@ -863,7 +863,7 @@ def _is_late_night_time(time_str: str) -> bool:
         h, m = time_str.split(":")
         hour = int(h)
         return hour >= 22 or hour < 6
-    except:
+    except (ValueError, TypeError):
         return False
 
 
@@ -886,8 +886,7 @@ async def parse_intent(user_input: str, available_profiles: dict | None = None) 
     if available_profiles is None:
         available_profiles = PROFILES
 
-    logger.info(f"[IntentParser] 收到用户输入: {user_input}")
-    print(f"[IntentParser] 收到用户输入: {user_input}")
+    logger.info("收到用户输入: %s", user_input)
 
     # 尝试 LLM 解析（重试3次，每次30秒超时）
     intent: dict | None = None
@@ -898,27 +897,23 @@ async def parse_intent(user_input: str, available_profiles: dict | None = None) 
             intent = await asyncio.wait_for(_call_llm(user_input), timeout=30.0)
             if intent:
                 llm_used = True
-                logger.info("[IntentParser] LLM 解析成功")
-                print("[IntentParser] LLM 解析成功")
+                logger.info("LLM 解析成功")
                 break
             else:
                 llm_error = "LLM 返回空结果"
         except asyncio.TimeoutError:
             llm_error = f"LLM 超时（30s）第{attempt + 1}次"
-            logger.warning(f"[IntentParser] {llm_error}")
-            print(f"[IntentParser] {llm_error}")
+            logger.warning("%s", llm_error)
         except Exception as e:
             llm_error = f"LLM 异常: {e}"
-            logger.warning(f"[IntentParser] {llm_error}")
-            print(f"[IntentParser] {llm_error}")
+            logger.warning("%s", llm_error)
         if attempt < 2:
             await asyncio.sleep(1)
 
     # 降级方案
     if intent is None:
         intent = _rule_based_parse(user_input)
-        logger.info("[IntentParser] 使用规则匹配结果")
-        print("[IntentParser] 使用规则匹配结果")
+        logger.info("使用规则匹配结果")
 
     # 提取需求向量（来自LLM，或为规则匹配创建默认值）
     dv = intent.pop("demand_vector", None) if isinstance(intent, dict) else None
@@ -951,7 +946,7 @@ async def parse_intent(user_input: str, available_profiles: dict | None = None) 
     if any(kw in _raw for kw in _LATE_NIGHT_KW):
         if "late_night" not in intent.get("hard_constraints", []):
             intent.setdefault("hard_constraints", []).append("late_night")
-            print(f"[IntentParser] 补充late_night约束（检测到深夜关键词）")
+            logger.debug("补充late_night约束（检测到深夜关键词）")
 
     # 后处理: 深夜场景确保时间正确
     # 只在用户明确提到"凌晨/深夜/通宵/宵夜"时才强制设为深夜时段
@@ -966,13 +961,13 @@ async def parse_intent(user_input: str, available_profiles: dict | None = None) 
         if has_explicit_late:
             if start and not _is_late_night_time(start):
                 intent["time"] = {"period": "深夜", "start": "22:00", "end": "06:00"}
-                print(f"[IntentParser] 深夜时间修正: {start} → 22:00-06:00")
+                logger.debug("深夜时间修正: %s → 22:00-06:00", start)
             elif not start:
                 intent["time"] = {"period": "深夜", "start": "22:00", "end": "06:00"}
         else:
             # 没有明确深夜关键词 → 移除late_night约束，保留LLM返回的时间
             intent["hard_constraints"] = [c for c in intent.get("hard_constraints", []) if c != "late_night"]
-            print(f"[IntentParser] 移除late_night约束（无明确深夜关键词）")
+            logger.debug("移除late_night约束（无明确深夜关键词）")
 
     # 画像匹配
     matched_id, top_scores = _match_profile(intent, available_profiles, user_input)
@@ -984,13 +979,8 @@ async def parse_intent(user_input: str, available_profiles: dict | None = None) 
         for pid, s, nm in top_scores
     ]
 
-    logger.info(f"[IntentParser] 解析结果: {json.dumps(intent, ensure_ascii=False)}")
-    print(
-        f"[IntentParser] 匹配画像: {matched_id} - {available_profiles.get(matched_id, {}).get('name', '未知')}"
-    )
-    print(
-        f"[IntentParser] 完整结果: {json.dumps(intent, ensure_ascii=False, indent=2)}"
-    )
+    logger.info("解析结果: %s", json.dumps(intent, ensure_ascii=False))
+    logger.info("匹配画像: %s - %s", matched_id, available_profiles.get(matched_id, {}).get('name', '未知'))
 
     return intent
 

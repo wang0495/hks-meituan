@@ -2,7 +2,7 @@
 import asyncio, json, httpx
 from pathlib import Path
 
-API_KEY = "ak_2C232w6Wj58e9Pw8a86gd2id76U58"
+API_KEY = "os.getenv("AMAP_API_KEY", "")"
 OUT_PATH = Path("eval_data/llm_scenarios.json")
 
 async def llm_json(prompt, max_tokens=8000):

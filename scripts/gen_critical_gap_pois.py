@@ -13,7 +13,7 @@ from pathlib import Path
 
 import httpx
 
-API_KEY = "ak_2C232w6Wj58e9Pw8a86gd2id76U58"
+API_KEY = "os.getenv("AMAP_API_KEY", "")"
 DATA_PATH = Path("backend/data/city_poi_db.json")
 
 # 每个批次定义：(类别名, 目标城市, 生成数量, prompt模板)

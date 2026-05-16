@@ -34,7 +34,7 @@ import httpx
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 # ── 配置 ──
-API_KEY = os.getenv("EVAL_API_KEY", os.getenv("LLM_API_KEY", "sk-1aad8fc6f2bb4614be106bcdb747478f"))
+API_KEY = os.getenv("EVAL_API_KEY", os.getenv("LLM_API_KEY", ""))
 API_URL = "https://api.deepseek.com/chat/completions"
 EVAL_MODEL = "deepseek-chat"
 PASS_THRESHOLD = 6.5

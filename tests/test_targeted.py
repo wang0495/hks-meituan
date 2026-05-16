@@ -5,7 +5,7 @@ from datetime import datetime
 from pathlib import Path
 
 import httpx
-os.environ.setdefault("LLM_API_KEY", "sk-1aad8fc6f2bb4614be106bcdb747478f")
+os.environ.setdefault("LLM_API_KEY", os.getenv("LLM_API_KEY", ""))
 os.environ.setdefault("LLM_BASE_URL", "https://api.deepseek.com")
 os.environ.setdefault("LLM_MODEL", "deepseek-chat")
 

@@ -15,7 +15,7 @@ if not DEEPSEEK_URL.rstrip("/").endswith("/v1"):
     DEEPSEEK_URL = DEEPSEEK_URL.rstrip("/") + "/v1"
 
 # LongCat配置
-LONGCAT_KEY = "ak_2C232w6Wj58e9Pw8a86gd2id76U58"
+LONGCAT_KEY = "os.getenv("AMAP_API_KEY", "")"
 LONGCAT_URL = "https://api.longcat.chat/anthropic/v1/messages"
 
 # 加载.env

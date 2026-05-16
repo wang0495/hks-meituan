@@ -12,7 +12,7 @@ from pathlib import Path
 
 import httpx
 
-API_KEY = "ak_2C232w6Wj58e9Pw8a86gd2id76U58"
+API_KEY = "os.getenv("AMAP_API_KEY", "")"
 OUTPUT_PATH = Path("tests/golden_cases.json")
 
 # 场景模板：每种画像生成多个变体
