@@ -309,3 +309,47 @@ SYNTHESIZER_MODE=constraint python tests/test_c_version.py
 - LLM只选POI子集（不排序），最大化diversity
 - 3种算法策略并行排序（TSP/时间窗优先/体验优先），选geo最优的
 - 消除LLM排序的方差，保留LLM选择的优势
+
+---
+
+## 第四轮优化：开源方案落地 (2026-05-16)
+
+研究了37个GitHub项目（5个子agent并行），选出3个方案实测。
+
+### 实验3: DPP多样性重排 (3/5, 6.6)
+
+参考 github.com/laming-chen/fast-map-dpp 的贪心DPP算法。
+在cap和ensure之间插入_dpp_rerank_route:
+- 构建核矩阵: 对角线=POI质量分, 非对角线=类型相似度
+- DPP贪心选择最大化det(L_S), 天然平衡质量和多样性
+- 重排后重新计算到达/离开时间
+
+结果: diversity 4.6→5.2 (+0.6), 但 geo 7.8→6.4 (-1.4)
+结论: **DPP增加了多样性但破坏了地理连续性**。已关闭DPP但保留代码。
+
+### 实验4: Instructor风格纠错重试 (4/5, 6.8) ← 有效
+
+改_llm_decide的retry逻辑: 解析错误→构造错误信息→下次重试附加到user message。
+原来blind retry ("异常了就再来一次"), 现在error-informed retry ("告诉LLM哪里错了让它修")。
+
+结果: 通过 2/5→4/5, overall 6.2→6.8, intent 7.0→7.6
+结论: **有效, 已保留**。减少JSON解析失败导致的pipeline降级。
+
+### 实验5: Self-Consistency投票+零温度锚点 (3/5, 6.6)
+
+替换原A1 best_of_n: 生成5条候选(1个temp=0锚点+4个temp=0.6), 硬约束验证+多数投票+零温度锚点回退。
+
+结果: diversity 4.6→5.6 (+1.0), 但 geo 7.8→6.4 (-1.4)
+结论: 比旧版A1好, 但不如tournament。零温度锚点保底但高温变体质量参差。
+
+### 第四轮总结
+
+| 方案 | 通过 | overall | diversity | geo | 结论 |
+|------|------|---------|-----------|-----|------|
+| 基线(tournament) | 2/5 | 6.2 | 4.6 | 7.8 | 参考 |
+| DPP重排 | 3/5 | 6.6 | 5.2 | 6.4 | 破坏geo,已关 |
+| **Instructor重试** | **4/5** | **6.8** | **5.4** | 7.0 | **已保留** |
+| Self-Consistency | 3/5 | 6.6 | 5.6 | 6.4 | 不如tournament |
+
+**Instructor纠错重试是唯一值得保留的改动**。效果明确且不引入新问题。
+DPP和Self-Consistency都增加了diversity但代价是geo大幅下降。
