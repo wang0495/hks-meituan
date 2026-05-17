@@ -974,6 +974,13 @@ async def startup():
     from backend.services.session import get_session_manager
     from backend.services.task_queue import get_task_queue
 
+    # 初始化 Sentry（DSN 未配置时自动跳过）
+    try:
+        from backend.monitoring.sentry import init_sentry
+        init_sentry()
+    except Exception as e:
+        logger.debug("Sentry初始化失败: %s", e)
+
     load_data()
 
     # 启动连接池管理器（数据库 + HTTP 连接池）
@@ -1020,10 +1027,10 @@ async def startup():
     shutdown_mgr.register_cleanup("task_queue", get_task_queue().stop)
     shutdown_mgr.register_cleanup("multilevel_cache", close_multilevel_cache)
     shutdown_mgr.register_cleanup("pool_manager", get_pool_manager().close_all)
-    shutdown_mgr.register_cleanup(
-        "audit_logger_flush",
-        lambda: get_audit_logger().flush(),
-    )
+    async def _flush_audit():
+        get_audit_logger().flush()
+
+    shutdown_mgr.register_cleanup("audit_logger_flush", _flush_audit)
 
     # 注册操作系统信号处理器
     shutdown_mgr.register_signal_handlers()
@@ -1034,7 +1041,10 @@ async def startup():
     if settings.security.api_key:
         logger.info("API Key 认证已启用")
     else:
-        logger.warning("SECURITY_API_KEY 未设置 — 管理端点无认证保护")
+        logger.warning(
+            "SECURITY_API_KEY 未设置 — 管理端点无认证保护。"
+            "建议在.env中设置 SECURITY_API_KEY"
+        )
 
     logger.info("CityFlow API 启动完成 | %s", get_config_summary(settings))
 

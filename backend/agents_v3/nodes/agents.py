@@ -41,10 +41,13 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 import math
 import uuid
 
 from backend.agents_v3.state import TravelState, AGENT_META, sse_emit
+
+logger = logging.getLogger(__name__)
 
 
 # 名称中包含这些关键词的POI应归为餐饮，不应被poi_agent选中
@@ -109,9 +112,8 @@ async def _load_all_pois() -> list[dict]:
             if isinstance(data, list):
                 return data
         except Exception:
-            pass
+            logger.debug("local JSON data_service fallback failed", exc_info=True)
         return []
-
 
 # LLM调用统一委托给experts/base.py
 from backend.agents_v3.experts.base import _llm_decide, _get_llm_client  # noqa: F401

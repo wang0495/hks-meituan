@@ -1,10 +1,16 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
 
 from backend.models.schemas import ChatRequest, ChatResponse
 from backend.services import llm_service
 
 router = APIRouter(prefix="/api/llm", tags=["LLM"])
+
+# 允许的模型白名单
+_ALLOWED_MODELS = frozenset({
+    "openai", "deepseek-chat", "deepseek-reasoner",
+    "qwen-turbo", "qwen-plus", "qwen-max",
+})
 
 
 @router.post(
@@ -37,6 +43,8 @@ router = APIRouter(prefix="/api/llm", tags=["LLM"])
 async def chat(req: ChatRequest):
     """与LLM进行单轮对话。"""
     model_name = req.model or "openai"
+    if model_name not in _ALLOWED_MODELS:
+        raise HTTPException(status_code=400, detail=f"不支持的模型: {model_name}")
     resp = await llm_service.chat(message=req.message, model=model_name)
     return ChatResponse(response=resp, model=model_name)
 
@@ -76,6 +84,9 @@ async def chat(req: ChatRequest):
 )
 async def chat_stream(req: ChatRequest):
     """与LLM进行流式对话。"""
+    model_name = req.model or "openai"
+    if model_name not in _ALLOWED_MODELS:
+        raise HTTPException(status_code=400, detail=f"不支持的模型: {model_name}")
 
     async def stream():
         async for chunk in llm_service.chat_stream(

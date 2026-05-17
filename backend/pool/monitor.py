@@ -434,7 +434,7 @@ class PoolMonitor:
                 total = db_pool_size + overflow
                 db_utilization = db_checkedout / total if total > 0 else 0.0
             except Exception:
-                pass
+                logger.debug("db pool stats collection failed", exc_info=True)
 
         if self._http_pool is not None:
             try:
@@ -442,13 +442,13 @@ class PoolMonitor:
                 http_max = raw.get("max_connections", 0)
                 http_active = raw.get("active", 0)
             except Exception:
-                pass
+                logger.debug("http pool stats collection failed", exc_info=True)
 
         try:
             alerts = self.check_alerts()
             alert_count = len(alerts)
         except Exception:
-            pass
+            logger.debug("alert count collection failed", exc_info=True)
 
         entry = HistoryEntry(
             timestamp=time.time(),

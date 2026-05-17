@@ -1,9 +1,11 @@
+from __future__ import annotations
+
 import logging
-import os
 from typing import AsyncIterator
 
 from openai import AsyncOpenAI
 
+from backend.config import settings
 from backend.errors import LLMServiceError
 
 logger = logging.getLogger(__name__)
@@ -14,9 +16,10 @@ _openai_client: AsyncOpenAI | None = None
 def get_client() -> AsyncOpenAI:
     global _openai_client
     if _openai_client is None:
-        base_url = os.getenv("LLM_BASE_URL", "https://api.deepseek.com")
-        api_key = os.getenv("LLM_API_KEY", os.getenv("OPENAI_API_KEY", ""))
-        _openai_client = AsyncOpenAI(base_url=base_url, api_key=api_key)
+        _openai_client = AsyncOpenAI(
+            base_url=settings.llm.base_url,
+            api_key=settings.llm.api_key,
+        )
     return _openai_client
 
 
@@ -26,7 +29,7 @@ async def chat_stream(
     system_prompt: str = "你是一个数据分析助手，简洁地回答用户问题。",
 ) -> AsyncIterator[str]:
     if not model:
-        model = os.getenv("LLM_MODEL", "deepseek-chat")
+        model = settings.llm.model
     client = get_client()
     try:
         stream = await client.chat.completions.create(
@@ -51,7 +54,7 @@ async def chat_stream(
 
 async def chat(message: str, model: str = "") -> str:
     if not model:
-        model = os.getenv("LLM_MODEL", "deepseek-chat")
+        model = settings.llm.model
     client = get_client()
     try:
         resp = await client.chat.completions.create(

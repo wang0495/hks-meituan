@@ -49,7 +49,7 @@ def _ensure_user_config() -> dict:
         if _USER_CONFIG_PATH.exists():
             return json.loads(_USER_CONFIG_PATH.read_text(encoding="utf-8"))
     except Exception:
-        pass
+        logger.debug("user config read failed, using defaults", exc_info=True)
     return {"last_user_id": _DEFAULT_USER_ID, "known_users": []}
 
 

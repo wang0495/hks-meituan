@@ -9,21 +9,25 @@
 
 from __future__ import annotations
 
+import logging
+import uuid
+
 from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from backend.services.session import get_session_manager
+
+logger = logging.getLogger(__name__)
 
 
 class SessionMiddleware(BaseHTTPMiddleware):
     """会话中间件：为每个请求注入 session_id。
 
     优先级：Cookie > Header > 自动创建。
+    Redis 不可用时降级为本地随机ID。
     """
 
     async def dispatch(self, request: Request, call_next) -> Response:
-        session_manager = get_session_manager()
-
         # 从 cookie 或 header 获取 session_id
         session_id = request.cookies.get("session_id") or request.headers.get(
             "X-Session-ID"
@@ -31,7 +35,13 @@ class SessionMiddleware(BaseHTTPMiddleware):
 
         # 没有 session 则创建新的
         if not session_id:
-            session_id = await session_manager.create_session()
+            try:
+                session_manager = get_session_manager()
+                session_id = await session_manager.create_session()
+            except Exception:
+                # Redis 不可用 → 降级为本地随机ID
+                session_id = f"local-{uuid.uuid4().hex[:12]}"
+                logger.debug("Redis不可用，使用本地session: %s", session_id)
 
         # 注入到请求状态，后续路由可通过 request.state.session_id 获取
         request.state.session_id = session_id

@@ -250,7 +250,7 @@ class PerceptionService:
                     vibe = personality.get("vibe", "relaxed")
                     specialties = personality.get("specialties", [])
         except Exception:
-            pass
+            logger.debug("city personality lookup failed", exc_info=True)
 
         return PerceptionContext(
             weather=weather,

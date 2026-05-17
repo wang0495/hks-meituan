@@ -39,6 +39,7 @@ few-shot示例理解这种微妙区别，而关键词匹配永远做不到。
 from __future__ import annotations
 
 import json
+import logging
 
 from backend.agents_v3.experts.base import (
     _FOOD_NAME_KWS,
@@ -46,6 +47,8 @@ from backend.agents_v3.experts.base import (
     _is_likely_macau,
 )
 from backend.agents_v3.state import TravelState, AGENT_META, sse_emit
+
+logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
@@ -301,7 +304,7 @@ async def expert_router(state: TravelState) -> dict:
             temperature=0.05,
         )
     except Exception:
-        pass
+        logger.warning("LLM intent enrichment failed, falling back to rules", exc_info=True)
 
     if result is None:
         result = _fallback_result(user_input, user_intent)

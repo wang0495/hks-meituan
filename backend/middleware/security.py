@@ -5,6 +5,8 @@
 
 from __future__ import annotations
 
+import os
+
 from fastapi import Request
 from starlette.middleware.base import BaseHTTPMiddleware
 
@@ -28,13 +30,14 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         # XSS 过滤（现代浏览器已内置，但作为兼容层保留）
         response.headers["X-XSS-Protection"] = "1; mode=block"
 
-        # 强制 HTTPS（生产环境启用，开发环境可注释掉）
-        response.headers["Strict-Transport-Security"] = (
-            "max-age=31536000; includeSubDomains"
-        )
+        # 强制 HTTPS — 仅生产环境启用（避免开发环境localhost被锁死）
+        env = os.getenv("ENVIRONMENT", "development")
+        if env in ("production", "prod", "staging"):
+            response.headers["Strict-Transport-Security"] = (
+                "max-age=31536000; includeSubDomains"
+            )
 
         # 内容安全策略：限制资源加载来源
-        # 生产环境应收紧 connect-src，例如只允许自己的 API 域名
         response.headers["Content-Security-Policy"] = (
             "default-src 'self'; "
             "script-src 'self'; "

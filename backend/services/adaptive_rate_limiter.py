@@ -172,7 +172,7 @@ class MetricsCollector:
                 cpu_percent = self._process.cpu_percent(interval=0)
                 memory_percent = self._process.memory_percent()
             except Exception:
-                pass
+                logger.debug("psutil cpu/memory read failed", exc_info=True)
 
         avg_response_ms = (
             sum(self._response_times[-100:]) / min(len(self._response_times), 100)

@@ -13,9 +13,12 @@ Phase 3（coordinator）：solver路线优化。
 from __future__ import annotations
 
 import json
+import logging
 import math
 
 from backend.agents_v3.state import TravelState
+
+logger = logging.getLogger(__name__)
 
 
 def _haversine_km(lat1, lng1, lat2, lng2) -> float:
@@ -225,7 +228,7 @@ async def group_debate(state: TravelState) -> dict:
     try:
         debate_results = await _llm_debate_round(cleaned, rule_conflicts, intent, user_input)
     except Exception:
-        pass  # LLM失败不影响规则层结果
+        logger.debug("LLM debate round failed, using rule-layer results only", exc_info=True)
 
     # 执行LLM反驳决议
     for d in debate_results:

@@ -126,7 +126,7 @@ async def fetch_pois(
                     if r.status_code == 200:
                         detail_map[poi_id] = r.json()
                 except Exception:
-                    pass
+                    logger.debug("individual POI detail fetch failed for %s", poi_id, exc_info=True)
 
         await asyncio.gather(*[_fetch_detail(pid) for pid in top_ids])
 

@@ -274,7 +274,7 @@ async def _load_all_pois() -> list[dict]:
             if isinstance(data, list):
                 return data
         except Exception:
-            pass
+            logger.debug("local JSON fallback also failed", exc_info=True)
         return []
 
 

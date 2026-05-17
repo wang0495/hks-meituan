@@ -163,12 +163,11 @@ async def resolve_poi(id: str) -> Optional[POI]:
 
 
 async def resolve_routes(limit: int = 10) -> list[Route]:
-    """查询已缓存的路线列表。"""
+    """查询已缓存的路线列表（脱敏：不暴露其他用户的输入/意图）。"""
     results: list[Route] = []
-    # route_cache._cache 存储 (value, timestamp) 元组
     for key, (raw, _ts) in list(route_cache._cache.items())[:limit]:
         results.append(
-            _to_route(route_id=key, raw=raw, user_input=raw.get("user_input", ""))
+            _to_route(route_id=key, raw=raw, user_input="")  # 不暴露原始输入
         )
     return results
 

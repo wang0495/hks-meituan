@@ -4,8 +4,9 @@ from __future__ import annotations
 
 import logging
 
-from fastapi import HTTPException, Request
+from fastapi import Request
 from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.responses import JSONResponse
 
 logger = logging.getLogger(__name__)
 
@@ -36,9 +37,9 @@ class APIVersionMiddleware(BaseHTTPMiddleware):
 
             # 验证版本
             if header_version not in self.SUPPORTED_VERSIONS:
-                raise HTTPException(
+                return JSONResponse(
                     status_code=400,
-                    detail={
+                    content={
                         "error": f"不支持的API版本: {header_version}",
                         "supported_versions": self.SUPPORTED_VERSIONS,
                     },

@@ -20,37 +20,16 @@ import httpx
 
 # ── 模型配置 ──
 
+_SF_BASE = "https://api.siliconflow.cn/v1"
+_SF_KEY = os.getenv("SILICONFLOW_API_KEY", "")
+
 MODELS = {
-    "Qwen3.6-27B": {
-        "base_url": "https://api.siliconflow.cn/v1",
-        "api_key": "sk-bkamiuygydnklotgniygaamxbnoostamrghxnjyvqwwfjhoo",
-        "model": "Qwen/Qwen3.6-27B",
-    },
-    "Qwen3.6-35B-A3B": {
-        "base_url": "https://api.siliconflow.cn/v1",
-        "api_key": "sk-bkamiuygydnklotgniygaamxbnoostamrghxnjyvqwwfjhoo",
-        "model": "Qwen/Qwen3.6-35B-A3B",
-    },
-    "Qwen3.5-27B": {
-        "base_url": "https://api.siliconflow.cn/v1",
-        "api_key": "sk-bkamiuygydnklotgniygaamxbnoostamrghxnjyvqwwfjhoo",
-        "model": "Qwen/Qwen3.5-27B",
-    },
-    "Qwen3.5-35B-A3B": {
-        "base_url": "https://api.siliconflow.cn/v1",
-        "api_key": "sk-bkamiuygydnklotgniygaamxbnoostamrghxnjyvqwwfjhoo",
-        "model": "Qwen/Qwen3.5-35B-A3B",
-    },
-    "Ling-mini-2.0": {
-        "base_url": "https://api.siliconflow.cn/v1",
-        "api_key": "sk-bkamiuygydnklotgniygaamxbnoostamrghxnjyvqwwfjhoo",
-        "model": "inclusionAI/Ling-mini-2.0",
-    },
-    "MiniMax-M2.5": {
-        "base_url": "https://api.siliconflow.cn/v1",
-        "api_key": "sk-bkamiuygydnklotgniygaamxbnoostamrghxnjyvqwwfjhoo",
-        "model": "MiniMaxAI/MiniMax-M2.5",
-    },
+    "Qwen3.6-27B": {"base_url": _SF_BASE, "api_key": _SF_KEY, "model": "Qwen/Qwen3.6-27B"},
+    "Qwen3.6-35B-A3B": {"base_url": _SF_BASE, "api_key": _SF_KEY, "model": "Qwen/Qwen3.6-35B-A3B"},
+    "Qwen3.5-27B": {"base_url": _SF_BASE, "api_key": _SF_KEY, "model": "Qwen/Qwen3.5-27B"},
+    "Qwen3.5-35B-A3B": {"base_url": _SF_BASE, "api_key": _SF_KEY, "model": "Qwen/Qwen3.5-35B-A3B"},
+    "Ling-mini-2.0": {"base_url": _SF_BASE, "api_key": _SF_KEY, "model": "inclusionAI/Ling-mini-2.0"},
+    "MiniMax-M2.5": {"base_url": _SF_BASE, "api_key": _SF_KEY, "model": "MiniMaxAI/MiniMax-M2.5"},
 }
 
 # ── 测试场景（5个失败场景） ──
