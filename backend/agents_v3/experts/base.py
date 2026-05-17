@@ -129,12 +129,71 @@ _INJECTION_PATTERNS = [
     r"(?i)DAN\s*(?:mode|jailbreak)",
 ]
 
+# ---------------------------------------------------------------------------
+# ML-based injection scanner (optional, lazy-loaded)
+# ---------------------------------------------------------------------------
+
+_ML_SCANNER = None  # lazily initialised PromptInjection scanner
+_ML_SCANNER_LOADED = False
+_ML_INJECTION_THRESHOLD = 0.85  # only block at high confidence
+
+
+def _get_ml_scanner():
+    """Lazy-load the llm-guard PromptInjection scanner.
+
+    Returns None if llm-guard is not installed or the model is not cached,
+    so the system gracefully degrades to regex-only defense.
+    Pre-download: python -c "from llm_guard.input_scanners import PromptInjection; PromptInjection()"
+    """
+    global _ML_SCANNER, _ML_SCANNER_LOADED
+    if _ML_SCANNER_LOADED:
+        return _ML_SCANNER
+    _ML_SCANNER_LOADED = True
+    try:
+        from llm_guard.input_scanners import PromptInjection
+        # Quick local-cache check — skip if model not already downloaded
+        from pathlib import Path as _P
+        _hf_cache = _P.home() / ".cache" / "huggingface" / "hub"
+        _cached = (
+            any("prompt-injection" in p.name for p in _hf_cache.glob("models--*"))
+            if _hf_cache.exists() else False
+        )
+        if not _cached:
+            logger.debug("llm-guard model not cached, ML injection scan disabled")
+            return None
+        _ML_SCANNER = PromptInjection()
+        logger.info("llm-guard PromptInjection scanner loaded")
+    except ImportError:
+        logger.debug("llm-guard not installed, ML injection scan disabled")
+    except Exception as e:
+        logger.debug("llm-guard scanner unavailable: %s", e)
+    return _ML_SCANNER
+
+
+def _ml_injection_check(text: str) -> tuple[bool, float]:
+    """Run ML-based injection check. Returns (is_safe, risk_score).
+
+    is_safe=True means the text looks clean.
+    risk_score in [0, 1] — higher means more likely injection.
+    Fails open: on any error returns (True, 0.0).
+    """
+    scanner = _get_ml_scanner()
+    if scanner is None:
+        return True, 0.0
+    try:
+        _, is_valid, risk_score = scanner.scan(text)
+        return is_valid, risk_score
+    except Exception as e:
+        logger.warning("ML injection scan error: %s", e)
+        return True, 0.0
+
 
 def _sanitize_for_prompt(text: str) -> str:
     """Sanitize user input before including in LLM prompt.
 
-    Removes known prompt injection patterns. This is a defense-in-depth
-    measure -- the primary defense is the structured JSON output parsing
+    Layer 1: regex-based pattern removal (fast, always available).
+    Layer 2: ML-based injection detection via llm-guard (optional).
+    The primary defense remains structured JSON output parsing
     in _extract_json and the rule_guard validation.
     """
     if not isinstance(text, str):
@@ -294,6 +353,15 @@ async def _llm_decide(
         cached = _llm_cache_get(cache_key)
         if cached is not None:
             return {**cached}  # shallow copy to prevent mutation
+
+    # ML-based injection check on user_prompt (defense-in-depth)
+    is_safe, risk = _ml_injection_check(user_prompt)
+    if not is_safe and risk > _ML_INJECTION_THRESHOLD:
+        logger.warning(
+            "LLM call blocked: ML injection check failed risk=%.2f prefix=%s prompt=%.100s",
+            risk, prefix, user_prompt[:100],
+        )
+        return None
 
     client = _get_llm_client(prefix)
     model = _llm_model(prefix)
