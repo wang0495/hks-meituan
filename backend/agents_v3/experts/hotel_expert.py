@@ -10,6 +10,7 @@ from backend.agents_v3.experts.base import (
     _llm_decide,
     _load_all_pois,
     _haversine_km,
+    _sanitize_for_prompt,
 )
 from backend.agents_v3.state import TravelState
 
@@ -34,7 +35,7 @@ async def hotel_expert(state: TravelState) -> dict:
     if not need_hotel:
         judge = await _llm_decide(
             "判断用户是否需要住宿。输出JSON: {\"need\":true/false,\"reason\":\"理由\"}",
-            f"用户输入: {user_input}",
+            f"用户输入: {_sanitize_for_prompt(user_input)}",
         )
         if judge and judge.get("need"):
             need_hotel = True
@@ -106,7 +107,7 @@ async def hotel_expert(state: TravelState) -> dict:
 输出JSON: {{"picks":[{{"name":"酒店名","reason":"推荐理由（含位置优势）","confidence":0.8}}]}}
 最多选2个。只输出JSON。"""
 
-    user = f"""用户需求: {user_input}
+    user = f"""用户需求: {_sanitize_for_prompt(user_input)}
 预算: {intent.get('budget', {}).get('per_person', '不限')}元/人
 群体: {group_type or '未知'}
 

@@ -26,6 +26,10 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         cleanup_interval: 清理过期记录的间隔（秒）。
     """
 
+    # 核心规划路径享有独立的、更高的限速阈值，防止攻击者通过
+    # 刷低价值端点（如 /api/health）耗尽配额来阻塞 /api/plan。
+    _PLAN_PREFIXES = ("/api/plan", "/api/route", "/api/dialogue")
+
     def __init__(
         self,
         app,
@@ -35,10 +39,12 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
     ):
         super().__init__(app)
         self.requests_per_minute = requests_per_minute
+        self._plan_limit = requests_per_minute * 3
         self.cleanup_interval = cleanup_interval
         self._trusted_proxies: frozenset[str] = frozenset(trusted_proxies or [])
         # {ip: [timestamp, ...]}
         self._requests: dict[str, list[float]] = defaultdict(list)
+        self._plan_requests: dict[str, list[float]] = defaultdict(list)
         self._last_cleanup = time.monotonic()
 
     # ------------------------------------------------------------------
@@ -50,22 +56,28 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         # 定期清理长时间无请求的 IP，防止内存泄漏
         self._maybe_cleanup(now)
 
+        # 根据路径选择独立的限速计数器
+        path = request.url.path
+        is_plan = path.startswith(self._PLAN_PREFIXES)
+        limit = self._plan_limit if is_plan else self.requests_per_minute
+        counter = self._plan_requests if is_plan else self._requests
+
         # 滑动窗口：移除 60 秒前的记录
-        window = self._requests[client_ip]
+        window = counter[client_ip]
         cutoff = now - 60
-        self._requests[client_ip] = [t for t in window if t > cutoff]
-        window = self._requests[client_ip]
+        counter[client_ip] = [t for t in window if t > cutoff]
+        window = counter[client_ip]
 
         # 检查是否超限
-        if len(window) >= self.requests_per_minute:
+        if len(window) >= limit:
             retry_after = int(window[0] + 60 - now) + 1
-            logger.warning("IP %s 触发速率限制 (%d 请求/分钟)", client_ip, len(window))
+            logger.warning("IP %s 触发速率限制 (%d 请求/分钟, path=%s)", client_ip, len(window), path)
             return JSONResponse(
                 status_code=429,
                 content={"detail": "请求过于频繁，请稍后再试"},
                 headers={
                     "Retry-After": str(retry_after),
-                    "X-RateLimit-Limit": str(self.requests_per_minute),
+                    "X-RateLimit-Limit": str(limit),
                     "X-RateLimit-Remaining": "0",
                     "X-RateLimit-Reset": str(int(now) + retry_after),
                 },
@@ -78,8 +90,8 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         response = await call_next(request)
 
         # 注入速率限制响应头
-        remaining = self.requests_per_minute - len(window)
-        response.headers["X-RateLimit-Limit"] = str(self.requests_per_minute)
+        remaining = limit - len(window)
+        response.headers["X-RateLimit-Limit"] = str(limit)
         response.headers["X-RateLimit-Remaining"] = str(max(remaining, 0))
         response.headers["X-RateLimit-Reset"] = str(int(now) + 60)
 
@@ -115,12 +127,15 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         self._last_cleanup = mono_now
 
         stale_threshold = now - 120
-        stale_ips = [
-            ip
-            for ip, timestamps in self._requests.items()
-            if not timestamps or timestamps[-1] < stale_threshold
-        ]
-        for ip in stale_ips:
-            del self._requests[ip]
-        if stale_ips:
-            logger.debug("速率限制：清理了 %d 个过期 IP 条目", len(stale_ips))
+        total_cleaned = 0
+        for counter in (self._requests, self._plan_requests):
+            stale_ips = [
+                ip
+                for ip, timestamps in counter.items()
+                if not timestamps or timestamps[-1] < stale_threshold
+            ]
+            for ip in stale_ips:
+                del counter[ip]
+            total_cleaned += len(stale_ips)
+        if total_cleaned:
+            logger.debug("速率限制：清理了 %d 个过期 IP 条目", total_cleaned)

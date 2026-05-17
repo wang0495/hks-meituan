@@ -37,6 +37,12 @@ from backend.services.data_service import get_data, load_data
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
+# SSE 并发连接限制（防止连接耗尽攻击）
+# ---------------------------------------------------------------------------
+_plan_concurrent = 0
+_PLAN_MAX_CONCURRENT = 20
+
+# ---------------------------------------------------------------------------
 # Tags 元数据（OpenAPI 文档分组说明）
 # ---------------------------------------------------------------------------
 
@@ -425,6 +431,11 @@ async def plan_route(request: PlanRequest):
     """
 
     async def event_stream():
+        global _plan_concurrent
+        if _plan_concurrent >= _PLAN_MAX_CONCURRENT:
+            yield _sse("error", {"error": "服务繁忙，请稍后再试"})
+            return
+        _plan_concurrent += 1
         try:
             # Phase 1: 解析意图
             yield _sse("phase", {"phase": "parsing", "message": "正在理解你的需求..."})
@@ -657,6 +668,8 @@ async def plan_route(request: PlanRequest):
             logger.exception("规划路线时出错")
             # 不向客户端暴露内部错误详情
             yield _sse("error", {"error": "服务器内部错误，请稍后重试"})
+        finally:
+            _plan_concurrent -= 1
 
     return StreamingResponse(
         event_stream(),

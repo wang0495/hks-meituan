@@ -40,6 +40,7 @@ import json
 import math
 import os
 import logging
+import re as _re
 import time
 import uuid
 
@@ -97,6 +98,55 @@ _FOOD_NAME_KWS = [
     "夜市", "大排档", "海鲜城", "海鲜市场", "水产市场",
     "餐厅", "茶餐厅", "火锅", "烧烤", "甜品店", "奶茶",
 ]
+
+# ---------------------------------------------------------------------------
+# Prompt injection sanitization
+# ---------------------------------------------------------------------------
+
+_INJECTION_PATTERNS = [
+    # English injection phrases
+    r"(?i)ignore\s+(all\s+)?previous\s+instructions",
+    r"(?i)ignore\s+(all\s+)?above",
+    r"(?i)forget\s+(everything|all|your\s+instructions)",
+    r"(?i)you\s+are\s+now\s+(?:a|an)\s+",
+    r"(?i)act\s+as\s+(?:if\s+)?you\s+(?:are|were)\s+",
+    r"(?i)pretend\s+(?:that\s+)?you\s+(?:are|were)\s+",
+    r"(?i)do\s+not\s+follow\s+(?:your|the)\s+instructions",
+    r"(?i)new\s+instructions?\s*:",
+    r"(?i)system\s*:\s*",
+    r"(?i)override\s+(?:previous|all|default)\s+",
+    # Chinese injection phrases
+    r"忽略(所有|以上|之前的)?指令",
+    r"不要(遵守|遵循)(你的|系统)?指令",
+    r"假装你是",
+    r"你现在是一个",
+    r"新指令\s*[：:]",
+    r"系统\s*[：:]",
+    r"覆盖(之前的|原有)?指令",
+    r"从现在开始(你是|你扮演)",
+    # DAN-style
+    r"(?i)do\s+anything\s+now",
+    r"(?i)DAN\s*(?:mode|jailbreak)",
+]
+
+
+def _sanitize_for_prompt(text: str) -> str:
+    """Sanitize user input before including in LLM prompt.
+
+    Removes known prompt injection patterns. This is a defense-in-depth
+    measure -- the primary defense is the structured JSON output parsing
+    in _extract_json and the rule_guard validation.
+    """
+    if not isinstance(text, str):
+        return str(text)
+    sanitized = text
+    for pattern in _INJECTION_PATTERNS:
+        sanitized = _re.sub(pattern, "[已过滤]", sanitized)
+    # Truncate to prevent context window abuse
+    if len(sanitized) > 500:
+        sanitized = sanitized[:500] + "...[截断]"
+    return sanitized
+
 
 # ---------------------------------------------------------------------------
 # Food sub-intent detection
@@ -261,6 +311,7 @@ async def _llm_decide(
                     {"role": "user", "content": user_content},
                 ],
                 temperature=temperature,
+                max_tokens=2000,
             )
             if is_ds:
                 kwargs["response_format"] = {"type": "json_object"}

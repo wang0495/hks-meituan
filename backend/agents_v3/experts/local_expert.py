@@ -8,6 +8,7 @@ from backend.agents_v3.experts.base import (
     sse_expert,
     _proposal,
     _llm_decide,
+    _sanitize_for_prompt,
 )
 from backend.agents_v3.state import TravelState
 
@@ -54,16 +55,16 @@ async def local_expert(state: TravelState) -> dict:
 1. 推荐只有本地人才知道的宝藏地点（不要重复推荐热门景点）
 2. 结合小众POI数据给出具体推荐
 3. 给出实用的本地贴士（避坑、最佳时间等）
-4. {f'场景适配：用户想{", ".join(scene_reqs)}，推荐符合场景的小众地点' if scene_reqs else ''}
+4. {f'场景适配：用户想{_sanitize_for_prompt(", ".join(scene_reqs))}，推荐符合场景的小众地点' if scene_reqs else ''}
 5. {f'群体适配：{group_type}群体的特殊需求' if group_type else ''}
 
 输出JSON: {{"tips":[{{"name":"推荐名","type":"类型","why":"为什么推荐","best_time":"最佳时间"}}]],"secrets":["隐藏的好去处"],"local_advice":"本地人建议","confidence":0.75}}
 只输出JSON。"""
 
-    user = f"""用户需求: {user_input}
+    user = f"""用户需求: {_sanitize_for_prompt(user_input)}
 群体: {group_type or '未知'}
-偏好: {json.dumps(intent.get('preferred_categories', []), ensure_ascii=False)}
-场景要求: {json.dumps(scene_reqs, ensure_ascii=False) if scene_reqs else '无'}
+偏好: {_sanitize_for_prompt(json.dumps(intent.get('preferred_categories', []), ensure_ascii=False))}
+场景要求: {_sanitize_for_prompt(json.dumps(scene_reqs, ensure_ascii=False)) if scene_reqs else '无'}
 预算: {intent.get('budget', {}).get('per_person', '不限')}元
 
 已选热门景点（不要再推荐这些）:

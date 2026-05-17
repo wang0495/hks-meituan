@@ -22,6 +22,7 @@ from backend.agents_v3.experts.base import (
     _llm_decide,
     _load_all_pois,
     _proposal,
+    _sanitize_for_prompt,
     _tag_similarity,
 )
 from backend.agents_v3.state import TravelState
@@ -363,7 +364,7 @@ async def food_expert(state: TravelState) -> dict:
 输出JSON: {{"picks":[{{"name":"店名","reason":"推荐理由（含与哪个景点就近）","confidence":0.8,"meal_time":"午餐/晚餐"}}]}}
 最多选{max_food}个。只输出JSON。"""
 
-    user = f"""用户需求: {user_input}
+    user = f"""用户需求: {_sanitize_for_prompt(user_input)}
 场景类型: {scene_type}
 预算: {intent.get('budget', {}).get('per_person', '不限')}元/人
 群体: {group_type or '未知'}

@@ -9,6 +9,7 @@ from backend.agents_v3.experts.base import (
     sse_expert,
     _proposal,
     _llm_decide,
+    _sanitize_for_prompt,
 )
 from backend.agents_v3.state import TravelState
 
@@ -59,7 +60,7 @@ async def weather_expert(state: TravelState) -> dict:
 输出JSON: {"condition":"天气状况","temperature":"温度范围","outdoor_ok":true/false,"advice":"具体行程调整建议","rain_probability":0.3,"indoor_alternatives":["室内备选"],"confidence":0.8}
 只输出JSON。"""
 
-    user = f"""用户场景: {user_input}
+    user = f"""用户场景: {_sanitize_for_prompt(user_input)}
 当前月份: {month}月（{season}）
 城市: 珠海（华南沿海城市）
 户外POI: {', '.join(outdoor_pois[:5]) if outdoor_pois else '无'}

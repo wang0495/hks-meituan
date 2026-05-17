@@ -19,6 +19,7 @@ from backend.agents_v3.experts.base import (
     _is_likely_macau,
     _llm_decide,
     _proposal,
+    _sanitize_for_prompt,
     _tag_similarity,
 )
 from backend.agents_v3.state import TravelState
@@ -452,10 +453,10 @@ async def poi_expert(state: TravelState) -> dict:
     elif scene_type == "目的地型":
         max_picks = min(max_picks, 3)
 
-    user = f"""用户需求: {user_input}
+    user = f"""用户需求: {_sanitize_for_prompt(user_input)}
 意图分析:
-- 偏好类别: {json.dumps(intent.get('preferred_categories', []), ensure_ascii=False)}
-- 场景关键词: {json.dumps(intent.get('scene_requirements', []), ensure_ascii=False)}
+- 偏好类别: {_sanitize_for_prompt(json.dumps(intent.get('preferred_categories', []), ensure_ascii=False))}
+- 场景关键词: {_sanitize_for_prompt(json.dumps(intent.get('scene_requirements', []), ensure_ascii=False))}
 - 预算: {intent.get('budget', {}).get('per_person', '不限')}元/人
 - 节奏: {pace}
 - 群体: {intent.get('group', {}).get('type', '未知')}

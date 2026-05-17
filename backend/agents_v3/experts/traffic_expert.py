@@ -9,6 +9,7 @@ from backend.agents_v3.experts.base import (
     _proposal,
     _llm_decide,
     _haversine_km,
+    _sanitize_for_prompt,
 )
 from backend.agents_v3.state import TravelState
 
@@ -120,10 +121,10 @@ async def traffic_expert(state: TravelState) -> dict:
 关键：suggested_order必须是最优游览顺序，综合考虑地理距离、时间节奏和用户体验。
 只输出JSON。"""
 
-    user = f"""用户需求: {user_input}
+    user = f"""用户需求: {_sanitize_for_prompt(user_input)}
 群体: {group_type or '未知'}
 节奏: {pace}
-场景要求: {json.dumps(scene_reqs, ensure_ascii=False) if scene_reqs else '无特殊要求'}
+场景要求: {_sanitize_for_prompt(json.dumps(scene_reqs, ensure_ascii=False)) if scene_reqs else '无特殊要求'}
 城市: {intent.get('city', '珠海')}
 
 景点位置:
