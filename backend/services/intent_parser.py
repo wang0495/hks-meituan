@@ -966,6 +966,39 @@ async def parse_intent(user_input: str, available_profiles: dict | None = None) 
         if need:
             intent["emotion_need"] = need
 
+    # 后处理: 安全边界校验
+    budget = intent.get("budget", {})
+    pp = budget.get("per_person", 500)
+    if isinstance(pp, (int, float)):
+        # 预算下限: 至少50元(公交+水)
+        if pp < 50:
+            logger.warning("预算异常低(%s), 修正为50", pp)
+            intent["budget"]["per_person"] = 50
+        # 预算上限: 单人单日不超过10000
+        if pp > 10000:
+            logger.warning("预算异常高(%s), 修正为5000", pp)
+            intent["budget"]["per_person"] = 5000
+
+    # hard_constraints去重+白名单校验
+    valid_constraints = {
+        "queue_intolerant", "accessible", "pet_friendly", "indoor_only",
+        "outdoor_preferred", "late_night", "needs_entertainment", "free",
+    }
+    hc = intent.get("hard_constraints", [])
+    intent["hard_constraints"] = list(set(c for c in hc if c in valid_constraints))
+
+    # preferred_categories数量上限
+    cats = intent.get("preferred_categories", [])
+    if len(cats) > 8:
+        intent["preferred_categories"] = cats[:8]
+
+    # time格式校验
+    time_info = intent.get("time", {})
+    for key in ("start", "end"):
+        t = time_info.get(key, "")
+        if t and not isinstance(t, str):
+            time_info[key] = "09:00" if key == "start" else "21:00"
+
     # 后处理: 确保 scene_requirements 存在
     if not intent.get("scene_requirements"):
         intent["scene_requirements"] = []

@@ -158,7 +158,13 @@ class PreferenceManager:
 
     @classmethod
     def from_user_id(cls, user_id: str) -> "PreferenceManager":
-        """用指定 user_id 创建。"""
+        """用指定 user_id 创建。校验user_id格式防止注入。"""
+        # user_id白名单: 只允许字母数字下划线短横线，长度3-64
+        if not user_id or not isinstance(user_id, str):
+            raise ValueError("user_id不能为空")
+        import re
+        if not re.match(r'^[a-zA-Z0-9_-]{1,64}$', user_id):
+            raise ValueError(f"user_id格式无效: {user_id[:20]}")
         return cls(user_id)
 
     async def _ensure_init(self) -> None:
