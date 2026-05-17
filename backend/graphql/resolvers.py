@@ -16,6 +16,7 @@ from backend.graphql.schema import (POI, ChangeRecord, DialogueResponse,
                                     EmotionTags, NarrativeStep, POIConstraints,
                                     Route, RouteStep, TotalCost, TravelInfo)
 from backend.services.cache import route_cache
+from backend.utils.sse_helpers import with_timeout as _with_timeout
 
 logger = logging.getLogger(__name__)
 
@@ -183,17 +184,6 @@ async def resolve_route(id: str) -> Optional[Route]:
 # ---------------------------------------------------------------------------
 # Mutation resolvers
 # ---------------------------------------------------------------------------
-
-
-async def _with_timeout(
-    coro: Any, timeout_seconds: float = 12.0, fallback: Any = None
-) -> Any:
-    """给协程加超时。"""
-    try:
-        return await asyncio.wait_for(coro, timeout=timeout_seconds)
-    except asyncio.TimeoutError:
-        logger.warning("GraphQL 操作超时 (%.1fs)", timeout_seconds)
-        return fallback
 
 
 async def resolve_plan_route(user_input: str) -> Route:

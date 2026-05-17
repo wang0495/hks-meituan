@@ -99,7 +99,7 @@ class TaskListResponse(BaseModel):
     ),
     response_description="task_id 和初始状态",
 )
-async def submit_task(func_name: str, request: SubmitTaskRequest):
+async def submit_task(func_name: str, request: SubmitTaskRequest) -> dict:
     """提交后台任务。"""
     func = _resolve_function(func_name)
     if func is None:
@@ -128,7 +128,7 @@ async def submit_task(func_name: str, request: SubmitTaskRequest):
         404: {"description": "任务不存在"},
     },
 )
-async def get_task_status(task_id: str):
+async def get_task_status(task_id: str) -> dict:
     """查询任务状态。"""
     queue = get_task_queue()
     task = await queue.get_task(task_id)
@@ -152,7 +152,7 @@ async def get_task_status(task_id: str):
         400: {"description": "任务无法取消（不存在或已在运行）"},
     },
 )
-async def cancel_task(task_id: str):
+async def cancel_task(task_id: str) -> dict:
     """取消任务。"""
     queue = get_task_queue()
     success = await queue.cancel_task(task_id)
@@ -178,7 +178,7 @@ async def list_tasks(
         None,
         description="按状态过滤: pending / running / completed / failed / cancelled",
     ),
-):
+) -> dict:
     """列出所有任务。"""
     queue = get_task_queue()
 

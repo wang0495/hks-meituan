@@ -15,8 +15,6 @@ from backend.routers._poi_helpers import (
     get_pois_index,
     load_pois,
 )
-from backend.services.cache import distance_cache
-from backend.services.geo import haversine
 
 router = APIRouter(prefix="/api/poi", tags=["POI"])
 

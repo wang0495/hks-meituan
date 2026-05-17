@@ -16,13 +16,11 @@ from __future__ import annotations
 
 import json
 import logging
-import os
 from pathlib import Path
 from typing import Any
 from urllib.parse import quote_plus
 
 from backend.services.holiday_utils import (
-    build_context,
     format_context_summary,
 )
 from backend.services.memory.long_term import LongTermMemory

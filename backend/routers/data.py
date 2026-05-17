@@ -21,7 +21,7 @@ router = APIRouter(prefix="/api", tags=["数据"])
 async def get_data(
     dataset: str | None = Query(None, description="数据集名称"),
     category: str | None = Query(None, description="按类别过滤"),
-):
+) -> DataResponse:
     """通用数据集查询。"""
     filters = {"category": category} if category else None
     data = data_service.get_data(dataset=dataset, filters=filters)
@@ -42,7 +42,7 @@ async def get_data(
 async def get_poi(
     city: str | None = Query(None, description="按城市筛选"),
     category: str | None = Query(None, description="按品类筛选"),
-):
+) -> dict:
     """返回城市 POI 数据，支持城市和品类筛选。"""
     all_data = data_service.get_data(dataset="city_poi_db")
     if city:
@@ -59,7 +59,7 @@ async def get_poi(
     response_description="数据集名称列表",
     tags=["数据"],
 )
-async def get_datasets():
+async def get_datasets() -> dict:
     """列出所有可用数据集。"""
     return {"datasets": data_service.get_datasets()}
 
@@ -90,7 +90,7 @@ async def get_order(
     hour: int | None = Query(
         None, ge=0, le=23, description="小时（0~23），不传则返回日订单量"
     ),
-):
+) -> dict:
     """返回 POI 交通流量快照，支持按城市/品类筛选。"""
     # order_data.json 根是 dict，直接取；city_poi_db.json 根是 list
     order_root = data_service.get_data(dataset="order_data")
@@ -189,7 +189,7 @@ async def get_road_traffic(
         None, ge=1, le=365, description="年中第几天（1~365）"
     ),
     hour: int | None = Query(None, ge=0, le=23, description="小时（0~23）"),
-):
+) -> dict:
     """返回道路拥堵指数快照，支持按城市/路段类型筛选。"""
     road_root = data_service.get_data(dataset="road_traffic_data")
 

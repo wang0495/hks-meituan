@@ -9,7 +9,6 @@ from backend.agents_v3.experts.base import (
     _proposal,
     _llm_decide,
     _load_all_pois,
-    _haversine_km,
     _sanitize_for_prompt,
 )
 from backend.agents_v3.state import TravelState

@@ -60,6 +60,46 @@ class LLMSettings(BaseSettings):
     max_retries: int = 3
 
 
+class IntentLLMSettings(BaseSettings):
+    """意图解析专用 LLM 配置。
+
+    优先读取 INTENT_LLM_* 环境变量，未设置时回退到 LLM_* 的值，
+    最后使用内置默认值。OPENAI_API_KEY 作为 api_key 的最终兜底。
+    """
+
+    model_config = SettingsConfigDict(env_prefix="INTENT_LLM_")
+
+    api_key: str = ""
+    base_url: str = ""
+    model: str = ""
+
+    @model_validator(mode="after")
+    def _fallback_to_llm_settings(self) -> IntentLLMSettings:
+        """INTENT_LLM_* 未设置时，回退到 LLM_* 的值。"""
+        llm = _LLMDefaults()
+        if not self.api_key:
+            object.__setattr__(self, "api_key", llm.api_key)
+        if not self.base_url:
+            object.__setattr__(self, "base_url", llm.base_url)
+        if not self.model:
+            object.__setattr__(self, "model", llm.model)
+        return self
+
+
+class _LLMDefaults(BaseSettings):
+    """内部辅助类：读取 LLM_* 环境变量作为 IntentLLM 的回退默认值。
+
+    与 LLMSettings 分离，避免继承 env_prefix 冲突。
+    同时支持 OPENAI_API_KEY 作为 api_key 的最终兜底。
+    """
+
+    model_config = SettingsConfigDict(env_prefix="LLM_")
+
+    api_key: str = ""
+    base_url: str = "https://api.deepseek.com"
+    model: str = "deepseek-chat"
+
+
 class SecuritySettings(BaseSettings):
     """安全配置。"""
 
@@ -130,6 +170,7 @@ class Settings(BaseSettings):
     database: DatabaseSettings = Field(default_factory=DatabaseSettings)
     redis: RedisSettings = Field(default_factory=RedisSettings)
     llm: LLMSettings = Field(default_factory=LLMSettings)
+    intent_llm: IntentLLMSettings = Field(default_factory=IntentLLMSettings)
     security: SecuritySettings = Field(default_factory=SecuritySettings)
     agent: AgentSettings = Field(default_factory=AgentSettings)
 

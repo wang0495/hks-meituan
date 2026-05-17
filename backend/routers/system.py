@@ -24,7 +24,7 @@ router = APIRouter(tags=["系统"])
     response_model=HealthResponse,
     responses={200: {"description": "服务正常"}},
 )
-async def health():
+async def health() -> dict:
     """健康检查接口。"""
     return {"status": "ok"}
 
@@ -34,7 +34,7 @@ async def health():
     summary="缓存统计",
     description="返回各缓存实例的命中率和使用情况，用于性能监控。",
 )
-async def cache_stats():
+async def cache_stats() -> dict:
     """返回缓存命中率统计。"""
     ml_cache = get_multilevel_cache()
     return {

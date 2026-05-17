@@ -136,7 +136,6 @@ async def _llm_review(prompt: str) -> dict | None:
 
 async def rework(state: TravelState) -> dict:
     """根据review反馈重新选择有问题的POI/餐饮。"""
-    import uuid
 
     feedback = state.get("review_feedback", [])
     proposals = list(state.get("proposals", []))

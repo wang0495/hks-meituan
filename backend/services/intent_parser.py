@@ -7,10 +7,11 @@ CityFlow LLM 意图解析模块
 import asyncio
 import json
 import logging
-import os
 import re
 
 from openai import AsyncOpenAI
+
+from backend.config.settings import get_settings
 
 logger = logging.getLogger(__name__)
 
@@ -381,38 +382,19 @@ _client: AsyncOpenAI | None = None
 def _get_client() -> AsyncOpenAI:
     global _client
     if _client is None:
-        # 手动加载 .env（pydantic-settings 嵌套模型有时不传递 LLM_ 前缀）
-        _ensure_env_loaded()
-        base_url = os.getenv("INTENT_LLM_BASE_URL") or os.getenv("LLM_BASE_URL", "https://api.deepseek.com")
-        api_key = os.getenv("INTENT_LLM_API_KEY") or os.getenv("LLM_API_KEY", os.getenv("OPENAI_API_KEY", ""))
+        cfg = get_settings().intent_llm
+        base_url = cfg.base_url
+        api_key = cfg.api_key
         if not base_url.rstrip("/").endswith("/v1"):
             base_url = base_url.rstrip("/") + "/v1"
         _client = AsyncOpenAI(base_url=base_url, api_key=api_key)
     return _client
 
 
-def _ensure_env_loaded():
-    """确保 .env 中的 LLM_ 变量已加载到 os.environ。"""
-    if os.environ.get("_LLM_ENV_LOADED"):
-        return
-    from pathlib import Path
-    env_path = Path(__file__).parent.parent.parent / ".env"
-    if env_path.exists():
-        for line in env_path.read_text(encoding="utf-8").splitlines():
-            line = line.strip()
-            if not line or line.startswith("#") or "=" not in line:
-                continue
-            key, val = line.split("=", 1)
-            val = val.strip().strip("\"'").strip()
-            if key.startswith("LLM_") and key not in os.environ:
-                os.environ[key] = val
-    os.environ["_LLM_ENV_LOADED"] = "1"
-
 
 def _get_llm_model() -> str:
-    """获取 LLM 模型名，优先 INTENT_LLM_MODEL 再 LLM_MODEL 兜底。"""
-    _ensure_env_loaded()
-    return os.getenv("INTENT_LLM_MODEL") or os.getenv("LLM_MODEL", "deepseek-chat")
+    """获取 LLM 模型名，通过 pydantic 配置读取（INTENT_LLM_MODEL 优先，LLM_MODEL 兜底）。"""
+    return get_settings().intent_llm.model
 
 
 # Intent parser response cache (same user_input → same intent, 30min TTL)
@@ -435,7 +417,8 @@ async def _call_llm(user_input: str) -> dict | None:
         del _intent_cache[cache_key]
 
     client = _get_client()
-    is_ds = "deepseek" in _get_llm_model().lower() or "deepseek" in os.getenv("LLM_BASE_URL", "")
+    cfg = get_settings().intent_llm
+    is_ds = "deepseek" in _get_llm_model().lower() or "deepseek" in cfg.base_url
     try:
         messages = [
             {"role": "system", "content": _SYSTEM_PROMPT},

@@ -10,8 +10,7 @@ from typing import Any
 from backend.services.emotion import (emotion_compatibility,
                                       emotion_compatibility_with_consecutive,
                                       fatigue_penalty)
-from backend.services.time_utils import (parse_hours_to_minutes,
-                                         parse_time_window)
+from backend.services.time_utils import (parse_time_window)
 
 logger = logging.getLogger(__name__)
 

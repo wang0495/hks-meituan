@@ -39,7 +39,6 @@ ADR-A5: 不能用规则引擎替代LLM选POI
 
 from __future__ import annotations
 
-import asyncio
 import json
 import logging
 import math

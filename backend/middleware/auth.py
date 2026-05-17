@@ -17,7 +17,7 @@ from __future__ import annotations
 import hmac
 import logging
 
-from fastapi import Request, Response
+from fastapi import Request
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import JSONResponse
 
@@ -30,7 +30,6 @@ _PUBLIC_PREFIXES: tuple[str, ...] = (
     "/api/dialogue",
     "/api/poi",
     "/api/health",
-    "/api/cache/stats",
     "/health",
     "/system/health",
     "/data/",

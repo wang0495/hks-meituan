@@ -23,6 +23,11 @@ from backend.middleware import (APIVersionMiddleware, ConfigMiddleware,
                                 PrometheusMiddleware, RateLimitMiddleware,
                                 SecurityHeadersMiddleware, SessionMiddleware,
                                 ShutdownMiddleware, setup_error_handlers)
+from backend.utils.sse_helpers import (
+    generate_simplified_route as _generate_simplified_route,
+    sse as _sse,
+    with_timeout as _with_timeout,
+)
 from backend.middleware.auth import APIKeyAuthMiddleware
 from backend.routers import (audit, data, health, llm, mq, poi, pool, registry,
                              session, sse, tasks, v1, v2, websocket)
@@ -419,55 +424,8 @@ app.include_router(graphql_router)
 
 
 # ---------------------------------------------------------------------------
-# 超时 + 兜底
+# 超时 / 兜底 / SSE 辅助 — 均从 backend.utils.sse_helpers 导入
 # ---------------------------------------------------------------------------
-
-
-async def _with_timeout(coro, timeout_seconds: float = 12.0, fallback=None):
-    """给协程加超时，超时返回 fallback。"""
-    try:
-        return await asyncio.wait_for(coro, timeout=timeout_seconds)
-    except asyncio.TimeoutError:
-        logger.warning("操作超时 (%.1fs)，使用兜底", timeout_seconds)
-        return fallback
-
-
-def _generate_simplified_route(
-    pois: list[dict[str, Any]], count: int = 3, start_time: str = "09:00"
-) -> dict[str, Any]:
-    """生成简化路线（兜底方案）。"""
-    sorted_pois = sorted(pois, key=lambda p: p.get("rating", 0), reverse=True)[:count]
-    try:
-        sh, sm = start_time.split(":")
-        start_h = int(sh)
-        start_m = int(sm)
-    except (ValueError, AttributeError):
-        start_h, start_m = 9, 0
-    return {
-        "route": [
-            {
-                "poi": poi,
-                "arrival_time": f"{(start_h + i) % 24:02d}:{start_m:02d}",
-                "departure_time": f"{(start_h + i + 1) % 24:02d}:{start_m:02d}",
-                "travel_from_prev": {"distance_m": 0, "time_min": 0},
-            }
-            for i, poi in enumerate(sorted_pois)
-        ],
-        "emotion_curve": [],
-        "total_cost": {"time_min": 180, "budget_used": 0, "step_estimate": 3000},
-        "unused_candidates": [],
-        "breathing_spots": [],
-    }
-
-
-# ---------------------------------------------------------------------------
-# SSE 辅助
-# ---------------------------------------------------------------------------
-
-
-def _sse(event: str, data_obj: Any) -> str:
-    """构造一条 SSE 消息。"""
-    return f"event: {event}\ndata: {json.dumps(data_obj, ensure_ascii=False)}\n\n"
 
 
 # ---------------------------------------------------------------------------

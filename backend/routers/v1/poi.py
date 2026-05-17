@@ -13,7 +13,6 @@ from backend.routers._poi_helpers import (
     enrich_poi,
     get_pois_data,
     get_pois_index,
-    haversine,
     load_pois,
 )
 

@@ -36,7 +36,7 @@ def _check_query_depth(query: str, max_depth: int) -> bool:
 
 # 在GraphQL路由前加查询大小限制
 @router.post("/graphql")
-async def graphql_endpoint(request: Request):
+async def graphql_endpoint(request: Request) -> dict:
     """GraphQL入口，限制查询大小、别名数和嵌套深度。"""
     body = await request.body()
     if len(body) > _GQL_MAX_QUERY_SIZE:

@@ -3,10 +3,9 @@
 from __future__ import annotations
 
 import asyncio
-import json
 import logging
 import uuid
-from typing import Any, Optional
+from typing import Optional
 
 from fastapi import APIRouter
 from fastapi.responses import StreamingResponse
@@ -14,6 +13,11 @@ from pydantic import BaseModel, Field
 
 from backend.services.cache import route_cache
 from backend.services.data_service import get_data
+from backend.utils.sse_helpers import (
+    generate_simplified_route as _generate_simplified_route,
+    sse as _sse,
+    with_timeout as _with_timeout,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -87,36 +91,8 @@ class PlanResponseV2(BaseModel):
 
 
 # ---------------------------------------------------------------------------
-# 辅助函数
+# 辅助函数 — _with_timeout / _generate_simplified_route / _sse 从 sse_helpers 导入
 # ---------------------------------------------------------------------------
-
-
-async def _with_timeout(coro, timeout_seconds: float = 12.0, fallback=None):
-    """给协程加超时，超时返回 fallback。"""
-    try:
-        return await asyncio.wait_for(coro, timeout=timeout_seconds)
-    except asyncio.TimeoutError:
-        logger.warning("操作超时 (%.1fs)，使用兜底", timeout_seconds)
-        return fallback
-
-
-def _generate_simplified_route(
-    pois: list[dict[str, Any]], count: int = 3
-) -> dict[str, Any]:
-    """生成简化路线（兜底方案）。"""
-    sorted_pois = sorted(pois, key=lambda p: p.get("rating", 0), reverse=True)[:count]
-    return {
-        "route": [
-            {
-                "poi": poi,
-                "arrival_time": f"{9 + i}:00",
-                "departure_time": f"{10 + i}:00",
-                "travel_from_prev": {"distance_m": 0, "time_min": 0},
-            }
-            for i, poi in enumerate(sorted_pois)
-        ],
-        "narrative": {"opening": "", "steps": [""] * len(sorted_pois), "closing": ""},
-    }
 
 
 def _build_emotion_curve(route_result: dict) -> list[dict]:
@@ -165,11 +141,6 @@ def _build_metadata(route_result: dict, request: PlanRequestV2) -> dict:
     }
 
 
-def _sse(event: str, data_obj: Any) -> str:
-    """构造一条 SSE 消息。"""
-    return f"event: {event}\ndata: {json.dumps(data_obj, ensure_ascii=False)}\n\n"
-
-
 # ---------------------------------------------------------------------------
 # API 实现
 # ---------------------------------------------------------------------------
@@ -188,7 +159,7 @@ def _sse(event: str, data_obj: Any) -> str:
     ),
     tags=["v2-plan"],
 )
-async def plan_route_v2(request: PlanRequestV2):
+async def plan_route_v2(request: PlanRequestV2) -> StreamingResponse:
     """V2版本的路线规划（SSE流式响应，增强版）。"""
 
     async def event_stream():

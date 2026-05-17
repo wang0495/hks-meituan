@@ -9,12 +9,10 @@
 
 from __future__ import annotations
 
-import time
 from unittest.mock import AsyncMock, patch
 
 import httpx
 import jwt
-import pytest
 from fastapi.testclient import TestClient
 from starlette.requests import Request as StarletteRequest
 
