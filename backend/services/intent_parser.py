@@ -418,6 +418,7 @@ def _get_llm_model() -> str:
 # Intent parser response cache (same user_input → same intent, 30min TTL)
 _intent_cache: dict[str, tuple[dict, float]] = {}
 _INTENT_CACHE_TTL = 1800  # 30 minutes
+_INTENT_CACHE_MAX = 200   # max entries to prevent unbounded growth
 
 
 async def _call_llm(user_input: str) -> dict | None:
@@ -462,7 +463,17 @@ async def _call_llm(user_input: str) -> dict | None:
             # 防止通过API/GraphQL泄露给客户端
             result["_llm_raw_response"] = raw[:200]
             result["_llm_model"] = _get_llm_model()
-            # Cache the result
+            # Cache the result (evict expired entries if cache is full)
+            if len(_intent_cache) >= _INTENT_CACHE_MAX:
+                now_mono = _time.monotonic()
+                expired = [k for k, (_, ts) in _intent_cache.items()
+                           if now_mono - ts > _INTENT_CACHE_TTL]
+                for k in expired:
+                    del _intent_cache[k]
+                # If still full after eviction, drop oldest
+                if len(_intent_cache) >= _INTENT_CACHE_MAX:
+                    oldest_key = min(_intent_cache, key=lambda k: _intent_cache[k][1])
+                    del _intent_cache[oldest_key]
             _intent_cache[cache_key] = (result.copy(), _time.monotonic())
             return result
     except Exception as e:

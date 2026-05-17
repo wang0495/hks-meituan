@@ -243,7 +243,7 @@ async def _llm_decide(
     if temperature <= 0.2:
         cached = _llm_cache_get(cache_key)
         if cached is not None:
-            return cached
+            return {**cached}  # shallow copy to prevent mutation
 
     client = _get_llm_client(prefix)
     model = _llm_model(prefix)

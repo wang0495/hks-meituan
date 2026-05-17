@@ -440,26 +440,28 @@ async def plan_route(request: PlanRequest):
                 yield _sse("error", {"error": "意图解析超时，请重试"})
                 return
 
-            # Debug: LLM 调用详情
-            llm_used = user_intent.get("_llm_used", False)
-            llm_err = user_intent.get("_llm_error", "")
-            llm_debug = {
-                "used": llm_used,
-                "method": "llm" if llm_used else f"rule（{llm_err or '未配置'}）",
-            }
-            if user_intent.get("_llm_raw_response"):
-                llm_debug["raw_response"] = user_intent["_llm_raw_response"][:300]
-            if user_intent.get("_llm_model"):
-                llm_debug["model"] = user_intent["_llm_model"]
-            yield _sse("debug_llm", llm_debug)
+            # Debug: LLM 调用详情（仅开发环境）
+            if settings.debug:
+                llm_used = user_intent.get("_llm_used", False)
+                llm_err = user_intent.get("_llm_error", "")
+                llm_debug = {
+                    "used": llm_used,
+                    "method": "llm" if llm_used else f"rule（{llm_err or '未配置'}）",
+                }
+                if user_intent.get("_llm_raw_response"):
+                    llm_debug["raw_response"] = user_intent["_llm_raw_response"][:300]
+                if user_intent.get("_llm_model"):
+                    llm_debug["model"] = user_intent["_llm_model"]
+                yield _sse("debug_llm", llm_debug)
 
-            # Debug: 画像匹配 TOP3
-            top3 = user_intent.get("_profile_top3", [])
-            if top3:
-                yield _sse("debug_profile", {
-                    "top3": top3,
-                    "selected": user_intent.get("matched_profile_id", "?"),
-                })
+            # Debug: 画像匹配 TOP3（仅开发环境）
+            if settings.debug:
+                top3 = user_intent.get("_profile_top3", [])
+                if top3:
+                    yield _sse("debug_profile", {
+                        "top3": top3,
+                        "selected": user_intent.get("matched_profile_id", "?"),
+                    })
 
             # V2: PreferenceManager 偏好融合 + 权重计算
             dynamic_weights = None
@@ -488,16 +490,17 @@ async def plan_route(request: PlanRequest):
                         season=pctx.season,
                     )
 
-                # 获取用户状态用于调试
-                user_status = await pref_manager.get_user_status(current_context)
-                yield _sse("debug_preference", {
-                    "user_id": request.user_id,
-                    "is_new": user_status.get("is_new", True),
-                    "interaction_count": user_status.get("interaction_count", 0),
-                    "context_info": user_status.get("context_info", ""),
-                    "context_hints": user_status.get("context_hints", []),
-                    "greeting": user_status.get("greeting", ""),
-                })
+                # 获取用户状态用于调试（仅开发环境）
+                if settings.debug:
+                    user_status = await pref_manager.get_user_status(current_context)
+                    yield _sse("debug_preference", {
+                        "user_id": request.user_id,
+                        "is_new": user_status.get("is_new", True),
+                        "interaction_count": user_status.get("interaction_count", 0),
+                        "context_info": user_status.get("context_info", ""),
+                        "context_hints": user_status.get("context_hints", []),
+                        "greeting": user_status.get("greeting", ""),
+                    })
 
                 # Phase: LTM 预测
                 yield _sse("phase", {"phase": "ltm_predict", "message": "正在根据历史预测偏好..."})
@@ -514,15 +517,16 @@ async def plan_route(request: PlanRequest):
                         ltm_prediction=prediction,
                     )
 
-                yield _sse("debug_ltm", {
-                    "data_points": prediction.get("data_points", 0),
-                    "confidence": prediction.get("confidence", 0.0),
-                    "predicted_pace": prediction.get("predicted_pace"),
-                    "predicted_budget": prediction.get("predicted_budget", 0),
-                    "predicted_categories": prediction.get("predicted_categories", []),
-                    "predicted_emotion_need": prediction.get("predicted_emotion_need"),
-                    "context_matched": prediction.get("data_points", 0) > 0,
-                })
+                if settings.debug:
+                    yield _sse("debug_ltm", {
+                        "data_points": prediction.get("data_points", 0),
+                        "confidence": prediction.get("confidence", 0.0),
+                        "predicted_pace": prediction.get("predicted_pace"),
+                        "predicted_budget": prediction.get("predicted_budget", 0),
+                        "predicted_categories": prediction.get("predicted_categories", []),
+                        "predicted_emotion_need": prediction.get("predicted_emotion_need"),
+                        "context_matched": prediction.get("data_points", 0) > 0,
+                    })
 
                 # Phase: 权重映射
                 yield _sse("phase", {"phase": "weight_mapping", "message": "正在计算求解权重..."})
@@ -530,13 +534,14 @@ async def plan_route(request: PlanRequest):
                 # 用 WeightMapper 算动态权重（demand_vector 已在 parse_intent 中提取）
                 demand_vector = user_intent.get("_demand_vector", {})
                 dynamic_weights = pref_manager.compute_solver_weights(demand_vector)
-                yield _sse("debug_weight_mapper", {
-                    "demand_vector": demand_vector,
-                    "computed_weights": dynamic_weights,
-                    "user_deltas": pref_manager.mapper._deltas if pref_manager.mapper else {},
-                    "summary": pref_manager.mapper.summary() if pref_manager.mapper else "默认（新用户）",
-                    "confidence": {},
-                })
+                if settings.debug:
+                    yield _sse("debug_weight_mapper", {
+                        "demand_vector": demand_vector,
+                        "computed_weights": dynamic_weights,
+                        "user_deltas": pref_manager.mapper._deltas if pref_manager.mapper else {},
+                        "summary": pref_manager.mapper.summary() if pref_manager.mapper else "默认（新用户）",
+                        "confidence": {},
+                    })
 
             # 在 user_intent 中保存动态权重、需求向量、用户ID和出发位置（供对话阶段使用）
             user_intent["_dynamic_weights"] = dynamic_weights
@@ -601,15 +606,16 @@ async def plan_route(request: PlanRequest):
                     logger.warning("C版本返回空路线，降级到原管线")
                     raise RuntimeError("C版本空路线")
 
-                # 发送C版本Agent信息
-                proposals = c_result.get("proposals", [])
-                agent_types = list(set(p.get("agent", "?") for p in proposals))
-                yield _sse("debug_agents", {
-                    "version": "C",
-                    "agent_count": len(proposals),
-                    "agents": agent_types,
-                    "conflicts": len(c_result.get("conflicts", [])),
-                })
+                # 发送C版本Agent信息（仅开发环境）
+                if settings.debug:
+                    proposals = c_result.get("proposals", [])
+                    agent_types = list(set(p.get("agent", "?") for p in proposals))
+                    yield _sse("debug_agents", {
+                        "version": "C",
+                        "agent_count": len(proposals),
+                        "agents": agent_types,
+                        "conflicts": len(c_result.get("conflicts", [])),
+                    })
 
                 # 逐步返回步骤（兼容前端SSE格式）
                 n_steps = c_narrative.get("steps", []) if c_narrative else []

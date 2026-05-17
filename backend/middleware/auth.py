@@ -14,6 +14,7 @@
 
 from __future__ import annotations
 
+import hmac
 import logging
 
 from fastapi import Request, Response
@@ -41,7 +42,6 @@ _PUBLIC_PREFIXES: tuple[str, ...] = (
     "/docs",
     "/redoc",
     "/openapi.json",
-    "/",
 )
 
 # 完全跳过中间件的路径
@@ -83,7 +83,7 @@ class APIKeyAuthMiddleware(BaseHTTPMiddleware):
 
         # 管理端点 → 要求 API Key
         provided = request.headers.get("X-API-Key", "")
-        if provided == self._api_key:
+        if hmac.compare_digest(provided, self._api_key):
             return await call_next(request)
 
         logger.warning(
