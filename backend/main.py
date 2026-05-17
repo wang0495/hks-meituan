@@ -32,7 +32,7 @@ from backend.services.cache import (close_multilevel_cache, distance_cache,
                                     init_multilevel_cache, poi_cache,
                                     profile_cache, route_cache)
 from backend.services.cache_warmup import warmup_memory_caches
-from backend.services.data_service import get_data, load_data
+from backend.services.data_service import load_data
 
 logger = logging.getLogger(__name__)
 

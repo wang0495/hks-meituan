@@ -4,7 +4,8 @@ from fastapi import APIRouter
 
 router = APIRouter(prefix="/api/v2")
 
-from . import plan, poi  # noqa: E402
+from . import dialogue, plan, poi  # noqa: E402
 
 router.include_router(plan.router)
 router.include_router(poi.router)
+router.include_router(dialogue.router)

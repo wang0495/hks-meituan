@@ -235,21 +235,29 @@ async def _get_service_status() -> dict:
 
 
 async def _check_redis() -> str:
-    """检查 Redis 连接。"""
+    """检查 Redis 连接（复用session manager的连接）。"""
     try:
-        import redis.asyncio as aioredis
+        from backend.services.session import get_session_manager
 
-        from backend.config import settings
-
-        r = aioredis.from_url(
-            f"redis://{settings.redis.host}:{settings.redis.port}/{settings.redis.db}",
-            socket_connect_timeout=2,
-        )
-        await r.ping()
-        await r.aclose()
-        return "healthy"
-    except Exception:
+        sm = get_session_manager()
+        if sm._redis and await sm._redis.ping():
+            return "healthy"
         return "unhealthy"
+    except Exception:
+        # Fallback: direct connection if session manager unavailable
+        try:
+            import redis.asyncio as aioredis
+            from backend.config import settings
+
+            r = aioredis.from_url(
+                f"redis://{settings.redis.host}:{settings.redis.port}/{settings.redis.db}",
+                socket_connect_timeout=2,
+            )
+            await r.ping()
+            await r.aclose()
+            return "healthy"
+        except Exception:
+            return "unhealthy"
 
 
 async def _check_database() -> str:

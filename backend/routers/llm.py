@@ -40,7 +40,7 @@ _ALLOWED_MODELS = frozenset({
     },
     tags=["LLM"],
 )
-async def chat(req: ChatRequest):
+async def chat(req: ChatRequest) -> ChatResponse:
     """与LLM进行单轮对话。"""
     model_name = req.model or "openai"
     if model_name not in _ALLOWED_MODELS:
@@ -82,7 +82,7 @@ async def chat(req: ChatRequest):
     },
     tags=["LLM"],
 )
-async def chat_stream(req: ChatRequest):
+async def chat_stream(req: ChatRequest) -> StreamingResponse:
     """与LLM进行流式对话。"""
     model_name = req.model or "openai"
     if model_name not in _ALLOWED_MODELS:

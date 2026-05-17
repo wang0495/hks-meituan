@@ -94,7 +94,7 @@ def _sse(event: str, data_obj: Any) -> str:
     description="V1版本的路线规划接口，以SSE流式返回结果。",
     tags=["v1-plan"],
 )
-async def plan_route_v1(request: PlanRequestV1):
+async def plan_route_v1(request: PlanRequestV1) -> StreamingResponse:
     """V1版本的路线规划（SSE流式响应）。"""
 
     async def event_stream():

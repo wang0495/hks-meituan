@@ -10,6 +10,7 @@
 from __future__ import annotations
 
 import logging
+import os
 import uuid
 
 from fastapi import Request, Response
@@ -50,12 +51,14 @@ class SessionMiddleware(BaseHTTPMiddleware):
         response = await call_next(request)
 
         # 设置 session cookie（HttpOnly 防 XSS，SameSite=Lax 防 CSRF）
+        is_prod = os.getenv("ENVIRONMENT", "development") in ("production", "prod", "staging")
         response.set_cookie(
             key="session_id",
             value=session_id,
             max_age=3600,
             httponly=True,
             samesite="lax",
+            secure=is_prod,
         )
 
         # 同时在 Header 中暴露（方便前端 SPA / 移动端读取）

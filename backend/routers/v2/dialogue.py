@@ -1,4 +1,4 @@
-"""V1 对话式路线调整接口。"""
+"""V2 对话式路线调整接口（复用V1逻辑）。"""
 
 from __future__ import annotations
 
@@ -11,16 +11,11 @@ from backend.services.cache import route_cache
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(tags=["v1-dialogue"])
+router = APIRouter(tags=["v2-dialogue"])
 
 
-# ---------------------------------------------------------------------------
-# 请求 / 响应模型
-# ---------------------------------------------------------------------------
-
-
-class AdjustRequestV1(BaseModel):
-    """V1 对话调整请求。"""
+class AdjustRequestV2(BaseModel):
+    """V2 对话调整请求。"""
 
     instruction: str = Field(
         ...,
@@ -31,27 +26,22 @@ class AdjustRequestV1(BaseModel):
     )
 
 
-class DialogueResultV1(BaseModel):
-    """V1 对话调整响应。"""
+class DialogueResultV2(BaseModel):
+    """V2 对话调整响应。"""
 
     reply: str = Field(..., description="系统回复文本")
     route: dict = Field(..., description="调整后的路线数据")
     changes_made: list[dict] = Field(default_factory=list, description="变更列表")
 
 
-# ---------------------------------------------------------------------------
-# API 实现
-# ---------------------------------------------------------------------------
-
-
 @router.post(
     "/dialogue/{session_id}",
-    summary="[V1] 对话式路线调整",
-    description="V1版本的对话式路线调整接口。",
-    tags=["v1-dialogue"],
+    summary="[V2] 对话式路线调整",
+    description="V2版本的对话式路线调整接口。",
+    tags=["v2-dialogue"],
 )
-async def dialogue_v1(session_id: str, request: AdjustRequestV1) -> dict:
-    """V1 版本的对话式路线调整。"""
+async def dialogue_v2(session_id: str, request: AdjustRequestV2) -> dict:
+    """V2 版本的对话式路线调整。"""
     from backend.services.dialogue import dialogue_engine
 
     result = await dialogue_engine.process_instruction(session_id, request.instruction)
@@ -67,12 +57,12 @@ async def dialogue_v1(session_id: str, request: AdjustRequestV1) -> dict:
 
 @router.get(
     "/route/{route_id}",
-    summary="[V1] 获取路线详情",
-    description="V1版本的路线详情查询接口。",
-    tags=["v1-dialogue"],
+    summary="[V2] 获取路线详情",
+    description="V2版本的路线详情查询接口。",
+    tags=["v2-dialogue"],
 )
-async def get_route_v1(route_id: str) -> dict:
-    """V1 版本的路线详情查询。"""
+async def get_route_v2(route_id: str) -> dict:
+    """V2 版本的路线详情查询。"""
     route_data = route_cache.get(route_id)
     if route_data is None:
         raise HTTPException(status_code=404, detail="Route not found")

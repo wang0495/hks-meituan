@@ -7,7 +7,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Any, Sequence
+from typing import Any
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession

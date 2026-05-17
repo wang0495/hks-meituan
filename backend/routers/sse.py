@@ -14,6 +14,8 @@ import logging
 from fastapi import APIRouter, Request
 from pydantic import BaseModel, Field
 
+from fastapi.responses import StreamingResponse
+
 from backend.sse.stream import SSEStream, create_sse_response
 
 logger = logging.getLogger(__name__)
@@ -28,14 +30,18 @@ class SSERequest(BaseModel):
 
 
 @router.post("/api/plan/stream")
-async def plan_route_stream(request: Request):
+async def plan_route_stream(request: Request) -> StreamingResponse:
     """流式路线规划 -- 四阶段 SSE 逐步推送。"""
     from backend.services.data_service import get_data
     from backend.services.intent_parser import parse_intent
     from backend.services.narrator import generate_narrative
     from backend.services.solver import solve_route
 
-    body = await request.json()
+    try:
+        body = await request.json()
+    except Exception:
+        from fastapi.responses import JSONResponse
+        return JSONResponse({"error": "无效的JSON请求体"}, status_code=400)
     # Pydantic 风格验证
     validated = SSERequest(**body)
     user_input = validated.user_input
