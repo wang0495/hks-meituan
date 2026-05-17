@@ -14,7 +14,7 @@
     reloader.start()
 
     async def on_change(config: dict) -> None:
-        print(f"配置已更新: {config}")
+        logger.info("配置已更新: %s", config)
 
     reloader.watch("app", on_change)
 

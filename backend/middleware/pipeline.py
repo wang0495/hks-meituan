@@ -196,9 +196,10 @@ class MiddlewarePipeline:
                     duration = time.perf_counter() - start
                     self._record_stats(_entry.name, duration, success=True)
                     return response
-                except Exception:
+                except Exception as e:
                     duration = time.perf_counter() - start
                     self._record_stats(_entry.name, duration, success=False)
+                    logger.error("middleware pipeline error: %s", e)
                     raise
 
             handler = wrapped

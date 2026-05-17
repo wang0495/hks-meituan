@@ -7,14 +7,18 @@ POI 经济数据计算模块。
 - spend_emotion: 消费感受 (value/fair/expensive)，价格是否物有所值
 
 使用方式：
+    import logging; logging.basicConfig(level=logging.INFO)
     from backend.services.economy import enrich_poi_economics
     enriched = enrich_poi_economics(poi)
-    print(enriched["experience_leverage"])
+    logging.getLogger(__name__).info("leverage=%s", enriched["experience_leverage"])
 """
 
 from __future__ import annotations
 
+import logging
 from typing import Any
+
+logger = logging.getLogger(__name__)
 
 # 类别体验加成系数
 _CATEGORY_EXPERIENCE_BONUS: dict[str, float] = {

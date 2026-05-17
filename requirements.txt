@@ -6,55 +6,55 @@ python-multipart==0.0.6
 # 数据处理
 pydantic==2.5.3
 python-dotenv==1.0.0
-numpy>=1.26.0
+numpy==1.26.4
 
 # LLM客户端
 openai==1.12.0
 httpx==0.26.0
 
 # 数据库
-sqlalchemy>=2.0.0
-asyncpg>=0.29.0
-alembic>=1.13.0
+sqlalchemy==2.0.27
+asyncpg==0.29.0
+alembic==1.13.1
 
 # 数据验证
 jsonschema==4.21.1
 
 # 模板引擎
-Jinja2>=3.1.0
+Jinja2==3.1.3
 
 # 测试
 pytest==7.4.4
 pytest-asyncio==0.23.3
 pytest-cov==4.1.0
-pytest-xdist>=3.5.0
-pytest-timeout>=2.2.0
-aiosqlite>=0.20.0
-fakeredis>=2.20.0
+pytest-xdist==3.5.0
+pytest-timeout==2.2.0
+aiosqlite==0.20.0
+fakeredis==2.21.3
 
 # 缓存
-redis[hiredis]>=5.0.0
+redis[hiredis]==5.0.1
 
 # 认证
-PyJWT>=2.8.0
+PyJWT==2.8.0
 
 # 加密
-cryptography>=42.0.0
+cryptography==42.0.2
 
 # 配置
-pydantic-settings>=2.1.0
+pydantic-settings==2.1.0
 
 # 系统监控
-psutil>=5.9.0
-prometheus_client>=0.20.0
-sentry-sdk[fastapi]>=1.40.0
+psutil==5.9.8
+prometheus_client==0.20.0
+sentry-sdk[fastapi]==1.40.6
 
 # 工具
 rich==13.7.0
 
 # 配置热更新
-watchdog>=4.0.0
-pyyaml>=6.0.0
+watchdog==4.0.0
+pyyaml==6.0.1
 
 # GraphQL
-strawberry-graphql[fastapi]>=0.200.0
+strawberry-graphql[fastapi]==0.210.0

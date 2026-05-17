@@ -116,9 +116,9 @@ class InputValidationMiddleware(BaseHTTPMiddleware):
                                 status_code=400,
                                 content={"detail": "请求体包含无效内容"},
                             )
-                except Exception:
+                except Exception as e:
                     # 解析失败不阻断请求，交给路由层处理
-                    pass
+                    logger.warning("input validation parse error: %s", e)
 
         return await call_next(request)
 

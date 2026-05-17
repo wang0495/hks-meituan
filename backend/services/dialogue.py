@@ -186,7 +186,8 @@ class DialoguePersistence:
             key = f"{DIALOGUE_REDIS_KEY_PREFIX}{session_id}"
             await r.delete(key)
             return True
-        except Exception:
+        except Exception as e:
+            logger.warning("dialogue error: %s", e)
             return False
 
     @property
@@ -656,7 +657,8 @@ class DialogueEngine:
             old_h, old_m = map(int, old_start.split(":"))
             new_h, new_m = map(int, new_start.split(":"))
             offset_min = (new_h * 60 + new_m) - (old_h * 60 + old_m)
-        except Exception:
+        except Exception as e:
+            logger.warning("dialogue error: %s", e)
             offset_min = 0
 
         # 如果有偏移，调整路线中所有时间
@@ -671,8 +673,8 @@ class DialogueEngine:
                             # 边界检查
                             new_m = max(0, min(24 * 60 - 1, new_m))
                             step[key] = f"{new_m // 60:02d}:{new_m % 60:02d}"
-                        except Exception:
-                            pass
+                        except Exception as e:
+                            logger.warning("dialogue error: %s", e)
 
         logger.info("[Dialogue] 时间调整（增量） -> %s", state.user_intent.get("time", {}))
         return {

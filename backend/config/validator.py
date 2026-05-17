@@ -11,7 +11,7 @@
     result = validator.validate_file("config/app.yaml")
     if not result.valid:
         for err in result.errors:
-            print(err)
+            logger.error(err)
 """
 
 from __future__ import annotations

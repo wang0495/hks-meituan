@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import json
 import logging
+import time
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
@@ -15,6 +16,10 @@ from backend.services.websocket import get_websocket_manager
 logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["WebSocket"])
+
+# WebSocket security limits
+_WS_MAX_MESSAGE_SIZE = 64 * 1024  # 64 KB per message
+_WS_RATE_LIMIT = 30  # max messages per minute per connection
 
 
 # ---------------------------------------------------------------------------
@@ -50,9 +55,32 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str) -> None:
     manager = get_websocket_manager()
     await manager.connect(websocket, session_id)
 
+    # Per-connection rate limiting state
+    msg_timestamps: list[float] = []
+
     try:
         while True:
             data = await websocket.receive_text()
+
+            # Message size limit
+            if len(data) > _WS_MAX_MESSAGE_SIZE:
+                await manager.send_personal_message(
+                    session_id,
+                    {"type": "error", "message": "消息过大"},
+                )
+                continue
+
+            # Rate limiting
+            now = time.monotonic()
+            msg_timestamps = [t for t in msg_timestamps if now - t < 60]
+            if len(msg_timestamps) >= _WS_RATE_LIMIT:
+                await manager.send_personal_message(
+                    session_id,
+                    {"type": "error", "message": "消息过于频繁"},
+                )
+                continue
+            msg_timestamps.append(now)
+
             try:
                 message = json.loads(data)
             except json.JSONDecodeError:
