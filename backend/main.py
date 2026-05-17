@@ -6,6 +6,7 @@ import asyncio
 import json
 import logging
 import uuid
+from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any
 
@@ -141,6 +142,128 @@ _tags_metadata = [
 ]
 
 # ---------------------------------------------------------------------------
+# 生命周期（lifespan 上下文管理器，替代已废弃的 on_event）
+# ---------------------------------------------------------------------------
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    from backend.config_loader import get_config_summary
+    from backend.services.graceful_shutdown import get_shutdown_manager
+    from backend.services.message_handlers import start_default_consumers
+    from backend.services.session import get_session_manager
+    from backend.services.task_queue import get_task_queue
+
+    # ---- startup ----
+
+    # 初始化 Sentry（DSN 未配置时自动跳过）
+    try:
+        from backend.monitoring.sentry import init_sentry
+        init_sentry()
+    except Exception as e:
+        logger.debug("Sentry初始化失败: %s", e)
+
+    load_data()
+
+    # 启动连接池管理器（数据库 + HTTP 连接池）
+    from backend.services.pool_manager import get_pool_manager
+
+    await get_pool_manager().start_all()
+
+    # 初始化多级缓存（连接 Redis L2）
+    await init_multilevel_cache()
+
+    # 预热内存缓存（同步 L1）
+    warmup_memory_caches()
+
+    # 预热多级缓存（异步 L1 + L2）+ 启动定时预热
+    from backend.startup.warmup import startup_warmup_with_background
+
+    warmup, bg_task = await startup_warmup_with_background(interval=3600)
+    app.state.cache_warmup = warmup
+    app.state.cache_refresh_task = bg_task
+
+    # 初始化会话管理器（连接 Redis）
+    await get_session_manager().connect()
+
+    await get_task_queue().start()
+
+    # 启动消息队列默认消费者
+    await start_default_consumers()
+
+    # 启动服务注册中心
+    from backend.services.registry import get_service_registry
+
+    await get_service_registry().start()
+
+    # ---- 注册优雅停机 ----
+    from backend.services.audit_logger import get_audit_logger
+    from backend.services.message_queue import close_message_queue
+
+    shutdown_mgr = get_shutdown_manager()
+
+    # 注册清理回调（按依赖逆序：先启动的后关闭）
+    shutdown_mgr.register_cleanup("service_registry", get_service_registry().stop)
+    shutdown_mgr.register_cleanup("message_queue", close_message_queue)
+    shutdown_mgr.register_cleanup("session_manager", get_session_manager().close)
+    shutdown_mgr.register_cleanup("task_queue", get_task_queue().stop)
+    shutdown_mgr.register_cleanup("multilevel_cache", close_multilevel_cache)
+    shutdown_mgr.register_cleanup("pool_manager", get_pool_manager().close_all)
+
+    async def _flush_audit():
+        get_audit_logger().flush()
+
+    shutdown_mgr.register_cleanup("audit_logger_flush", _flush_audit)
+
+    # 注册操作系统信号处理器
+    shutdown_mgr.register_signal_handlers()
+
+    # 安全配置校验
+    if not settings.security.encryption_key:
+        logger.warning("SECURITY_ENCRYPTION_KEY 未设置 — 数据加密功能不可用")
+    if settings.security.api_key:
+        logger.info("API Key 认证已启用")
+    else:
+        logger.warning(
+            "SECURITY_API_KEY 未设置 — 管理端点无认证保护。"
+            "建议在.env中设置 SECURITY_API_KEY"
+        )
+
+    logger.info("CityFlow API 启动完成 | %s", get_config_summary(settings))
+
+    yield  # ---- app is running ----
+
+    # ---- shutdown ----
+    from backend.services.graceful_shutdown import get_shutdown_manager as _get_sd
+
+    # 停止缓存预热
+    warmup_obj = getattr(app.state, "cache_warmup", None)
+    if warmup_obj is not None:
+        warmup_obj.stop()
+
+    # 取消定时缓存刷新任务
+    refresh_task = getattr(app.state, "cache_refresh_task", None)
+    if refresh_task is not None:
+        refresh_task.cancel()
+        try:
+            await refresh_task
+        except asyncio.CancelledError:
+            pass
+
+    # 通过停机管理器执行三阶段停机（排空请求 -> 清理资源）
+    shutdown_mgr = _get_sd()
+    stats = await shutdown_mgr.shutdown()
+
+    if stats.timed_out:
+        logger.warning("停机时有请求超时未完成")
+    if stats.cleanup_errors:
+        for err in stats.cleanup_errors:
+            logger.error(err)
+
+    logger.info("CityFlow API 已关闭")
+
+
+# ---------------------------------------------------------------------------
 # FastAPI 实例
 # ---------------------------------------------------------------------------
 
@@ -194,6 +317,7 @@ app = FastAPI(
         "| 较贵 | avg_price <= 500 |\n"
         "| 高端 | avg_price > 500 |\n"
     ),
+    lifespan=lifespan,
     version="1.0.0",
     contact={
         "name": "CityFlow Team",
@@ -959,125 +1083,6 @@ async def dialogue(session_id: str, request: AdjustRequest):
             logger.warning(f"反馈记录失败（不影响主流程）: {fb_err}")
 
     return result
-
-
-# ---------------------------------------------------------------------------
-# 生命周期
-# ---------------------------------------------------------------------------
-
-
-@app.on_event("startup")
-async def startup():
-    from backend.config_loader import get_config_summary
-    from backend.services.graceful_shutdown import get_shutdown_manager
-    from backend.services.message_handlers import start_default_consumers
-    from backend.services.session import get_session_manager
-    from backend.services.task_queue import get_task_queue
-
-    # 初始化 Sentry（DSN 未配置时自动跳过）
-    try:
-        from backend.monitoring.sentry import init_sentry
-        init_sentry()
-    except Exception as e:
-        logger.debug("Sentry初始化失败: %s", e)
-
-    load_data()
-
-    # 启动连接池管理器（数据库 + HTTP 连接池）
-    from backend.services.pool_manager import get_pool_manager
-
-    await get_pool_manager().start_all()
-
-    # 初始化多级缓存（连接 Redis L2）
-    await init_multilevel_cache()
-
-    # 预热内存缓存（同步 L1）
-    warmup_memory_caches()
-
-    # 预热多级缓存（异步 L1 + L2）+ 启动定时预热
-    from backend.startup.warmup import startup_warmup_with_background
-
-    warmup, bg_task = await startup_warmup_with_background(interval=3600)
-    app.state.cache_warmup = warmup
-    app.state.cache_refresh_task = bg_task
-
-    # 初始化会话管理器（连接 Redis）
-    await get_session_manager().connect()
-
-    await get_task_queue().start()
-
-    # 启动消息队列默认消费者
-    await start_default_consumers()
-
-    # 启动服务注册中心
-    from backend.services.registry import get_service_registry
-
-    await get_service_registry().start()
-
-    # ---- 注册优雅停机 ----
-    from backend.services.audit_logger import get_audit_logger
-    from backend.services.message_queue import close_message_queue
-
-    shutdown_mgr = get_shutdown_manager()
-
-    # 注册清理回调（按依赖逆序：先启动的后关闭）
-    shutdown_mgr.register_cleanup("service_registry", get_service_registry().stop)
-    shutdown_mgr.register_cleanup("message_queue", close_message_queue)
-    shutdown_mgr.register_cleanup("session_manager", get_session_manager().close)
-    shutdown_mgr.register_cleanup("task_queue", get_task_queue().stop)
-    shutdown_mgr.register_cleanup("multilevel_cache", close_multilevel_cache)
-    shutdown_mgr.register_cleanup("pool_manager", get_pool_manager().close_all)
-    async def _flush_audit():
-        get_audit_logger().flush()
-
-    shutdown_mgr.register_cleanup("audit_logger_flush", _flush_audit)
-
-    # 注册操作系统信号处理器
-    shutdown_mgr.register_signal_handlers()
-
-    # 安全配置校验
-    if not settings.security.encryption_key:
-        logger.warning("SECURITY_ENCRYPTION_KEY 未设置 — 数据加密功能不可用")
-    if settings.security.api_key:
-        logger.info("API Key 认证已启用")
-    else:
-        logger.warning(
-            "SECURITY_API_KEY 未设置 — 管理端点无认证保护。"
-            "建议在.env中设置 SECURITY_API_KEY"
-        )
-
-    logger.info("CityFlow API 启动完成 | %s", get_config_summary(settings))
-
-
-@app.on_event("shutdown")
-async def shutdown():
-    from backend.services.graceful_shutdown import get_shutdown_manager
-
-    # 停止缓存预热
-    warmup = getattr(app.state, "cache_warmup", None)
-    if warmup is not None:
-        warmup.stop()
-
-    # 取消定时缓存刷新任务
-    refresh_task = getattr(app.state, "cache_refresh_task", None)
-    if refresh_task is not None:
-        refresh_task.cancel()
-        try:
-            await refresh_task
-        except asyncio.CancelledError:
-            pass
-
-    # 通过停机管理器执行三阶段停机（排空请求 -> 清理资源）
-    shutdown_mgr = get_shutdown_manager()
-    stats = await shutdown_mgr.shutdown()
-
-    if stats.timed_out:
-        logger.warning("停机时有请求超时未完成")
-    if stats.cleanup_errors:
-        for err in stats.cleanup_errors:
-            logger.error(err)
-
-    logger.info("CityFlow API 已关闭")
 
 
 # ---------------------------------------------------------------------------

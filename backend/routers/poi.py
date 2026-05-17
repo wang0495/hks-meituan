@@ -2,82 +2,26 @@
 
 from __future__ import annotations
 
-from pathlib import Path
 from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
 
+from backend.routers._poi_helpers import (
+    apply_basic_filters,
+    compute_distance_matrix,
+    enrich_poi,
+    get_pois_data,
+    get_pois_index,
+    load_pois,
+)
 from backend.services.cache import distance_cache
 from backend.services.geo import haversine
-from backend.services.vectorized import distance_matrix_vectorized
 
 router = APIRouter(prefix="/api/poi", tags=["POI"])
 
-# ---------------------------------------------------------------------------
-# 数据加载
-# ---------------------------------------------------------------------------
-
-_pois_data: list[dict] = []
-_pois_index: dict[str, dict] = {}
-
-
-def load_pois() -> None:
-    global _pois_data, _pois_index
-    data_file = Path(__file__).parent.parent / "data" / "city_poi_db.json"
-    with open(data_file, encoding="utf-8") as f:
-        import json
-
-        _pois_data = json.load(f)
-    _pois_index = {p["id"]: p for p in _pois_data if "id" in p}
-
-
-# 模块级加载，main.py 的 startup 也可以调用
+# 模块级加载
 load_pois()
-
-# ---------------------------------------------------------------------------
-# 辅助函数
-# ---------------------------------------------------------------------------
-
-# 价格区间映射（对照 api_spec.yaml 定义）
-_PRICE_THRESHOLDS = [
-    (0, "免费"),
-    (50, "便宜"),
-    (150, "中等"),
-    (500, "较贵"),
-    (float("inf"), "高端"),
-]
-
-
-def get_price_range(avg_price: float) -> str:
-    for threshold, label in _PRICE_THRESHOLDS:
-        if avg_price <= threshold:
-            return label
-    return "高端"
-
-
-def enrich_poi(poi: dict) -> dict:
-    """为 POI 补充 emotion_tags、constraints、price_range 字段。"""
-    if "emotion_tags" not in poi:
-        poi["emotion_tags"] = {
-            "excitement": 0.5,
-            "tranquility": 0.5,
-            "sociability": 0.5,
-            "culture_depth": 0.5,
-            "surprise": 0.5,
-            "physical_demand": 0.5,
-        }
-    if "constraints" not in poi:
-        poi["constraints"] = {
-            "accessible": True,
-            "pet_friendly": False,
-            "queue_time_min": 15 if poi.get("queue_prone") else 0,
-            "opening_hours": poi.get("business_hours", "09:00-17:00"),
-            "has_restroom": True,
-        }
-    poi["price_range"] = get_price_range(poi.get("avg_price", 0))
-    return poi
-
 
 # ---------------------------------------------------------------------------
 # 请求 / 响应模型
@@ -233,53 +177,28 @@ async def search_pois(
         le=180,
         description="中心点经度（与lat配合使用，筛选10km范围内的POI）",
     ),
-):
+) -> dict:
     """
     搜索兴趣点。
 
     支持按城市、类别、标签、关键词、评分、价格、地理位置等多维度筛选。
     """
-    results = list(_pois_data)
-
-    # 按城市
-    if request.region:
-        results = [p for p in results if p.get("city") == request.region]
-
-    # 按品类
-    if request.categories:
-        cats = set(request.categories)
-        results = [p for p in results if p.get("category") in cats]
-
-    # 按标签（AND：POI 须包含列表中所有标签）
-    if request.tags:
-        req_tags = set(request.tags)
-        results = [p for p in results if req_tags.issubset(set(p.get("tags", [])))]
+    results = apply_basic_filters(
+        get_pois_data(),
+        region=request.region,
+        categories=request.categories,
+        tags=request.tags,
+        keyword=request.keyword,
+        min_rating=request.min_rating,
+        max_price=request.max_price,
+        lat=lat,
+        lng=lng,
+    )
 
     # 排除 ID
     if request.exclude_ids:
         excl = set(request.exclude_ids)
         results = [p for p in results if p.get("id") not in excl]
-
-    # 关键词模糊搜索
-    if request.keyword:
-        kw = request.keyword.lower()
-        results = [p for p in results if kw in p.get("name", "").lower()]
-
-    # 最低评分
-    if request.min_rating is not None:
-        results = [p for p in results if p.get("rating", 0) >= request.min_rating]
-
-    # 最高价格
-    if request.max_price is not None:
-        results = [p for p in results if p.get("avg_price", 0) <= request.max_price]
-
-    # 地理范围（10 km，对照 api_spec.yaml）
-    if lat is not None and lng is not None:
-        results = [
-            p
-            for p in results
-            if haversine(lat, lng, p.get("lat", 0), p.get("lng", 0)) <= 10_000
-        ]
 
     results = [enrich_poi(p) for p in results]
     return {"pois": results, "total": len(results)}
@@ -361,13 +280,13 @@ async def get_poi_detail(
         le=180,
         description="用户当前经度（预留，可用于距离计算）",
     ),
-):
+) -> dict:
     """
     获取POI详情。
 
     根据POI ID返回完整的POI信息，包括情绪标签和约束条件。
     """
-    poi = _pois_index.get(poi_id)
+    poi = get_pois_index().get(poi_id)
     if poi is None:
         raise HTTPException(
             status_code=404,
@@ -428,50 +347,11 @@ async def get_poi_detail(
     },
     tags=["POI"],
 )
-async def get_distance_matrix(request: DistanceMatrixRequest):
+async def get_distance_matrix(request: DistanceMatrixRequest) -> dict:
     """
     计算距离矩阵。
 
     输入POI ID列表，返回N x N的距离矩阵。距离使用haversine公式计算，
     乘以1.3的道路系数，时间按30km/h估算。
     """
-    # 检查缓存
-    cache_key = f"dm:{','.join(sorted(request.poi_ids))}"
-    cached_result = distance_cache.get(cache_key)
-    if cached_result is not None:
-        return cached_result
-
-    pois: list[dict] = []
-    for pid in request.poi_ids:
-        poi = _pois_index.get(pid)
-        if poi is None:
-            raise HTTPException(
-                status_code=400,
-                detail={"error": f"POI not found: {pid}", "code": 400},
-            )
-        pois.append(poi)
-
-    # 使用向量化计算距离矩阵
-
-    dist_matrix = distance_matrix_vectorized(pois)  # (n, n) 单位：米
-    time_matrix = dist_matrix / 1000.0 / 30.0 * 60.0  # 30 km/h -> 分钟
-
-    n = len(pois)
-    matrix: list[list[dict]] = []
-    for i in range(n):
-        row: list[dict] = []
-        for j in range(n):
-            if i == j:
-                row.append({"distance_m": 0, "time_min": 0})
-            else:
-                row.append(
-                    {
-                        "distance_m": round(float(dist_matrix[i, j])),
-                        "time_min": round(float(time_matrix[i, j])),
-                    }
-                )
-        matrix.append(row)
-
-    result = {"matrix": matrix, "poi_ids": request.poi_ids}
-    distance_cache.set(cache_key, result)
-    return result
+    return compute_distance_matrix(request.poi_ids)
