@@ -1,614 +1,877 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>CityFlow · 智能城市漫游</title>
-  <style>
-    @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;600;700;900&display=swap');
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CityFlow · 智能路线规划</title>
+<style>
+/* ============================================================
+   iOS 手绘动画风格 — 设计系统
+   ============================================================ */
+:root {
+  --paper: #faf7f2;
+  --card: rgba(252, 250, 247, 0.94);
+  --sky: #e8f0f8;
+  --text: #3a3530;
+  --text-secondary: #6b6258;
+  --text-muted: #a09888;
+  --border: rgba(0,0,0,0.06);
+  --accent: #e8886a;
+  --accent-blue: #6a9ec8;
+  --accent-yellow: #e8c86a;
+  --green: #6aaa6a;
+  --shadow-sm: 0 2px 8px rgba(80,60,40,0.06);
+  --shadow-md: 0 4px 20px rgba(80,60,40,0.08);
+  --shadow-lg: 0 12px 40px rgba(60,40,20,0.12);
+  --radius: 20px;
+  --radius-sm: 14px;
+  --radius-xs: 10px;
+  --transition: 0.35s cubic-bezier(0.22, 0.61, 0.36, 1);
+}
 
-    :root {
-      color-scheme: dark;
-      --bg: #08090f;
-      --surface: #10131c;
-      --surface2: #161a28;
-      --glass: rgba(255,255,255,.03);
-      --line: rgba(255,255,255,.06);
-      --text: #e8ecf4;
-      --text2: #b4bdd4;
-      --text3: #6a7494;
-      --accent: #7b6cf6;
-      --accent2: #5ea2ff;
-      --green: #3ee889;
-      --red: #ff4d6a;
-      --orange: #ffa54d;
-      --pink: #ff6b9d;
-      --purple: #9b6dff;
-      --cyan: #4dd8e8;
-      --R: 12px;
-      --Rs: 8px;
-    }
-    *{box-sizing:border-box;margin:0;padding:0}
-    button,input,textarea{font:inherit;border:0;outline:0;color:inherit;cursor:pointer;background:0}
-    body{
-      overflow:hidden;height:100vh;
-      font-family:'Noto Sans SC',-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;
-      background:var(--bg);color:var(--text);
-    }
-    ::-webkit-scrollbar{width:4px}
-    ::-webkit-scrollbar-track{background:transparent}
-    ::-webkit-scrollbar-thumb{background:rgba(255,255,255,.08);border-radius:4px}
+* { margin:0; padding:0; box-sizing:border-box; }
 
-    /* ═══ Ambient ═══ */
-    #ambientBg{position:fixed;inset:0;z-index:0;pointer-events:none}
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "PingFang SC", "Microsoft YaHei", sans-serif;
+  background: linear-gradient(135deg, #dbe9f4 0%, #e6eef5 35%, #f0ece3 65%, #e8dfd0 100%);
+  color: var(--text);
+  font-size: 0.9rem;
+  line-height: 1.5;
+  height: 100vh;
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+}
 
-    /* ═══ Layout ═══ */
-    .app{position:relative;z-index:1;display:grid;grid-template-columns:360px minmax(0,1fr);height:100vh}
-    .sidebar{
-      display:flex;flex-direction:column;gap:1.2rem;padding:1.6rem 1.4rem;overflow-y:auto;
-      background:linear-gradient(180deg,rgba(14,17,26,.98),rgba(8,9,15,.99));
-      border-right:1px solid var(--line);
-    }
-    .main{display:flex;flex-direction:column;min-height:0;padding:1rem 1.2rem;gap:.7rem;overflow:hidden}
+/* ============================================================
+   Map Canvas — 右侧主区域
+   ============================================================ */
+#mapCanvas {
+  position:fixed;
+  top:0; right:0;
+  width: calc(100vw - 340px);
+  height: 100vh;
+  z-index:1;
+  border-radius: 20px 0 0 20px;
+  overflow: hidden;
+}
 
-    /* ═══ Brand ═══ */
-    .brand{display:flex;align-items:center;gap:.7rem}
-    .brand-orb{
-      width:2.2rem;height:2.2rem;border-radius:50%;position:relative;
-      background:conic-gradient(from 0deg,#7b6cf6,#5ea2ff,#4dd8e8,#7b6cf6);
-      box-shadow:0 0 20px rgba(123,108,246,.35);
-      animation:orbRotate 10s linear infinite;
-    }
-    .brand-orb::after{content:'';position:absolute;inset:4px;border-radius:50%;background:radial-gradient(circle at 35% 30%,rgba(255,255,255,.25),transparent 55%)}
-    @keyframes orbRotate{to{rotate:360deg}}
-    .brand h1{font-size:1.3rem;font-weight:900;letter-spacing:-.01em}
-    .brand small{display:block;color:var(--text3);font-size:.68rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase}
+/* ============================================================
+   Side Panel Container
+   ============================================================ */
+.side-panel {
+  position:fixed;
+  left:0; top:3vh; bottom:3vh;
+  width:360px;
+  z-index:10;
+  pointer-events:none;
+}
+.panel-sheet {
+  position:absolute;
+  inset:0;
+  background: var(--card);
+  backdrop-filter: blur(24px) saturate(1.2);
+  -webkit-backdrop-filter: blur(24px) saturate(1.2);
+  border-radius: 0 var(--radius) var(--radius) 0;
+  border: 1px solid var(--border);
+  border-left: none;
+  box-shadow: var(--shadow-lg);
+  display:flex; flex-direction:column;
+  overflow:hidden;
+  pointer-events:auto;
+  transition: transform var(--transition), opacity var(--transition);
+}
 
-    .sep{height:1px;background:linear-gradient(90deg,transparent,rgba(255,255,255,.06),transparent)}
+.panel-layer {
+  position:absolute; inset:0;
+  display:flex; flex-direction:column;
+  padding: 24px 20px;
+  overflow-y:auto;
+  transition: transform var(--transition), opacity var(--transition);
+}
+.panel-layer.hidden {
+  transform: translateX(-20px);
+  opacity:0;
+  pointer-events:none;
+}
+.panel-layer.hidden-right {
+  transform: translateX(40px);
+  opacity:0;
+  pointer-events:none;
+}
 
-    /* ═══ Input ═══ */
-    .input-area{display:flex;flex-direction:column;gap:.4rem}
-    .input-area h2{font-size:.82rem;font-weight:700;color:var(--text3)}
-    .input-box{
-      position:relative;padding:.8rem;border-radius:var(--R);
-      background:var(--surface2);border:1px solid var(--line);
-      box-shadow:0 8px 32px rgba(0,0,0,.25),inset 0 1px 0 rgba(255,255,255,.03);
-      transition:border-color .3s,box-shadow .3s;
-    }
-    .input-box:focus-within{border-color:rgba(123,108,246,.3);box-shadow:0 8px 32px rgba(0,0,0,.25),0 0 0 3px rgba(123,108,246,.06)}
-    .input-box textarea{width:100%;min-height:3.8rem;resize:none;background:transparent;font-size:.9rem;line-height:1.5}
-    .input-box textarea::placeholder{color:var(--text3)}
-    .char-ct{position:absolute;right:3rem;bottom:.7rem;color:var(--text3);font-size:.68rem}
-    .go-btn{
-      position:absolute;right:.5rem;bottom:.45rem;width:2rem;height:2rem;border-radius:50%;
-      background:linear-gradient(135deg,var(--accent),var(--accent2));
-      box-shadow:0 4px 14px rgba(123,108,246,.35);
-      display:grid;place-items:center;font-size:1.05rem;
-      transition:transform .2s cubic-bezier(.34,1.56,.64,1),box-shadow .2s;
-    }
-    .go-btn:hover{transform:scale(1.1);box-shadow:0 6px 20px rgba(123,108,246,.5)}
-    .go-btn:active{transform:scale(.92)}
-    .go-btn:disabled{opacity:.3;transform:none;cursor:not-allowed;box-shadow:none}
-    .go-btn.planning{animation:goPulse 1.6s ease-in-out infinite}
-    @keyframes goPulse{0%,100%{box-shadow:0 4px 14px rgba(123,108,246,.35)}50%{box-shadow:0 4px 28px rgba(123,108,246,.6)}}
+::-webkit-scrollbar{width:4px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:rgba(0,0,0,0.08);border-radius:4px}
 
-    /* ═══ Tags ═══ */
-    .tags{display:grid;grid-template-columns:repeat(2,1fr);gap:.35rem}
-    .tag{
-      padding:.4rem .55rem;border-radius:var(--Rs);
-      background:rgba(255,255,255,.02);border:1px solid var(--line);
-      font-size:.74rem;font-weight:700;transition:all .2s;
-    }
-    .tag:hover{background:rgba(123,108,246,.06);border-color:rgba(123,108,246,.2);transform:translateY(-1px)}
-    .tag.on{background:rgba(123,108,246,.12);border-color:rgba(123,108,246,.35);box-shadow:0 0 14px rgba(123,108,246,.08)}
+/* ============================================================
+   Panel 1 — 搜索设置
+   ============================================================ */
+.search-title {
+  font-size: 1.4rem; font-weight: 700;
+  color: var(--text); margin-bottom: 4px;
+}
+.search-subtitle {
+  font-size: 0.8rem; color: var(--text-muted);
+  margin-bottom: 20px;
+}
 
-    /* ═══ Mode ═══ */
-    .mode-toggle{display:flex;gap:3px;background:rgba(255,255,255,.02);border-radius:var(--Rs);padding:3px;border:1px solid var(--line)}
-    .mode-btn{flex:1;padding:.35rem;border-radius:6px;font-size:.7rem;font-weight:700;text-align:center;transition:all .2s}
-    .mode-btn:hover{background:rgba(255,255,255,.03)}
-    .mode-btn.on{background:rgba(123,108,246,.18);box-shadow:0 0 10px rgba(123,108,246,.1)}
+.search-box {
+  display:flex; align-items:center;
+  background:#fff; border:1px solid rgba(0,0,0,0.08);
+  border-radius: 28px; padding: 4px 4px 4px 18px;
+  box-shadow: var(--shadow-sm);
+  margin-bottom: 20px;
+}
+.search-box input {
+  flex:1; border:none; outline:none;
+  font-size: 0.95rem; color: var(--text);
+  background:transparent; padding: 10px 0;
+}
+.search-box input::placeholder { color: var(--text-muted); }
 
-    .sidebar-footer{margin-top:auto}
-    .sidebar-footer p{color:var(--text3);font-size:.68rem;line-height:1.6}
+.form-group { margin-bottom: 16px; }
+.form-label {
+  font-size: 0.78rem; font-weight:600; color: var(--text-secondary);
+  margin-bottom: 6px; display:block;
+}
+.form-row { display:flex; gap:8px; flex-wrap:wrap; }
 
-    /* ═══ Agent Workbench ═══ */
-    .agent-section{flex:0 0 auto}
-    .agent-section h2{font-size:.78rem;font-weight:800;color:var(--text3);margin-bottom:.5rem;display:flex;align-items:center;gap:.5rem}
-    .agent-timer{font-size:.68rem;font-weight:600;color:var(--text3);font-variant-numeric:tabular-nums}
+.chip {
+  padding: 7px 14px; border-radius:20px;
+  border:1px solid rgba(0,0,0,0.08);
+  background:#fff; font-size:0.8rem;
+  color:var(--text-secondary); cursor:pointer;
+  transition: all 0.2s ease; user-select:none;
+  white-space:nowrap;
+}
+.chip:hover { border-color: var(--accent); color: var(--accent); }
+.chip.selected {
+  background: rgba(232,136,106,0.10);
+  border-color: var(--accent);
+  color: #d4786a;
+}
 
-    /* Pipeline layout */
-    .agent-pipeline{display:flex;flex-direction:column;gap:0}
-    .agent-stage{display:flex;align-items:center;gap:.3rem}
-    .agent-stage-cards{display:flex;gap:.35rem;flex:1;flex-wrap:wrap}
-    #stageCards_0 .agent-card,
-    #stageCards_2 .agent-card,
-    #stageCards_3 .agent-card{flex:1 1 calc(50% - .35rem)}
-    #stageCards_3 .agent-card{flex:1 1 100%}
-    #stageCards_1 .agent-card{flex:1 1 calc(33% - .35rem);min-width:90px}
-    .agent-arrow{
-      display:flex;align-items:center;justify-content:center;
-      height:1.2rem;color:var(--text3);font-size:.65rem;
-      opacity:.15;transition:opacity .4s,color .4s;
-    }
-    .agent-arrow.active{opacity:1;color:var(--accent)}
-    .agent-arrow.done{opacity:.4;color:var(--green)}
-    .agent-arrow svg{width:.9rem;height:.9rem}
-    .agent-arrow svg path{fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round}
-    .agent-arrow.active svg path{stroke-dasharray:4 2;animation:arrowDash .6s linear infinite}
-    @keyframes arrowDash{to{stroke-dashoffset:-6}}
+/* Dropdown */
+.dropdown {
+  flex:1; min-width:100px;
+  padding: 9px 14px; border-radius:20px;
+  border:1px solid rgba(0,0,0,0.08);
+  background:#fff; font-size:0.8rem;
+  color:var(--text); cursor:pointer;
+  outline:none; appearance:none;
+  -webkit-appearance:none;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M3 5l3 3 3-3' fill='none' stroke='%23908880' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat:no-repeat; background-position:right 12px center;
+  padding-right:32px;
+}
 
-    /* ── Agent Card — Badge Style ── */
-    .agent-card{
-      position:relative;overflow:hidden;
-      padding:.45rem .55rem .35rem;border-radius:10px;
-      background:var(--surface);border:1px solid var(--line);
-      transition:all .35s cubic-bezier(.25,.46,.45,.94);
-      flex:1;min-width:0;min-height:2.4rem;
-    }
-    .agent-card::before{
-      content:'';position:absolute;top:0;left:0;bottom:0;width:3px;
-      background:var(--agent-color,var(--accent));
-      opacity:.3;transition:opacity .4s,background .4s;
-    }
-    /* ── idle: dimmed, waiting ── */
-    .agent-card.idle{
-      opacity:.18;filter:grayscale(.6) brightness(.7);
-      pointer-events:none;
-    }
-    /* ── active: glowing, working ── */
-    .agent-card.active{
-      opacity:1;filter:none;
-      border-color:color-mix(in srgb,var(--agent-color,var(--accent2)) 40%,transparent);
-      transform:translateY(-2px) scale(1.02);
-      box-shadow:0 4px 24px rgba(0,0,0,.3),
-        0 0 18px color-mix(in srgb,var(--agent-color,var(--accent2)) 18%,transparent),
-        inset 0 1px 0 color-mix(in srgb,var(--agent-color,var(--accent2)) 8%,transparent);
-    }
-    .agent-card.active::before{opacity:1}
-    /* ── done: completed ── */
-    .agent-card.done{
-      opacity:1;filter:none;
-      border-color:color-mix(in srgb,var(--green) 25%,transparent);
-    }
-    .agent-card.done::before{opacity:.7;background:var(--green)}
+/* Voice button */
+.btn-voice {
+  width:36px; height:36px; border-radius:50%;
+  border:none; background:#f5f0e8; color:var(--text-secondary);
+  font-size:1rem; cursor:pointer; flex-shrink:0; margin-right:6px;
+}
 
-    /* Badge avatar */
-    .agent-badge{
-      width:1.8rem;height:1.8rem;border-radius:50%;
-      display:grid;place-items:center;
-      font-size:.9rem;line-height:1;
-      background:color-mix(in srgb,var(--agent-color,var(--accent)) 10%,transparent);
-      border:2px solid color-mix(in srgb,var(--agent-color,var(--accent)) 18%,transparent);
-      transition:border-color .3s,box-shadow .3s,background .3s;
-      flex-shrink:0;
-    }
-    .agent-card.active .agent-badge{
-      border-color:color-mix(in srgb,var(--agent-color,var(--accent2)) 55%,transparent);
-      background:color-mix(in srgb,var(--agent-color,var(--accent2)) 15%,transparent);
-      box-shadow:0 0 0 3px color-mix(in srgb,var(--agent-color,var(--accent2)) 12%,transparent);
-      animation:badgeRing 2s ease-in-out infinite;
-    }
-    .agent-card.done .agent-badge{
-      border-color:color-mix(in srgb,var(--green) 45%,transparent);
-      background:rgba(62,232,137,.08);
-    }
-    @keyframes badgeRing{
-      0%,100%{box-shadow:0 0 0 3px color-mix(in srgb,var(--agent-color,var(--accent2)) 10%,transparent),0 0 8px color-mix(in srgb,var(--agent-color,var(--accent2)) 10%,transparent)}
-      50%{box-shadow:0 0 0 6px color-mix(in srgb,var(--agent-color,var(--accent2)) 5%,transparent),0 0 14px color-mix(in srgb,var(--agent-color,var(--accent2)) 20%,transparent)}
-    }
+.btn-generate {
+  width:100%; padding:14px; border-radius:28px;
+  border:none; background: linear-gradient(135deg, #e8886a, #d4685a);
+  color:#fff; font-size:1rem; font-weight:600;
+  cursor:pointer; box-shadow: 0 4px 16px rgba(212,120,100,0.25);
+  transition: all var(--transition); margin-top:8px;
+}
+.btn-generate:hover { transform: translateY(-1px); box-shadow: 0 6px 24px rgba(212,120,100,0.35); }
+.btn-generate:active { transform: scale(0.98); }
+.btn-generate:disabled { opacity:.5; transform:none; cursor:not-allowed; }
+.btn-generate.planning {
+  background: linear-gradient(135deg, #6a9ec8, #5a8ab8);
+  animation: genPulse 1.6s ease-in-out infinite;
+}
+@keyframes genPulse {
+  0%,100% { box-shadow: 0 4px 16px rgba(106,158,200,0.25); }
+  50% { box-shadow: 0 4px 28px rgba(106,158,200,0.5); }
+}
 
-    .agent-head{display:flex;align-items:center;gap:.4rem;position:relative;z-index:1}
-    .agent-info{flex:1;min-width:0}
-    .agent-name{font-size:.72rem;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text)}
-    .agent-role{font-size:.55rem;color:var(--text3);font-weight:600}
+/* ============================================================
+   Panel 2 — SSE 实时结果
+   ============================================================ */
+.phase-bar {
+  padding: 8px 14px; border-radius: var(--radius-sm);
+  background: rgba(106,158,200,0.06); border:1px solid rgba(106,158,200,0.12);
+  font-size: 0.78rem; color: var(--accent-blue);
+  margin-bottom: 12px; font-weight: 600;
+  min-height: 2rem; display:flex; align-items:center;
+}
+.phase-bar.typing::after {
+  content:''; display:inline-block; width:2px; height:.8em;
+  background:var(--accent-blue); margin-left:4px; vertical-align:middle;
+  animation: cursorBlink 1s steps(2) infinite;
+}
+@keyframes cursorBlink { 0%{opacity:1} 50%{opacity:0} }
 
-    /* Status ring */
-    .agent-status{
-      width:.35rem;height:.35rem;border-radius:50%;
-      background:var(--text3);transition:all .3s;flex-shrink:0;
-    }
-    .agent-card.active .agent-status{
-      background:var(--agent-color,var(--accent2));
-      box-shadow:0 0 6px var(--agent-color,var(--accent2));
-      animation:statusPulse 1.5s ease-in-out infinite;
-    }
-    .agent-card.done .agent-status{background:var(--green);box-shadow:0 0 5px var(--green)}
-    @keyframes statusPulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(1.4)}}
+/* Agent Pipeline — iOS 浅色适配 */
+.agent-pipeline {
+  display:flex; flex-direction:column; gap:0;
+  margin-bottom:10px; flex-shrink:0;
+}
+.agent-stage { display:flex; align-items:center; gap:.2rem; }
+.agent-stage-cards { display:flex; gap:.3rem; flex:1; flex-wrap:wrap; }
+#stageCards_0 .ag-card,
+#stageCards_2 .ag-card,
+#stageCards_3 .ag-card { flex:1 1 calc(50% - .3rem); }
+#stageCards_3 .ag-card { flex:1 1 100%; }
+#stageCards_1 .ag-card { flex:1 1 calc(33% - .3rem); min-width:70px; }
 
-    .agent-thinking{
-      position:relative;z-index:1;
-      font-size:.58rem;color:var(--text2);line-height:1.35;
-      max-height:0;overflow:hidden;opacity:0;
-      transition:max-height .4s,opacity .3s,margin .3s;margin-top:0;
-      padding-left:.1rem;
-    }
-    .agent-card.active .agent-thinking{max-height:35px;opacity:1;margin-top:.2rem}
-    .agent-thinking .dots span{animation:dotJump 1.4s ease-in-out infinite;display:inline-block;font-size:.5rem}
-    .agent-thinking .dots span:nth-child(2){animation-delay:.12s}
-    .agent-thinking .dots span:nth-child(3){animation-delay:.24s}
-    @keyframes dotJump{0%,60%,100%{opacity:.25;transform:translateY(0)}30%{opacity:1;transform:translateY(-2px)}}
+.agent-arrow {
+  display:flex; align-items:center; justify-content:center;
+  height:.9rem; color:var(--text-muted); font-size:.6rem;
+  opacity:.15; transition:opacity .4s, color .4s;
+}
+.agent-arrow.active { opacity:1; color:var(--accent-blue); }
+.agent-arrow.done { opacity:.4; color:var(--green); }
+.agent-arrow svg { width:.7rem; height:.7rem; }
+.agent-arrow svg path { fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; }
+.agent-arrow.active svg path { stroke-dasharray:4 2; animation:arrowDash .6s linear infinite; }
+@keyframes arrowDash { to { stroke-dashoffset:-6; } }
 
-    .agent-result{
-      position:relative;z-index:1;
-      font-size:.54rem;color:var(--green);font-weight:700;
-      max-height:0;overflow:hidden;opacity:0;
-      transition:max-height .4s,opacity .3s,margin .3s;margin-top:0;
-    }
-    .agent-card.done .agent-result{max-height:24px;opacity:1;margin-top:.15rem}
+/* Agent Card — iOS warm style */
+.ag-card {
+  position:relative; overflow:hidden;
+  padding:.35rem .45rem .25rem; border-radius:10px;
+  background:#fff; border:1px solid rgba(0,0,0,0.05);
+  box-shadow: 0 1px 4px rgba(80,60,40,0.04);
+  transition:all .35s cubic-bezier(.25,.46,.45,.94);
+  flex:1; min-width:0; min-height:1.8rem;
+}
+.ag-card::before {
+  content:''; position:absolute; top:0; left:0; bottom:0; width:3px;
+  background:var(--ag-color, var(--accent));
+  opacity:.2; transition:opacity .4s, background .4s;
+}
+/* idle: dimmed */
+.ag-card.idle {
+  opacity:.2; filter:grayscale(.5) brightness(.85);
+  pointer-events:none;
+}
+/* active: highlighted */
+.ag-card.active {
+  opacity:1; filter:none;
+  border-color:rgba(106,158,200,0.3);
+  transform:translateY(-1px) scale(1.02);
+  box-shadow:0 3px 14px rgba(80,60,40,0.08), 0 0 10px rgba(106,158,200,0.1);
+}
+.ag-card.active::before { opacity:1; }
+/* done: completed */
+.ag-card.done {
+  opacity:1; filter:none;
+  border-color:rgba(106,170,106,0.25);
+}
+.ag-card.done::before { opacity:.6; background:var(--green); }
 
-    /* ═══ Phase Strip ═══ */
-    .phase-strip{
-      flex:0 0 auto;display:flex;align-items:center;gap:.4rem;
-      padding:.25rem .5rem;border-radius:6px;
-      background:rgba(255,255,255,.015);border:1px solid var(--line);
-      font-size:.65rem;color:var(--text3);font-weight:600;
-      min-height:1.5rem;
-    }
-    .phase-text{white-space:nowrap}
-    .phase-text.typing::after{
-      content:'';display:inline-block;width:1.5px;height:.7em;
-      background:var(--accent);margin-left:2px;vertical-align:middle;
-      animation:cursorBlink 1s steps(2) infinite;
-    }
-    @keyframes cursorBlink{0%{opacity:1}50%{opacity:0}}
+/* Badge */
+.ag-badge {
+  width:1.4rem; height:1.4rem; border-radius:50%;
+  display:grid; place-items:center;
+  font-size:.7rem; line-height:1;
+  background:rgba(106,158,200,0.06);
+  border:1.5px solid rgba(106,158,200,0.12);
+  transition:border-color .3s, box-shadow .3s, background .3s;
+  flex-shrink:0;
+}
+.ag-card.active .ag-badge {
+  border-color:rgba(106,158,200,0.4);
+  background:rgba(106,158,200,0.1);
+  box-shadow:0 0 0 2px rgba(106,158,200,0.08);
+  animation:agBadgeRing 2s ease-in-out infinite;
+}
+.ag-card.done .ag-badge {
+  border-color:rgba(106,170,106,0.35);
+  background:rgba(106,170,106,0.06);
+}
+@keyframes agBadgeRing {
+  0%,100% { box-shadow:0 0 0 2px rgba(106,158,200,0.06), 0 0 5px rgba(106,158,200,0.06); }
+  50% { box-shadow:0 0 0 4px rgba(106,158,200,0.03), 0 0 10px rgba(106,158,200,0.12); }
+}
 
-    /* ═══ Emotion Curve ═══ */
-    .curve-bar{
-      flex:0 0 auto;padding:.45rem .7rem;border-radius:var(--Rs);
-      background:var(--surface);border:1px solid var(--line);
-      display:flex;flex-direction:column;gap:.2rem;
-    }
-    .curve-header{display:flex;align-items:center;gap:.6rem;flex:1}
-    .curve-header h3{font-size:.72rem;font-weight:800;color:var(--text3);white-space:nowrap;flex-shrink:0}
-    .curve-svg{flex:1;min-width:0;height:3rem;overflow:visible}
-    .curve-labels{display:flex;justify-content:space-between;font-size:.56rem;color:var(--text3);padding:0 1.2rem}
+.ag-head { display:flex; align-items:center; gap:.3rem; position:relative; z-index:1; }
+.ag-info { flex:1; min-width:0; }
+.ag-name { font-size:.62rem; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; color:var(--text); }
+.ag-role { font-size:.48rem; color:var(--text-muted); font-weight:600; }
 
-    /* ═══ Route ═══ */
-    .route-area{flex:1;min-height:0;display:flex;flex-direction:column;overflow:hidden}
-    .route-board{
-      flex:1;min-height:0;overflow-y:auto;padding:.5rem;
-      border-radius:var(--Rs);background:var(--surface);border:1px solid var(--line);
-    }
-    .route-empty{
-      display:grid;height:100%;min-height:12rem;place-items:center;
-      color:var(--text3);text-align:center;line-height:1.8;font-size:.82rem;
-    }
-    .route-empty .empty-icon{font-size:2rem;margin-bottom:.3rem;opacity:.35}
-    .route-list{display:grid;gap:.35rem}
+.ag-status {
+  width:.3rem; height:.3rem; border-radius:50%;
+  background:var(--text-muted); transition:all .3s; flex-shrink:0;
+}
+.ag-card.active .ag-status {
+  background:var(--accent-blue);
+  box-shadow:0 0 4px var(--accent-blue);
+  animation:agStatusPulse 1.5s ease-in-out infinite;
+}
+.ag-card.done .ag-status { background:var(--green); box-shadow:0 0 4px var(--green); }
+@keyframes agStatusPulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.3;transform:scale(1.4)} }
 
-    /* ── POI Card (Narrative Style) ── */
-    .poi-row{
-      display:grid;grid-template-columns:3.2rem 1fr;gap:.35rem;
-      animation:poiSlide .5s cubic-bezier(.25,.46,.45,.94) both;
-    }
-    @keyframes poiSlide{
-      from{opacity:0;transform:translateY(14px) scale(.98)}
-      to{opacity:1;transform:translateY(0) scale(1)}
-    }
+.ag-thinking {
+  position:relative; z-index:1;
+  font-size:.5rem; color:var(--text-secondary); line-height:1.3;
+  max-height:0; overflow:hidden; opacity:0;
+  transition:max-height .4s, opacity .3s, margin .3s;
+  margin-top:0; padding-left:.1rem;
+}
+.ag-card.active .ag-thinking { max-height:28px; opacity:1; margin-top:.15rem; }
+.ag-thinking .dots span { animation:dotJump 1.4s ease-in-out infinite; display:inline-block; font-size:.45rem; }
+.ag-thinking .dots span:nth-child(2) { animation-delay:.12s; }
+.ag-thinking .dots span:nth-child(3) { animation-delay:.24s; }
+@keyframes dotJump { 0%,60%,100%{opacity:.2;transform:translateY(0)} 30%{opacity:1;transform:translateY(-1.5px)} }
 
-    .t-cell{position:relative;padding-top:.4rem;text-align:right;font-size:.72rem;font-weight:800;font-variant-numeric:tabular-nums}
-    .t-cell small{display:block;margin-top:.12rem;font-size:.56rem;color:var(--text3);font-weight:600}
-    .t-cell::after{
-      content:'';position:absolute;top:.7rem;right:-.25rem;
-      width:.45rem;height:.45rem;border-radius:50%;
-      background:var(--c,var(--accent));
-      box-shadow:0 0 0 2.5px var(--bg),0 0 8px color-mix(in srgb,var(--c,var(--accent)) 40%,transparent);
-      z-index:1;
-    }
+.ag-result {
+  position:relative; z-index:1;
+  font-size:.48rem; color:var(--green); font-weight:700;
+  max-height:0; overflow:hidden; opacity:0;
+  transition:max-height .4s, opacity .3s, margin .3s;
+  margin-top:0;
+}
+.ag-card.done .ag-result { max-height:18px; opacity:1; margin-top:.1rem; }
 
-    .poi-card{
-      padding:.55rem .65rem;border-radius:8px;
-      border-left:3px solid var(--c,var(--accent));
-      background:linear-gradient(135deg,rgba(20,24,44,.92),rgba(12,15,30,.95));
-      transition:transform .2s,box-shadow .2s;
-    }
-    .poi-card:hover{transform:translateX(3px);box-shadow:0 2px 12px rgba(0,0,0,.2)}
+/* Route list in panel 2 */
+.step-list {
+  flex:1; min-height:0; overflow-y:auto;
+  display:flex; flex-direction:column; gap:8px;
+  margin-bottom: 12px;
+}
+.step-empty {
+  display:grid; height:100%; min-height:8rem; place-items:center;
+  color:var(--text-muted); text-align:center; line-height:1.8; font-size:0.85rem;
+}
 
-    .poi-top{display:flex;align-items:flex-start;justify-content:space-between;gap:.4rem;margin-bottom:.2rem}
-    .poi-name{font-size:.84rem;font-weight:900;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0}
-    .poi-price{font-size:.78rem;font-weight:900;color:var(--c,var(--orange));white-space:nowrap;flex-shrink:0}
-    .poi-meta-row{display:flex;flex-wrap:wrap;align-items:center;gap:.15rem .4rem;font-size:.62rem;color:var(--text3);font-weight:700;margin-bottom:.2rem}
-    .poi-badge{
-      padding:.02rem .25rem;border-radius:999px;font-size:.56rem;font-weight:800;
-      background:color-mix(in srgb,var(--c,var(--accent)) 15%,transparent);
-      color:var(--c,var(--accent));
-    }
+.step-card {
+  display:flex; gap:10px; padding:10px 14px;
+  background:#fff; border-radius: var(--radius-sm);
+  border:1px solid rgba(0,0,0,0.06);
+  box-shadow: var(--shadow-sm);
+  animation: stepSlide .4s cubic-bezier(.25,.46,.45,.94) both;
+}
+@keyframes stepSlide {
+  from { opacity:0; transform:translateY(10px); }
+  to { opacity:1; transform:translateY(0); }
+}
 
-    /* Narrative text - the storytelling part */
-    .poi-narr{
-      font-size:.72rem;line-height:1.55;color:var(--text2);
-      padding:.35rem .4rem;margin:.2rem 0;
-      border-radius:6px;
-      background:rgba(255,255,255,.015);
-      border-left:2px solid color-mix(in srgb,var(--c,var(--accent)) 30%,transparent);
-      font-style:italic;
-    }
+.step-time {
+  min-width: 42px; text-align:center; font-size:0.72rem;
+  font-weight:700; color:var(--accent); padding-top:2px;
+}
+.step-time small { display:block; font-size:0.6rem; color:var(--text-muted); font-weight:600; margin-top:2px; }
+.step-dot {
+  width:8px; height:8px; border-radius:50%;
+  background:var(--accent); margin:4px auto 0;
+  box-shadow: 0 0 0 3px rgba(232,136,106,0.15);
+}
+.step-info { flex:1; min-width:0; }
+.step-name { font-weight:700; font-size:0.85rem; margin-bottom:2px; }
+.step-meta { font-size:0.7rem; color:var(--text-muted); }
+.step-narr {
+  font-size:0.72rem; color:var(--text-secondary); line-height:1.5;
+  margin-top:4px; padding:6px 8px; border-radius:8px;
+  background:rgba(232,136,106,0.04); border-left:2px solid rgba(232,136,106,0.2);
+  font-style:italic;
+}
+.step-tags { display:flex; flex-wrap:wrap; gap:4px; margin-top:4px; }
+.step-tags span {
+  padding:1px 6px; border-radius:8px;
+  background:rgba(0,0,0,0.03); font-size:0.6rem; color:var(--text-muted);
+}
 
-    .poi-tags{display:flex;flex-wrap:wrap;gap:.1rem;margin-top:.15rem}
-    .poi-tags span{
-      padding:.02rem .22rem;border-radius:3px;
-      background:rgba(255,255,255,.03);font-size:.55rem;color:var(--text3);
-    }
+/* Dialogue input */
+.dlg-box {
+  display:flex; gap:6px; margin-bottom:8px; flex-shrink:0;
+}
+.dlg-box input {
+  flex:1; padding:8px 14px; border-radius:20px;
+  border:1px solid rgba(0,0,0,0.08); background:#fff;
+  font-size:0.82rem; outline:none;
+}
+.dlg-box input:focus { border-color: var(--accent-blue); }
+.dlg-box button {
+  padding:8px 16px; border-radius:20px; border:none;
+  background:var(--accent); color:#fff; font-size:0.78rem;
+  font-weight:600; cursor:pointer; flex-shrink:0;
+}
+.dlg-box button:hover { filter:brightness(1.08); }
+.dlg-box button:disabled { opacity:.4; }
 
-    /* ── Travel ── */
-    .travel-row{display:grid;grid-template-columns:3.2rem 1fr;gap:.35rem;padding:.08rem 0}
-    .travel-row .t-cell{visibility:hidden}
-    .travel-line{height:1px;position:relative;background:linear-gradient(90deg,transparent,rgba(255,255,255,.06),transparent)}
-    .travel-line span{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);background:var(--surface);padding:0 .3rem;font-size:.56rem;color:var(--text3);white-space:nowrap;font-weight:600}
+.dlg-quick {
+  display:flex; gap:6px; flex-wrap:wrap; flex-shrink:0;
+  margin-bottom:8px;
+}
+.qb-btn {
+  padding:5px 12px; border-radius:16px;
+  border:1px solid rgba(0,0,0,0.06); background:#fff;
+  font-size:0.72rem; color:var(--text-secondary);
+  cursor:pointer; transition:all .2s;
+}
+.qb-btn:hover { border-color:var(--accent); color:var(--accent); }
 
-    /* ═══ Bottom ═══ */
-    .bottom{flex:0 0 auto;display:grid;grid-template-columns:1fr 190px;gap:.5rem}
-    .composer{
-      display:flex;flex-direction:column;gap:.3rem;
-      padding:.45rem .5rem;border-radius:var(--Rs);
-      background:var(--surface);border:1px solid var(--line);
-    }
-    .comp-row{display:grid;grid-template-columns:1fr repeat(4,auto) 1.8rem;gap:.3rem;align-items:center}
-    .comp-input{
-      padding:0 .6rem;height:1.8rem;border-radius:999px;
-      background:rgba(255,255,255,.02);border:1px solid var(--line);
-      font-size:.76rem;transition:border-color .2s;
-    }
-    .comp-input:focus{border-color:rgba(123,108,246,.25)}
-    .qb{
-      padding:0 .45rem;height:1.8rem;border-radius:999px;
-      background:rgba(255,255,255,.02);border:1px solid var(--line);
-      font-size:.64rem;font-weight:700;transition:all .2s;
-    }
-    .qb:hover{background:rgba(123,108,246,.08);border-color:rgba(123,108,246,.2)}
-    .send-b{
-      width:1.8rem;height:1.8rem;border-radius:50%;
-      background:linear-gradient(135deg,var(--accent),var(--accent2));
-      display:grid;place-items:center;font-size:.85rem;
-      box-shadow:0 3px 10px rgba(123,108,246,.25);
-      transition:transform .2s;
-    }
-    .send-b:hover{transform:scale(1.05)}
-    .send-b:disabled{opacity:.3;transform:none}
+.dlg-reply {
+  font-size:0.72rem; color:var(--text-muted);
+  min-height:1rem; margin-bottom:4px; flex-shrink:0;
+  transition:color .3s;
+}
+.dlg-reply.ok { color:var(--green); }
+.dlg-reply.err { color:#d44a50; }
 
-    .reply{min-height:.7rem;font-size:.66rem;font-weight:700;color:var(--text3);transition:color .3s}
-    .reply.ok{color:var(--green)}
-    .reply.err{color:#ff8a98}
+/* Bottom bar */
+.panel2-actions {
+  display:flex; gap:8px; flex-shrink:0; padding-top:4px;
+}
+.panel2-actions button {
+  flex:1; padding:10px; border-radius:20px;
+  font-size:0.82rem; font-weight:600; cursor:pointer;
+  transition:all var(--transition);
+}
+.btn-back { background:#fff; border:1px solid rgba(0,0,0,0.1); color:var(--text-secondary); }
+.btn-back:hover { border-color:var(--accent); color:var(--accent); }
 
-    .budget{
-      padding:.45rem .6rem;border-radius:var(--Rs);
-      background:var(--surface);border:1px solid var(--line);
-      display:flex;align-items:center;gap:.5rem;
-    }
-    .budget h3{font-size:.68rem;font-weight:700}
-    .budget strong{font-size:.86rem;font-weight:900}
-    .budget p{font-size:.58rem;color:var(--text3)}
-    .ring{
-      width:2.8rem;height:2.8rem;border-radius:50%;position:relative;
-      background:conic-gradient(var(--accent) var(--deg,0deg),rgba(255,255,255,.03) 0);
-      display:grid;place-items:center;font-weight:900;font-size:.62rem;
-      transition:--deg .6s;
-    }
-    .ring::before{content:'';position:absolute;inset:.3rem;border-radius:50%;background:var(--bg)}
-    .ring span{position:relative;z-index:1}
+/* ============================================================
+   Panel 3 — 完成后的对话调整
+   ============================================================ */
+.panel3-header {
+  display:flex; align-items:center; justify-content:space-between;
+  margin-bottom:12px; flex-shrink:0;
+}
+.panel3-title { font-size:1.05rem; font-weight:700; }
 
-    /* ═══ Responsive ═══ */
-    @media(max-width:1000px){
-      .app{grid-template-columns:1fr}
-      .sidebar{height:auto;max-height:35vh}
-      body{overflow:auto}
-      .agent-stage-cards{flex-wrap:wrap}
-    }
-  </style>
+.done-summary {
+  padding:12px 14px; border-radius:var(--radius-sm);
+  background:#fff; border:1px solid rgba(0,0,0,0.06);
+  box-shadow:var(--shadow-sm); margin-bottom:12px; flex-shrink:0;
+}
+.done-summary .sum-row {
+  display:flex; justify-content:space-between;
+  padding:4px 0; font-size:0.78rem;
+}
+.done-summary .sum-label { color:var(--text-muted); }
+.done-summary .sum-value { font-weight:700; }
+
+/* ============================================================
+   Map POI Popup
+   ============================================================ */
+.map-poi-popup {
+  position:fixed; z-index:15;
+  background:var(--card); backdrop-filter:blur(20px);
+  -webkit-backdrop-filter:blur(20px);
+  border:1px solid rgba(0,0,0,0.08);
+  border-radius:var(--radius); padding:14px 16px;
+  min-width:200px; box-shadow:var(--shadow-lg);
+  display:none; pointer-events:auto;
+}
+.map-poi-popup.show { display:block; }
+.map-poi-popup .popup-emoji { font-size:1.4rem; }
+.map-poi-popup .popup-name { font-weight:600; font-size:0.88rem; }
+.map-poi-popup .popup-meta { font-size:0.7rem; color:var(--text-muted); margin-top:2px; }
+.map-poi-popup .popup-desc { font-size:0.72rem; color:var(--text-secondary); margin-top:6px; line-height:1.5; }
+.map-poi-popup .popup-close {
+  position:absolute; top:8px; right:8px;
+  width:22px; height:22px; border-radius:50%;
+  border:none; background:rgba(0,0,0,0.04);
+  font-size:12px; cursor:pointer; display:flex;
+  align-items:center; justify-content:center; color:var(--text-muted);
+}
+
+.map-marker-highlight {
+  position:fixed; width:60px; height:60px; border-radius:50%;
+  border:3px solid var(--accent); background:rgba(232,136,106,0.15);
+  transform:translate(-50%,-50%); z-index:5;
+  pointer-events:none; animation:markerPulse 1.2s ease infinite; display:none;
+}
+@keyframes markerPulse {
+  0%,100%{transform:translate(-50%,-50%) scale(1);opacity:.7}
+  50%{transform:translate(-50%,-50%) scale(1.4);opacity:0}
+}
+
+/* ============================================================
+   POI Detail Overlay — 点击POI后的详细描述
+   ============================================================ */
+.poi-detail-overlay {
+  position: fixed; inset: 0;
+  background: rgba(30,25,20,0.35);
+  z-index: 20;
+  display: none;
+  pointer-events: auto;
+}
+.poi-detail-overlay.show {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.poi-detail-card {
+  position: relative;
+  background: var(--card);
+  backdrop-filter: blur(24px) saturate(1.2);
+  -webkit-backdrop-filter: blur(24px) saturate(1.2);
+  border: 1px solid rgba(0,0,0,0.08);
+  border-radius: var(--radius);
+  padding: 28px 24px 24px;
+  max-width: 440px;
+  width: 90%;
+  max-height: 72vh;
+  overflow-y: auto;
+  box-shadow: var(--shadow-lg);
+  animation: detailIn 0.4s cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+@keyframes detailIn {
+  from { opacity: 0; transform: translateY(16px) scale(0.96); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+.detail-close {
+  position: absolute; top: 14px; right: 14px;
+  width: 30px; height: 30px; border-radius: 50%;
+  border: none; background: rgba(0,0,0,0.04);
+  font-size: 14px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--text-muted); transition: all 0.2s;
+}
+.detail-close:hover { background: rgba(0,0,0,0.08); color: var(--text); }
+.detail-header {
+  display: flex; align-items: flex-start; gap: 12px; margin-bottom: 16px;
+}
+.detail-emoji { font-size: 2rem; flex-shrink: 0; }
+.detail-title-area { flex: 1; min-width: 0; }
+.detail-name { font-size: 1.15rem; font-weight: 700; color: var(--text); line-height: 1.3; }
+.detail-meta-line { font-size: 0.78rem; color: var(--text-muted); margin-top: 4px; }
+.detail-times {
+  display: flex; gap: 16px; padding: 10px 14px;
+  background: rgba(106,158,200,0.06); border-radius: var(--radius-xs);
+  margin-bottom: 14px; font-size: 0.8rem;
+}
+.detail-times span { color: var(--text-secondary); }
+.detail-times strong { color: var(--accent); font-weight: 700; }
+.detail-narrative {
+  font-size: 0.85rem; color: var(--text-secondary); line-height: 1.7;
+  padding: 12px 14px; border-radius: var(--radius-sm);
+  background: rgba(232,136,106,0.04); border-left: 3px solid rgba(232,136,106,0.2);
+  margin-bottom: 14px; font-style: italic;
+}
+.detail-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
+.detail-tag {
+  padding: 4px 10px; border-radius: 12px;
+  background: rgba(0,0,0,0.03); font-size: 0.72rem; color: var(--text-muted);
+  border: 1px solid rgba(0,0,0,0.04);
+}
+.detail-info-grid {
+  display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px;
+}
+.detail-info-item {
+  padding: 8px 10px; border-radius: 8px;
+  background: rgba(0,0,0,0.02); font-size: 0.75rem;
+}
+.detail-info-item .dil { color: var(--text-muted); }
+.detail-info-item .div { font-weight: 600; color: var(--text); margin-top: 2px; }
+
+/* ============================================================
+   Responsive
+   ============================================================ */
+@media (max-width:900px) {
+  .side-panel { width:90vw; left:5vw; top:3vh; bottom:3vh; }
+  .panel-layer { padding:16px 14px; }
+}
+</style>
 </head>
 <body>
-<canvas id="ambientBg"></canvas>
-<div class="app">
-  <!-- ═══ Sidebar ═══ -->
-  <aside class="sidebar">
-    <div class="brand">
-      <div class="brand-orb"></div>
-      <div><h1>CityFlow</h1><small>智能城市漫游规划</small></div>
-    </div>
-    <div class="sep"></div>
-    <div class="input-area">
-      <h2>描述你的出行需求</h2>
-      <div class="input-box">
-        <textarea id="inp" maxlength="80" placeholder="周末想一个人安静走走..."></textarea>
-        <span class="char-ct" id="charCt">0/80</span>
-        <button class="go-btn" id="goBtn">→</button>
+
+<!-- Full-Screen Map -->
+<canvas id="mapCanvas"></canvas>
+<div class="map-marker-highlight" id="markerHighlight"></div>
+
+<!-- Map POI Popup -->
+<div class="map-poi-popup" id="mapPoiPopup">
+  <button class="popup-close" onclick="closeMapPopup()">&#10005;</button>
+  <span class="popup-emoji" id="popupEmoji"></span>
+  <span class="popup-name" id="popupName2"></span>
+  <div class="popup-meta" id="popupMeta2"></div>
+  <div class="popup-desc" id="popupDesc2"></div>
+</div>
+
+<!-- Map POI Detail Overlay -->
+<div class="poi-detail-overlay" id="poiDetailOverlay" onclick="if(event.target===this)closePoiDetail()">
+  <div class="poi-detail-card">
+    <button class="detail-close" onclick="closePoiDetail()">&#10005;</button>
+    <div class="detail-header">
+      <span class="detail-emoji" id="detailEmoji"></span>
+      <div class="detail-title-area">
+        <div class="detail-name" id="detailName"></div>
+        <div class="detail-meta-line" id="detailMetaLine"></div>
       </div>
     </div>
-    <div class="tags">
-      <button class="tag" data-v="周末想一个人安静走走，偏独处">⌂ 独处</button>
-      <button class="tag" data-v="情侣约会浪漫一点，拍照喝咖啡">♡ 约会</button>
-      <button class="tag" data-v="带孩子出去玩，轻松安全有休息点">☻ 亲子</button>
-      <button class="tag" data-v="朋友聚餐热闹点，吃好喝好">♣ 聚餐</button>
-    </div>
-    <div class="mode-toggle">
-      <button class="mode-btn on" id="modeMock" data-port="8002">🎭 Mock</button>
-      <button class="mode-btn" id="modeReal" data-port="8003">🧠 Real</button>
-    </div>
-    <div class="sidebar-footer">
-      <p>Mock 模式不消耗 Token。<br>Real 模式连接后端 DeepSeek。</p>
-    </div>
-  </aside>
+    <div class="detail-times" id="detailTimes"></div>
+    <div class="detail-narrative" id="detailNarrative"></div>
+    <div class="detail-tags" id="detailTags"></div>
+    <div id="detailTravel"></div>
+    <div class="detail-info-grid" id="detailInfo"></div>
+  </div>
+</div>
 
-  <!-- ═══ Main ═══ -->
-  <div class="main">
-    <section class="agent-section">
-      <h2>MoE 智能体 <span class="agent-timer" id="agentTimer"></span></h2>
+<!-- Side Panel -->
+<div class="side-panel" id="sidePanel">
+  <div class="panel-sheet" id="panelSheet">
+
+    <!-- ====== Panel 1: Search ====== -->
+    <div class="panel-layer" id="panel1">
+      <div class="search-title">CityFlow</div>
+      <div class="search-subtitle">探索珠海 · 2000+ POI 智能规划</div>
+
+      <div class="search-box">
+        <input type="text" id="searchInput" placeholder="描述你的出行需求..."
+               onkeydown="if(event.key==='Enter')submitPlan()">
+        <button class="btn-voice" title="语音">🎤</button>
+      </div>
+
+      <div class="form-group">
+        <span class="form-label">出行场景</span>
+        <div class="form-row" id="sceneChips"></div>
+      </div>
+
+      <div class="form-group">
+        <span class="form-label">出行时长</span>
+        <select class="dropdown" id="durationSelect">
+          <option>半天（4小时内）</option>
+          <option selected>一整天（8小时）</option>
+          <option>两天一夜</option>
+          <option>三天两夜</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <span class="form-label">出行风格</span>
+        <div class="form-row" id="styleChips"></div>
+      </div>
+
+      <div class="form-group">
+        <span class="form-label">预算范围（每人）</span>
+        <select class="dropdown" id="budgetSelect">
+          <option value="100">¥100 以下</option>
+          <option value="300">¥100 - ¥300</option>
+          <option value="600" selected>¥300 - ¥600</option>
+          <option value="1000">¥600 - ¥1000</option>
+          <option value="9999">¥1000 以上</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <span class="form-label">同行人群</span>
+        <div class="form-row" id="groupChips"></div>
+      </div>
+
+      <button class="btn-generate" id="goBtn" onclick="submitPlan()">生成路线 &#8594;</button>
+    </div>
+
+    <!-- ====== Panel 2: SSE Results ====== -->
+    <div class="panel-layer hidden" id="panel2">
+      <div class="search-title" style="font-size:1.05rem;">AI 智能规划</div>
+      <div class="search-subtitle" style="margin-bottom:10px;">实时观察智能体工作过程</div>
+
+      <!-- Phase indicator -->
+      <div class="phase-bar" id="phaseBar">正在理解你的需求...</div>
+
+      <!-- Agent Pipeline -->
       <div class="agent-pipeline" id="agentPipeline">
-        <!-- Stage 0: Intent -->
-        <div class="agent-stage" id="stage_0">
-          <div class="agent-stage-cards" id="stageCards_0"></div>
-        </div>
-        <div class="agent-stage">
-          <div class="agent-arrow" id="arrow_0"><svg viewBox="0 0 16 16"><path d="M8 2 L8 11 M4 8 L8 12 L12 8"/></svg></div>
-        </div>
-        <!-- Stage 1: Parallel experts -->
-        <div class="agent-stage" id="stage_1">
-          <div class="agent-stage-cards" id="stageCards_1"></div>
-        </div>
-        <div class="agent-stage">
-          <div class="agent-arrow" id="arrow_1"><svg viewBox="0 0 16 16"><path d="M8 2 L8 11 M4 8 L8 12 L12 8"/></svg></div>
-        </div>
-        <!-- Stage 2: Budget -->
-        <div class="agent-stage" id="stage_2">
-          <div class="agent-stage-cards" id="stageCards_2"></div>
-        </div>
-        <div class="agent-stage">
-          <div class="agent-arrow" id="arrow_2"><svg viewBox="0 0 16 16"><path d="M8 2 L8 11 M4 8 L8 12 L12 8"/></svg></div>
-        </div>
-        <!-- Stage 3: Synthesizer -->
-        <div class="agent-stage" id="stage_3">
-          <div class="agent-stage-cards" id="stageCards_3"></div>
-        </div>
+        <div class="agent-stage" id="stage_0"><div class="agent-stage-cards" id="stageCards_0"></div></div>
+        <div class="agent-stage"><div class="agent-arrow" id="arrow_0"><svg viewBox="0 0 16 16"><path d="M8 2 L8 11 M4 8 L8 12 L12 8"/></svg></div></div>
+        <div class="agent-stage" id="stage_1"><div class="agent-stage-cards" id="stageCards_1"></div></div>
+        <div class="agent-stage"><div class="agent-arrow" id="arrow_1"><svg viewBox="0 0 16 16"><path d="M8 2 L8 11 M4 8 L8 12 L12 8"/></svg></div></div>
+        <div class="agent-stage" id="stage_2"><div class="agent-stage-cards" id="stageCards_2"></div></div>
+        <div class="agent-stage"><div class="agent-arrow" id="arrow_2"><svg viewBox="0 0 16 16"><path d="M8 2 L8 11 M4 8 L8 12 L12 8"/></svg></div></div>
+        <div class="agent-stage" id="stage_3"><div class="agent-stage-cards" id="stageCards_3"></div></div>
       </div>
-    </section>
 
-    <div class="phase-strip" id="phaseStrip">
-      <span class="phase-text" id="phaseText">等待输入</span>
-    </div>
-
-    <div class="curve-bar" id="curveBar">
-      <div class="curve-header">
-        <h3>情绪节奏</h3>
-        <svg class="curve-svg" id="curveSvg" viewBox="0 0 940 60" preserveAspectRatio="none"></svg>
+      <!-- Route steps -->
+      <div class="step-list" id="stepList">
+        <div class="step-empty"><p>智能体工作中...</p></div>
       </div>
-      <div class="curve-labels" id="curveLabels"></div>
-    </div>
 
-    <div class="route-area">
-      <div class="route-board">
-        <div class="route-list" id="routeList">
-          <div class="route-empty">
-            <div><div class="empty-icon">◈</div><p>描述需求 → 观察智能体实时工作</p></div>
-          </div>
-        </div>
+      <!-- Dialogue input -->
+      <div class="dlg-box">
+        <input type="text" id="dlgInput" placeholder="调整路线：换一个、太赶了..."
+               onkeydown="if(event.key==='Enter')sendDialogue()">
+        <button id="dlgBtn" onclick="sendDialogue()">发送</button>
+      </div>
+      <div class="dlg-quick">
+        <span class="qb-btn" onclick="quickAdj('换一个')">换</span>
+        <span class="qb-btn" onclick="quickAdj('太赶了')">缓</span>
+        <span class="qb-btn" onclick="quickAdj('多些自然')">野</span>
+        <span class="qb-btn" onclick="quickAdj('预算100内')">省</span>
+      </div>
+      <div class="dlg-reply" id="dlgReply"></div>
+
+      <div class="panel2-actions">
+        <button class="btn-back" onclick="goToPanel1()">&#8592; 重新搜索</button>
       </div>
     </div>
 
-    <div class="bottom">
-      <div class="composer">
-        <div class="comp-row">
-          <input class="comp-input" id="dlgInp" placeholder="微调路线...">
-          <button class="qb" data-a="换一个">换</button>
-          <button class="qb" data-a="太赶了">缓</button>
-          <button class="qb" data-a="多些自然">野</button>
-          <button class="qb" data-a="预算100内">省</button>
-          <button class="send-b" id="dlgBtn">↗</button>
-        </div>
-        <p class="reply" id="reply"></p>
+    <!-- ====== Panel 3: Done ====== -->
+    <div class="panel-layer hidden-right" id="panel3">
+      <div class="panel3-header">
+        <span class="panel3-title">路线规划完成</span>
       </div>
-      <div class="budget">
-        <div><h3>预算</h3><strong>¥<span id="bUsed">0</span> / ¥<span id="bLimit">200</span></strong><p>花费 · 上限</p></div>
-        <div class="ring" id="ring"><span id="bPct">0%</span></div>
+
+      <div class="done-summary" id="doneSummary"></div>
+
+      <!-- Route steps (read-only) -->
+      <div class="step-list" id="stepList3"></div>
+
+      <!-- Dialogue adjustment -->
+      <div class="dlg-box">
+        <input type="text" id="dlgInput3" placeholder="继续微调..."
+               onkeydown="if(event.key==='Enter')sendDialogue3()">
+        <button id="dlgBtn3" onclick="sendDialogue3()">发送</button>
+      </div>
+      <div class="dlg-quick">
+        <span class="qb-btn" onclick="quickAdj3('换一个')">换</span>
+        <span class="qb-btn" onclick="quickAdj3('太赶了')">缓</span>
+        <span class="qb-btn" onclick="quickAdj3('太贵了')">省</span>
+        <span class="qb-btn" onclick="quickAdj3('重新规划')">重来</span>
+      </div>
+      <div class="dlg-reply" id="dlgReply3"></div>
+
+      <div class="panel2-actions">
+        <button class="btn-back" onclick="goToPanel1()">&#8592; 重新搜索</button>
+        <button class="btn-back" onclick="goToPanel2()" style="background:var(--accent);color:#fff;border-color:var(--accent)">返回路线</button>
       </div>
     </div>
+
   </div>
 </div>
 
 <script>
+/* ============================================================
+   CityFlow App — iOS风格 + SSE后端对接
+   ============================================================ */
 const $ = id => document.getElementById(id);
 
-// ── Ambient Particles ──
-(function(){
-  const c=$('ambientBg'),ctx=c.getContext('2d');let W,H,ps=[];
-  function rz(){W=c.width=innerWidth;H=c.height=innerHeight}
-  rz();addEventListener('resize',rz);
-  class P{constructor(){this.rz()}rz(){this.x=Math.random()*W;this.y=Math.random()*H;this.r=Math.random()*1+.3;this.dx=(Math.random()-.5)*.12;this.dy=(Math.random()-.5)*.08;this.a=Math.random()*.2+.04;this.h=Math.random()>.6?255:230}up(){this.x+=this.dx;this.y+=this.dy;if(this.x<-5||this.x>W+5||this.y<-5||this.y>H+5)this.rz()}dr(){ctx.beginPath();ctx.arc(this.x,this.y,this.r,0,6.28);ctx.fillStyle=`hsla(${this.h},50%,65%,${this.a})`;ctx.fill()}}
-  for(let i=0;i<50;i++)ps.push(new P);
-  (function f(){ctx.clearRect(0,0,W,H);ps.forEach(p=>{p.up();p.dr()});for(let i=0;i<ps.length;i++)for(let j=i+1;j<ps.length;j++){const dx=ps[i].x-ps[j].x,dy=ps[i].y-ps[j].y,d=dx*dx+dy*dy;if(d<16000){ctx.beginPath();ctx.moveTo(ps[i].x,ps[i].y);ctx.lineTo(ps[j].x,ps[j].y);ctx.strokeStyle=`rgba(123,108,246,${.025*(1-d/16000)})`;ctx.stroke()}}requestAnimationFrame(f)})();
-})();
-
-// ── State ──
-let PORT = 8002;
-const S = { routeId:null, steps:[], fullRoute:null, planning:false, done:false, abort:null, t0:0, agents:{} };
-
-// ── Mode ──
-$('modeMock').onclick=()=>{PORT=8002;$('modeMock').classList.add('on');$('modeReal').classList.remove('on')};
-$('modeReal').onclick=()=>{PORT=8003;$('modeReal').classList.add('on');$('modeMock').classList.remove('on')};
-
-// ── Helpers ──
-const txt=(v,fb='')=>(v==null||v==='')?fb:String(v);
-const num=v=>{const n=Number(v||0);return Number.isFinite(n)?Math.round(n):0};
-const elapsed=()=>{const s=Math.floor((Date.now()-S.t0)/1000);return`${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`};
-
-// Emotion mapping for curve
-const EMOTIONS = {
-  '运动健身': { label:'活力', emoji:'⚡', v:.85 },
-  '拍照出片': { label:'惊喜', emoji:'✨', v:.75 },
-  '自然风光': { label:'宁静', emoji:'🌿', v:.55 },
-  '休闲放松': { label:'惬意', emoji:'☁️', v:.35 },
-  '咖啡': { label:'舒适', emoji:'☕', v:.3 },
-  '文艺': { label:'灵感', emoji:'🎭', v:.65 },
-  '怀旧': { label:'回忆', emoji:'📻', v:.45 },
-  '公园': { label:'清新', emoji:'🍃', v:.5 },
-  '约会': { label:'甜蜜', emoji:'💕', v:.6 },
+// ── State ──────────────────────────────────────────────────
+const S = {
+  routeId: null, steps: [], fullRoute: null,
+  planning: false, done: false, abort: null, t0: 0,
+  agents: {},
+  mapPois: [],   // POI positions for map
+  labelBoxes: [] // label bounding boxes for click detection
 };
-function getEmotion(tags) {
-  for (const t of tags || []) if (EMOTIONS[t]) return EMOTIONS[t];
-  return { label:'探索', emoji:'🧭', v:.5 };
+
+// ── Chips Data ─────────────────────────────────────────────
+const SCENES = ['🏖️ 海边','🍜 美食','📸 打卡','⛰️ 户外','🎨 文化','🏙️ 城市','🌃 夜景','🛍️ 购物'];
+const STYLES = ['特种兵型','平衡型','闲逛型'];
+const GROUPS = ['独自出行','情侣约会','朋友聚会','亲子家庭','带老人'];
+const SCENE_INPUTS = {
+  '🏖️ 海边': '想去海边走走，吹吹海风',
+  '🍜 美食': '想品尝地道美食',
+  '📸 打卡': '想去拍照打卡的地方',
+  '⛰️ 户外': '想亲近自然户外走走',
+  '🎨 文化': '想感受文艺和文化气息',
+  '🏙️ 城市': '想逛逛城市地标和商圈',
+  '🌃 夜景': '想看夜景晚上逛逛',
+  '🛍️ 购物': '想逛街购物买买买',
+};
+
+// ── Panel Transition ───────────────────────────────────────
+function goToPanel1() {
+  $('panel1').classList.remove('hidden');
+  $('panel2').classList.add('hidden');
+  $('panel3').classList.add('hidden-right');
+  closePoiDetail();
+  $('markerHighlight').style.display = 'none';
+}
+function goToPanel2() {
+  $('panel1').classList.add('hidden');
+  $('panel2').classList.remove('hidden');
+  $('panel3').classList.add('hidden-right');
+  closePoiDetail();
+}
+function goToPanel3() {
+  $('panel1').classList.add('hidden');
+  $('panel2').classList.add('hidden');
+  $('panel3').classList.remove('hidden-right');
+  closePoiDetail();
+  renderPanel3();
 }
 
-function tagColor(t) {
-  const m = {'自然风光':'#3ee889','公园':'#3ee889','休闲放松':'#5ea2ff','拍照出片':'#ff6b9d','运动健身':'#3ee889','文化':'#9b6dff','美食':'#ffa54d','咖啡':'#c49a6a','文艺':'#9b6dff','怀旧':'#b88a5a'};
-  return m[t]||'#8b93b0';
-}
-function poiColor(poi) {
-  const tags = [...(poi?.tags || []), ...(poi?._scene_tags || [])];
-  for (const t of tags) { const c = tagColor(t); if (c !== '#8b93b0') return c; }
-  const c = poi?.category || '';
-  if (c.includes('餐') || c.includes('咖啡')) return '#ffa54d';
-  if (c.includes('公园')) return '#3ee889';
-  return '#9b6dff';
+// ── Panel 1 Init ───────────────────────────────────────────
+function renderPanel1() {
+  $('sceneChips').innerHTML = SCENES.map((s,i) =>
+    `<span class="chip${i===0?' selected':''}" onclick="toggleChip(this)">${s}</span>`
+  ).join('');
+  $('styleChips').innerHTML = STYLES.map((s,i) =>
+    `<span class="chip${i===1?' selected':''}" onclick="toggleChipExclusive(this,'styleChips')">${s}</span>`
+  ).join('');
+  $('groupChips').innerHTML = GROUPS.map((s,i) =>
+    `<span class="chip${i===0?' selected':''}" onclick="toggleChip(this)">${s}</span>`
+  ).join('');
 }
 
-// ── Agent Pipeline ──
-// All agents definition — pre-created in pipeline, idle until activated
+function toggleChip(el) { el.classList.toggle('selected'); }
+function toggleChipExclusive(el, containerId) {
+  var siblings = $(containerId).querySelectorAll('.chip');
+  siblings.forEach(function(c) { c.classList.remove('selected'); });
+  el.classList.add('selected');
+}
+
+// ── Helpers ────────────────────────────────────────────────
+const txt = (v, fb='') => (v == null || v === '') ? fb : String(v);
+const num = v => { const n = Number(v || 0); return Number.isFinite(n) ? Math.round(n) : 0; };
+const elapsed = () => {
+  const s = Math.floor((Date.now() - S.t0) / 1000);
+  return `${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`;
+};
+
+// ── Phase Bar ──────────────────────────────────────────────
+function setPhase(msg) {
+  const bar = $('phaseBar');
+  bar.textContent = msg;
+  bar.classList.add('typing');
+}
+function clearPhaseAnim() { $('phaseBar').classList.remove('typing'); }
+
+// ── Agent Pipeline ─────────────────────────────────────────
 const AGENT_STAGE = {
   'intent_parser': 0, 'rule_guard': 0, 'expert_router': 0,
-  'poi_expert': 1, 'poi': 1,
-  'food_expert': 1, 'food': 1,
+  'poi_expert': 1, 'poi': 1, 'food_expert': 1, 'food': 1,
   'local_expert': 1, 'local_expert_agent': 1,
   'hotel_expert': 1, 'hotel': 1,
   'traffic_expert': 1, 'traffic': 1,
   'weather_expert': 1, 'weather': 1,
   'destination_expert': 1, 'destination': 1,
-  'insurance': 1,
-  'negotiation': 1,
-  'review': 2,
-  'budget_hacker': 2,
+  'insurance': 1, 'negotiation': 1,
+  'review': 2, 'budget_hacker': 2,
   'synthesizer': 3,
 };
 const ALL_AGENTS = [
   {agent:'rule_guard',name:'意图解析',icon:'🧠',role:'需求理解',color:'#ff5368'},
-  {agent:'expert_router',name:'路由器',icon:'📡',role:'专家调度',color:'#7b6cf6'},
+  {agent:'expert_router',name:'路由器',icon:'📡',role:'专家调度',color:'#6a9ec8'},
   {agent:'poi',name:'POI专家',icon:'🏛',role:'景点筛选',color:'#51aef9'},
   {agent:'food',name:'美食专家',icon:'🍜',role:'餐饮推荐',color:'#ff9b54'},
   {agent:'hotel',name:'住宿专家',icon:'🏨',role:'住宿推荐',color:'#4da6ff'},
   {agent:'traffic',name:'交通专家',icon:'🚗',role:'交通规划',color:'#4dd8e8'},
-  {agent:'weather',name:'天气专家',icon:'🌤',role:'天气分析',color:'#ffa54d'},
+  {agent:'weather',name:'天气专家',icon:'🌤',role:'天气分析',color:'#e8c86a'},
   {agent:'local_expert',name:'本地向导',icon:'🗺',role:'隐藏宝藏',color:'#7edc95'},
   {agent:'insurance',name:'保险专家',icon:'🛡',role:'风险评估',color:'#9b6dff'},
   {agent:'negotiation',name:'协商引擎',icon:'⚖️',role:'冲突调解',color:'#ff6b9d'},
   {agent:'review',name:'审查员',icon:'🔍',role:'质量校验',color:'#c49a6a'},
-  {agent:'budget_hacker',name:'预算师',icon:'💰',role:'预算优化',color:'#ffcc00'},
+  {agent:'budget_hacker',name:'预算师',icon:'💰',role:'预算优化',color:'#e8c86a'},
   {agent:'synthesizer',name:'综合师',icon:'✨',role:'路线组装',color:'#ff5a88'},
 ];
 
 function agentCard(a) {
   const el = document.createElement('div');
-  el.className = 'agent-card';
+  el.className = 'ag-card';
   el.id = 'ag_' + a.agent;
-  el.style.setProperty('--agent-color', a.color || '#5ea2ff');
+  el.style.setProperty('--ag-color', a.color || '#6a9ec8');
   el.innerHTML = `
-    <div class="agent-head">
-      <div class="agent-badge">${a.icon || '🤖'}</div>
-      <div class="agent-info">
-        <div class="agent-name">${a.name || a.agent}</div>
-        <div class="agent-role">${a.role || ''}</div>
+    <div class="ag-head">
+      <div class="ag-badge">${a.icon || '🤖'}</div>
+      <div class="ag-info">
+        <div class="ag-name">${a.name || a.agent}</div>
+        <div class="ag-role">${a.role || ''}</div>
       </div>
-      <div class="agent-status"></div>
+      <div class="ag-status"></div>
     </div>
-    <div class="agent-thinking"><span class="ag-think-text"></span> <span class="dots"><span>·</span><span>·</span><span>·</span></span></div>
-    <div class="agent-result"></div>`;
+    <div class="ag-thinking"><span class="ag-think-text"></span> <span class="dots"><span>·</span><span>·</span><span>·</span></span></div>
+    <div class="ag-result"></div>`;
   return el;
 }
 
@@ -626,7 +889,6 @@ function ensureAgentCard(data) {
   return el;
 }
 
-// Arrow animation between stages
 function activateArrow(stageIdx) {
   const arrow = $('arrow_' + stageIdx);
   if (arrow) arrow.classList.add('active');
@@ -641,9 +903,9 @@ function resetPipeline() {
     const c = $('stageCards_' + i);
     if (c) c.innerHTML = '';
     const a = $('arrow_' + i);
-    if (a) { a.classList.remove('active','done'); }
+    if (a) a.classList.remove('active', 'done');
   }
-  // Pre-create ALL agent cards in idle state — "亮灯" starts here
+  // Pre-create ALL agent cards in idle state
   ALL_AGENTS.forEach(def => {
     const card = agentCard(def);
     card.classList.add('idle');
@@ -653,290 +915,823 @@ function resetPipeline() {
   });
 }
 
-// ── Phase ──
-function setPhase(msg) {
-  const el = $('phaseText');
-  el.textContent = msg;
-  el.classList.add('typing');
-}
-
-// ── UI ──
-function setReply(msg,tone=''){const r=$('reply');r.textContent=msg;r.className='reply'+(tone?' '+tone:'')}
-function setPlanning(on){
-  S.planning=on;const btn=$('goBtn');btn.disabled=on;btn.textContent=on?'…':'→';
-  btn.classList.toggle('planning',on);
-}
-function updateBudget(used,limit){
-  const pct=limit?Math.min(100,Math.round(used/limit*100)):0;
-  $('bUsed').textContent=used;$('bLimit').textContent=limit;
-  $('bPct').textContent=pct+'%';$('ring').style.setProperty('--deg',(pct*3.6)+'deg');
-}
-
-// ── Curve with Labels ──
-function renderCurve() {
-  const svg = $('curveSvg');
-  const labels = $('curveLabels');
-  svg.innerHTML = ''; labels.innerHTML = '';
-  if (!S.steps.length) return;
-  const PX = 20, W = 900, H = 40, n = S.steps.length;
-  const pts = S.steps.map((step, i) => {
-    const tags = step.poi?.tags || [];
-    const emo = getEmotion(tags);
-    let v = emo.v;
-    if (i === 0) v *= .8;
-    if (i === n - 1) v *= .7;
-    const x = n === 1 ? PX + W / 2 : PX + (i / (n - 1)) * W;
-    const y = (1 - v) * H;
-    return { x, y, c: poiColor(step.poi), name: step.poi?.name || '', emo };
-  });
-
-  const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
-  const g = document.createElementNS('http://www.w3.org/2000/svg', 'linearGradient');
-  g.id = 'cs'; g.setAttribute('x1', '0'); g.setAttribute('x2', '1');
-  pts.forEach((p, i) => {
-    const s = document.createElementNS('http://www.w3.org/2000/svg', 'stop');
-    s.setAttribute('offset', (i / Math.max(1, n - 1) * 100) + '%'); s.setAttribute('stop-color', p.c); g.appendChild(s);
-  });
-  const fg = g.cloneNode(true); fg.id = 'cf';
-  fg.querySelectorAll('s'+'top').forEach(s => s.setAttribute('stop-opacity', '.1'));
-  defs.appendChild(g); defs.appendChild(fg); svg.appendChild(defs);
-
-  const d = pts.map((p, i) =>
-    i === 0 ? `M${p.x} ${p.y}` : `C${pts[i-1].x+(p.x-pts[i-1].x)*.4} ${pts[i-1].y} ${pts[i-1].x+(p.x-pts[i-1].x)*.6} ${p.y} ${p.x} ${p.y}`
-  ).join(' ');
-  const fp = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-  fp.setAttribute('d', d + ` L${pts.at(-1).x} ${H} L${pts[0].x} ${H} Z`); fp.setAttribute('fill', 'url(#cf)'); svg.appendChild(fp);
-  const sp = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-  sp.setAttribute('d', d); sp.setAttribute('fill', 'none'); sp.setAttribute('stroke', 'url(#cs)'); sp.setAttribute('stroke-width', '2'); sp.setAttribute('stroke-linecap', 'round'); svg.appendChild(sp);
-  pts.forEach(p => {
-    const c = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-    c.setAttribute('cx', p.x); c.setAttribute('cy', p.y); c.setAttribute('r', '3');
-    c.setAttribute('fill', p.c); c.style.filter = `drop-shadow(0 0 4px ${p.c})`; svg.appendChild(c);
-    // Emotion label
-    const t = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-    t.setAttribute('x', p.x); t.setAttribute('y', p.y - 8);
-    t.setAttribute('text-anchor', 'middle'); t.setAttribute('fill', p.c);
-    t.setAttribute('font-size', '8'); t.setAttribute('font-weight', '700');
-    t.textContent = p.emo.emoji; svg.appendChild(t);
-  });
-
-  // Bottom labels with POI names
-  labels.innerHTML = pts.map(p =>
-    `<span style="color:${p.c}">${p.emo.emoji} ${p.name.slice(0, 4)}</span>`
-  ).join('');
-}
-
-// ── POI Rendering ──
-function clearEmpty(){const e=$('routeList').querySelector('.route-empty');if(e)e.remove()}
-
-function renderTravel(travel) {
-  if (!travel) return;
-  const d = travel.distance_m >= 1000 ? (travel.distance_m / 1000).toFixed(1) + 'km' : travel.distance_m + 'm';
-  const t = travel.time_min ? ` · ${travel.time_min}min` : '';
-  const row = document.createElement('div');
-  row.className = 'travel-row';
-  row.innerHTML = `<div class="t-cell"></div><div class="travel-line"><span>${d}${t}</span></div>`;
-  $('routeList').appendChild(row);
+// ── Step Rendering ─────────────────────────────────────────
+function clearStepEmpty() {
+  const e = $('stepList').querySelector('.step-empty');
+  if (e) e.remove();
 }
 
 function renderStep(step) {
   if (!step?.poi) return;
-  clearEmpty(); S.steps.push(step);
-  const poi = step.poi, c = poiColor(poi);
+  clearStepEmpty();
+  S.steps.push(step);
+
+  const poi = step.poi;
   const tags = [...(poi.tags || []), ...(step.scene_tags || []), ...(poi._scene_tags || [])].filter(Boolean);
-  const emo = getEmotion([...(poi.tags || []), ...(step.scene_tags || []), ...(poi._scene_tags || [])]);
 
-  const row = document.createElement('div');
-  row.className = 'poi-row'; row.style.setProperty('--c', c);
-
-  // Build narrative with emotion context
-  const narrative = step.narrative || '';
-  const emotionLine = narrative
-    ? `<div class="poi-narr">${narrative}</div>`
-    : '';
-
-  row.innerHTML = `
-    <div class="t-cell" style="--c:${c}">${txt(step.arrival_time,'--')}<small>${txt(step.departure_time,'--')}</small></div>
-    <div class="poi-card" style="--c:${c}">
-      <div class="poi-top">
-        <span class="poi-name">${txt(poi.name,'未命名')}</span>
-        <span class="poi-price">${poi.avg_price ? '¥'+num(poi.avg_price) : '免费'}</span>
+  const card = document.createElement('div');
+  card.className = 'step-card';
+  card.innerHTML = `
+    <div class="step-time">
+      ${txt(step.arrival_time, '--')}
+      <small>${txt(step.departure_time, '')}</small>
+      <div class="step-dot"></div>
+    </div>
+    <div class="step-info">
+      <div class="step-name">${txt(poi.name, '未命名')}</div>
+      <div class="step-meta">
+        ${txt(poi.category, '')} ${poi.avg_price ? '· ¥' + num(poi.avg_price) : '· 免费'}
+        ${poi.rating ? ' · ★' + Number(poi.rating).toFixed(1) : ''}
       </div>
-      <div class="poi-meta-row">
-        ${step.emotion_design ? `<span class="poi-badge" style="--c:${c}">${emo.emoji} ${step.emotion_design}</span>` : ''}
-        ${txt(poi.category,'')}
-        ${poi.rating ? ` ★${Number(poi.rating).toFixed(1)}` : ''}
-        ${poi.avg_stay_min ? ` · 停留${poi.avg_stay_min}min` : ''}
-        ${poi.business_hours ? ` · ${poi.business_hours}` : ''}
-      </div>
-      ${emotionLine}
-      ${tags.length ? `<div class="poi-tags">${tags.slice(0,5).map(t=>`<span style="color:${tagColor(t)}">${t}</span>`).join('')}</div>` : ''}
+      ${step.narrative ? `<div class="step-narr">${step.narrative}</div>` : ''}
+      ${tags.length ? `<div class="step-tags">${tags.slice(0,5).map(t => `<span>${t}</span>`).join('')}</div>` : ''}
     </div>`;
-  $('routeList').appendChild(row);
-  row.scrollIntoView({ behavior:'smooth', block:'nearest' });
-  renderCurve();
+  $('stepList').appendChild(card);
+  card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+  // Add POI to map
+  if (poi.lat && poi.lng) {
+    S.mapPois.push({ id: poi.id, name: poi.name, lat: poi.lat, lng: poi.lng, step: S.steps.length });
+    drawMap();
+  }
 }
 
 function renderClosing() {
-  const last = S.steps[S.steps.length - 1];
-  const row = document.createElement('div');
-  row.className = 'poi-row'; row.style.setProperty('--c','#555e7a');
-  row.innerHTML = `<div class="t-cell" style="--c:#555e7a">${last?.departure_time||'--'}<small>☁</small></div><div class="poi-card" style="--c:#555e7a;border-left-color:#555e7a"><div style="color:var(--text3);font-size:.74rem;font-style:italic;padding:.2rem 0">希望这段旅程为你带来片刻宁静。</div></div>`;
-  $('routeList').appendChild(row);
+  clearStepEmpty();
+  const card = document.createElement('div');
+  card.className = 'step-card';
+  card.style.opacity = '0.5';
+  card.style.fontStyle = 'italic';
+  card.innerHTML = `
+    <div class="step-time"><small>☁</small></div>
+    <div class="step-info">
+      <div style="color:var(--text-muted);font-size:0.78rem;">希望这段旅程为你带来片刻宁静。</div>
+    </div>`;
+  $('stepList').appendChild(card);
 }
 
-// ── Timer ──
-let timerInterval = null;
-function startTimer(){S.t0=Date.now();clearInterval(timerInterval);timerInterval=setInterval(()=>{if(!S.planning)return;$('agentTimer').textContent=elapsed()},500)}
-function stopTimer(){clearInterval(timerInterval)}
+// ── Panel 3 ────────────────────────────────────────────────
+function renderPanel3() {
+  const tc = S.fullRoute?.total_cost || {};
+  const used = num(tc.budget_used);
+  const limit = tc.budget_limit || 200;
 
-// ── SSE ──
-function onPhase(data){if(data.message)setPhase(data.message)}
+  $('doneSummary').innerHTML = `
+    <div class="sum-row"><span class="sum-label">路线站点</span><span class="sum-value">${S.steps.length} 站</span></div>
+    <div class="sum-row"><span class="sum-label">预算使用</span><span class="sum-value">¥${used} / ¥${limit}</span></div>
+    <div class="sum-row"><span class="sum-label">用时</span><span class="sum-value">${elapsed()}</span></div>
+    <div class="sum-row"><span class="sum-label">路线ID</span><span class="sum-value">${S.routeId || '-'}</span></div>`;
 
-function onAgentStart(data){
+  // Copy steps to panel 3
+  $('stepList3').innerHTML = '';
+  S.steps.forEach(step => {
+    if (!step?.poi) return;
+    const poi = step.poi;
+    const tags = [...(poi.tags || []), ...(step.scene_tags || []), ...(poi._scene_tags || [])].filter(Boolean);
+    const card = document.createElement('div');
+    card.className = 'step-card';
+    card.innerHTML = `
+      <div class="step-time">
+        ${txt(step.arrival_time, '--')}<small>${txt(step.departure_time, '')}</small>
+        <div class="step-dot"></div>
+      </div>
+      <div class="step-info">
+        <div class="step-name">${txt(poi.name, '未命名')}</div>
+        <div class="step-meta">
+          ${txt(poi.category, '')} ${poi.avg_price ? '· ¥' + num(poi.avg_price) : '· 免费'}
+        </div>
+        ${step.narrative ? `<div class="step-narr">${step.narrative}</div>` : ''}
+        ${tags.length ? `<div class="step-tags">${tags.slice(0,5).map(t => `<span>${t}</span>`).join('')}</div>` : ''}
+      </div>`;
+    $('stepList3').appendChild(card);
+  });
+}
+
+// ── SSE Event Handlers ─────────────────────────────────────
+function onPhase(data) {
+  if (data.message) setPhase(data.message);
+}
+
+function onAgentStart(data) {
   const card = ensureAgentCard(data);
   // Update visual from SSE data
-  if (data.icon) card.querySelector('.agent-badge').textContent = data.icon;
-  if (data.name) card.querySelector('.agent-name').textContent = data.name;
-  if (data.role) card.querySelector('.agent-role').textContent = data.role;
-  if (data.color) card.style.setProperty('--agent-color', data.color);
-  // Light up! idle → active
-  card.classList.remove('idle','done');
+  if (data.icon) card.querySelector('.ag-badge').textContent = data.icon;
+  if (data.name) card.querySelector('.ag-name').textContent = data.name;
+  if (data.role) card.querySelector('.ag-role').textContent = data.role;
+  if (data.color) card.style.setProperty('--ag-color', data.color);
+  // idle → active
+  card.classList.remove('idle', 'done');
   card.classList.add('active');
   const stageIdx = AGENT_STAGE[data.agent] ?? 0;
   if (stageIdx > 0) activateArrow(stageIdx - 1);
 }
-function onAgentThinking(data){
-  const card=ensureAgentCard({agent:data.agent});
-  const t=card.querySelector('.ag-think-text');
-  if(t)t.textContent=data.text;
+
+function onAgentThinking(data) {
+  const card = ensureAgentCard({ agent: data.agent });
+  const t = card.querySelector('.ag-think-text');
+  if (t) t.textContent = data.text;
 }
-function onAgentResult(data){
-  const card=$('ag_'+data.agent);
-  if(!card)return;
-  card.classList.remove('idle','active');
+
+function onAgentResult(data) {
+  const card = $('ag_' + data.agent);
+  if (!card) return;
+  card.classList.remove('idle', 'active');
   card.classList.add('done');
-  const resultEl=card.querySelector('.agent-result');
-  resultEl.textContent='✓ '+(data.summary||'完成');
+  const resultEl = card.querySelector('.ag-result');
+  if (resultEl) resultEl.textContent = '✓ ' + (data.summary || '完成');
   const stageIdx = AGENT_STAGE[data.agent] ?? 0;
   if (stageIdx > 0) doneArrow(stageIdx - 1);
 }
 
-function onStep(data){renderStep(data)}
+function onStep(data) {
+  renderStep(data);
+}
 
-function onDone(data){
-  S.routeId=data.route_id;S.fullRoute=data.full_route||{};
-  const route=S.fullRoute.route||[];
-  // If step events already rendered these POIs, don't re-render — just patch travel info
-  if(route.length && S.steps.length===0){
-    // No step events received, render from full_route
-    route.forEach((rs,i)=>{
-      if(rs.travel_from_prev)renderTravel(rs.travel_from_prev);
-      renderStep({index:i+1,poi:rs.poi,arrival_time:rs.arrival_time,departure_time:rs.departure_time,narrative:rs.narrative||'',emotion_design:rs.emotion_design||'',scene_tags:rs.scene_tags||[]});
+function onDone(data) {
+  S.routeId = data.route_id;
+  S.fullRoute = data.full_route || {};
+  const route = S.fullRoute.route || [];
+
+  // If no step events received, render from full_route
+  if (route.length && S.steps.length === 0) {
+    route.forEach((rs, i) => {
+      renderStep({
+        index: i + 1, poi: rs.poi,
+        arrival_time: rs.arrival_time, departure_time: rs.departure_time,
+        narrative: rs.narrative || '', emotion_design: rs.emotion_design || '',
+        scene_tags: rs.scene_tags || [],
+      });
     });
   }
   renderClosing();
-  const tc=S.fullRoute.total_cost||{};
-  updateBudget(num(tc.budget_used),tc.budget_limit||200);
-  const ver=data.version?` · ${data.version}`:'';
-  setReply(`规划完成${ver} · ${S.steps.length}站 · ${elapsed()}`,'ok');
-  $('phaseText').classList.remove('typing');
+
+  clearPhaseAnim();
   setPhase('规划完成 ✓');
-  S.done=true;setPlanning(false);stopTimer();
-}
-function onError(data){setReply(data.error||'规划失败','err');setPhase('出错了');S.done=true;setPlanning(false);stopTimer()}
 
-function handleEvent(type,data){
-  if(type==='phase')return onPhase(data);
-  if(type==='agent_start')return onAgentStart(data);
-  if(type==='agent_thinking')return onAgentThinking(data);
-  if(type==='agent_result')return onAgentResult(data);
-  if(type==='step')return onStep(data);
-  if(type==='done')return onDone(data);
-  if(type==='error')return onError(data);
-  if(type==='debug_agents'){(data.agents||[]).forEach(aid=>ensureAgentCard({agent:aid,name:aid,icon:'🤖',role:'',color:'#5ea2ff'}))}
+  S.done = true;
+  S.planning = false;
+  $('goBtn').disabled = false;
+  $('goBtn').textContent = '生成路线 →';
+  $('goBtn').classList.remove('planning');
+  stopTimer();
+
+  // Switch to panel 3 after a brief pause
+  setTimeout(() => goToPanel3(), 800);
 }
 
-// Yield to browser rendering between events
-function waitForFrame(){return new Promise(r=>requestAnimationFrame(r))}
+function onError(data) {
+  setPhase('出错了: ' + (data.error || '规划失败'));
+  clearPhaseAnim();
+  S.done = true;
+  S.planning = false;
+  $('goBtn').disabled = false;
+  $('goBtn').textContent = '生成路线 →';
+  $('goBtn').classList.remove('planning');
+  stopTimer();
+}
 
-// ── SSE Stream ──
-async function parseSSE(chunk,buf){
-  buf.s+=chunk;const msgs=buf.s.split(/\r?\n\r?\n/);buf.s=msgs.pop()||'';
-  for(const msg of msgs){
-    let type='message';const dl=[];
-    for(const line of msg.split(/\r?\n/)){
-      if(line.startsWith('event:'))type=line.slice(6).trim();
-      if(line.startsWith('data:'))dl.push(line.slice(5).trimStart());
-    }
-    if(!dl.length)continue;
-    try{handleEvent(type,JSON.parse(dl.join('\n')))}catch(e){console.error('SSE:',e)}
-    await waitForFrame();  // Let browser render between events
+function handleEvent(type, data) {
+  if (type === 'phase') return onPhase(data);
+  if (type === 'agent_start') return onAgentStart(data);
+  if (type === 'agent_thinking') return onAgentThinking(data);
+  if (type === 'agent_result') return onAgentResult(data);
+  if (type === 'step') return onStep(data);
+  if (type === 'done') return onDone(data);
+  if (type === 'error') return onError(data);
+  if (type === 'debug_agents') {
+    (data.agents || []).forEach(aid => ensureAgentCard({ agent: aid, name: aid, icon: '🤖', role: '', color: '#6a9ec8' }));
   }
 }
 
-async function submitPlan(input){
-  if(S.planning)return;
-  S.routeId=null;S.steps=[];S.fullRoute=null;S.done=false;S.agents={};
-  $('routeList').innerHTML='<div class="route-empty"><p>Agent 工作中...</p></div>';
+// ── Timer ──────────────────────────────────────────────────
+let timerInterval = null;
+function startTimer() {
+  S.t0 = Date.now();
+  clearInterval(timerInterval);
+  // We show elapsed in phase bar
+}
+function stopTimer() { clearInterval(timerInterval); }
+
+// ── SSE Stream ─────────────────────────────────────────────
+function waitForFrame() { return new Promise(r => requestAnimationFrame(r)); }
+
+async function parseSSE(chunk, buf) {
+  buf.s += chunk;
+  const msgs = buf.s.split(/\r?\n\r?\n/);
+  buf.s = msgs.pop() || '';
+  for (const msg of msgs) {
+    let type = 'message';
+    const dl = [];
+    for (const line of msg.split(/\r?\n/)) {
+      if (line.startsWith('event:')) type = line.slice(6).trim();
+      if (line.startsWith('data:')) dl.push(line.slice(5).trimStart());
+    }
+    if (!dl.length) continue;
+    try { handleEvent(type, JSON.parse(dl.join('\n'))); }
+    catch (e) { console.error('SSE:', e); }
+    await waitForFrame();
+  }
+}
+
+function buildQueryFromSelections() {
+  const selectedScenes = [...document.querySelectorAll('#sceneChips .chip.selected')].map(c => c.textContent.trim());
+  const selectedStyle = document.querySelector('#styleChips .chip.selected');
+  const selectedGroups = [...document.querySelectorAll('#groupChips .chip.selected')].map(c => c.textContent.trim());
+  const duration = $('durationSelect')?.value || '一整天（8小时）';
+  const budget = $('budgetSelect')?.value || '600';
+
+  const parts = [];
+  if (selectedScenes.length) parts.push(selectedScenes.join('、'));
+  if (selectedStyle) parts.push(selectedStyle.textContent.trim() + '风格');
+  if (selectedGroups.length) parts.push(selectedGroups.join('、'));
+  parts.push(duration);
+  if (budget && Number(budget) < 9999) parts.push('预算¥' + budget + '以内');
+  return parts.join('，') || '珠海一日游';
+}
+
+async function submitPlan() {
+  let input = $('searchInput').value.trim();
+  if (S.planning) return;
+  // If no text, build from chip selections
+  if (!input) input = buildQueryFromSelections();
+
+  // Reset state
+  S.routeId = null; S.steps = []; S.fullRoute = null;
+  S.done = false; S.agents = {}; S.mapPois = [];
+
+  // Switch to panel 2
+  goToPanel2();
+  $('stepList').innerHTML = '<div class="step-empty"><p>智能体工作中...</p></div>';
   resetPipeline();
-  setReply('');updateBudget(0,200);setPlanning(true);startTimer();
+  $('dlgReply').textContent = '';
+  $('dlgReply').className = 'dlg-reply';
+
+  // UI state
+  S.planning = true;
+  $('goBtn').disabled = true;
+  $('goBtn').textContent = '规划中...';
+  $('goBtn').classList.add('planning');
   setPhase('正在理解你的需求...');
-  S.abort=new AbortController();
-  const timeout=setTimeout(()=>{if(!S.planning)return;S.abort?.abort();setPlanning(false);stopTimer();setReply('请求超时','err');setPhase('超时')},120_000);
-  try{
-    const res=await fetch(`http://localhost:${PORT}/api/plan`,{
-      method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({user_input:input}),signal:S.abort.signal,
+  startTimer();
+
+  S.abort = new AbortController();
+  const timeout = setTimeout(() => {
+    if (!S.planning) return;
+    S.abort?.abort();
+    S.planning = false;
+    $('goBtn').disabled = false;
+    $('goBtn').textContent = '生成路线 →';
+    $('goBtn').classList.remove('planning');
+    stopTimer();
+    setPhase('请求超时');
+    clearPhaseAnim();
+  }, 120_000);
+
+  try {
+    const res = await fetch('/api/plan', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user_input: input }),
+      signal: S.abort.signal,
     });
-    if(!res.ok)throw new Error(`HTTP ${res.status}`);
-    const reader=res.body.getReader(),dec=new TextDecoder(),buf={s:''};
-    while(true){
-      const{done,value}=await reader.read();
-      if(done)break;
-      await parseSSE(dec.decode(value,{stream:true}),buf);
-      if(S.done){await reader.cancel();break}
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+    const reader = res.body.getReader();
+    const dec = new TextDecoder();
+    const buf = { s: '' };
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      await parseSSE(dec.decode(value, { stream: true }), buf);
+      if (S.done) { await reader.cancel(); break; }
     }
-  }catch(e){
-    if(e.name==='AbortError')return;
-    console.error(e);setPlanning(false);stopTimer();
-    setReply('连接失败 (端口 '+PORT+')','err');setPhase('连接失败');
-  }finally{clearTimeout(timeout)}
+  } catch (e) {
+    if (e.name === 'AbortError') return;
+    console.error(e);
+    S.planning = false;
+    $('goBtn').disabled = false;
+    $('goBtn').textContent = '生成路线 →';
+    $('goBtn').classList.remove('planning');
+    stopTimer();
+    setPhase('连接失败，请检查服务器');
+    clearPhaseAnim();
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
-// ── Dialogue ──
-async function sendAdj(inst){
-  if(!inst||!S.routeId){setReply('请先完成一次规划','err');return}
-  $('dlgBtn').disabled=true;setReply('调整中...');
-  try{
-    const res=await fetch(`http://localhost:${PORT}/api/dialogue/${encodeURIComponent(S.routeId)}`,{
-      method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({instruction:inst}),
-    });
-    if(!res.ok)throw new Error(`HTTP ${res.status}`);
-    const data=await res.json();setReply(data.reply||'已调整','ok');
-    if(data.route?.route?.length){
-      $('routeList').innerHTML='';S.steps=[];
-      data.route.route.forEach((rs,i)=>renderStep({index:i+1,poi:rs.poi,arrival_time:rs.arrival_time,departure_time:rs.departure_time,narrative:rs.narrative||''}));
-      renderClosing();S.fullRoute=data.route;
-      const tc=data.route.total_cost||{};
-      updateBudget(num(tc.budget_used),tc.budget_limit||200);
-    }
-  }catch(e){console.error(e);setReply('调整失败','err')}
-  finally{$('dlgBtn').disabled=false}
+// ── Dialogue ───────────────────────────────────────────────
+async function sendDialogue() {
+  const inst = $('dlgInput').value.trim();
+  $('dlgInput').value = '';
+  await doDialogue(inst, 'dlgReply');
 }
 
-// ── Bind ──
-$('inp').addEventListener('input',()=>$('charCt').textContent=$('inp').value.length+'/80');
-$('goBtn').addEventListener('click',()=>{const v=$('inp').value.trim();if(v)submitPlan(v)});
-$('inp').addEventListener('keydown',e=>{if(e.key==='Enter'&&(e.ctrlKey||e.metaKey))$('goBtn').click()});
-document.querySelectorAll('.tag').forEach(b=>b.addEventListener('click',()=>{
-  document.querySelectorAll('.tag').forEach(t=>t.classList.remove('on'));
-  b.classList.add('on');$('inp').value=b.dataset.v;$('charCt').textContent=b.dataset.v.length+'/80';
-}));
-document.querySelectorAll('.qb').forEach(b=>b.addEventListener('click',()=>sendAdj(b.dataset.a)));
-$('dlgBtn').addEventListener('click',()=>{const v=$('dlgInp').value.trim();$('dlgInp').value='';sendAdj(v)});
-$('dlgInp').addEventListener('keydown',e=>{if(e.key==='Enter')$('dlgBtn').click()});
+function quickAdj(inst) {
+  $('dlgInput').value = inst;
+  sendDialogue();
+}
+
+async function sendDialogue3() {
+  const inst = $('dlgInput3').value.trim();
+  $('dlgInput3').value = '';
+  await doDialogue(inst, 'dlgReply3');
+}
+
+function quickAdj3(inst) {
+  $('dlgInput3').value = inst;
+  sendDialogue3();
+}
+
+async function doDialogue(inst, replyId) {
+  if (!inst || !S.routeId) {
+    $(replyId).textContent = '请先完成一次规划';
+    $(replyId).className = 'dlg-reply err';
+    return;
+  }
+  $(replyId).textContent = '调整中...';
+  $(replyId).className = 'dlg-reply';
+  $('dlgBtn').disabled = true;
+  $('dlgBtn3').disabled = true;
+
+  try {
+    const res = await fetch(`/api/dialogue/${encodeURIComponent(S.routeId)}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ instruction: inst }),
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    $(replyId).textContent = data.reply || '已调整';
+    $(replyId).className = 'dlg-reply ok';
+
+    if (data.route?.route?.length) {
+      S.steps = [];
+      $('stepList').innerHTML = '';
+      S.mapPois = [];
+      data.route.route.forEach((rs, i) => {
+        renderStep({
+          index: i + 1, poi: rs.poi,
+          arrival_time: rs.arrival_time, departure_time: rs.departure_time,
+          narrative: rs.narrative || '',
+        });
+      });
+      renderClosing();
+      S.fullRoute = data.route;
+      drawMap();
+    }
+  } catch (e) {
+    console.error(e);
+    $(replyId).textContent = '调整失败';
+    $(replyId).className = 'dlg-reply err';
+  } finally {
+    $('dlgBtn').disabled = false;
+    $('dlgBtn3').disabled = false;
+  }
+}
+
+// ============================================================
+//   Canvas Map — 简洁渐变风格 + 缩放
+// ============================================================
+var mapOffsetX = 0, mapOffsetY = 0, mapScale = 1;
+var mapTargetX = 0, mapTargetY = 0;
+var MAP_ZOOM_MIN = 0.15, MAP_ZOOM_MAX = 6;
+
+function initMap() {
+  var canvas = $('mapCanvas');
+  function sizeCanvas() {
+    var rect = canvas.getBoundingClientRect();
+    canvas.width = rect.width;
+    canvas.height = rect.height;
+  }
+  sizeCanvas();
+
+  // Center on Zhuhai
+  var cLat = 22.22, cLng = 113.56;
+  mapScale = Math.min(canvas.width / 0.15 / 20000, canvas.height / 0.12 / 20000, 0.9);
+  mapOffsetX = canvas.width * 0.5 - cLng * mapScale * 20000;
+  mapOffsetY = canvas.height / 2 + cLat * mapScale * 20000;
+  mapTargetX = mapOffsetX;
+  mapTargetY = mapOffsetY;
+
+  // ── 以 (cx, cy) 为锚点缩放 ──
+  function zoomAt(cx, cy, factor) {
+    var oldScale = mapScale;
+    mapScale = Math.max(MAP_ZOOM_MIN, Math.min(MAP_ZOOM_MAX, mapScale * factor));
+    var ratio = mapScale / oldScale;
+    mapTargetX = cx - (cx - mapTargetX) * ratio;
+    mapTargetY = cy - (cy - mapTargetY) * ratio;
+    drawMap();
+  }
+
+  // ── 滚轮缩放 ──
+  canvas.addEventListener('wheel', function(e) {
+    e.preventDefault();
+    var rect = canvas.getBoundingClientRect();
+    var cx = e.clientX - rect.left;
+    var cy = e.clientY - rect.top;
+    var factor = e.deltaY < 0 ? 1.12 : 1 / 1.12;
+    zoomAt(cx, cy, factor);
+  }, { passive: false });
+
+  // ── 拖拽 ──
+  var dragging = false, sx = 0, sy = 0, dragDist = 0;
+  canvas.addEventListener('mousedown', function(e) { dragging = true; sx = e.clientX; sy = e.clientY; dragDist = 0; });
+  canvas.addEventListener('mousemove', function(e) {
+    if (!dragging) return;
+    var dx = e.clientX - sx, dy = e.clientY - sy;
+    dragDist += Math.abs(dx) + Math.abs(dy);
+    mapTargetX += dx; mapTargetY += dy;
+    sx = e.clientX; sy = e.clientY;
+    drawMap();
+  });
+  canvas.addEventListener('mouseup', function(e) {
+    if (dragDist < 8 && S.mapPois.length > 0) {
+      var rect = canvas.getBoundingClientRect();
+      checkPoiClick(e.clientX - rect.left, e.clientY - rect.top);
+    }
+    dragging = false;
+  });
+  canvas.addEventListener('mouseleave', function() { dragging = false; });
+
+  // ── 触摸：单指拖拽 + 双指缩放 ──
+  var pinchDist = 0, pinchScale = 1;
+  canvas.addEventListener('touchstart', function(e) {
+    if (e.touches.length === 1) {
+      dragging = true; sx = e.touches[0].clientX; sy = e.touches[0].clientY; dragDist = 0;
+    } else if (e.touches.length === 2) {
+      dragging = false;
+      var dx = e.touches[1].clientX - e.touches[0].clientX;
+      var dy = e.touches[1].clientY - e.touches[0].clientY;
+      pinchDist = Math.sqrt(dx * dx + dy * dy);
+    }
+  });
+  canvas.addEventListener('touchmove', function(e) {
+    e.preventDefault();
+    if (e.touches.length === 1 && dragging) {
+      var dx = e.touches[0].clientX - sx, dy = e.touches[0].clientY - sy;
+      dragDist += Math.abs(dx) + Math.abs(dy);
+      mapTargetX += dx; mapTargetY += dy;
+      sx = e.touches[0].clientX; sy = e.touches[0].clientY;
+      drawMap();
+    } else if (e.touches.length === 2) {
+      var dx = e.touches[1].clientX - e.touches[0].clientX;
+      var dy = e.touches[1].clientY - e.touches[0].clientY;
+      var newDist = Math.sqrt(dx * dx + dy * dy);
+      if (pinchDist > 0) {
+        var rect = canvas.getBoundingClientRect();
+        var cx = (e.touches[0].clientX + e.touches[1].clientX) / 2 - rect.left;
+        var cy = (e.touches[0].clientY + e.touches[1].clientY) / 2 - rect.top;
+        zoomAt(cx, cy, newDist / pinchDist);
+      }
+      pinchDist = newDist;
+    }
+  }, { passive: false });
+  canvas.addEventListener('touchend', function(e) {
+    if (dragDist < 15 && S.mapPois.length > 0) {
+      var rect = canvas.getBoundingClientRect();
+      var t = e.changedTouches[0];
+      checkPoiClick(t.clientX - rect.left, t.clientY - rect.top);
+    }
+    dragging = false;
+  });
+
+  window.addEventListener('resize', function() {
+    sizeCanvas();
+    drawMap();
+  });
+}
+
+function checkPoiClick(mx, my) {
+  // 先检测标签卡片区域点击
+  for (var i = 0; i < S.labelBoxes.length; i++) {
+    var lb = S.labelBoxes[i];
+    if (mx >= lb.lx && mx <= lb.lx + lb.tw && my >= lb.ly && my <= lb.ly + lb.th) {
+      var p = S.mapPois[lb.idx];
+      var step = S.steps[p.step - 1];
+      showPoiDetail(p, step);
+      return;
+    }
+  }
+  // 再检测标记圆点
+  for (var i = 0; i < S.mapPois.length; i++) {
+    var p = S.mapPois[i];
+    var pt = latLngToXY(p.lat, p.lng);
+    var dist = Math.sqrt((mx - pt.x) * (mx - pt.x) + (my - pt.y) * (my - pt.y));
+    if (dist < 25) {
+      var step = S.steps[p.step - 1];
+      showPoiDetail(p, step);
+      return;
+    }
+  }
+  closePoiDetail();
+}
+
+function latLngToXY(lat, lng) {
+  return {
+    x: lng * mapScale * 20000 + mapTargetX,
+    y: -lat * mapScale * 20000 + mapTargetY
+  };
+}
+
+function drawMap() {
+  var canvas = $('mapCanvas');
+  var ctx = canvas.getContext('2d');
+  var w = canvas.width, h = canvas.height;
+
+  // ── 主渐变背景 ──
+  var bgGrad = ctx.createLinearGradient(0, 0, w * 0.3, h);
+  bgGrad.addColorStop(0, '#dbe9f4');
+  bgGrad.addColorStop(0.35, '#e6eef5');
+  bgGrad.addColorStop(0.65, '#f0ece3');
+  bgGrad.addColorStop(1, '#e8dfd0');
+  ctx.fillStyle = bgGrad;
+  ctx.fillRect(0, 0, w, h);
+
+  // ── 海面渐变（右下角）──
+  var coastGrad = ctx.createRadialGradient(w * 0.8, h * 0.85, 0, w * 0.8, h * 0.85, h * 0.5);
+  coastGrad.addColorStop(0, 'rgba(170,205,230,0.35)');
+  coastGrad.addColorStop(0.6, 'rgba(180,210,230,0.2)');
+  coastGrad.addColorStop(1, 'rgba(180,210,230,0)');
+  ctx.fillStyle = coastGrad;
+  ctx.fillRect(0, 0, w, h);
+
+  // ── 淡色海岸线（平滑曲线）──
+  var coastPts = [[22.25,113.555],[22.245,113.565],[22.24,113.572],[22.235,113.58],[22.225,113.578],[22.215,113.57],[22.20,113.555],[22.19,113.545],[22.17,113.53],[22.14,113.52],[22.10,113.535]];
+  ctx.strokeStyle = 'rgba(160,195,225,0.35)';
+  ctx.lineWidth = 2; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  ctx.setLineDash([8, 14]);
+  drawSmoothCurve(ctx, coastPts.map(function(c) { return latLngToXY(c[0], c[1]); }));
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // ── 路线连线（平滑曲线）──
+  if (S.mapPois.length >= 2) {
+    var pts = S.mapPois.map(function(p) { return latLngToXY(p.lat, p.lng); });
+
+    // 半透明光晕
+    ctx.strokeStyle = 'rgba(232,136,106,0.18)';
+    ctx.lineWidth = 10; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    drawSmoothCurve(ctx, pts);
+    ctx.stroke();
+
+    // 实线
+    ctx.strokeStyle = 'rgba(232,136,106,0.6)';
+    ctx.lineWidth = 2.5;
+    drawSmoothCurve(ctx, pts);
+    ctx.stroke();
+  }
+
+  // ── POI 标记 + 自动信息标签 ──
+  ctx.font = '600 11px -apple-system, "PingFang SC", sans-serif';
+  var labels = [];
+  for (var i = 0; i < S.mapPois.length; i++) {
+    var p = S.mapPois[i];
+    var pt = latLngToXY(p.lat, p.lng);
+    var step = S.steps[p.step - 1];
+    var poi = step?.poi || p;
+    var name = p.name || '';
+    var shortName = name.length > 10 ? name.slice(0, 9) + '…' : name;
+    var cat = poi?.category || '';
+    var rating = poi?.rating ? '★' + Number(poi.rating).toFixed(1) : '';
+    var priceStr = poi?.avg_price ? '¥' + poi.avg_price : '免费';
+    var metaStr = [cat, rating, priceStr].filter(Boolean).join(' · ');
+    var timeStr = step?.arrival_time ? (step.arrival_time + ' → ' + (step.departure_time || '')) : '';
+    // 叙事摘要（取前20字）
+    var narrFull = step?.narrative || '';
+    var narrShort = narrFull.length > 20 ? narrFull.slice(0, 19) + '…' : narrFull;
+    // 计算标签宽度（取最长行）
+    ctx.font = '600 11px -apple-system, "PingFang SC", sans-serif';
+    var w1 = ctx.measureText(shortName).width;
+    ctx.font = '500 9px -apple-system, "PingFang SC", sans-serif';
+    var w2 = metaStr ? ctx.measureText(metaStr).width : 0;
+    var w3 = timeStr ? ctx.measureText(timeStr).width : 0;
+    var w4 = narrShort ? ctx.measureText(narrShort).width : 0;
+    var maxW = Math.max(w1, w2, w3, w4);
+    var tw = maxW + 20;
+    var rows = 1; // name always
+    if (metaStr) rows++;
+    if (timeStr) rows++;
+    if (narrShort) rows++;
+    var labelH = rows * 15 + 8;
+    labels.push({ idx: i, pt: pt, name: shortName, meta: metaStr, time: timeStr, narr: narrShort, tw: tw, th: labelH, lx: 0, ly: 0 });
+  }
+
+  // 防重叠铺开：8方向候选偏移
+  var OFFSETS = [
+    {dx: 24, dy: -20}, {dx: 24, dy: 20}, {dx: -1, dy: -40},
+    {dx: -1, dy: 30}, {dx: -24, dy: -20}, {dx: -24, dy: 20},
+    {dx: 28, dy: 0}, {dx: -28, dy: 0}
+  ];
+  var placed = [];
+  for (var li = 0; li < labels.length; li++) {
+    var lb = labels[li];
+    var best = null, bestOverlap = Infinity;
+    for (var oi = 0; oi < OFFSETS.length; oi++) {
+      var off = OFFSETS[oi];
+      var lx = lb.pt.x + off.dx - (off.dx > 0 ? 0 : lb.tw);
+      var ly = lb.pt.y + off.dy;
+      if (lx < 4) lx = 4;
+      if (lx + lb.tw > w - 4) lx = w - 4 - lb.tw;
+      if (ly < 4) ly = 4;
+      if (ly + lb.th > h - 4) ly = h - 4 - lb.th;
+      var overlap = 0;
+      for (var pi = 0; pi < placed.length; pi++) {
+        var pl = placed[pi];
+        var ox = Math.max(0, Math.min(lx + lb.tw, pl.lx + pl.tw) - Math.max(lx, pl.lx));
+        var oy = Math.max(0, Math.min(ly + lb.th, pl.ly + pl.th) - Math.max(ly, pl.ly));
+        overlap += ox * oy;
+      }
+      if (overlap < bestOverlap) { bestOverlap = overlap; best = { lx: lx, ly: ly }; }
+      if (overlap === 0) break;
+    }
+    lb.lx = best ? best.lx : lb.pt.x + 20;
+    lb.ly = best ? best.ly : lb.pt.y - 14;
+    placed.push(lb);
+  }
+
+  // 绘制连线（标签→标记）
+  ctx.strokeStyle = 'rgba(232,136,106,0.22)';
+  ctx.lineWidth = 1;
+  ctx.setLineDash([3, 4]);
+  for (var li = 0; li < labels.length; li++) {
+    var lb = labels[li];
+    ctx.beginPath();
+    ctx.moveTo(lb.pt.x, lb.pt.y);
+    ctx.lineTo(lb.lx + (lb.pt.x < lb.lx + lb.tw * 0.5 ? lb.tw : 0), lb.ly + lb.th * 0.5);
+    ctx.stroke();
+  }
+  ctx.setLineDash([]);
+
+  // 绘制标记圆点
+  for (var i = 0; i < S.mapPois.length; i++) {
+    var p = S.mapPois[i];
+    var pt = latLngToXY(p.lat, p.lng);
+    ctx.beginPath(); ctx.arc(pt.x, pt.y, 18, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(232,136,106,0.1)'; ctx.fill();
+    ctx.beginPath(); ctx.arc(pt.x, pt.y, 11, 0, Math.PI * 2);
+    ctx.fillStyle = '#fff'; ctx.fill();
+    ctx.strokeStyle = '#e8886a'; ctx.lineWidth = 2; ctx.stroke();
+    ctx.font = 'bold 9px -apple-system, sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#e8886a';
+    ctx.fillText(i + 1, pt.x, pt.y);
+  }
+
+  // 绘制信息标签卡片
+  for (var li = 0; li < labels.length; li++) {
+    var lb = labels[li];
+    var r = 7, x = lb.lx, y = lb.ly, tw = lb.tw, th = lb.th;
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.lineTo(x + tw - r, y);
+    ctx.quadraticCurveTo(x + tw, y, x + tw, y + r);
+    ctx.lineTo(x + tw, y + th - r);
+    ctx.quadraticCurveTo(x + tw, y + th, x + tw - r, y + th);
+    ctx.lineTo(x + r, y + th);
+    ctx.quadraticCurveTo(x, y + th, x, y + th - r);
+    ctx.lineTo(x, y + r);
+    ctx.quadraticCurveTo(x, y, x + r, y);
+    ctx.closePath();
+    ctx.fillStyle = 'rgba(252,250,247,0.92)';
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(0,0,0,0.05)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    // 绘制文字（多行）
+    var ty = y + 7;
+    ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+    // 第1行：名称
+    ctx.font = '600 11px -apple-system, "PingFang SC", sans-serif';
+    ctx.fillStyle = '#3a3530';
+    ctx.fillText(lb.name, x + 8, ty);
+    ty += 15;
+    // 第2行：分类·评分·价格
+    if (lb.meta) {
+      ctx.font = '500 8.5px -apple-system, "PingFang SC", sans-serif';
+      ctx.fillStyle = '#a09888';
+      ctx.fillText(lb.meta, x + 8, ty);
+      ty += 13;
+    }
+    // 第3行：时间
+    if (lb.time) {
+      ctx.font = '600 8.5px -apple-system, "PingFang SC", sans-serif';
+      ctx.fillStyle = '#e8886a';
+      ctx.fillText(lb.time, x + 8, ty);
+      ty += 13;
+    }
+    // 第4行：叙事摘要
+    if (lb.narr) {
+      ctx.font = '400 8px -apple-system, "PingFang SC", sans-serif';
+      ctx.fillStyle = '#6b6258';
+      ctx.fillText(lb.narr, x + 8, ty);
+    }
+  }
+  // 保存标签位置供点击检测
+  S.labelBoxes = labels.map(function(lb) {
+    return { idx: lb.idx, lx: lb.lx, ly: lb.ly, tw: lb.tw, th: lb.th };
+  });
+}
+
+// Catmull-Rom → 贝塞尔平滑曲线
+function drawSmoothCurve(ctx, pts) {
+  if (pts.length < 2) return;
+  ctx.beginPath();
+  ctx.moveTo(pts[0].x, pts[0].y);
+  if (pts.length === 2) {
+    ctx.lineTo(pts[1].x, pts[1].y);
+    return;
+  }
+  for (var i = 0; i < pts.length - 1; i++) {
+    var p0 = pts[Math.max(i - 1, 0)];
+    var p1 = pts[i];
+    var p2 = pts[i + 1];
+    var p3 = pts[Math.min(i + 2, pts.length - 1)];
+    var cp1x = p1.x + (p2.x - p0.x) / 6;
+    var cp1y = p1.y + (p2.y - p0.y) / 6;
+    var cp2x = p2.x - (p3.x - p1.x) / 6;
+    var cp2y = p2.y - (p3.y - p1.y) / 6;
+    ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, p2.x, p2.y);
+  }
+}
+
+// ── POI Detail Overlay ──────────────────────────────────────
+function showPoiDetail(poiInfo, step) {
+  var poi = step?.poi || poiInfo;
+  var stepIdx = (poiInfo.step || 1) - 1;
+  $('detailEmoji').textContent = poi?.emoji || '📍';
+  $('detailName').textContent = poi?.name || poiInfo.name || '未知地点';
+  $('detailMetaLine').textContent = [
+    poi?.category || '', poi?.city || '珠海',
+    poi?.avg_price ? '¥' + num(poi.avg_price) : '免费',
+    poi?.rating ? '★' + Number(poi.rating).toFixed(1) : '',
+  ].filter(Boolean).join(' · ');
+
+  // 时间行
+  var at = step?.arrival_time || '', dt = step?.departure_time || '';
+  $('detailTimes').innerHTML = at || dt
+    ? '<span>到达 <strong>' + txt(at, '--') + '</strong></span><span>离开 <strong>' + txt(dt, '--') + '</strong></span><span>第 <strong>' + (poiInfo.step || 1) + '</strong> 站</span>'
+    : '';
+
+  // 叙事
+  var narr = step?.narrative || poi?.description || '';
+  $('detailNarrative').textContent = narr;
+  $('detailNarrative').style.display = narr ? 'block' : 'none';
+
+  // 标签（去重）
+  var tags = [...(poi?.tags || []), ...(step?.scene_tags || []), ...(poi?._scene_tags || [])].filter(Boolean);
+  var seen = {}; tags = tags.filter(function(t) { if (seen[t]) return false; seen[t] = true; return true; });
+  $('detailTags').innerHTML = tags.slice(0, 8).map(function(t) {
+    return '<span class="detail-tag">' + t + '</span>';
+  }).join('');
+
+  // 交通信息（非第一站）
+  var travel = step?.travel_from_prev;
+  if (travel) {
+    var distKm = (travel.distance_m / 1000).toFixed(1);
+    $('detailTravel').innerHTML = '<div style="display:flex;gap:12px;padding:10px 14px;background:rgba(106,170,106,0.06);border-radius:10px;margin-bottom:14px;font-size:0.8rem;">'
+      + '<span style="color:var(--text-muted);">从上站</span>'
+      + '<span><strong style="color:var(--green);">' + distKm + ' km</strong></span>'
+      + '<span><strong style="color:var(--green);">' + txt(travel.time_min, '-') + ' 分钟</strong></span>'
+      + (travel.method ? '<span style="color:var(--text-muted);">' + travel.method + '</span>' : '')
+      + '</div>';
+  } else {
+    $('detailTravel').innerHTML = '';
+  }
+
+  // 信息格子 — 6项
+  $('detailInfo').innerHTML = [
+    { l: '营业时间', v: poi?.business_hours || '-' },
+    { l: '建议停留', v: poi?.avg_stay_min ? poi.avg_stay_min + ' 分钟' : '-' },
+    { l: '消费情绪', v: poi?.spend_emotion || '-' },
+    { l: '情绪设计', v: step?.emotion_design || '-' },
+    { l: '排队风险', v: poi?.queue_prone ? '较高 ⚠' : '低 ✓' },
+    { l: '体验杠杆', v: poi?.experience_leverage === 'high' ? '高 ★' : (poi?.experience_leverage || '-') },
+  ].map(function(item) {
+    return '<div class="detail-info-item"><div class="dil">' + item.l + '</div><div class="div">' + item.v + '</div></div>';
+  }).join('');
+
+  $('poiDetailOverlay').classList.add('show');
+}
+
+function closePoiDetail() {
+  $('poiDetailOverlay').classList.remove('show');
+}
+function closeMapPopup() {
+  $('mapPoiPopup').classList.remove('show');
+}
+
+// ============================================================
+//   Init
+// ============================================================
+function init() {
+  renderPanel1();
+  initMap();
+  drawMap();
+}
+
+init();
 </script>
+
 </body>
 </html>

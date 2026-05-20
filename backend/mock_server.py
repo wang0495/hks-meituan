@@ -7,19 +7,31 @@
 import asyncio
 import json
 import uuid
+from pathlib import Path
 from fastapi import FastAPI, Request
 from fastapi.responses import StreamingResponse, Response
+from fastapi.staticfiles import StaticFiles
 
 app = FastAPI(title="CityFlow Mock Server")
 
+FRONTEND_DIR = Path(__file__).resolve().parent.parent / "frontend"
 
-# ── CORS headers on every response ──
+
+# ── CSP + CORS headers on every response ──
 @app.middleware("http")
-async def cors_headers(request: Request, call_next):
+async def security_headers(request: Request, call_next):
     resp = await call_next(request)
     resp.headers["Access-Control-Allow-Origin"] = "*"
     resp.headers["Access-Control-Allow-Methods"] = "GET,POST,PUT,DELETE,OPTIONS"
     resp.headers["Access-Control-Allow-Headers"] = "*"
+    resp.headers["Content-Security-Policy"] = (
+        "default-src 'self'; "
+        "script-src 'self' 'unsafe-inline'; "
+        "style-src 'self' 'unsafe-inline'; "
+        "img-src 'self' data: https:; "
+        "connect-src 'self'; "
+        "frame-ancestors 'none'"
+    )
     return resp
 
 
@@ -36,9 +48,9 @@ async def options_dialogue(route_id: str):
 # ── Mock Data ──
 
 MOCK_POIS = [
-    {"id": "m1", "name": "凤凰山森林公园步道", "category": "景点", "rating": 4.6, "avg_price": 0, "city": "珠海", "tags": ["自然风光", "运动健身", "拍照出片"], "avg_stay_min": 150, "lat": 22.28, "lng": 113.55, "business_hours": "06:00-18:00", "experience_leverage": "high", "spend_emotion": "value"},
-    {"id": "m2", "name": "金鼎湿地公园", "category": "景点", "rating": 4.6, "avg_price": 0, "city": "珠海", "tags": ["自然风光", "公园", "休闲放松"], "avg_stay_min": 90, "lat": 22.36, "lng": 113.46, "business_hours": "全天", "experience_leverage": "high", "spend_emotion": "value"},
-    {"id": "m3", "name": "横琴花海长廊", "category": "景点", "rating": 4.7, "avg_price": 0, "city": "珠海", "tags": ["自然风光", "拍照出片", "休闲放松"], "avg_stay_min": 90, "lat": 22.14, "lng": 113.56, "business_hours": "全天", "experience_leverage": "high", "spend_emotion": "value"},
+    {"id": "m1", "name": "凤凰山森林公园步道", "category": "景点", "rating": 4.6, "avg_price": 0, "city": "珠海", "tags": ["自然风光", "运动健身", "拍照出片"], "avg_stay_min": 150, "lat": 22.28, "lng": 113.55, "business_hours": "06:00-18:00", "experience_leverage": "high", "spend_emotion": "物超所值"},
+    {"id": "m2", "name": "金鼎湿地公园", "category": "景点", "rating": 4.6, "avg_price": 0, "city": "珠海", "tags": ["自然风光", "公园", "休闲放松"], "avg_stay_min": 90, "lat": 22.36, "lng": 113.46, "business_hours": "全天开放", "experience_leverage": "high", "spend_emotion": "物超所值"},
+    {"id": "m3", "name": "横琴花海长廊", "category": "景点", "rating": 4.7, "avg_price": 0, "city": "珠海", "tags": ["自然风光", "拍照出片", "休闲放松"], "avg_stay_min": 90, "lat": 22.14, "lng": 113.56, "business_hours": "全天开放", "experience_leverage": "high", "spend_emotion": "物超所值"},
     {"id": "m4", "name": "旧物仓·珠海仓", "category": "文创", "rating": 4.5, "avg_price": 28, "city": "珠海", "tags": ["文艺", "拍照出片", "怀旧"], "avg_stay_min": 75, "lat": 22.27, "lng": 113.54, "business_hours": "10:00-20:00", "experience_leverage": "high", "spend_emotion": "惊喜"},
     {"id": "m5", "name": "华发商都·咖啡街", "category": "餐饮", "rating": 4.4, "avg_price": 35, "city": "珠海", "tags": ["咖啡", "休闲放松", "约会"], "avg_stay_min": 50, "lat": 22.25, "lng": 113.53, "business_hours": "10:00-22:00", "experience_leverage": "medium", "spend_emotion": "舒适"},
 ]
@@ -115,10 +127,22 @@ async def mock_plan(req: Request):
         await asyncio.sleep(0.3)
 
         yield sse("phase", {"phase": "narrating", "message": "逐站生成叙述..."})
+        cur_hour = 9
+        cur_min = 0
         for i, poi in enumerate(MOCK_POIS):
-            at = f"{9 + i * 2:02d}:{'00' if i % 2 == 0 else '30'}"
-            dt = f"{10 + i * 2:02d}:{'15' if i % 2 == 0 else '45'}"
-            yield sse("step", {"index": i + 1, "poi": {**poi, "emotion_tags": {}, "_scene_tags": [], "queue_prone": False, "constraints": {}}, "arrival_time": at, "departure_time": dt, "narrative": NARRATIVES[i], "emotion_design": "体验", "scene_tags": poi.get("tags", [])[:2]})
+            if i > 0:
+                travel_min = 15 + i * 8
+                cur_min += travel_min
+                cur_hour += cur_min // 60
+                cur_min = cur_min % 60
+            at = f"{cur_hour:02d}:{cur_min:02d}"
+            stay = poi["avg_stay_min"]
+            cur_min += stay
+            cur_hour += cur_min // 60
+            cur_min = cur_min % 60
+            dt = f"{cur_hour:02d}:{cur_min:02d}"
+            travel = {"distance_m": 3000 + i * 1500, "time_min": 15 + i * 8, "method": ["步行", "公交", "骑行", "打车"][i % 4]} if i > 0 else None
+            yield sse("step", {"index": i + 1, "poi": {**poi, "emotion_tags": {"primary": "平静", "intensity": 0.7}, "_scene_tags": [], "queue_prone": i == 2, "constraints": {"time_window": True, "budget_ok": True}}, "arrival_time": at, "departure_time": dt, "narrative": NARRATIVES[i], "emotion_design": ["宁静", "沉浸", "惊喜", "怀旧", "舒适"][i], "scene_tags": [], "travel_from_prev": travel})
             await asyncio.sleep(0.5)
 
         rid = uuid.uuid4().hex[:8]
@@ -135,6 +159,11 @@ async def mock_dialogue(route_id: str, req: Request):
     return {"reply": f"已根据「{body.get('instruction', '')}」调整路线 (mock)", "route": None}
 
 
+# ── 静态文件 (必须在 API 路由之后) ──
+if FRONTEND_DIR.is_dir():
+    app.mount("/", StaticFiles(directory=str(FRONTEND_DIR), html=True), name="frontend")
+
+
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("backend.mock_server:app", host="0.0.0.0", port=8001, reload=False)
+    uvicorn.run("backend.mock_server:app", host="0.0.0.0", port=8001, reload=True)

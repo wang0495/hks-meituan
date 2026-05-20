@@ -1,5 +1,11 @@
 """CityFlow TSPTW 情绪混合求解器。
 
+⚠️  DEPRECATED — 此模块已被 agents_v3 MoE 多Agent编排架构替代。
+    主入口 /api/plan 已完全切到 agents_v3（见 main.py:655）。
+    当前仍被 sse.py、v1/plan、v2/plan、graphql、dialogue 等旧端点引用，
+    待这些端点迁移后可删除。
+    替代方案：backend.agents_v3.synthesizer
+
 5阶段求解：
 1. 候选筛选（按意图category偏好 + 情绪匹配）
 2. TW-Nearest Neighbor 贪心初始化（含时间窗可行性剪枝）

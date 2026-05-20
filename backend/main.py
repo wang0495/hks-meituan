@@ -1094,3 +1094,4 @@ async def cache_stats():
 FRONTEND_DIR = Path(__file__).parent.parent / "frontend"
 _static = StaticFiles(directory=str(FRONTEND_DIR), html=True)
 app.mount("/", _static, name="frontend")
+
