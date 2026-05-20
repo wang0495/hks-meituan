@@ -54,6 +54,19 @@ ADR-S7: narrator 必须用 enable_llm_polish=False
   - 如果都用True，6站路线 = 12次LLM调用（synthesizer 6次 + SSE 6次）
   - 修复：synthesizer传False（模板），SSE路径独立做LLM润色
   - 同时narrator内部改为asyncio.gather并行，6站从串行30s→并行5s
+
+ADR-S8: 不引入外部搜索API做"攻略专家"
+  - 尝试过：新增 guide_expert（第9位MoE专家），调用 UAPI Pro 搜索真实旅游攻略
+  - 失败原因：
+    1) UAPI Pro 免费版每日仅40次请求，5场景测试直接耗尽全天配额
+    2) 429限流后 guide_expert 退化为 LLM knowledge fallback，效果与无 guide 持平
+    3) 用 LLM knowledge fallback 时测试 4/5(6.8) vs 不用 guide 也是 4/5(6.8)，无提升
+    4) 外部搜索依赖网络可用性，生产环境可靠性无法保证
+  - 根因：路线规划的核心信息来源是 POI 数据库（2000+ POI）+ LLM 推理能力，
+    外部搜索只能提供"参考路线顺序"，但这个信息 LLM 自身已经能从 POI 数据推导
+  - 替代方案：如果要提升路线质量，应从 POI 数据丰富度（增加标签/评分/热度）
+    和 prompt 工程入手，而非引入外部搜索依赖
+  - 2026-05-20 实测：guide_expert(搜索可用) 4/5(6.8) vs guide_expert(429降级) 3/5(6.6) vs 无guide 4/5(6.8)
 """
 
 from __future__ import annotations
