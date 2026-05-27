@@ -910,7 +910,10 @@ def _select_diverse_select_by_category(
     mixed_score: Callable[[dict], float],
     user_intent: dict[str, Any],
 ) -> list[dict[str, Any]]:
-    """按category分组，从preferred cats和other cats中选择高评分POI。"""
+    """按category分组，从preferred cats和other cats中选择高评分POI。
+
+    确保至少包含餐饮类POI（提升类别多样性）。
+    """
     # 按category分组
     by_category: dict[str, list[dict]] = {}
     for poi in quality_pois:
@@ -953,6 +956,17 @@ def _select_diverse_select_by_category(
                 if p["id"] not in used_ids and len(selected) < max_candidates:
                     selected.append(p)
                     used_ids.add(p["id"])
+
+    # 确保包含餐饮类POI（提升类别多样性）
+    has_food = any(s.get("category") == "餐饮" for s in selected)
+    if not has_food and "餐饮" in by_category:
+        food_pois = by_category["餐饮"]
+        food_pois.sort(key=mixed_score, reverse=True)
+        # 添加1-2个餐饮POI
+        for p in food_pois[:2]:
+            if p["id"] not in used_ids and len(selected) < max_candidates:
+                selected.append(p)
+                used_ids.add(p["id"])
 
     return selected
 
@@ -1622,7 +1636,9 @@ def _enforce_category_diversity(
 ) -> list[dict[str, Any]]:
     """强制路线中至少有2种不同category。
 
-    策略：如果路线中连续3个同category，用候选池中不同category的高评分POI替换第2个。
+    策略：
+    1. 如果路线中连续2个同category，用候选池中不同category的高评分POI替换
+    2. 如果路线中没有餐饮类POI，在替换时优先选择餐饮类
     """
     if len(route) < 3:
         return route
@@ -1630,7 +1646,10 @@ def _enforce_category_diversity(
     used_ids = {s["poi"]["id"] for s in route}
     preferred_cats = _get_preferred_categories(user_intent)
 
-    # 检查连续3个同类
+    # 检查路线中是否包含餐饮类
+    has_food = any(s["poi"].get("category") == "餐饮" for s in route)
+
+    # 检查连续同类
     i = 0
     while i <= len(route) - 2:
         cat_i = route[i]["poi"].get("category", "")
@@ -1639,14 +1658,28 @@ def _enforce_category_diversity(
         if cat_i == cat_next and cat_i != "休息":
             # 找一个不同category的候选POI
             replacement = None
-            for c in candidates:
-                if (
-                    c["id"] not in used_ids
-                    and c.get("category") != cat_i
-                    and c.get("category") not in {"酒店", "休息"}
-                ):
-                    replacement = c
-                    break
+
+            # 如果没有餐饮类，优先选择餐饮类POI
+            if not has_food:
+                for c in candidates:
+                    if (
+                        c["id"] not in used_ids
+                        and c.get("category") == "餐饮"
+                    ):
+                        replacement = c
+                        has_food = True
+                        break
+
+            # 如果没有找到餐饮类或已有餐饮类，选择其他category
+            if replacement is None:
+                for c in candidates:
+                    if (
+                        c["id"] not in used_ids
+                        and c.get("category") != cat_i
+                        and c.get("category") not in {"酒店", "休息"}
+                    ):
+                        replacement = c
+                        break
 
             if replacement:
                 # 检查替换POI的营业时间
