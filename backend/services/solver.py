@@ -1872,6 +1872,7 @@ def _phase3_breathing(
 def _phase4_finale(
     route: list[dict[str, Any]],
     candidates: list[dict[str, Any]],
+    end_point: dict[str, Any] | None = None,
 ) -> list[dict[str, Any]]:
     """确保最后一个 POI 有足够的情绪高潮。"""
     if len(route) < 2:
@@ -2361,8 +2362,8 @@ def solve_route(
     for spot in breathing_spots:
         _report_progress("breathing", {"phase": "休息", "spot": spot.get("name", "?"), "found": len(breathing_spots)})
 
-    # Phase 4: 高潮收尾检查
-    route = _phase4_finale(route, filtered)
+    # Phase 4: 高潮收尾检查（考虑终点距离）
+    route = _phase4_finale(route, filtered, end_point)
     last_name = route[-1]["poi"]["name"] if route else "?"
     _report_progress("finale", {"phase": "收尾", "last_poi": last_name})
 
