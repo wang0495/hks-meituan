@@ -74,8 +74,9 @@ def _extract_user_location(user_intent: dict) -> tuple[float | None, float | Non
 
     优先级：
     1. user_intent中显式的 location: {lat, lng}
-    2. user_intent中显式的 location: "拱北" → 需要查表（暂不支持）
-    3. 无位置信息 → 返回None
+    2. user_intent中显式的 location: "拱北" → 需要查表
+    3. user_intent中的 city → 返回城市中心坐标
+    4. 无位置信息 → 返回None
     """
     loc = user_intent.get("location")
     if isinstance(loc, dict):
@@ -84,7 +85,39 @@ def _extract_user_location(user_intent: dict) -> tuple[float | None, float | Non
         if lat is not None and lng is not None:
             return float(lat), float(lng)
 
-    # 以下为常用地标（扩展时可移入配置文件）
+    # 城市中心坐标映射
+    city_centers: dict[str, tuple[float, float]] = {
+        "珠海": (22.270, 113.543),
+        "广州": (23.127, 113.357),
+        "深圳": (22.543, 114.058),
+        "佛山": (23.022, 113.122),
+        "东莞": (23.020, 113.752),
+        "中山": (22.517, 113.393),
+        "江门": (22.579, 113.082),
+        "湛江": (21.271, 110.359),
+        "茂名": (21.661, 110.925),
+        "肇庆": (23.047, 112.465),
+        "惠州": (23.112, 114.416),
+        "汕头": (23.354, 116.682),
+        "潮州": (23.657, 116.622),
+        "揭阳": (23.550, 116.373),
+        "梅州": (24.289, 116.118),
+        "韶关": (24.811, 113.598),
+        "清远": (23.682, 113.051),
+        "河源": (23.744, 114.700),
+        "阳江": (21.858, 111.983),
+        "云浮": (22.915, 112.044),
+        "汕尾": (22.787, 115.376),
+        "珠海横琴": (22.138, 113.539),
+        "珠海拱北": (22.217, 113.553),
+        "珠海香洲": (22.270, 113.543),
+        "广州天河": (23.127, 113.357),
+        "广州越秀": (23.125, 113.261),
+        "深圳南山": (22.533, 113.930),
+        "深圳福田": (22.522, 114.055),
+    }
+
+    # 地标坐标映射
     landmarks: dict[str, tuple[float, float]] = {
         "拱北": (22.217, 113.553),
         "香洲": (22.270, 113.543),
@@ -104,8 +137,17 @@ def _extract_user_location(user_intent: dict) -> tuple[float | None, float | Non
         "赤坎": (21.267, 110.376),
         "霞山": (21.194, 110.407),
     }
-    if isinstance(loc, str) and loc in landmarks:
-        return landmarks[loc]
+
+    if isinstance(loc, str):
+        if loc in landmarks:
+            return landmarks[loc]
+        if loc in city_centers:
+            return city_centers[loc]
+
+    # 从 user_intent["city"] 获取城市中心坐标
+    city = user_intent.get("city")
+    if city and city in city_centers:
+        return city_centers[city]
 
     return None, None
 

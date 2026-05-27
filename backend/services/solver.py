@@ -1132,7 +1132,45 @@ def _evaluate_route(route: list[dict[str, Any]], user_intent: dict[str, Any]) ->
         # 每10km扣1分
         score -= circuit_dist / 10000.0 * _get_weight("alpha", _ALPHA)
 
+    # 起终点奖励/惩罚
+    start_point = user_intent.get("start_point")
+    end_point = user_intent.get("end_point")
+    if route and start_point:
+        # 起点距离奖励：路线第一个POI离起点近更好
+        first_poi = route[0]["poi"]
+        start_dist = _calc_distance_to_point(first_poi, start_point)
+        # 距离越近奖励越高（每公里-0.1分）
+        score -= start_dist * 0.1
+    if route and end_point:
+        # 终点距离奖励：路线最后一个POI离终点近更好
+        last_poi = route[-1]["poi"]
+        end_dist = _calc_distance_to_point(last_poi, end_point)
+        # 距离越近奖励越高（每公里-0.1分）
+        score -= end_dist * 0.1
+
     return score
+
+
+def _calc_distance_to_point(poi: dict[str, Any], point: dict[str, Any]) -> float:
+    """计算POI到指定点的距离（公里）。"""
+    poi_lat = poi.get("lat", 0)
+    poi_lng = poi.get("lng", 0)
+
+    # 支持坐标和地名两种格式
+    if isinstance(point, dict):
+        point_lat = point.get("lat", 0)
+        point_lng = point.get("lng", 0)
+    else:
+        # 地名格式，从 filters 中获取坐标
+        from backend.services.filters import _extract_user_location
+        point_lat, point_lng = _extract_user_location({"location": point})
+
+    if poi_lat == 0 or poi_lng == 0 or point_lat is None or point_lng is None:
+        return 0.0
+
+    # 使用 Haversine 公式计算距离
+    from backend.services.filters import _haversine_km
+    return _haversine_km(poi_lat, poi_lng, point_lat, point_lng)
 
 
 # ---------------------------------------------------------------------------
@@ -1895,6 +1933,145 @@ def _phase4_finale(
 
 
 # ---------------------------------------------------------------------------
+# Phase 4.5: 起终点插入
+# ---------------------------------------------------------------------------
+
+
+def _insert_start_point(
+    route: list[dict[str, Any]], start_point: dict[str, Any], start_time: str
+) -> list[dict[str, Any]]:
+    """插入起点到路线首位。
+
+    Args:
+        route: 当前路线
+        start_point: 起点位置，坐标 {lat, lng} 或地名字符串
+        start_time: 出发时间
+
+    Returns:
+        插入起点后的路线
+    """
+    if not route:
+        return route
+
+    # 构建起点POI对象
+    start_poi = _build_point_poi(start_point, "起点")
+
+    # 计算从起点到第一个POI的行程
+    first_poi = route[0]["poi"]
+    travel = estimate_travel_time(start_poi, first_poi)
+
+    # 计算出发时间
+    start_dt = parse_time(start_time)
+    arrival_first = start_dt + timedelta(minutes=travel)
+
+    # 更新第一个POI的到达时间
+    route[0] = {
+        "poi": route[0]["poi"],
+        "arrival_time": format_time(arrival_first),
+        "departure_time": route[0]["departure_time"],
+        "travel_from_prev": {
+            "distance_m": round(estimate_distance(start_poi, first_poi)),
+            "time_min": round(travel),
+        },
+    }
+
+    # 在路线首位插入起点
+    start_step = {
+        "poi": start_poi,
+        "arrival_time": start_time,
+        "departure_time": start_time,
+        "travel_from_prev": {
+            "distance_m": 0,
+            "time_min": 0,
+        },
+    }
+    route.insert(0, start_step)
+
+    return route
+
+
+def _insert_end_point(route: list[dict[str, Any]], end_point: dict[str, Any]) -> list[dict[str, Any]]:
+    """插入终点到路线末位。
+
+    Args:
+        route: 当前路线
+        end_point: 终点位置，坐标 {lat, lng} 或地名字符串
+
+    Returns:
+        插入终点后的路线
+    """
+    if not route:
+        return route
+
+    # 构建终点POI对象
+    end_poi = _build_point_poi(end_point, "终点")
+
+    # 计算从最后一个POI到终点的行程
+    last_poi = route[-1]["poi"]
+    travel = estimate_travel_time(last_poi, end_poi)
+
+    # 计算到达终点的时间
+    last_departure = parse_time(route[-1]["departure_time"])
+    arrival_end = last_departure + timedelta(minutes=travel)
+
+    # 在路线末位插入终点
+    end_step = {
+        "poi": end_poi,
+        "arrival_time": format_time(arrival_end),
+        "departure_time": format_time(arrival_end),
+        "travel_from_prev": {
+            "distance_m": round(estimate_distance(last_poi, end_poi)),
+            "time_min": round(travel),
+        },
+    }
+    route.append(end_step)
+
+    return route
+
+
+def _build_point_poi(point: dict[str, Any] | str, name: str = "位置") -> dict[str, Any]:
+    """构建起终点POI对象。
+
+    Args:
+        point: 位置信息，坐标 {lat, lng} 或地名字符串
+        name: 显示名称
+
+    Returns:
+        POI对象
+    """
+    if isinstance(point, str):
+        # 地名格式，从 filters 中获取坐标
+        from backend.services.filters import _extract_user_location
+        lat, lng = _extract_user_location({"location": point})
+        if lat is None or lng is None:
+            lat, lng = 0, 0
+    else:
+        lat = point.get("lat", 0)
+        lng = point.get("lng", 0)
+
+    return {
+        "id": f"point_{name}_{lat}_{lng}",
+        "name": name,
+        "city": "",
+        "category": "位置",
+        "rating": 0,
+        "avg_price": 0,
+        "lat": lat,
+        "lng": lng,
+        "business_hours": "00:00-23:59",
+        "tags": [name],
+        "queue_prone": False,
+        "avg_stay_min": 0,
+        "emotion_tags": {
+            "excitement": 0, "tranquility": 0,
+            "sociability": 0, "culture_depth": 0,
+            "surprise": 0, "physical_demand": 0,
+        },
+        "_is_point": True,
+    }
+
+
+# ---------------------------------------------------------------------------
 # Phase 5: 输出组装
 # ---------------------------------------------------------------------------
 
@@ -1997,6 +2174,8 @@ def solve_route(
     perception_ctx: Any = None,
     dynamic_weights: dict[str, float] | None = None,
     progress_callback: Callable | None = None,
+    start_point: dict[str, Any] | None = None,
+    end_point: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """求解最优路线。
 
@@ -2007,10 +2186,17 @@ def solve_route(
         perception_ctx: 感知上下文（PerceptionContext），用于影响疲劳惩罚权重
         dynamic_weights: 动态权重（来自 WeightMapper），覆盖默认常量
         progress_callback: 进度回调函数，签名为 callback(stage: str, data: dict)
+        start_point: 起点位置，坐标 {lat, lng} 或地名字符串
+        end_point: 终点位置，坐标 {lat, lng} 或地名字符串
 
     Returns:
         包含 route, emotion_curve, total_cost, unused_candidates, breathing_spots 的字典
     """
+    # 从 user_intent 获取起终点（如果参数未提供）
+    if start_point is None:
+        start_point = user_intent.get("start_point")
+    if end_point is None:
+        end_point = user_intent.get("end_point")
     # 设置线程局部状态（替代全局变量，防止并发竞态）
     tl = _get_tl()
     tl.current_weights = dynamic_weights
@@ -2179,6 +2365,16 @@ def solve_route(
     route = _phase4_finale(route, filtered)
     last_name = route[-1]["poi"]["name"] if route else "?"
     _report_progress("finale", {"phase": "收尾", "last_poi": last_name})
+
+    # Phase 4.5: 起终点插入
+    if start_point and route:
+        # 插入起点到路线首位
+        route = _insert_start_point(route, start_point, start_time)
+        _report_progress("start_point", {"phase": "起点", "point": start_point})
+    if end_point and route:
+        # 插入终点到路线末位
+        route = _insert_end_point(route, end_point)
+        _report_progress("end_point", {"phase": "终点", "point": end_point})
 
     # Phase 5: 输出组装
     return _phase5_assemble(route, filtered, breathing_spots, user_intent)

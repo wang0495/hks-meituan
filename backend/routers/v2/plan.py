@@ -53,6 +53,21 @@ class PlanRequestV2(BaseModel):
         description="节奏模式：闲逛型 / 平衡型 / 特种兵型",
         examples=["平衡型"],
     )
+    city: Optional[str] = Field(
+        None,
+        description="目标城市，如 '珠海'、'广州'、'深圳'",
+        examples=["珠海"],
+    )
+    start_point: Optional[dict] = Field(
+        None,
+        description="起点位置，坐标 {lat, lng} 或地名字符串",
+        examples=[{"lat": 22.270, "lng": 113.543}],
+    )
+    end_point: Optional[dict] = Field(
+        None,
+        description="终点位置，坐标 {lat, lng} 或地名字符串",
+        examples=[{"lat": 22.217, "lng": 113.553}],
+    )
 
 
 class EmotionCurvePoint(BaseModel):
@@ -131,14 +146,29 @@ def _build_metadata(route_result: dict, request: PlanRequestV2) -> dict:
         estimated_budget += poi.get("avg_price", 0)
         total_time += poi.get("avg_stay_min", 60)
 
-    return {
+    # 计算实际POI数量（排除起终点）
+    poi_count = sum(1 for s in steps if not s.get("poi", {}).get("_is_point", False))
+
+    metadata = {
         "total_distance_m": total_distance,
         "total_time_min": total_time,
         "estimated_budget": estimated_budget,
-        "poi_count": len(steps),
+        "poi_count": poi_count,
         "pace": request.pace or "平衡型",
         "constraints_applied": request.constraints or [],
     }
+
+    # 添加城市信息
+    if request.city:
+        metadata["city"] = request.city
+
+    # 添加起终点信息
+    if request.start_point:
+        metadata["start_point"] = request.start_point
+    if request.end_point:
+        metadata["end_point"] = request.end_point
+
+    return metadata
 
 
 # ---------------------------------------------------------------------------
@@ -184,6 +214,14 @@ async def plan_route_v2(request: PlanRequestV2) -> StreamingResponse:
                 user_intent["pace"] = request.pace
             if request.preferences:
                 user_intent.setdefault("preferences", {}).update(request.preferences)
+            # V2: 合并城市信息
+            if request.city:
+                user_intent["city"] = request.city
+            # V2: 合并起终点信息
+            if request.start_point:
+                user_intent["start_point"] = request.start_point
+            if request.end_point:
+                user_intent["end_point"] = request.end_point
 
             yield _sse(
                 "phase", {"phase": "searching", "message": "正在为你寻找合适的地方..."}
@@ -191,7 +229,9 @@ async def plan_route_v2(request: PlanRequestV2) -> StreamingResponse:
 
             from backend.services.filters import filter_candidates
 
-            all_pois = get_data("city_poi_db")
+            # 按城市过滤POI数据
+            city = request.city or user_intent.get("city", "珠海")
+            all_pois = get_data("city_poi_db", city=city)
             candidates = filter_candidates(all_pois, user_intent)
 
             if not candidates:
@@ -204,7 +244,14 @@ async def plan_route_v2(request: PlanRequestV2) -> StreamingResponse:
 
             start_time = user_intent.get("time", {}).get("start", "09:00")
             route_result = await _with_timeout(
-                asyncio.to_thread(solve_route, candidates, user_intent, start_time),
+                asyncio.to_thread(
+                    solve_route,
+                    candidates,
+                    user_intent,
+                    start_time,
+                    start_point=request.start_point,
+                    end_point=request.end_point,
+                ),
                 timeout_seconds=10.0,
             )
 

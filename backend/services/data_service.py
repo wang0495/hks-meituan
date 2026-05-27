@@ -19,7 +19,7 @@ def load_data() -> None:
         _cache[json_file.stem] = json.loads(json_file.read_text(encoding="utf-8"))
 
 
-def get_data(dataset: Optional[str] = None, filters: Optional[dict] = None) -> Any:
+def get_data(dataset: Optional[str] = None, filters: Optional[dict] = None, city: Optional[str] = None) -> Any:
     if not _cache:
         load_data()
 
@@ -30,6 +30,10 @@ def get_data(dataset: Optional[str] = None, filters: Optional[dict] = None) -> A
         for v in _cache.values():
             if isinstance(v, list):
                 data.extend(v)
+
+    # 按城市过滤
+    if city and isinstance(data, list):
+        data = [d for d in data if isinstance(d, dict) and d.get("city") == city]
 
     if filters and isinstance(data, list):
         for key, val in filters.items():
