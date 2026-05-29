@@ -391,37 +391,40 @@
         <mxCell id="d_simple_out" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=8;fontColor=#333;arcSize=10;" value="route_cache 更新&lt;br/&gt;→ 返回新路线" vertex="1">
           <mxGeometry height="35" width="80" x="1240" y="1098" as="geometry" />
         </mxCell>
-        <mxCell id="fb_intent_router" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=9;fontColor=#333;arcSize=15;shadow=1;" value="&lt;b&gt;prev_round_context 注入&lt;/b&gt;&lt;br/&gt;&lt;font style=&quot;font-size:7px&quot;&gt;上一轮: expert_weights + 路线评分&lt;br/&gt;+ 用户不满原因 + 被拒维度&lt;br/&gt;→ 写入 state 供下游agent读取&lt;/font&gt;" vertex="1">
-          <mxGeometry height="55" width="180" x="1420" y="1045" as="geometry" />
+        <mxCell id="fb_intent_router" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=9;fontColor=#333;arcSize=15;shadow=1;" value="&lt;b&gt;feedback_router (LLM)&lt;/b&gt;&lt;br/&gt;&lt;font style=&quot;font-size:7px&quot;&gt;1. 解析反馈意图&lt;br/&gt;2. 组装 prev_round_context&lt;br/&gt;   {last_weights, score_5dim,&lt;br/&gt;    route, reject_reason}&lt;br/&gt;3. 标记 rerun_experts 列表&lt;br/&gt;4. Command(goto=expert_router)&lt;/font&gt;" vertex="1">
+          <mxGeometry height="75" width="180" x="1420" y="1040" as="geometry" />
         </mxCell>
         <mxCell id="e_fb_intent" edge="1" parent="1" source="path_b_label" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#d79b00;strokeWidth=1.5;" target="fb_intent_router">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="fb_intent_note" parent="1" style="shape=note;whiteSpace=wrap;html=1;backgroundOutline=1;size=8;fillColor=#fff2cc;strokeColor=#d79b00;fontSize=7;align=left;spacingLeft=5;" value="&lt;div style=&quot;font-size:7px;text-align:left;line-height:1.3&quot;&gt;&lt;b&gt;feedback_router (统一入口):&lt;/b&gt;&lt;br/&gt;LLM 一刀切分类，不分关键词/fallback:&lt;br/&gt;1. 理解反馈 → 判断走A还是B&lt;br/&gt;   A: &quot;换掉渔女&quot; → 结构化操作&lt;br/&gt;   B: &quot;想多看海边&quot; → 调整意图&lt;br/&gt;2. 走B时组装 prev_round_context:&lt;br/&gt;   {last_weights, score_5dim,&lt;br/&gt;    route_snapshot, reject_reason}&lt;br/&gt;3. 调整 expert_weights&lt;br/&gt;4. 写入 review_feedback&lt;/div&gt;" vertex="1">
-          <mxGeometry height="95" width="160" x="1610" y="1020" as="geometry" />
+        <mxCell id="fb_reentry" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=8;fontColor=#333;arcSize=15;dashed=1;strokeWidth=2;" value="&lt;b&gt;原 graph 重入点&lt;/b&gt;&lt;br/&gt;&lt;font style=&quot;font-size:7px&quot;&gt;Command(goto=&quot;expert_router&quot;)&lt;br/&gt;复用原 graph 后半段全部逻辑&lt;br/&gt;review↔rework 循环保留&lt;/font&gt;" vertex="1">
+          <mxGeometry height="50" width="170" x="1420" y="1130" as="geometry" />
         </mxCell>
-        <mxCell id="fb_expert_rerun" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=9;fontColor=#333;arcSize=15;shadow=1;" value="&lt;b&gt;expert 半程重跑&lt;/b&gt;&lt;br/&gt;&lt;font style=&quot;font-size:7px&quot;&gt;读取 prev_round_context&lt;br/&gt;+ 新 expert_weights 重选&lt;br/&gt;不重复上一轮的错误决策&lt;/font&gt;" vertex="1">
-          <mxGeometry height="55" width="170" x="1420" y="1115" as="geometry" />
-        </mxCell>
-        <mxCell id="e_intent_expert" edge="1" parent="1" source="fb_intent_router" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#d79b00;strokeWidth=1.5;" target="fb_expert_rerun">
+        <mxCell id="e_reentry_expert" edge="1" parent="1" source="fb_intent_router" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#b85450;strokeWidth=1.5;dashed=1;fontSize=7;fontColor=#b85450;" target="fb_reentry" value="subgraph re-entry">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="fb_review2" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=9;fontColor=#333;arcSize=15;" value="&lt;b&gt;review&lt;/b&gt; 质量审查" vertex="1">
-          <mxGeometry height="35" width="100" x="1455" y="1185" as="geometry" />
+        <mxCell id="fb_reuse_box" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#9673a6;strokeWidth=1.5;dashed=1;arcSize=8;fontSize=7;fontColor=#9673a6;verticalAlign=top;align=center;" value="选择复用 vs 重跑" vertex="1">
+          <mxGeometry height="60" width="170" x="1420" y="1195" as="geometry" />
         </mxCell>
-        <mxCell id="e_expert_rev2" edge="1" parent="1" source="fb_expert_rerun" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#82b366;strokeWidth=1.5;" target="fb_review2">
+        <mxCell id="fb_rerun_exp" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=7;fontColor=#333;arcSize=10;" value="&lt;b&gt;重跑&lt;/b&gt; rerun_experts&lt;br/&gt;例: poi + destination" vertex="1">
+          <mxGeometry height="35" width="80" x="1425" y="1215" as="geometry" />
+        </mxCell>
+        <mxCell id="fb_cached_exp" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e6ffe6;strokeColor=#82b366;fontSize=7;fontColor=#333;arcSize=10;" value="&lt;b&gt;复用缓存&lt;/b&gt; 其余expert&lt;br/&gt;food/traffic/hotel" vertex="1">
+          <mxGeometry height="35" width="80" x="1510" y="1215" as="geometry" />
+        </mxCell>
+        <mxCell id="fb_merge" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=8;fontColor=#333;arcSize=10;" value="&lt;b&gt;merger&lt;/b&gt; 新提案+缓存提案&lt;br/&gt;→ review → synthesizer → 输出" vertex="1">
+          <mxGeometry height="40" width="170" x="1420" y="1270" as="geometry" />
+        </mxCell>
+        <mxCell id="e_reuse_merge" edge="1" parent="1" source="fb_reuse_box" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#9673a6;strokeWidth=1;" target="fb_merge">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="fb_synth2" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=9;fontColor=#333;arcSize=15;" value="&lt;b&gt;synthesizer&lt;/b&gt; 锦标赛" vertex="1">
-          <mxGeometry height="35" width="100" x="1455" y="1235" as="geometry" />
-        </mxCell>
-        <mxCell id="e_rev_synth2" edge="1" parent="1" source="fb_review2" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#d6b656;strokeWidth=1.5;" target="fb_synth2">
-          <mxGeometry relative="1" as="geometry" />
+        <mxCell id="fb_intent_note" parent="1" style="shape=note;whiteSpace=wrap;html=1;backgroundOutline=1;size=8;fillColor=#fff2cc;strokeColor=#d79b00;fontSize=7;align=left;spacingLeft=5;" value="&lt;div style=&quot;font-size:7px;text-align:left;line-height:1.3&quot;&gt;&lt;b&gt;feedback_router (统一入口):&lt;/b&gt;&lt;br/&gt;LLM 一刀切分类，不分关键词/fallback:&lt;br/&gt;1. 理解反馈 → 判断走A还是B&lt;br/&gt;   A: &quot;换掉渔女&quot; → 结构化操作&lt;br/&gt;   B: &quot;想多看海边&quot; → 重入原graph&lt;br/&gt;2. 走B时:&lt;br/&gt;   - 组装 prev_round_context&lt;br/&gt;   - 标记 rerun_experts（受影响的）&lt;br/&gt;   - 缓存未受影响expert的上轮提案&lt;br/&gt;   - Command(goto=&quot;expert_router&quot;)&lt;br/&gt;3. expert_router 检测 rerun_experts&lt;br/&gt;   只重跑标记的，其余注入缓存提案&lt;/div&gt;" vertex="1">
+          <mxGeometry height="110" width="160" x="1610" y="1020" as="geometry" />
         </mxCell>
         <mxCell id="fb_out2" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=8;fontColor=#333;arcSize=10;" value="&lt;b&gt;输出&lt;/b&gt; route_cache 更新&lt;br/&gt;+ PreferenceManager 记录" vertex="1">
-          <mxGeometry height="40" width="150" x="1380" y="1285" as="geometry" />
+          <mxGeometry height="40" width="150" x="1430" y="1325" as="geometry" />
         </mxCell>
-        <mxCell id="e_synth_out2" edge="1" parent="1" source="fb_synth2" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#9673a6;strokeWidth=1.5;" target="fb_out2">
+        <mxCell id="e_synth_out2" edge="1" parent="1" source="fb_merge" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#9673a6;strokeWidth=1.5;" target="fb_out2">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
         <mxCell id="dialogue_loop" edge="1" parent="1" source="fb_out2" target="user_feedback" style="edgeStyle=orthogonalEdgeStyle;rounded=1;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.5;entryY=0.5;entryDx=0;entryDy=0;strokeColor=#6c8ebf;strokeWidth=1.5;dashed=1;fontSize=8;fontColor=#6c8ebf;" value="可继续调整(最多10轮)">
@@ -441,8 +444,8 @@
             </Array>
           </mxGeometry>
         </mxCell>
-        <mxCell id="dialogue_note" parent="1" style="shape=note;whiteSpace=wrap;html=1;backgroundOutline=1;size=15;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=8;align=left;spacingLeft=8;" value="&lt;div style=&quot;font-size:8px;text-align:left;line-height:1.5&quot;&gt;&lt;b&gt;双路径设计原则:&lt;/b&gt;&lt;br/&gt;━━━━━━━━━━━━━━━━━━━━&lt;br/&gt;&lt;b&gt;路径A（简单）:&lt;/b&gt; 秒级，就地改route&lt;br/&gt;  适合: 换景点/调节奏/调预算/调时间&lt;br/&gt;  不需要LLM，纯算法&lt;br/&gt;&lt;br/&gt;&lt;b&gt;路径B（复杂）:&lt;/b&gt; 30s级，半程重跑Graph&lt;br/&gt;  适合: &quot;想多看海边&quot; &quot;不喜欢文化类&quot;&lt;br/&gt;  feedback_router(LLM) 统一分类+意图解析&lt;br/&gt;  → 注入 prev_round_context(上一轮决策+效果)&lt;br/&gt;  → expert读取context，不重复犯错&lt;br/&gt;  → review → synthesizer 锦标赛(带前轮评分)&lt;br/&gt;&lt;br/&gt;&lt;b&gt;关键:&lt;/b&gt;&lt;br/&gt;① feedback_router 是 LLM 统一入口&lt;br/&gt;  不做关键词/fallback分层&lt;br/&gt;② 每个agent都能看到上一轮决策效果&lt;br/&gt;  prev_round_context = {last_weights,&lt;br/&gt;  score_5dim, route, reject_reason}&lt;br/&gt;③ 路径B不重跑rule_guard&lt;/div&gt;" vertex="1">
-          <mxGeometry height="200" width="220" x="1610" y="1120" as="geometry" />
+        <mxCell id="dialogue_note" parent="1" style="shape=note;whiteSpace=wrap;html=1;backgroundOutline=1;size=15;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=8;align=left;spacingLeft=8;" value="&lt;div style=&quot;font-size:8px;text-align:left;line-height:1.5&quot;&gt;&lt;b&gt;双路径设计原则:&lt;/b&gt;&lt;br/&gt;━━━━━━━━━━━━━━━━━━━━&lt;br/&gt;&lt;b&gt;路径A（简单）:&lt;/b&gt; 秒级，就地改route&lt;br/&gt;  适合: 换景点/调节奏/调预算/调时间&lt;br/&gt;  不需要LLM，纯算法&lt;br/&gt;&lt;br/&gt;&lt;b&gt;路径B（复杂）:&lt;/b&gt; 重入原graph，非独立mini-graph&lt;br/&gt;  适合: &quot;想多看海边&quot; &quot;不喜欢文化类&quot;&lt;br/&gt;  Command(goto=&quot;expert_router&quot;) 重入&lt;br/&gt;  复用 review↔rework / emergence_check&lt;br/&gt;&lt;br/&gt;&lt;b&gt;计算优化 — 选择性expert重跑:&lt;/b&gt;&lt;br/&gt;  feedback_router 标记 rerun_experts&lt;br/&gt;  &quot;想多看海边&quot; → 只重跑 poi + destination&lt;br/&gt;  food/traffic/hotel 复用上轮缓存提案&lt;br/&gt;  全跑8expert ≈ 30s → 选择性2-3 ≈ 8s&lt;br/&gt;&lt;br/&gt;&lt;b&gt;关键:&lt;/b&gt;&lt;br/&gt;① subgraph re-entry，非独立graph&lt;br/&gt;② 每个agent读取 prev_round_context&lt;br/&gt;③ 只重跑受影响的expert&lt;/div&gt;" vertex="1">
+          <mxGeometry height="230" width="220" x="1610" y="1140" as="geometry" />
         </mxCell>
         <mxCell id="state_flow" parent="1" style="shape=note;whiteSpace=wrap;html=1;backgroundOutline=1;size=15;fillColor=#f0f0f0;strokeColor=#999;fontSize=10;align=left;spacingLeft=8;fontColor=#333;" value="&lt;div style=&quot;font-size:10px;text-align:left;line-height:1.5&quot;&gt;&lt;b&gt;TravelState 数据流总览:&lt;/b&gt;&lt;br/&gt;━━━━━━━━━━━━━━━━━━━━━━━━━━&lt;br/&gt;user_input&lt;br/&gt;  → user_intent + candidates + rule_violations&lt;br/&gt;  → scene_type + expert_weights + active_experts&lt;br/&gt;  → expert_candidates (按专家切分的候选池)&lt;br/&gt;  → Wave1 proposals (4专家并行)&lt;br/&gt;  → wave2_fanin (原样传递)&lt;br/&gt;  → Wave2 proposals (4专家并行)&lt;br/&gt;  → review_feedback → reworked_proposals&lt;br/&gt;  → route + narrative&lt;br/&gt;  → heatmap + decision_trace&lt;/div&gt;" vertex="1">
           <mxGeometry height="180" width="280" x="850" y="1200" as="geometry" />
