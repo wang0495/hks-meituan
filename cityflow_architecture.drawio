@@ -1,6 +1,6 @@
 <mxfile host="Electron" agent="Claude Code">
   <diagram id="cityflow-arch" name="CityFlow 路线规划完整架构">
-    <mxGraphModel dx="1355" dy="879" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="0" pageScale="1" pageWidth="2400" pageHeight="1800" math="0" shadow="0">
+    <mxGraphModel dx="1851" dy="941" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="0" pageScale="1" pageWidth="2400" pageHeight="1800" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
@@ -130,7 +130,7 @@
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
         <mxCell id="review" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;align=left;arcSize=10;spacingLeft=8;" value="&lt;b style=&#39;font-size:13px&#39;&gt;🔍 Review&lt;/b&gt;&lt;br&gt;&lt;i&gt;nodes/review.py:17&lt;/i&gt;&lt;br&gt;&lt;br&gt;&lt;b&gt;做什么:&lt;/b&gt;&lt;br&gt;1. 按scene_type选择检查规则&lt;br&gt;   (美食型→检查餐饮多样性,&lt;br&gt;    目的地型→检查核心目的地,&lt;br&gt;    特种兵型→检查地标覆盖数...)&lt;br&gt;2. _llm_review() LLM审查提案&lt;br&gt;3. 生成review_feedback&lt;br&gt;&lt;br&gt;&lt;b&gt;防死循环:&lt;/b&gt; round&gt;2 强制通过&lt;br&gt;&lt;b&gt;输出:&lt;/b&gt; review_feedback + review_round" vertex="1">
-          <mxGeometry height="200" width="280" x="10" y="1430" as="geometry" />
+          <mxGeometry height="200" width="280" x="-160" y="1576" as="geometry" />
         </mxCell>
         <mxCell id="e_experts_review" edge="1" parent="1" source="experts_box" style="edgeStyle=orthogonalEdgeStyle;strokeWidth=2;strokeColor=#d6b656;" target="review">
           <mxGeometry relative="1" as="geometry" />
