@@ -6,58 +6,26 @@
   架构决策记录（ADR）— 别瞎改，每条都是踩过坑的
 ═════════════════════════════════════════════════════════════
 
-ADR-R1: _fix_food_categories()必须在agent之前执行
-  - POI数据里"美食街"category=文化, "湾仔海鲜街"category=文化
-  - 不修正的话poi_agent会当文化景点选中, 同时food_agent也能选 → 重复
-  - 通过名称关键词识别, 把category覆盖为"餐饮"
-  - 必须在filter_candidates之前, 否则过滤逻辑用的是错误的category
+ADR-R1: _fix_food_categories() 必须在 filter_candidates 之前执行
+  - 已移入 data_service.load_pois()，加载时自动清洗，无需 agent 关心
 
-ADR-R2: _ensure_key_pois_llm()用LLM补核心景点
+ADR-R2: _ensure_key_pois_llm() 用LLM补核心景点
   - 纯规则过滤会漏掉用户隐含需要的核心景点
   - 如"带孩子去长隆"可能被预算过滤砍掉长隆
   - LLM判断更准确, 但多一次API调用
 
 ADR-R3: 场景分类用规则不用LLM
-  - _classify_scene()基于关键词, 不额外调LLM
-  - 5种场景: 美食型 > 目的地型 > 特种兵型 > 休闲型 > 观光型(默认)
-  - 优先级顺序重要: "美食一日游"应是美食型不是观光型
+  - _classify_scene() 基于关键词, 不额外调LLM
+  - 已移入 expert_router.py
 
-ADR-R4: intent_parser超时重试3次再降级
-  - 之前1次超时就fallback到规则匹配, 质量很差
-  - 规则匹配的意图解析会误判: 如"情侣一日游"可能被归为"朋友"
-  - LLM解析质量远高于规则, 值得多等几秒
+ADR-R4: intent_parser 超时重试3次再降级
+  - intent_parser.py 内部已含降级逻辑（_rule_based_parse）
+  - agent 不再感知降级细节
 """
 
 from __future__ import annotations
 
 from backend.agents_v3.state import TravelState, AGENT_META, sse_emit
-
-
-def _check_hard_rules(intent: dict, candidates: list[dict]) -> list[dict]:
-    """检查硬约束，返回违规列表。"""
-    violations = []
-    budget = intent.get("budget", {}).get("per_person", 0)
-    constraints = intent.get("hard_constraints", [])
-
-    if budget > 0 and budget <= 300:
-        over = [c for c in candidates if c.get("avg_price", 0) > budget * 1.2]
-        if over:
-            violations.append({
-                "rule": "budget_hard",
-                "severity": "warning",
-                "description": f"{len(over)}个POI超过预算上限{int(budget*1.2)}元",
-            })
-
-    if "accessible" in constraints:
-        no_access = [c for c in candidates if not c.get("accessible", True)]
-        if no_access:
-            violations.append({
-                "rule": "accessible",
-                "severity": "warning",
-                "description": f"{len(no_access)}个POI缺少无障碍设施",
-            })
-
-    return violations
 
 
 async def rule_guard(state: TravelState) -> dict:
@@ -67,46 +35,25 @@ async def rule_guard(state: TravelState) -> dict:
     await sse_emit(state, "agent_thinking", {"agent": "rule_guard", "text": "解析自然语言意图..."})
 
     user_input = state.get("user_input", "")
-    errors = []
+    errors: list[str] = []
 
-    # ── 意图解析 ──
+    # ── 1. 意图解析（service 内含 LLM+降级） ──
+    from backend.services.intent_parser import parse_intent
+
     try:
-        from backend.services.intent_parser import parse_intent
         user_intent = await parse_intent(user_input)
     except Exception as e:
         errors.append(f"意图解析失败: {e}")
-        user_intent = _fallback_intent(user_input)
+        user_intent = _bare_intent(user_input)
 
-    # ── 从美团API加载POI ──
-    await sse_emit(state, "agent_thinking", {"agent": "rule_guard", "text": f"加载POI数据，硬约束预筛..."})
-    try:
-        from backend.agents_v3.meituan_client import fetch_pois
-        all_pois = await fetch_pois()
-    except Exception as e:
-        errors.append(f"美团API不可用: {e}")
-        # 降级到本地JSON
-        try:
-            from backend.services.data_service import get_data
-            all_pois = get_data()
-            if isinstance(all_pois, dict):
-                all_pois = list(all_pois.values())
-            elif not isinstance(all_pois, list):
-                all_pois = []
-        except Exception as e2:
-            errors.append(f"本地数据也不可用: {e2}")
-            all_pois = []
+    # ── 2. 加载POI（统一入口：美团API → 本地JSON → 清洗 → 城市过滤） ──
+    await sse_emit(state, "agent_thinking", {"agent": "rule_guard", "text": "加载POI数据，硬约束预筛..."})
+    from backend.services.data_service import load_pois
 
-    # ── 修正被误分类的美食POI ──
-    _fix_food_categories(all_pois)
-
-    # ── 只保留目标城市POI ──
     target_city = user_intent.get("city", "珠海")
-    if all_pois:
-        zhuhai_pois = [p for p in all_pois if p.get("city", "") == target_city or not p.get("city")]
-        if len(zhuhai_pois) >= 10:
-            all_pois = zhuhai_pois
+    all_pois = await load_pois(city=target_city, errors=errors)
 
-    # ── 预筛（宽松：只做最基本过滤，让Agent自己选） ──
+    # ── 3. 硬约束预筛 ──
     candidates = all_pois
     if all_pois:
         try:
@@ -115,11 +62,12 @@ async def rule_guard(state: TravelState) -> dict:
         except Exception:
             candidates = all_pois[:120]
 
-        # 用LLM判断需要哪些核心景点，确保在候选池中
+        # ── 4. LLM 补充关键景点（agent 核心智能） ──
         candidates = await _ensure_key_pois_llm(candidates, all_pois, user_input, user_intent)
 
-    # ── 元规则防火墙检查 ──
-    rule_violations = _check_hard_rules(user_intent, candidates)
+    # ── 5. 硬约束违规检查 ──
+    from backend.services.filters import check_hard_rules
+    rule_violations = check_hard_rules(user_intent, candidates)
 
     # scene_type 由 expert_router 设置，这里不设置
 
@@ -131,6 +79,21 @@ async def rule_guard(state: TravelState) -> dict:
         "rule_violations": rule_violations,
         "meta_rules": [],
         "errors": errors,
+    }
+
+
+def _bare_intent(user_input: str) -> dict:
+    """intent_parser 也失败时的最小兜底（不应走到这里）。"""
+    return {
+        "city": "珠海",
+        "time": {"period": "全天", "start": "09:00", "end": "20:00"},
+        "budget": {"per_person": 500, "type": "弹性"},
+        "group": {"size": 2, "type": "情侣"},
+        "preferences": {"culture": 0.5, "food": 0.5, "nature": 0.5, "social": 0.3},
+        "pace": "平衡型",
+        "hard_constraints": [],
+        "preferred_categories": ["景点"],
+        "_raw_input": user_input,
     }
 
 
@@ -218,76 +181,3 @@ def _fallback_must_have(user_input: str) -> list[str]:
     if not needed:
         needed = {"长隆海洋王国", "珠海渔女", "情侣路", "圆明新园", "海滨泳场"}
     return list(needed)
-
-
-def _fallback_intent(user_input: str) -> dict:
-    """意图解析降级。"""
-    text = user_input.lower()
-    intent = {
-        "city": "珠海",
-        "time": {"period": "全天", "start": "09:00", "end": "20:00"},
-        "budget": {"per_person": 500, "type": "弹性"},
-        "group": {"size": 2, "type": "情侣"},
-        "preferences": {"culture": 0.5, "food": 0.5, "nature": 0.5, "social": 0.3},
-        "pace": "平衡型",
-        "hard_constraints": [],
-        "preferred_categories": ["景点"],
-        "_raw_input": user_input,
-    }
-
-    if any(kw in text for kw in ["亲子", "孩子", "儿童"]):
-        intent["group"] = {"size": 3, "type": "亲子"}
-        intent["hard_constraints"].append("accessible")
-        intent["preferred_categories"] = ["娱乐", "景点"]
-    elif any(kw in text for kw in ["父母", "养老", "老人"]):
-        intent["group"] = {"size": 3, "type": "退休"}
-        intent["pace"] = "闲逛型"
-        intent["preferred_categories"] = ["公园", "景点"]
-    elif "朋友" in text:
-        intent["group"] = {"size": 4, "type": "朋友"}
-
-    if any(kw in text for kw in ["穷", "便宜", "省钱"]):
-        intent["budget"] = {"per_person": 200, "type": "硬约束"}
-    elif any(kw in text for kw in ["豪华", "高档"]):
-        intent["budget"] = {"per_person": 1500, "type": "弹性"}
-
-    if any(kw in text for kw in ["美食", "海鲜", "吃"]):
-        intent["preferred_categories"] = ["餐饮"]
-        intent["preferences"]["food"] = 0.9
-    elif "特种兵" in text:
-        intent["pace"] = "特种兵型"
-        intent["preferred_categories"] = ["景点", "娱乐"]
-    elif "拍照" in text:
-        intent["preferred_categories"] = ["景点", "文化"]
-
-    return intent
-
-
-# 名称中包含这些关键词的POI，即使category不是餐饮也应归为餐饮
-_FOOD_NAME_KWS = [
-    "美食街", "海鲜街", "小吃街", "美食城", "美食广场", "食街",
-    "夜市", "大排档", "海鲜城", "海鲜市场", "水产市场",
-]
-# 名称中包含这些关键词的，不是景点而是餐饮
-_EXCLUDE_FROM_POI = [
-    "餐厅", "茶餐厅", "火锅", "烧烤", "甜品", "奶茶", "咖啡",
-    "粉麵", "粥", "点心", "早茶", "烧腊", "煲仔",
-]
-
-
-def _fix_food_categories(pois: list[dict]) -> None:
-    """修正被误分类的美食POI：通过名称识别，把category覆盖为餐饮。"""
-    food_cats = {"餐饮", "美食", "小吃", "夜市小吃"}
-    for p in pois:
-        cat = p.get("category", "")
-        if cat in food_cats:
-            continue
-        name = p.get("name", "")
-        for kw in _FOOD_NAME_KWS:
-            if kw in name:
-                p["_original_category"] = cat
-                p["category"] = "餐饮"
-                break
-
-
-# _classify_scene 已移入 expert_router.py（作为LLM降级fallback）

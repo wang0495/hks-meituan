@@ -308,12 +308,48 @@ def filter_candidates(
     return result
 
 
+def check_hard_rules(intent: dict[str, Any], candidates: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """检查硬约束，返回违规列表。
+
+    Args:
+        intent: 用户意图字典
+        candidates: 候选POI列表
+
+    Returns:
+        违规事件列表，每项含 rule/severity/description
+    """
+    violations: list[dict[str, Any]] = []
+    budget = intent.get("budget", {}).get("per_person", 0)
+    constraints = intent.get("hard_constraints", [])
+
+    if budget > 0 and budget <= 300:
+        over = [c for c in candidates if c.get("avg_price", 0) > budget * 1.2]
+        if over:
+            violations.append({
+                "rule": "budget_hard",
+                "severity": "warning",
+                "description": f"{len(over)}个POI超过预算上限{int(budget*1.2)}元",
+            })
+
+    if "accessible" in constraints:
+        no_access = [c for c in candidates if not c.get("accessible", True)]
+        if no_access:
+            violations.append({
+                "rule": "accessible",
+                "severity": "warning",
+                "description": f"{len(no_access)}个POI缺少无障碍设施",
+            })
+
+    return violations
+
+
 # ---------------------------------------------------------------------------
 # 重新导出（向后兼容）
 # ---------------------------------------------------------------------------
 
 __all__ = [
     "filter_candidates",
+    "check_hard_rules",
     "emotion_compatibility",
     "emotion_compatibility_with_consecutive",
     "fatigue_penalty",

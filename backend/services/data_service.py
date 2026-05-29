@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import json
 import logging
 from pathlib import Path
@@ -114,3 +116,71 @@ async def get_poi_data_async(
     except Exception:
         logger.exception("DB 查询失败，回退 JSON")
         return get_data("city_poi_db", filters)
+
+
+# ---------------------------------------------------------------------------
+# 统一 POI 加载（美团API → 本地JSON → 清洗 → 城市过滤）
+# ---------------------------------------------------------------------------
+
+# 名称中包含这些关键词的POI，即使category不是餐饮也应归为餐饮
+_FOOD_NAME_KWS = [
+    "美食街", "海鲜街", "小吃街", "美食城", "美食广场", "食街",
+    "夜市", "大排档", "海鲜城", "海鲜市场", "水产市场",
+]
+
+
+def _fix_food_categories(pois: list[dict[str, Any]]) -> None:
+    """修正被误分类的美食POI：通过名称识别，把category覆盖为餐饮。"""
+    food_cats = {"餐饮", "美食", "小吃", "夜市小吃"}
+    for p in pois:
+        cat = p.get("category", "")
+        if cat in food_cats:
+            continue
+        name = p.get("name", "")
+        for kw in _FOOD_NAME_KWS:
+            if kw in name:
+                p["_original_category"] = cat
+                p["category"] = "餐饮"
+                break
+
+
+async def load_pois(city: str = "珠海", errors: list[str] | None = None) -> list[dict[str, Any]]:
+    """统一POI加载：美团API → 本地JSON降级 → 数据清洗 → 城市过滤。
+
+    Args:
+        city: 目标城市，默认珠海。
+        errors: 可选的错误收集列表，调用方传入可追踪降级原因。
+
+    Returns:
+        清洗并按城市过滤后的POI列表。
+    """
+    errs = errors or []
+
+    # 1. 优先从美团API加载
+    try:
+        from backend.agents_v3.meituan_client import fetch_pois
+
+        all_pois = await fetch_pois()
+    except Exception as e:
+        errs.append(f"美团API不可用: {e}")
+        # 2. 降级到本地JSON
+        try:
+            all_pois = get_data()
+            if isinstance(all_pois, dict):
+                all_pois = list(all_pois.values())
+            elif not isinstance(all_pois, list):
+                all_pois = []
+        except Exception as e2:
+            errs.append(f"本地数据也不可用: {e2}")
+            all_pois = []
+
+    # 3. 数据清洗：修正被误分类的美食POI
+    _fix_food_categories(all_pois)
+
+    # 4. 城市过滤
+    if all_pois:
+        city_pois = [p for p in all_pois if p.get("city", "") == city or not p.get("city")]
+        if len(city_pois) >= 10:
+            all_pois = city_pois
+
+    return all_pois
