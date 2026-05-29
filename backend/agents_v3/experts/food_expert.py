@@ -227,6 +227,23 @@ async def food_expert(state: TravelState) -> dict:
             "请严格按照反馈要求重新选择，不要重复之前的错误。"
         )
 
+    # ── Read prev_round_context (for feedback re-entry) ──
+    prev_ctx = state.get("prev_round_context", {})
+    context_hint = ""
+    if prev_ctx:
+        last_score = prev_ctx.get("last_score", 0)
+        score_dims = prev_ctx.get("score_5dim", {})
+        last_stops = prev_ctx.get("last_stops", [])
+        reject_reason = prev_ctx.get("reject_reason", "")
+        dims_str = "; ".join(f"{k}={v}" for k, v in score_dims.items() if v)
+        context_hint = (
+            f"\n\n【上一轮路线评分（反馈重入），请参考并改进】\n"
+            f"总分: {last_score} | 分项: {dims_str}\n"
+            f"上一轮路线: {' → '.join(last_stops[:8])}\n"
+            f"用户不满意原因: {reject_reason}\n"
+            f"要求: 保持上一轮高分维度不退化，重点改进低分维度。"
+        )
+
     # ── Load all food POIs from data source (same as original food_agent) ──
     all_pois = await _load_all_pois()
     target_city = intent.get("city", "珠海")
@@ -374,7 +391,7 @@ async def food_expert(state: TravelState) -> dict:
 
 候选餐厅（{len(stratified)}家，分层采样）:
 {json.dumps(summaries, ensure_ascii=False)}
-{feedback_hint}
+{feedback_hint}{context_hint}
 请根据餐厅与景点的坐标距离，推荐最方便的就餐选择。"""
 
     result = await _llm_decide(system, user)
