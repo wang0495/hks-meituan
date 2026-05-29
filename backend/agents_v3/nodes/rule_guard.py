@@ -30,8 +30,34 @@ ADR-R4: intent_parser超时重试3次再降级
 
 from __future__ import annotations
 
-from backend.agents_v3.firewall.meta_rule_firewall import check_hard_rules
 from backend.agents_v3.state import TravelState, AGENT_META, sse_emit
+
+
+def _check_hard_rules(intent: dict, candidates: list[dict]) -> list[dict]:
+    """检查硬约束，返回违规列表。"""
+    violations = []
+    budget = intent.get("budget", {}).get("per_person", 0)
+    constraints = intent.get("hard_constraints", [])
+
+    if budget > 0 and budget <= 300:
+        over = [c for c in candidates if c.get("avg_price", 0) > budget * 1.2]
+        if over:
+            violations.append({
+                "rule": "budget_hard",
+                "severity": "warning",
+                "description": f"{len(over)}个POI超过预算上限{int(budget*1.2)}元",
+            })
+
+    if "accessible" in constraints:
+        no_access = [c for c in candidates if not c.get("accessible", True)]
+        if no_access:
+            violations.append({
+                "rule": "accessible",
+                "severity": "warning",
+                "description": f"{len(no_access)}个POI缺少无障碍设施",
+            })
+
+    return violations
 
 
 async def rule_guard(state: TravelState) -> dict:
@@ -93,7 +119,7 @@ async def rule_guard(state: TravelState) -> dict:
         candidates = await _ensure_key_pois_llm(candidates, all_pois, user_input, user_intent)
 
     # ── 元规则防火墙检查 ──
-    rule_violations = check_hard_rules(user_intent, candidates)
+    rule_violations = _check_hard_rules(user_intent, candidates)
 
     # scene_type 由 expert_router 设置，这里不设置
 
