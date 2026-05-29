@@ -121,8 +121,8 @@ def _get_client() -> AsyncOpenAI:
         cfg = get_settings().intent_llm
         base_url = cfg.base_url
         api_key = cfg.api_key
-        if not base_url.rstrip("/").endswith("/v1"):
-            base_url = base_url.rstrip("/") + "/v1"
+        # 不再强制追加 /v1 — 适配讯飞 MaaS 等 base_url 已含路径的 API
+        # 例: base_url="https://maas-coding-api.cn-huabei-1.xf-yun.com/v2"
         _client = AsyncOpenAI(base_url=base_url, api_key=api_key)
     return _client
 
