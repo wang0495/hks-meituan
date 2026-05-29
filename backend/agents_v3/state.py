@@ -63,6 +63,12 @@ class TravelState(TypedDict, total=False):
     # 错误（并发合并）
     errors: Annotated[list[str], operator.add]
 
+    # ── 反馈重入 (Path B) ──
+    feedback_mode: bool                  # True=反馈重入模式
+    rerun_experts: list[str]            # 需要重跑的expert列表
+    cached_proposals: list[dict]       # 未重跑expert的上轮缓存提案
+    prev_round_context: dict             # 上一轮决策+效果 {last_weights, score_5dim, route, reject_reason}
+
 
 # ── Agent 元数据（工牌） ──
 AGENT_META: dict[str, dict] = {

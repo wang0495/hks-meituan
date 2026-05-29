@@ -12,6 +12,10 @@
                         │
                         ↓
                   live_itinerary → END
+
+反馈重入 (Path B):
+  feedback_router(LLM分类反馈) → feedback_entry(选择性重跑)
+     → Wave1(仅rerun_experts) → Wave2 → review → synthesizer → END
 """
 
 from __future__ import annotations
@@ -44,6 +48,7 @@ def _wave1_dispatcher(state: TravelState) -> list[Send]:
     """Wave 1: 数据独立的专家并行执行。
 
     如果没有 Wave1 专家匹配，直接跳到 wave2_fanin（然后到 review）。
+    复用于 normal 和 feedback 模式：检查 active_experts 决定分派哪些。
     """
     active = state.get("active_experts", [])
     wave1_active = [name for name in active if name in WAVE1_EXPERTS]
@@ -80,77 +85,6 @@ def _wave2_fanin(state: TravelState) -> dict:
     return {}  # LangGraph merges empty dict into state
 
 
-def build_graph_c():
-    """构建MoE版本图（两波分派）。"""
-    from backend.agents_v3.nodes.rule_guard import rule_guard
-    from backend.agents_v3.nodes.expert_router import expert_router
-    from backend.agents_v3.nodes.review import review, rework
-    from backend.agents_v3.nodes.synthesizer import synthesizer
-    from backend.agents_v3.nodes.live_itinerary_node import live_itinerary
-
-    graph = StateGraph(TravelState)
-
-    # ── 注册节点 ──
-    graph.add_node("rule_guard", rule_guard)
-    graph.add_node("expert_router", expert_router)
-    graph.add_node("wave2_fanin", _wave2_fanin)
-
-    # 动态注册所有专家节点
-    _loaded_experts = {}
-    for name, (module_path, func_name) in _EXPERT_MAP.items():
-        import importlib
-        mod = importlib.import_module(module_path)
-        func = getattr(mod, func_name)
-        graph.add_node(name, func)
-        _loaded_experts[name] = name
-
-    graph.add_node("review", review)
-    graph.add_node("rework", rework)
-    graph.add_node("synthesizer", synthesizer)
-    graph.add_node("live_itinerary", live_itinerary)
-
-    # ── 边 ──
-    graph.set_entry_point("rule_guard")
-
-    # rule_guard → expert_router
-    graph.add_edge("rule_guard", "expert_router")
-
-    # expert_router → Wave1 fan-out（数据独立的专家）
-    graph.add_conditional_edges("expert_router", _wave1_dispatcher)
-
-    # Wave1 experts → wave2_fanin（汇聚点）
-    for name in WAVE1_EXPERTS:
-        if name in _loaded_experts:
-            graph.add_edge(name, "wave2_fanin")
-
-    # wave2_fanin → Wave2 fan-out（条件边分发）
-    graph.add_conditional_edges("wave2_fanin", _wave2_dispatcher)
-
-    # Wave2 experts → review（最终 fan-in）
-    for name in WAVE2_EXPERTS:
-        if name in _loaded_experts:
-            graph.add_edge(name, "review")
-
-    # review → 条件边
-    graph.add_conditional_edges(
-        "review",
-        _review_router,
-        {
-            "approved": "synthesizer",
-            "rework": "rework",
-        },
-    )
-
-    # rework → review（修完二次检查，review_round上限防死循环）
-    graph.add_edge("rework", "review")
-
-    # synthesizer → live_itinerary → END
-    graph.add_edge("synthesizer", "live_itinerary")
-    graph.add_edge("live_itinerary", END)
-
-    return graph.compile()
-
-
 def _review_router(state: TravelState) -> str:
     """review后的路由：有反馈→rework，没反馈→前进。"""
     feedback = state.get("review_feedback", [])
@@ -165,12 +99,107 @@ def _review_router(state: TravelState) -> str:
     return "rework"
 
 
-_graph_c = None
+# ── 共享构建逻辑 ──
+
+def _register_nodes(graph: StateGraph) -> dict[str, str]:
+    """注册所有节点（normal 和 feedback 共用），返回已注册的expert名。"""
+    from backend.agents_v3.nodes.rule_guard import rule_guard
+    from backend.agents_v3.nodes.expert_router import expert_router
+    from backend.agents_v3.nodes.feedback_entry import feedback_entry
+    from backend.agents_v3.nodes.review import review, rework
+    from backend.agents_v3.nodes.synthesizer import synthesizer
+    from backend.agents_v3.nodes.live_itinerary_node import live_itinerary
+
+    graph.add_node("rule_guard", rule_guard)
+    graph.add_node("expert_router", expert_router)
+    graph.add_node("feedback_entry", feedback_entry)
+    graph.add_node("wave2_fanin", _wave2_fanin)
+
+    _loaded_experts: dict[str, str] = {}
+    for name, (module_path, func_name) in _EXPERT_MAP.items():
+        import importlib
+        mod = importlib.import_module(module_path)
+        func = getattr(mod, func_name)
+        graph.add_node(name, func)
+        _loaded_experts[name] = name
+
+    graph.add_node("review", review)
+    graph.add_node("rework", rework)
+    graph.add_node("synthesizer", synthesizer)
+    graph.add_node("live_itinerary", live_itinerary)
+
+    return _loaded_experts
 
 
-def get_graph_c():
+def _add_shared_edges(graph: StateGraph, loaded: dict[str, str]) -> None:
+    """添加从 Wave1 fan-in 到 END 的共享边。"""
+    for name in WAVE1_EXPERTS:
+        if name in loaded:
+            graph.add_edge(name, "wave2_fanin")
+
+    graph.add_conditional_edges("wave2_fanin", _wave2_dispatcher)
+
+    for name in WAVE2_EXPERTS:
+        if name in loaded:
+            graph.add_edge(name, "review")
+
+    graph.add_conditional_edges(
+        "review",
+        _review_router,
+        {"approved": "synthesizer", "rework": "rework"},
+    )
+    graph.add_edge("rework", "review")
+    graph.add_edge("synthesizer", "live_itinerary")
+    graph.add_edge("live_itinerary", END)
+
+
+def build_graph_c() -> StateGraph:
+    """构建MoE版本图（正常流程，从 rule_guard 开始）。"""
+    graph = StateGraph(TravelState)
+    loaded = _register_nodes(graph)
+
+    graph.set_entry_point("rule_guard")
+    graph.add_edge("rule_guard", "expert_router")
+    graph.add_conditional_edges("expert_router", _wave1_dispatcher)
+    _add_shared_edges(graph, loaded)
+
+    return graph.compile()
+
+
+def build_feedback_graph_c() -> StateGraph:
+    """构建反馈重入图（从 feedback_entry 开始）。
+
+    复用所有 node 和从 Wave1 到 END 的共享边。
+    feedback_entry 通过 active_experts 控制哪些 expert 重跑，
+    未重跑 expert 的缓存提案在 feedback_entry 中注入 proposals。
+    """
+    graph = StateGraph(TravelState)
+    loaded = _register_nodes(graph)
+
+    graph.set_entry_point("feedback_entry")
+    graph.add_conditional_edges("feedback_entry", _wave1_dispatcher)
+    _add_shared_edges(graph, loaded)
+
+    return graph.compile()
+
+
+# ── 单例 ──
+
+_graph_c: StateGraph | None = None
+_feedback_graph_c: StateGraph | None = None
+
+
+def get_graph_c() -> StateGraph:
     """获取MoE版本图（单例）。"""
     global _graph_c
     if _graph_c is None:
         _graph_c = build_graph_c()
     return _graph_c
+
+
+def get_feedback_graph_c() -> StateGraph:
+    """获取反馈重入图（单例）。"""
+    global _feedback_graph_c
+    if _feedback_graph_c is None:
+        _feedback_graph_c = build_feedback_graph_c()
+    return _feedback_graph_c
