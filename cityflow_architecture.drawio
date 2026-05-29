@@ -99,7 +99,7 @@
         <mxCell id="experts_box" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f0f8ff;strokeColor=#4dd8e8;strokeWidth=2;arcSize=5;" value="" vertex="1">
           <mxGeometry height="100" width="1290" x="95" y="1223" as="geometry" />
         </mxCell>
-        <mxCell id="experts_title" parent="1" style="text;html=1;fontSize=12;fontStyle=1;fontColor=#4dd8e8;align=left;verticalAlign=top;" value="专家集群 (按需激活, 并行执行, 共享 base.py LLM客户端池)（&lt;font style=&quot;color: rgb(255, 51, 51);&quot;&gt;这里有些智能体不应该并行 有些可以并行 有些需要优化&lt;/font&gt;）" vertex="1">
+        <mxCell id="experts_title" parent="1" style="text;html=1;fontSize=12;fontStyle=1;fontColor=#4dd8e8;align=left;verticalAlign=top;" value="专家集群 (按需激活, 两波分派, 共享 base.py LLM客户端池) — Wave1: POI/Food/Weather/Destination (数据独立) | Wave2: Traffic/Hotel/Local/Budget (依赖Wave1)" vertex="1">
           <mxGeometry height="20" width="500" x="90" y="1223" as="geometry" />
         </mxCell>
         <mxCell id="exp_poi" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=10;fontStyle=0;arcSize=12;" value="🏛 &lt;b&gt;POI&lt;/b&gt;&lt;br&gt;景点筛选&lt;br&gt;&lt;i&gt;始终激活&lt;/i&gt;" vertex="1">
@@ -135,7 +135,7 @@
         <mxCell id="e_experts_review" edge="1" parent="1" source="experts_box" style="edgeStyle=orthogonalEdgeStyle;strokeWidth=2;strokeColor=#d6b656;" target="review">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="rework" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=11;align=left;arcSize=10;spacingLeft=8;" value="&lt;b style=&quot;font-size:13px&quot;&gt;🔄 Rework&lt;/b&gt;&lt;br&gt;&lt;i&gt;nodes/review.py:137&lt;/i&gt;&lt;br&gt;&lt;br&gt;&lt;b&gt;做什么:（&lt;font style=&quot;color: rgb(255, 51, 51);&quot;&gt;可能存在问题 为什么只重选景点和餐饮 其余的呢？&lt;/font&gt;）&lt;/b&gt;&lt;br&gt;1. 删除有问题agent的旧proposals&lt;br&gt;2. _rework_poi() LLM重选景点&lt;br&gt;3. _rework_food() LLM重选餐饮&lt;br&gt;4. 合并: kept + reworked proposals&lt;br&gt;&lt;br&gt;&lt;b&gt;输出:&lt;/b&gt;&lt;br&gt;reworked_proposals (覆盖原proposals)" vertex="1">
+        <mxCell id="rework" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=11;align=left;arcSize=10;spacingLeft=8;" value="&lt;b style=&quot;font-size:13px&quot;&gt;🔄 Rework&lt;/b&gt;&lt;br&gt;&lt;i&gt;nodes/review.py:137&lt;/i&gt;&lt;br&gt;&lt;br&gt;&lt;b&gt;做什么 (P1已扩展至全Expert):&lt;/b&gt;&lt;br&gt;1. 删除有问题agent的旧proposals&lt;br&gt;2. _rework_poi() LLM重选景点&lt;br&gt;3. _rework_food() LLM重选餐饮&lt;br&gt;4. _rework_generic() LLM重选hotel/traffic/&lt;br&gt;   local_expert/destination/budget_hacker&lt;br&gt;5. 合并: kept + reworked proposals&lt;br&gt;&lt;br&gt;&lt;b&gt;输出:&lt;/b&gt;&lt;br&gt;reworked_proposals (覆盖原proposals)" vertex="1">
           <mxGeometry height="170" width="270" x="435" y="1380" as="geometry" />
         </mxCell>
         <mxCell id="e_review_rework" edge="1" parent="1" source="review" style="edgeStyle=orthogonalEdgeStyle;strokeWidth=2;strokeColor=#b85450;fontSize=11;fontStyle=1;fontColor=#b85450;" target="rework" value="&lt;b&gt;不通过&lt;/b&gt; (有issues)">
@@ -191,7 +191,7 @@
         <mxCell id="phase3_title" parent="1" style="text;html=1;fontSize=15;fontStyle=1;fontColor=#ff5a88;align=left;verticalAlign=top;" value="Phase 3: 文案生成" vertex="1">
           <mxGeometry height="25" width="200" x="270" y="1665" as="geometry" />
         </mxCell>
-        <mxCell id="narrator" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=10;align=left;arcSize=10;spacingLeft=5;" value="&lt;b style=&quot;font-size:12px&quot;&gt;✍️ Narrator（可能存在的问题 这里面的5s超时时间会不会太短）&lt;/b&gt;&lt;br&gt;&lt;i&gt;narrator.py:433&lt;/i&gt;&lt;br&gt;&lt;br&gt;1. 情绪曲线计算 (6维)&lt;br&gt;2. 时间/体验/情绪设计表&lt;br&gt;3. 模板驱动 + LLM润色&lt;br&gt;4. 超时5s → 空白文案兜底" vertex="1">
+        <mxCell id="narrator" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=10;align=left;arcSize=10;spacingLeft=5;" value="&lt;b style=&quot;font-size:12px&quot;&gt;✍️ Narrator (P2: 超时已修复5s→15s)&lt;/b&gt;&lt;br&gt;&lt;i&gt;narrator.py:433&lt;/i&gt;&lt;br&gt;&lt;br&gt;1. 情绪曲线计算 (6维)&lt;br&gt;2. 时间/体验/情绪设计表&lt;br&gt;3. 模板驱动 + LLM润色&lt;br&gt;4. 超时15s → 模板文案兜底" vertex="1">
           <mxGeometry height="100" width="250" x="275" y="1695" as="geometry" />
         </mxCell>
         <mxCell id="emotion_module" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10;align=left;arcSize=10;spacingLeft=5;" value="&lt;b style=&#39;font-size:12px&#39;&gt;🎭 Emotion&lt;/b&gt;&lt;br&gt;&lt;i&gt;emotion.py&lt;/i&gt;&lt;br&gt;&lt;br&gt;• get_dominant_emotion() 主导情绪&lt;br&gt;• chemical_reaction() 化学反应矩阵&lt;br&gt;• sensory_alternation() 感官交替&lt;br&gt;• fatigue_penalty() 疲劳度惩罚" vertex="1">
@@ -465,179 +465,6 @@
         </mxCell>
         <mxCell id="xig67QonhW9qwMeS7Yfu-23" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;" value="&lt;font style=&quot;color: rgb(255, 204, 230);&quot;&gt;粉色是可选u优化的点&lt;/font&gt;" vertex="1">
           <mxGeometry height="30" width="210" x="995" y="2205" as="geometry" />
-        </mxCell>
-        <!-- ========== 修正标注 + 修正后流向图 ========== -->
-        <!-- 标题: 修正后流向 -->
-        <mxCell id="fix_title" parent="1" style="text;html=1;fontSize=16;fontStyle=1;fontColor=#1a1a2e;align=center;fillColor=none;strokeColor=none;" value="修正后架构流向 (P0 两波分派 + P1 全Expert Rework + P5 决策溯源)" vertex="1">
-          <mxGeometry height="30" width="600" x="1350" y="760" as="geometry" />
-        </mxCell>
-
-        <!-- ===== P0: expert_router → wave1 dispatcher ===== -->
-        <mxCell id="fix_router" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=11;arcSize=15;shadow=1;" value="&lt;b&gt;expert_router&lt;/b&gt;&lt;br/&gt;&lt;font style=&quot;font-size:8px&quot;&gt;scene_type + weights&lt;/font&gt;" vertex="1">
-          <mxGeometry height="40" width="140" x="1370" y="800" as="geometry" />
-        </mxCell>
-
-        <mxCell id="fix_w1_disp" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=10;arcSize=15;shadow=1;" value="&lt;b&gt;_expert_dispatcher&lt;/b&gt;&lt;br/&gt;&lt;font style=&quot;font-size:8px&quot;&gt;Wave 1 Send()&lt;/font&gt;" vertex="1">
-          <mxGeometry height="40" width="150" x="1370" y="860" as="geometry" />
-        </mxCell>
-        <mxCell id="fix_e_r_w1" edge="1" parent="1" source="fix_router" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#333;strokeWidth=1.5;" target="fix_w1_disp">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-
-        <!-- Wave 1 专家 (并行) -->
-        <mxCell id="fix_w1_box" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e8f5e9;strokeColor=#4CAF50;strokeWidth=2;arcSize=8;dashed=1;" value="" vertex="1">
-          <mxGeometry height="65" width="580" x="1310" y="920" as="geometry" />
-        </mxCell>
-        <mxCell id="fix_w1_tag" parent="1" style="text;html=1;fontSize=10;fontStyle=1;fontColor=#4CAF50;align=left;fillColor=none;strokeColor=none;" value="Wave 1 (并行, 数据独立)" vertex="1">
-          <mxGeometry height="15" width="200" x="1315" y="920" as="geometry" />
-        </mxCell>
-        <mxCell id="fix_w1_poi" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=9;arcSize=12;" value="&lt;b&gt;POI&lt;/b&gt; 景点" vertex="1">
-          <mxGeometry height="40" width="80" x="1320" y="940" as="geometry" />
-        </mxCell>
-        <mxCell id="fix_w1_food" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=9;arcSize=12;" value="&lt;b&gt;Food&lt;/b&gt; 餐饮" vertex="1">
-          <mxGeometry height="40" width="80" x="1410" y="940" as="geometry" />
-        </mxCell>
-        <mxCell id="fix_w1_weather" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=9;arcSize=12;" value="&lt;b&gt;Weather&lt;/b&gt; 天气" vertex="1">
-          <mxGeometry height="40" width="80" x="1500" y="940" as="geometry" />
-        </mxCell>
-        <mxCell id="fix_w1_dest" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=9;arcSize=12;" value="&lt;b&gt;Destination&lt;/b&gt; 目的地" vertex="1">
-          <mxGeometry height="40" width="90" x="1590" y="940" as="geometry" />
-        </mxCell>
-        <!-- P5标注 -->
-        <mxCell id="fix_w1_p5" parent="1" style="text;html=1;fontSize=8;fontColor=#00AA00;align=left;fillColor=none;strokeColor=none;" value="每个Expert返回&lt;br/&gt;+ selection_reason (P5)" vertex="1">
-          <mxGeometry height="25" width="120" x="1700" y="948" as="geometry" />
-        </mxCell>
-
-        <mxCell id="fix_e_w1poi" edge="1" parent="1" source="fix_w1_disp" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#4CAF50;strokeWidth=1.5;" target="fix_w1_poi">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-        <mxCell id="fix_e_w1food" edge="1" parent="1" source="fix_w1_disp" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#4CAF50;strokeWidth=1.5;" target="fix_w1_food">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-        <mxCell id="fix_e_w1wea" edge="1" parent="1" source="fix_w1_disp" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#4CAF50;strokeWidth=1.5;" target="fix_w1_weather">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-        <mxCell id="fix_e_w1dest" edge="1" parent="1" source="fix_w1_disp" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#4CAF50;strokeWidth=1.5;" target="fix_w1_dest">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-
-        <!-- Wave1 Fan-in -->
-        <mxCell id="fix_w1_fanin" parent="1" style="text;html=1;fontSize=10;fontStyle=1;fontColor=#4CAF50;align=center;fillColor=none;strokeColor=#4CAF50;strokeWidth=1;rounded=1;" value="Wave 1 Fan-in" vertex="1">
-          <mxGeometry height="18" width="110" x="1390" y="995" as="geometry" />
-        </mxCell>
-
-        <!-- Wave 2 Dispatcher (新增节点) -->
-        <mxCell id="fix_w2_disp" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=10;arcSize=15;shadow=1;strokeWidth=2;" value="&lt;b&gt;_wave2_dispatcher&lt;/b&gt;&lt;br/&gt;&lt;font style=&quot;font-size:8px&quot;&gt;读取W1 proposals后&lt;br/&gt;发送 Wave 2 Send()&lt;/font&gt;" vertex="1">
-          <mxGeometry height="50" width="160" x="1370" y="1030" as="geometry" />
-        </mxCell>
-        <mxCell id="fix_e_w1fi_w2d" edge="1" parent="1" source="fix_w1_fanin" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#4CAF50;strokeWidth=1.5;" target="fix_w2_disp">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-
-        <!-- Wave 2 专家 (依赖Wave1) -->
-        <mxCell id="fix_w2_box" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF3E0;strokeColor=#FF9800;strokeWidth=2;arcSize=8;dashed=1;" value="" vertex="1">
-          <mxGeometry height="65" width="580" x="1310" y="1095" as="geometry" />
-        </mxCell>
-        <mxCell id="fix_w2_tag" parent="1" style="text;html=1;fontSize=10;fontStyle=1;fontColor=#FF9800;align=left;fillColor=none;strokeColor=none;" value="Wave 2 (并行, 依赖Wave1的POI结果)" vertex="1">
-          <mxGeometry height="15" width="280" x="1315" y="1095" as="geometry" />
-        </mxCell>
-        <mxCell id="fix_w2_traffic" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=9;arcSize=12;" value="&lt;b&gt;Traffic&lt;/b&gt;&lt;br/&gt;需POI列表算路线" vertex="1">
-          <mxGeometry height="40" width="100" x="1320" y="1115" as="geometry" />
-        </mxCell>
-        <mxCell id="fix_w2_hotel" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=9;arcSize=12;" value="&lt;b&gt;Hotel&lt;/b&gt;&lt;br/&gt;需POI范围定区域" vertex="1">
-          <mxGeometry height="40" width="100" x="1430" y="1115" as="geometry" />
-        </mxCell>
-        <mxCell id="fix_w2_local" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=9;arcSize=12;" value="&lt;b&gt;Local&lt;/b&gt;&lt;br/&gt;需POI集补盲区" vertex="1">
-          <mxGeometry height="40" width="100" x="1540" y="1115" as="geometry" />
-        </mxCell>
-        <mxCell id="fix_w2_budget" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=9;arcSize=12;" value="&lt;b&gt;Budget&lt;/b&gt;&lt;br/&gt;需POI预算数据" vertex="1">
-          <mxGeometry height="40" width="100" x="1650" y="1115" as="geometry" />
-        </mxCell>
-        <!-- P5标注 -->
-        <mxCell id="fix_w2_p5" parent="1" style="text;html=1;fontSize=8;fontColor=#00AA00;align=left;fillColor=none;strokeColor=none;" value="+ selection_reason (P5)" vertex="1">
-          <mxGeometry height="14" width="120" x="1760" y="1128" as="geometry" />
-        </mxCell>
-
-        <mxCell id="fix_e_w2traf" edge="1" parent="1" source="fix_w2_disp" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#FF9800;strokeWidth=1.5;" target="fix_w2_traffic">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-        <mxCell id="fix_e_w2hotel" edge="1" parent="1" source="fix_w2_disp" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#FF9800;strokeWidth=1.5;" target="fix_w2_hotel">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-        <mxCell id="fix_e_w2local" edge="1" parent="1" source="fix_w2_disp" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#FF9800;strokeWidth=1.5;" target="fix_w2_local">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-        <mxCell id="fix_e_w2budget" edge="1" parent="1" source="fix_w2_disp" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#FF9800;strokeWidth=1.5;" target="fix_w2_budget">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-
-        <!-- Wave2 Fan-in -->
-        <mxCell id="fix_w2_fanin" parent="1" style="text;html=1;fontSize=10;fontStyle=1;fontColor=#FF9800;align=center;fillColor=none;strokeColor=#FF9800;strokeWidth=1;rounded=1;" value="Wave 2 Fan-in" vertex="1">
-          <mxGeometry height="18" width="110" x="1390" y="1170" as="geometry" />
-        </mxCell>
-
-        <!-- ===== P1+P5: Review (全Expert审查 + selection_reason) ===== -->
-        <mxCell id="fix_review" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;arcSize=20;shadow=1;" value="&lt;b&gt;review&lt;/b&gt;&lt;br/&gt;&lt;font style=&quot;font-size:8px&quot;&gt;读取 selection_reason 精准审查 (P5)&lt;br/&gt;按 scene_type 分化检查规则&lt;/font&gt;" vertex="1">
-          <mxGeometry height="50" width="200" x="1370" y="1200" as="geometry" />
-        </mxCell>
-        <mxCell id="fix_e_w2fi_rev" edge="1" parent="1" source="fix_w2_fanin" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#333;strokeWidth=2;" target="fix_review">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-
-        <!-- Decision -->
-        <mxCell id="fix_dec" parent="1" style="rhombus;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=11;fontColor=#333;" value="&lt;b&gt;通过?&lt;/b&gt;" vertex="1">
-          <mxGeometry height="55" width="85" x="1430" y="1270" as="geometry" />
-        </mxCell>
-        <mxCell id="fix_e_rev_dec" edge="1" parent="1" source="fix_review" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#333;strokeWidth=1.5;" target="fix_dec">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-
-        <!-- Rework (P1: 全Expert rework) -->
-        <mxCell id="fix_rework" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;arcSize=20;shadow=1;" value="&lt;b&gt;rework (P1扩展)&lt;/b&gt;&lt;br/&gt;&lt;font style=&quot;font-size:8px&quot;&gt;_rework_poi → 景点重选&lt;br/&gt;_rework_food → 餐饮重选&lt;br/&gt;_rework_generic → hotel/traffic/&lt;br/&gt;  local/destination/budget 重选&lt;br/&gt;读取 selection_reason (P5)&lt;/font&gt;" vertex="1">
-          <mxGeometry height="90" width="200" x="1200" y="1260" as="geometry" />
-        </mxCell>
-        <mxCell id="fix_e_dec_rw" edge="1" parent="1" source="fix_dec" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#b85450;strokeWidth=2;fontColor=#b85450;" target="fix_rework" value="不通过">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-        <mxCell id="fix_e_rw_rev" edge="1" parent="1" source="fix_rework" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#b85450;strokeWidth=1.5;dashed=1;" target="fix_review" value="round+1">
-          <mxGeometry relative="1" as="geometry">
-            <Array as="points">
-              <mxPoint x="1180" y="1305" />
-              <mxPoint x="1180" y="1225" />
-            </Array>
-          </mxGeometry>
-        </mxCell>
-
-        <!-- 通过 → synthesizer -->
-        <mxCell id="fix_e_dec_synth" edge="1" parent="1" source="fix_dec" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#82b366;strokeWidth=2;fontColor=#82b366;" target="synthesizer" value="通过">
-          <mxGeometry relative="1" as="geometry">
-            <Array as="points">
-              <mxPoint x="1530" y="1300" />
-              <mxPoint x="1530" y="1380" />
-              <mxPoint x="880" y="1380" />
-              <mxPoint x="880" y="1480" />
-            </Array>
-          </mxGeometry>
-        </mxCell>
-
-        <!-- P2 Narrator 超时标注 -->
-        <mxCell id="fix_P2" parent="1" style="shape=note;whiteSpace=wrap;html=1;backgroundOutline=1;size=10;fillColor=#ffe0e0;strokeColor=#FF0000;fontSize=9;align=left;spacingLeft=5;" value="&lt;div style=&quot;font-size:9px;text-align:left;line-height:1.3&quot;&gt;&lt;b style=&quot;color:#FF0000&quot;&gt;P2: narrator.py:384&lt;/b&gt;&lt;br/&gt;timeout 5s → &lt;b&gt;15s&lt;/b&gt;&lt;br/&gt;+ 超时warning日志&lt;/div&gt;" vertex="1">
-          <mxGeometry height="55" width="180" x="1350" y="1400" as="geometry" />
-        </mxCell>
-
-        <!-- P3 对话定点重算标注 -->
-        <mxCell id="fix_P3" parent="1" style="shape=note;whiteSpace=wrap;html=1;backgroundOutline=1;size=10;fillColor=#ffe0e0;strokeColor=#FF0000;fontSize=9;align=left;spacingLeft=5;" value="&lt;div style=&quot;font-size:9px;text-align:left;line-height:1.3&quot;&gt;&lt;b style=&quot;color:#FF0000&quot;&gt;P3: dialogue.py 定点重算&lt;/b&gt;&lt;br/&gt;pace → 调duration+级联时间戳&lt;br/&gt;budget → 过滤超预算+局部重选&lt;br/&gt;retry/emotion → 保留全量(合理)&lt;/div&gt;" vertex="1">
-          <mxGeometry height="65" width="200" x="1560" y="1400" as="geometry" />
-        </mxCell>
-
-        <!-- P4 死代码标注 -->
-        <mxCell id="fix_P4" parent="1" style="shape=note;whiteSpace=wrap;html=1;backgroundOutline=1;size=10;fillColor=#fff5e0;strokeColor=#FF9900;fontSize=9;align=left;spacingLeft=5;" value="&lt;div style=&quot;font-size:9px;text-align:left;line-height:1.3&quot;&gt;&lt;b style=&quot;color:#FF9900&quot;&gt;P4: 清理死代码&lt;/b&gt;&lt;br/&gt;❌ PsychologyRules&lt;br/&gt;❌ WeightMapper&lt;br/&gt;❌ PreferenceManager&lt;br/&gt;❌ MemoryOrchestrator&lt;br/&gt;✅ economy/poi_scenes/perception/geo 活跃&lt;/div&gt;" vertex="1">
-          <mxGeometry height="90" width="170" x="1780" y="1400" as="geometry" />
-        </mxCell>
-
-        <!-- 修正总览 -->
-        <mxCell id="fix_overview" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff0f0;strokeColor=#FF0000;strokeWidth=2;arcSize=8;fontSize=10;align=left;spacingLeft=8;" value="&lt;div style=&quot;text-align:left;line-height:1.5&quot;&gt;&lt;b style=&quot;font-size:13px;color:#FF0000&quot;&gt;修正计划 P0-P5&lt;/b&gt;&lt;br/&gt;━━━━━━━━━━━━━━━━━&lt;br/&gt;&lt;b style=&quot;color:#FF0000&quot;&gt;P0&lt;/b&gt; 并行分波 — graph.py&lt;br/&gt;&lt;b style=&quot;color:#FF0000&quot;&gt;P1&lt;/b&gt; 全Expert Rework — review.py&lt;br/&gt;&lt;b style=&quot;color:#FF0000&quot;&gt;P2&lt;/b&gt; 5s→15s — narrator.py:384&lt;br/&gt;&lt;b style=&quot;color:#FF0000&quot;&gt;P3&lt;/b&gt; 定点重算 — dialogue.py&lt;br/&gt;&lt;b style=&quot;color:#FF9900&quot;&gt;P4&lt;/b&gt; 死代码 — 4模块&lt;br/&gt;&lt;b style=&quot;color:#00AA00&quot;&gt;P5&lt;/b&gt; 决策溯源 — base.py&lt;/div&gt;" vertex="1">
-          <mxGeometry height="170" width="210" x="1350" y="1480" as="geometry" />
         </mxCell>
       </root>
     </mxGraphModel>
