@@ -1,6 +1,6 @@
 <mxfile host="Electron" agent="Claude Code">
   <diagram name="Agent Orchestration &amp; Clustering" id="agent-orchestration">
-    <mxGraphModel dx="2287" dy="449" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="1400" math="0" shadow="0">
+    <mxGraphModel dx="2287" dy="449" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="1700" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
@@ -44,31 +44,43 @@
           <mxGeometry height="90" width="170" x="240" y="590" as="geometry" />
         </mxCell>
         <mxCell id="poi_expert" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;fontColor=#333;arcSize=15;" value="&lt;b&gt;poi_expert&lt;/b&gt;&lt;br/&gt;&lt;font style=&quot;font-size:8px&quot;&gt;景点专家&lt;br/&gt;DPP多样性+LLM选择&lt;/font&gt;" vertex="1">
-          <mxGeometry height="55" width="130" x="30" y="740" as="geometry" />
+          <mxGeometry height="55" width="130" x="30" y="710" as="geometry" />
         </mxCell>
         <mxCell id="food_expert" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;fontColor=#333;arcSize=15;" value="&lt;b&gt;food_expert&lt;/b&gt;&lt;br/&gt;&lt;font style=&quot;font-size:8px&quot;&gt;美食专家&lt;br/&gt;菜系多样性+tag匹配&lt;/font&gt;" vertex="1">
-          <mxGeometry height="55" width="130" x="170" y="740" as="geometry" />
+          <mxGeometry height="55" width="130" x="170" y="710" as="geometry" />
         </mxCell>
-        <mxCell id="hotel_expert" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;fontColor=#333;arcSize=15;" value="&lt;b&gt;hotel_expert&lt;/b&gt;&lt;br/&gt;&lt;font style=&quot;font-size:8px&quot;&gt;住宿专家&lt;br/&gt;位置+评分筛选&lt;/font&gt;" vertex="1">
-          <mxGeometry height="55" width="130" x="310" y="740" as="geometry" />
+        <mxCell id="hotel_expert" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=11;fontColor=#333;arcSize=15;" value="&lt;b&gt;hotel_expert&lt;/b&gt;&lt;br/&gt;&lt;font style=&quot;font-size:8px&quot;&gt;住宿专家&lt;br/&gt;位置+评分筛选&lt;/font&gt;" vertex="1">
+          <mxGeometry height="55" width="130" x="170" y="970" as="geometry" />
         </mxCell>
-        <mxCell id="traffic_expert" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;fontColor=#333;arcSize=15;" value="&lt;b&gt;traffic_expert&lt;/b&gt;&lt;br/&gt;&lt;font style=&quot;font-size:8px&quot;&gt;交通专家&lt;br/&gt;距离+耗时估算&lt;/font&gt;" vertex="1">
-          <mxGeometry height="55" width="130" x="450" y="740" as="geometry" />
+        <mxCell id="traffic_expert" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=11;fontColor=#333;arcSize=15;" value="&lt;b&gt;traffic_expert&lt;/b&gt;&lt;br/&gt;&lt;font style=&quot;font-size:8px&quot;&gt;交通专家&lt;br/&gt;距离+耗时估算&lt;/font&gt;" vertex="1">
+          <mxGeometry height="55" width="130" x="30" y="970" as="geometry" />
         </mxCell>
         <mxCell id="weather_expert" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;fontColor=#333;arcSize=15;" value="&lt;b&gt;weather_expert&lt;/b&gt;&lt;br/&gt;&lt;font style=&quot;font-size:8px&quot;&gt;天气专家&lt;br/&gt;天气影响建议&lt;/font&gt;" vertex="1">
-          <mxGeometry height="55" width="130" x="30" y="810" as="geometry" />
+          <mxGeometry height="55" width="130" x="310" y="710" as="geometry" />
         </mxCell>
-        <mxCell id="local_expert" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;fontColor=#333;arcSize=15;" value="&lt;b&gt;local_expert&lt;/b&gt;&lt;br/&gt;&lt;font style=&quot;font-size:8px&quot;&gt;本地达人&lt;br/&gt;评分≥4.0精选&lt;/font&gt;" vertex="1">
-          <mxGeometry height="55" width="130" x="170" y="810" as="geometry" />
+        <mxCell id="local_expert" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=11;fontColor=#333;arcSize=15;" value="&lt;b&gt;local_expert&lt;/b&gt;&lt;br/&gt;&lt;font style=&quot;font-size:8px&quot;&gt;本地达人&lt;br/&gt;评分≥4.0精选&lt;/font&gt;" vertex="1">
+          <mxGeometry height="55" width="130" x="310" y="970" as="geometry" />
         </mxCell>
         <mxCell id="destination_expert" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;fontColor=#333;arcSize=15;" value="&lt;b&gt;destination_expert&lt;/b&gt;&lt;br/&gt;&lt;font style=&quot;font-size:8px&quot;&gt;目的地专家&lt;br/&gt;5km半径聚类&lt;/font&gt;" vertex="1">
-          <mxGeometry height="55" width="130" x="310" y="810" as="geometry" />
+          <mxGeometry height="55" width="130" x="470" y="710" as="geometry" />
         </mxCell>
-        <mxCell id="budget_hacker" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;fontColor=#333;arcSize=15;" value="&lt;b&gt;budget_hacker&lt;/b&gt;&lt;br/&gt;&lt;font style=&quot;font-size:8px&quot;&gt;省钱达人&lt;br/&gt;均价≤50/免费景点&lt;/font&gt;" vertex="1">
-          <mxGeometry height="55" width="130" x="450" y="810" as="geometry" />
+        <mxCell id="budget_hacker" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=11;fontColor=#333;arcSize=15;" value="&lt;b&gt;budget_hacker&lt;/b&gt;&lt;br/&gt;&lt;font style=&quot;font-size:8px&quot;&gt;省钱达人&lt;br/&gt;均价≤50/免费景点&lt;/font&gt;" vertex="1">
+          <mxGeometry height="55" width="130" x="470" y="970" as="geometry" />
         </mxCell>
         <mxCell id="pool_note" parent="1" style="shape=note;whiteSpace=wrap;html=1;backgroundOutline=1;size=10;fillColor=#e6f2ff;strokeColor=#4a90d9;fontSize=9;align=left;spacingLeft=6;" value="&lt;div style=&quot;font-size:9px;text-align:left;line-height:1.4&quot;&gt;&lt;b&gt;_compute_pools 候选池切分逻辑:&lt;/b&gt;&lt;br/&gt;━━━━━━━━━━━━━━━━━━━━━━━━&lt;br/&gt;poi: 排除餐饮类别+澳门+无评分&lt;br/&gt;food: _is_food_poi() 综合判定&lt;br/&gt;hotel: _HOTEL_CATS 白名单匹配&lt;br/&gt;traffic: Top15 高评分POI&lt;br/&gt;weather: 全量候选(不做筛选)&lt;br/&gt;local: 评分 ≥ 4.0 的高分POI&lt;br/&gt;destination: 用户提及城市+5km半径&lt;br/&gt;budget: 均价≤50 或 免费类别&lt;/div&gt;" vertex="1">
-          <mxGeometry height="130" width="210" x="620" y="740" as="geometry" />
+          <mxGeometry height="130" width="210" x="620" y="810" as="geometry" />
+        </mxCell>
+        <mxCell id="wave1_box" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#82b366;strokeWidth=2;dashed=1;arcSize=10;fontSize=10;fontColor=#82b366;" value="&lt;b&gt;Wave1 (数据独立)&lt;/b&gt;" vertex="1">
+          <mxGeometry height="75" width="610" x="20" y="700" as="geometry" />
+        </mxCell>
+        <mxCell id="wave2_box" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#d79b00;strokeWidth=2;dashed=1;arcSize=10;fontSize=10;fontColor=#d79b00;" value="&lt;b&gt;Wave2 (依赖Wave1)&lt;/b&gt;" vertex="1">
+          <mxGeometry height="75" width="610" x="20" y="960" as="geometry" />
+        </mxCell>
+        <mxCell id="wave2_fanin" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#999;fontSize=11;fontColor=#333;arcSize=20;" value="&lt;b&gt;wave2_fanin&lt;/b&gt;&lt;br/&gt;&lt;font style=&quot;font-size:8px&quot;&gt;Wave1汇聚 → 原样传递state&lt;/font&gt;" vertex="1">
+          <mxGeometry height="45" width="170" x="230" y="810" as="geometry" />
+        </mxCell>
+        <mxCell id="wave2_dispatcher" parent="1" style="rhombus;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=11;fontColor=#333;shadow=1;" value="&lt;b&gt;_wave2_dispatcher&lt;/b&gt;&lt;br/&gt;&lt;font style=&quot;font-size:9px&quot;&gt;LangGraph Send()&lt;br/&gt;Wave2: Traffic/Hotel/Local/Budget&lt;/font&gt;" vertex="1">
+          <mxGeometry height="90" width="170" x="230" y="870" as="geometry" />
         </mxCell>
         <mxCell id="fa1" edge="1" parent="1" source="dispatcher" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#82b366;strokeWidth=1.5;dashed=1;" target="poi_expert">
           <mxGeometry relative="1" as="geometry" />
@@ -76,64 +88,79 @@
         <mxCell id="fa2" edge="1" parent="1" source="dispatcher" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#82b366;strokeWidth=1.5;dashed=1;" target="food_expert">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="fa3" edge="1" parent="1" source="dispatcher" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#82b366;strokeWidth=1.5;dashed=1;" target="hotel_expert">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-        <mxCell id="fa4" edge="1" parent="1" source="dispatcher" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#82b366;strokeWidth=1.5;dashed=1;" target="traffic_expert">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
         <mxCell id="fa5" edge="1" parent="1" source="dispatcher" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#82b366;strokeWidth=1.5;dashed=1;" target="weather_expert">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="fa6" edge="1" parent="1" source="dispatcher" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#82b366;strokeWidth=1.5;dashed=1;" target="local_expert">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
         <mxCell id="fa7" edge="1" parent="1" source="dispatcher" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#82b366;strokeWidth=1.5;dashed=1;" target="destination_expert">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-        <mxCell id="fa8" edge="1" parent="1" source="dispatcher" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#82b366;strokeWidth=1.5;dashed=1;" target="budget_hacker">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
         <mxCell id="e2d" edge="1" parent="1" source="expert_router" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#9673a6;strokeWidth=2;" target="dispatcher">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
         <mxCell id="expert_pattern" parent="1" style="shape=note;whiteSpace=wrap;html=1;backgroundOutline=1;size=10;fillColor=#e6ffe6;strokeColor=#82b366;fontSize=9;align=left;spacingLeft=6;" value="&lt;div style=&quot;font-size:9px;text-align:left;line-height:1.4&quot;&gt;&lt;b&gt;专家共同执行模式 (sse_expert 装饰器):&lt;/b&gt;&lt;br/&gt;━━━━━━━━━━━━━━━━━━━━━━━━&lt;br/&gt;1. SSE agent_start 事件通知前端&lt;br/&gt;2. 从 expert_candidates[name] 取候选池&lt;br/&gt;3. _llm_decide() — LLM从候选池选择&lt;br/&gt;4. _proposal() — 构建标准化提案&lt;br/&gt;5. 返回 {proposals: [proposal, ...]}&lt;br/&gt;&lt;br/&gt;&lt;b&gt;提案结构:&lt;/b&gt;&lt;br/&gt;{agent, proposal_id, content:{name,&lt;br/&gt; category, lat, lng, rating, avg_price},&lt;br/&gt; confidence, reasoning}&lt;/div&gt;" vertex="1">
-          <mxGeometry height="150" width="240" x="30" y="880" as="geometry" />
+          <mxGeometry height="150" width="240" x="30" y="1080" as="geometry" />
         </mxCell>
         <mxCell id="expert_diff" parent="1" style="shape=note;whiteSpace=wrap;html=1;backgroundOutline=1;size=10;fillColor=#e6ffe6;strokeColor=#82b366;fontSize=9;align=left;spacingLeft=6;" value="&lt;div style=&quot;font-size:9px;text-align:left;line-height:1.4&quot;&gt;&lt;b&gt;各专家差异化能力:&lt;/b&gt;&lt;br/&gt;━━━━━━━━━━━━━━━━━━━━━━━━&lt;br/&gt;&lt;b&gt;poi_expert&lt;/b&gt;: _geo_cluster_filter 地理聚类过滤&lt;br/&gt;  DPP多样性重排, tag_similarity 相似度&lt;br/&gt;&lt;b&gt;food_expert&lt;/b&gt;: _food_intent_hint 美食意图识别&lt;br/&gt;  _load_all_pois 加载全量, 菜系标签匹配&lt;br/&gt;&lt;b&gt;destination_expert&lt;/b&gt;: _is_likely_macau 澳门过滤&lt;br/&gt;  _haversine_km 距离计算, 目的地半径筛选&lt;br/&gt;&lt;b&gt;traffic_expert&lt;/b&gt;: _haversine_km 距离估算&lt;br/&gt;  交通方式推荐(步行/公交/打车)&lt;br/&gt;&lt;b&gt;budget_hacker&lt;/b&gt;: 免费/低价POI专项筛选&lt;/div&gt;" vertex="1">
-          <mxGeometry height="160" width="260" x="290" y="880" as="geometry" />
+          <mxGeometry height="160" width="260" x="290" y="1080" as="geometry" />
+        </mxCell>
+        <mxCell id="fw1poi" edge="1" parent="1" source="poi_expert" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#82b366;strokeWidth=1.5;" target="wave2_fanin">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="fw1food" edge="1" parent="1" source="food_expert" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#82b366;strokeWidth=1.5;" target="wave2_fanin">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="fw1weather" edge="1" parent="1" source="weather_expert" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#82b366;strokeWidth=1.5;" target="wave2_fanin">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="fw1dest" edge="1" parent="1" source="destination_expert" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#82b366;strokeWidth=1.5;" target="wave2_fanin">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_fanin_disp" edge="1" parent="1" source="wave2_fanin" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#999;strokeWidth=1.5;" target="wave2_dispatcher">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="fb1" edge="1" parent="1" source="wave2_dispatcher" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#d79b00;strokeWidth=1.5;dashed=1;" target="traffic_expert">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="fb2" edge="1" parent="1" source="wave2_dispatcher" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#d79b00;strokeWidth=1.5;dashed=1;" target="hotel_expert">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="fb3" edge="1" parent="1" source="wave2_dispatcher" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#d79b00;strokeWidth=1.5;dashed=1;" target="local_expert">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="fb4" edge="1" parent="1" source="wave2_dispatcher" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#d79b00;strokeWidth=1.5;dashed=1;" target="budget_hacker">
+          <mxGeometry relative="1" as="geometry" />
         </mxCell>
         <mxCell id="P4_label" parent="1" style="text;html=1;fontSize=14;fontStyle=1;align=left;fillColor=none;strokeColor=none;fontColor=#1a1a2e;" value="Phase 4: 质量审查循环（Fan-in → Review ↔ Rework，最多2轮）" vertex="1">
-          <mxGeometry height="25" width="520" x="40" y="1070" as="geometry" />
+          <mxGeometry height="25" width="520" x="40" y="1270" as="geometry" />
         </mxCell>
-        <mxCell id="fanin" parent="1" style="text;html=1;fontSize=11;align=center;fillColor=none;strokeColor=#d6b656;fontColor=#d6b656;strokeWidth=1;" value="&lt;b&gt;Fan-in&lt;/b&gt; — 所有专家 proposals 汇聚" vertex="1">
-          <mxGeometry height="25" width="250" x="100" y="1100" as="geometry" />
+        <mxCell id="fanin" parent="1" style="text;html=1;fontSize=11;align=center;fillColor=none;strokeColor=#d6b656;fontColor=#d6b656;strokeWidth=1;" value="&lt;b&gt;Wave2 Fan-in → review&lt;/b&gt;" vertex="1">
+          <mxGeometry height="25" width="250" x="100" y="1300" as="geometry" />
         </mxCell>
         <mxCell id="review" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontColor=#333;fontSize=13;arcSize=20;shadow=1;" value="&lt;b&gt;review&lt;/b&gt;&lt;br/&gt;&lt;font style=&quot;font-size:10px&quot;&gt;质量审查&lt;/font&gt;" vertex="1">
-          <mxGeometry height="50" width="170" x="120" y="1140" as="geometry" />
+          <mxGeometry height="50" width="170" x="120" y="1340" as="geometry" />
         </mxCell>
         <mxCell id="review_note" parent="1" style="shape=note;whiteSpace=wrap;html=1;backgroundOutline=1;size=15;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;align=left;spacingLeft=8;" value="&lt;div style=&quot;font-size:10px;text-align:left;line-height:1.5&quot;&gt;&lt;b&gt;审查逻辑:&lt;/b&gt;&lt;br/&gt;1. 按 scene_type 分化检查规则:&lt;br/&gt;   美食型 → 餐饮子类型多样性&lt;br/&gt;   特种兵型 → 景点覆盖数(5-8个)&lt;br/&gt;   休闲型 → 节奏舒缓度(3-4个)&lt;br/&gt;   目的地型 → POI集中在目的地周围&lt;br/&gt;2. LLM审查 → issues[] + approved&lt;br/&gt;3. approved=true → synthesizer&lt;br/&gt;4. approved=false → rework&lt;br/&gt;5. review_round &gt; 2 → 强制通过&lt;/div&gt;" vertex="1">
-          <mxGeometry height="160" width="250" x="350" y="1140" as="geometry" />
+          <mxGeometry height="160" width="250" x="350" y="1340" as="geometry" />
         </mxCell>
         <mxCell id="decision" parent="1" style="rhombus;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=11;fontColor=#333;" value="&lt;b&gt;通过?&lt;/b&gt;" vertex="1">
-          <mxGeometry height="60" width="90" x="160" y="1220" as="geometry" />
+          <mxGeometry height="60" width="90" x="160" y="1420" as="geometry" />
         </mxCell>
         <mxCell id="rework" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontColor=#333;fontSize=13;arcSize=20;" value="&lt;b&gt;rework&lt;/b&gt;&lt;br/&gt;&lt;font style=&quot;font-size:10px&quot;&gt;按反馈重选&lt;/font&gt;" vertex="1">
-          <mxGeometry height="45" width="120" x="30" y="1240" as="geometry" />
+          <mxGeometry height="45" width="120" x="30" y="1440" as="geometry" />
         </mxCell>
-        <mxCell id="rework_note" parent="1" style="shape=note;whiteSpace=wrap;html=1;backgroundOutline=1;size=10;fillColor=#ffe6e6;strokeColor=#b85450;fontSize=9;align=left;spacingLeft=6;" value="&lt;div style=&quot;font-size:9px;text-align:left;line-height:1.4&quot;&gt;&lt;b&gt;rework 逻辑:&lt;/b&gt;&lt;br/&gt;1. 收集有问题的agent名(bad_agents)&lt;br/&gt;2. 移除这些agent的旧proposals&lt;br/&gt;3. _rework_poi / _rework_food:&lt;br/&gt;   LLM从candidates重选，避开旧提案&lt;br/&gt;4. 合并 kept_proposals + new_proposals&lt;br/&gt;5. 清空 review_feedback&lt;br/&gt;6. review_round + 1&lt;/div&gt;" vertex="1">
-          <mxGeometry height="110" width="200" x="30" y="1300" as="geometry" />
+        <mxCell id="rework_note" parent="1" style="shape=note;whiteSpace=wrap;html=1;backgroundOutline=1;size=10;fillColor=#ffe6e6;strokeColor=#b85450;fontSize=9;align=left;spacingLeft=6;" value="&lt;div style=&quot;font-size:9px;text-align:left;line-height:1.4&quot;&gt;&lt;b&gt;rework 逻辑:&lt;/b&gt;&lt;br/&gt;1. 收集有问题的agent名(bad_agents)&lt;br/&gt;2. 移除这些agent的旧proposals&lt;br/&gt;3. _rework_poi / _rework_food / _rework_generic:&lt;br/&gt;   LLM从candidates重选，避开旧提案&lt;br/&gt;   覆盖所有8种expert类型&lt;br/&gt;4. 合并 kept_proposals + new_proposals&lt;br/&gt;5. 清空 review_feedback&lt;br/&gt;6. review_round + 1&lt;/div&gt;" vertex="1">
+          <mxGeometry height="120" width="200" x="30" y="1500" as="geometry" />
         </mxCell>
-        <mxCell id="fi1" edge="1" parent="1" source="poi_expert" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#d6b656;strokeWidth=1.5;" target="review">
+        <mxCell id="fi1" edge="1" parent="1" source="traffic_expert" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#d79b00;strokeWidth=1.5;" target="review">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="fi2" edge="1" parent="1" source="food_expert" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#d6b656;strokeWidth=1.5;" target="review">
+        <mxCell id="fi2" edge="1" parent="1" source="hotel_expert" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#d79b00;strokeWidth=1.5;" target="review">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="fi3" edge="1" parent="1" source="hotel_expert" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#d6b656;strokeWidth=1.5;" target="review">
+        <mxCell id="fi3" edge="1" parent="1" source="local_expert" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#d79b00;strokeWidth=1.5;" target="review">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="fi4" edge="1" parent="1" source="traffic_expert" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#d6b656;strokeWidth=1.5;" target="review">
+        <mxCell id="fi4" edge="1" parent="1" source="budget_hacker" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#d79b00;strokeWidth=1.5;" target="review">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
         <mxCell id="e_rev_dec" edge="1" parent="1" source="review" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#333;strokeWidth=1.5;" target="decision">
@@ -145,8 +172,8 @@
         <mxCell id="e_rw_rev" edge="1" parent="1" source="rework" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#b85450;strokeWidth=1.5;dashed=1;" target="review" value="&lt;font style=&quot;font-size:8px&quot;&gt;rework→review&lt;br/&gt;round+1&lt;/font&gt;">
           <mxGeometry relative="1" as="geometry">
             <Array as="points">
-              <mxPoint x="20" y="1262" />
-              <mxPoint x="20" y="1165" />
+              <mxPoint x="20" y="1462" />
+              <mxPoint x="20" y="1365" />
             </Array>
           </mxGeometry>
         </mxCell>
@@ -162,8 +189,8 @@
         <mxCell id="e_dec_synth" edge="1" parent="1" source="decision" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#82b366;strokeWidth=2;fontSize=10;fontColor=#82b366;" target="synthesizer" value="通过">
           <mxGeometry relative="1" as="geometry">
             <Array as="points">
-              <mxPoint x="205" y="1300" />
-              <mxPoint x="600" y="1300" />
+              <mxPoint x="205" y="1500" />
+              <mxPoint x="600" y="1500" />
               <mxPoint x="600" y="122" />
             </Array>
           </mxGeometry>
@@ -219,8 +246,8 @@
         <mxCell id="e_live_end" edge="1" parent="1" source="live_itinerary" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#333;strokeWidth=2;" target="end_node">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="state_flow" parent="1" style="shape=note;whiteSpace=wrap;html=1;backgroundOutline=1;size=15;fillColor=#f0f0f0;strokeColor=#999;fontSize=10;align=left;spacingLeft=8;fontColor=#333;" value="&lt;div style=&quot;font-size:10px;text-align:left;line-height:1.5&quot;&gt;&lt;b&gt;TravelState 数据流总览:&lt;/b&gt;&lt;br/&gt;━━━━━━━━━━━━━━━━━━━━━━━━━━&lt;br/&gt;user_input&lt;br/&gt;  → user_intent + candidates + rule_violations&lt;br/&gt;  → scene_type + expert_weights + active_experts&lt;br/&gt;  → expert_candidates (按专家切分的候选池)&lt;br/&gt;  → proposals[] (各专家并行输出)&lt;br/&gt;  → review_feedback → reworked_proposals&lt;br/&gt;  → route + narrative&lt;br/&gt;  → heatmap + decision_trace&lt;/div&gt;" vertex="1">
-          <mxGeometry height="160" width="280" x="850" y="800" as="geometry" />
+        <mxCell id="state_flow" parent="1" style="shape=note;whiteSpace=wrap;html=1;backgroundOutline=1;size=15;fillColor=#f0f0f0;strokeColor=#999;fontSize=10;align=left;spacingLeft=8;fontColor=#333;" value="&lt;div style=&quot;font-size:10px;text-align:left;line-height:1.5&quot;&gt;&lt;b&gt;TravelState 数据流总览:&lt;/b&gt;&lt;br/&gt;━━━━━━━━━━━━━━━━━━━━━━━━━━&lt;br/&gt;user_input&lt;br/&gt;  → user_intent + candidates + rule_violations&lt;br/&gt;  → scene_type + expert_weights + active_experts&lt;br/&gt;  → expert_candidates (按专家切分的候选池)&lt;br/&gt;  → Wave1 proposals (4专家并行)&lt;br/&gt;  → wave2_fanin (原样传递)&lt;br/&gt;  → Wave2 proposals (4专家并行)&lt;br/&gt;  → review_feedback → reworked_proposals&lt;br/&gt;  → route + narrative&lt;br/&gt;  → heatmap + decision_trace&lt;/div&gt;" vertex="1">
+          <mxGeometry height="180" width="280" x="850" y="1050" as="geometry" />
         </mxCell>
         <mxCell id="emergence" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=10;fontColor=#333;arcSize=15;dashed=1;" value="&lt;b&gt;emergence_check&lt;/b&gt;&lt;br/&gt;&lt;font style=&quot;font-size:8px&quot;&gt;涌现式校验(辅助节点)&lt;/font&gt;" vertex="1">
           <mxGeometry height="45" width="160" x="30" y="570" as="geometry" />
