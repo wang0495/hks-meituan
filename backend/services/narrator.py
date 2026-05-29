@@ -381,7 +381,7 @@ async def _llm_generate_description(step: dict, user_intent: dict, city: str = "
     )
 
     try:
-        result = await asyncio.wait_for(chat(prompt), timeout=5.0)
+        result = await asyncio.wait_for(chat(prompt), timeout=15.0)
         if result and len(result) > 10:
             arrival = step.get("arrival_time", "")
             return f"{arrival} {result.strip()}" if arrival else result.strip()

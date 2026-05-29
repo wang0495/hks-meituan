@@ -170,6 +170,21 @@ async def rework(state: TravelState) -> dict:
             new_proposals.extend(food_result)
             reworked_agents.add("food")
 
+    # 通用 rework: 处理其他有问题的 expert (hotel/traffic/local_expert/destination/budget_hacker)
+    reworkable_generic = {
+        "hotel", "hotel_expert",
+        "traffic", "traffic_expert",
+        "local_expert",
+        "destination", "destination_expert",
+        "budget_hacker",
+    }
+    generic_bad = bad_agents & reworkable_generic
+    for agent_name in generic_bad:
+        generic_result = await _rework_generic(agent_name, candidates, intent, user_input, old_names, feedback_text)
+        if generic_result:
+            new_proposals.extend(generic_result)
+            reworked_agents.add(agent_name)
+
     # rework失败的agent保留旧proposals
     not_reworked = [p for p in bad_old if p.get("agent", "") not in reworked_agents]
     new_proposals.extend(not_reworked)
@@ -240,6 +255,96 @@ async def _rework_poi(
                 proposals.append({
                     "proposal_id": f"prop_rework_{uuid.uuid4().hex[:6]}",
                     "agent": "poi",
+                    "content": content,
+                    "confidence": pick.get("confidence", 0.7),
+                    "reasoning": pick.get("reason", "rework重选"),
+                })
+    return proposals
+
+
+async def _rework_generic(
+    agent_name: str,
+    candidates: list[dict],
+    intent: dict,
+    user_input: str,
+    old_names: list[str],
+    feedback_text: str,
+) -> list[dict]:
+    """通用 rework: 适用于 hotel/traffic/local_expert/destination/budget_hacker。"""
+    import uuid
+
+    if agent_name in ("hotel", "hotel_expert"):
+        pool = [
+            c for c in candidates
+            if c.get("category", "") in ("住宿", "酒店", "民宿")
+            and c.get("name", "") not in old_names
+            and c.get("rating") is not None
+        ]
+        expert_label = "住宿"
+    elif agent_name == "traffic" or agent_name == "traffic_expert":
+        pool = [c for c in candidates if c.get("rating") is not None and c.get("name", "") not in old_names][:15]
+        expert_label = "交通"
+    elif agent_name == "local_expert":
+        pool = [
+            c for c in candidates
+            if c.get("rating", 4.0) >= 4.0
+            and c.get("name", "") not in old_names
+            and c.get("category", "") not in ("住宿", "酒店", "民宿")
+        ]
+        expert_label = "本地特色"
+    elif agent_name in ("destination", "destination_expert"):
+        pool = [
+            c for c in candidates
+            if c.get("category", "") not in ("住宿", "酒店", "民宿", "餐饮")
+            and c.get("name", "") not in old_names
+            and c.get("rating") is not None
+        ]
+        expert_label = "目的地"
+    else:
+        pool = [
+            c for c in candidates
+            if (c.get("avg_price", 9999) <= 50 or c.get("avg_price") == 0)
+            and c.get("name", "") not in old_names
+            and c.get("rating") is not None
+        ]
+        expert_label = "省钱"
+
+    summaries = [
+        {"name": c["name"], "category": c.get("category", ""), "rating": c.get("rating"),
+         "avg_price": c.get("avg_price"), "lat": c.get("lat"), "lng": c.get("lng")}
+        for c in pool[:80]
+    ]
+
+    prompt = f"""你是{expert_label}专家。之前的选品有问题，需要重选。
+
+用户需求: {user_input}
+场景要求: {intent.get('scene_requirements', [])}
+
+之前选的（必须全部替换）: {old_names}
+
+审查反馈: {feedback_text}
+
+候选:
+{json.dumps(summaries, ensure_ascii=False)}
+
+请严格按反馈要求重选3-5个最佳选择。输出JSON: {{"picks":[{{"name":"名称","reason":"理由","confidence":0.8}}]}}"""
+
+    result = await _llm_review(prompt)
+    proposals = []
+    if result and "picks" in result:
+        name_map = {c.get("name", ""): c for c in candidates}
+        for pick in result["picks"]:
+            name = pick.get("name", "")
+            content = name_map.get(name)
+            if not content:
+                for c in candidates:
+                    if name in c.get("name", "") or c.get("name", "") in name:
+                        content = c
+                        break
+            if content:
+                proposals.append({
+                    "proposal_id": f"prop_rework_{uuid.uuid4().hex[:6]}",
+                    "agent": agent_name,
                     "content": content,
                     "confidence": pick.get("confidence", 0.7),
                     "reasoning": pick.get("reason", "rework重选"),

@@ -1,11 +1,12 @@
-"""MoE版本LangGraph编排：混合专家架构。
+"""MoE版本LangGraph编排：混合专家架构（两波分派）。
 
 用户 → rule_guard(意图+POI加载)
      → expert_router(LLM分类+专家权重)
-     → [Send动态fan-out → 按需激活的专家并行]
+     → Wave1: [POI, Food, Weather, Destination 并行, 数据独立]
+       → Wave2: [Traffic, Hotel, Local, Budget_hacker 并行, 依赖Wave1结果]
      → review(质疑)
          │
-         ├─ 不通过 → rework(按反馈重选) ──→ synthesizer
+         ├─ 不通过 → rework(按反馈重选) → synthesizer
          │                ↑                 ↑
          └─ 通过 ──────────────────────────┘
                         │
@@ -20,6 +21,12 @@ from langgraph.types import Send
 
 from backend.agents_v3.state import TravelState
 
+# ── 两波分派定义 ──
+# Wave 1: 数据独立，可并行
+WAVE1_EXPERTS = {"poi", "food", "weather", "destination"}
+# Wave 2: 依赖 Wave 1 的 POI/位置结果
+WAVE2_EXPERTS = {"traffic", "hotel", "local_expert", "budget_hacker"}
+
 # 专家名 → 对应import路径的映射
 _EXPERT_MAP = {
     "poi": ("backend.agents_v3.experts.poi_expert", "poi_expert"),
@@ -33,18 +40,48 @@ _EXPERT_MAP = {
 }
 
 
-def _expert_dispatcher(state: TravelState) -> list[Send]:
-    """根据active_experts动态分发到对应专家节点。"""
-    active = state.get("active_experts", ["poi", "food"])
+def _wave1_dispatcher(state: TravelState) -> list[Send]:
+    """Wave 1: 数据独立的专家并行执行。
+
+    如果没有 Wave1 专家匹配，直接跳到 wave2_fanin（然后到 review）。
+    """
+    active = state.get("active_experts", [])
+    wave1_active = [name for name in active if name in WAVE1_EXPERTS]
+    # POI 永远激活（expert_router 已保证，但防御性检查）
+    if "poi" not in wave1_active and "poi" in active:
+        wave1_active.append("poi")
+    if not wave1_active:
+        return [Send("wave2_fanin", state)]
     sends = []
-    for name in active:
+    for name in wave1_active:
         if name in _EXPERT_MAP:
             sends.append(Send(name, state))
     return sends
 
 
+def _wave2_dispatcher(state: TravelState) -> list[Send]:
+    """Wave 2: 依赖 Wave 1 结果的专家并行执行。
+
+    如果没有 Wave2 专家需要执行，直接 Send 到 review。
+    """
+    active = state.get("active_experts", [])
+    wave2_active = [name for name in active if name in WAVE2_EXPERTS]
+    if not wave2_active:
+        return [Send("review", state)]
+    sends = []
+    for name in wave2_active:
+        if name in _EXPERT_MAP:
+            sends.append(Send(name, state))
+    return sends
+
+
+def _wave2_fanin(state: TravelState) -> dict:
+    """Wave1 fan-in node: 原样传递 state（不修改），只用于连接条件边。"""
+    return {}  # LangGraph merges empty dict into state
+
+
 def build_graph_c():
-    """构建MoE版本图。"""
+    """构建MoE版本图（两波分派）。"""
     from backend.agents_v3.nodes.rule_guard import rule_guard
     from backend.agents_v3.nodes.expert_router import expert_router
     from backend.agents_v3.nodes.review import review, rework
@@ -56,6 +93,7 @@ def build_graph_c():
     # ── 注册节点 ──
     graph.add_node("rule_guard", rule_guard)
     graph.add_node("expert_router", expert_router)
+    graph.add_node("wave2_fanin", _wave2_fanin)
 
     # 动态注册所有专家节点
     _loaded_experts = {}
@@ -77,12 +115,21 @@ def build_graph_c():
     # rule_guard → expert_router
     graph.add_edge("rule_guard", "expert_router")
 
-    # expert_router → 动态fan-out到专家
-    graph.add_conditional_edges("expert_router", _expert_dispatcher)
+    # expert_router → Wave1 fan-out（数据独立的专家）
+    graph.add_conditional_edges("expert_router", _wave1_dispatcher)
 
-    # 所有专家 → review（fan-in）
-    for name, node_name in _loaded_experts.items():
-        graph.add_edge(node_name, "review")
+    # Wave1 experts → wave2_fanin（汇聚点）
+    for name in WAVE1_EXPERTS:
+        if name in _loaded_experts:
+            graph.add_edge(name, "wave2_fanin")
+
+    # wave2_fanin → Wave2 fan-out（条件边分发）
+    graph.add_conditional_edges("wave2_fanin", _wave2_dispatcher)
+
+    # Wave2 experts → review（最终 fan-in）
+    for name in WAVE2_EXPERTS:
+        if name in _loaded_experts:
+            graph.add_edge(name, "review")
 
     # review → 条件边
     graph.add_conditional_edges(
