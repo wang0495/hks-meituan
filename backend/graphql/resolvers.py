@@ -193,11 +193,10 @@ async def resolve_plan_route(user_input: str) -> Route:
     from backend.services.intent_parser import parse_intent
     from backend.services.narrator import generate_narrative
     from backend.services.solver import solve_route
-    from backend.services.user_profiles import USER_PROFILES
 
     # 1. 解析意图
     user_intent = await _with_timeout(
-        parse_intent(user_input, USER_PROFILES),
+        parse_intent(user_input),
         timeout_seconds=8.0,
     )
     if user_intent is None:

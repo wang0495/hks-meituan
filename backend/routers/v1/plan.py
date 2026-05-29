@@ -72,10 +72,9 @@ async def plan_route_v1(request: PlanRequestV1) -> StreamingResponse:
             yield _sse("phase", {"phase": "parsing", "message": "正在理解你的需求..."})
 
             from backend.services.intent_parser import parse_intent
-            from backend.services.user_profiles import USER_PROFILES
 
             user_intent = await _with_timeout(
-                parse_intent(request.user_input, USER_PROFILES),
+                parse_intent(request.user_input),
                 timeout_seconds=8.0,
             )
             if user_intent is None:

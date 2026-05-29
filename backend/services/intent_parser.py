@@ -1,6 +1,6 @@
 """
 CityFlow LLM 意图解析模块
-将用户自然语言输入解析为结构化出行需求，并匹配用户画像。
+将用户自然语言输入解析为结构化出行需求。
 基于4个设计文档的要求实现。
 """
 
@@ -15,274 +15,10 @@ from backend.config.settings import get_settings
 
 logger = logging.getLogger(__name__)
 
-# ---------------------------------------------------------------------------
-# 20 组用户画像（来自 本地周末出行_用户画像与测试场景_V2_20组.docx）
-# ---------------------------------------------------------------------------
+# NOTE: 已移除内置画像 (PROFILES / _match_profile)。
+# LLM 的 demand_vector 7 维向量已替代画像匹配，solver 直接消费 demand_vector。
 
-PROFILES: dict[str, dict] = {
-    "P1": {
-        "name": "社恐独居青年",
-        "group_type": "独居",
-        "age": "25-30",
-        "social": 0.1,
-        "pace": "闲逛型",
-        "budget": 100,
-        "queue_tolerance": "极低",
-        "culture": 0.8,
-        "food": 0.4,
-        "keywords": ["社恐", "一个人", "安静", "独处", "不想人多", "不想去人多"],
-        "constraints": ["低人流", "安静环境", "室内备选"],
-    },
-    "P2": {
-        "name": "新戏情侣",
-        "group_type": "情侣",
-        "age": "25-32",
-        "social": 0.5,
-        "pace": "平衡型",
-        "budget": 300,
-        "queue_tolerance": "中等",
-        "culture": 0.5,
-        "food": 0.7,
-        "keywords": ["约会", "浪漫", "情侣", "女朋友", "男朋友", "对象", "氛围感", "拍照"],
-        "constraints": ["出片", "互动体验"],
-    },
-    "P3": {
-        "name": "带娃小家庭",
-        "group_type": "亲子",
-        "age": "30-38",
-        "social": 0.6,
-        "pace": "平衡型",
-        "budget": 400,
-        "queue_tolerance": "低",
-        "culture": 0.3,
-        "food": 0.6,
-        "keywords": ["亲子", "带娃", "孩子", "小孩", "消耗体力", "宝宝", "娃"],
-        "constraints": ["儿童友好", "卫生间", "安全", "休息区"],
-    },
-    "P4": {
-        "name": "退休独行女士",
-        "group_type": "独居",
-        "age": "62-70",
-        "social": 0.3,
-        "pace": "闲逛型",
-        "budget": 80,
-        "queue_tolerance": "中等",
-        "culture": 0.7,
-        "food": 0.5,
-        "keywords": ["退休", "老年", "散步", "转转", "买菜", "一个人在家"],
-        "constraints": ["无障碍", "休息座椅", "公交直达"],
-    },
-    "P5": {
-        "name": "室友打卡组",
-        "group_type": "朋友",
-        "age": "22-26",
-        "social": 0.9,
-        "pace": "特种兵型",
-        "budget": 150,
-        "queue_tolerance": "高",
-        "culture": 0.2,
-        "food": 0.8,
-        "keywords": ["网红", "打卡", "拍照", "小红书", "快快快"],
-        "constraints": ["打卡场景", "户外走拍"],
-    },
-    "P6": {
-        "name": "中产情侣",
-        "group_type": "情侣",
-        "age": "35-45",
-        "social": 0.4,
-        "pace": "闲逛型",
-        "budget": 800,
-        "queue_tolerance": "低",
-        "culture": 0.6,
-        "food": 0.8,
-        "keywords": ["质感", "调性", "不挤", "聊天", "品质"],
-        "constraints": ["有调性", "停车便利", "非年轻人玩法"],
-    },
-    "P7": {
-        "name": "带婴儿家庭",
-        "group_type": "亲子",
-        "age": "28-35",
-        "social": 0.3,
-        "pace": "闲逛型",
-        "budget": 300,
-        "queue_tolerance": "极低",
-        "culture": 0.2,
-        "food": 0.5,
-        "keywords": ["婴儿", "宝宝", "婴儿车", "推车"],
-        "constraints": ["婴儿车通道", "哺乳室", "无障碍"],
-    },
-    "P8": {
-        "name": "退休奶奶团",
-        "group_type": "朋友",
-        "age": "60-70",
-        "social": 0.6,
-        "pace": "闲逛型",
-        "budget": 150,
-        "queue_tolerance": "高",
-        "culture": 0.7,
-        "food": 0.5,
-        "keywords": ["退休", "大家", "走走", "拍花", "发朋友圈"],
-        "constraints": ["无障碍", "公交直达", "休息座椅"],
-    },
-    "P9": {
-        "name": "大学生情侣",
-        "group_type": "情侣",
-        "age": "19-22",
-        "social": 0.7,
-        "pace": "特种兵型",
-        "budget": 150,
-        "queue_tolerance": "高",
-        "culture": 0.4,
-        "food": 0.6,
-        "keywords": ["小红书", "火了", "拍照", "预算不多", "开心"],
-        "constraints": ["性价比", "拍照场景"],
-    },
-    "P10": {
-        "name": "单亲妈妈",
-        "group_type": "亲子",
-        "age": "30-38",
-        "social": 0.3,
-        "pace": "平衡型",
-        "budget": 250,
-        "queue_tolerance": "低",
-        "culture": 0.4,
-        "food": 0.5,
-        "keywords": ["一个人带", "两个孩子", "松口气"],
-        "constraints": ["儿童安全", "封闭式环境", "工作人员"],
-    },
-    "P11": {
-        "name": "银发情侣",
-        "group_type": "情侣",
-        "age": "65-75",
-        "social": 0.3,
-        "pace": "闲逛型",
-        "budget": 200,
-        "queue_tolerance": "高",
-        "culture": 0.7,
-        "food": 0.5,
-        "keywords": ["老伴", "天气好", "走走", "看看花", "拍拍照"],
-        "constraints": ["无障碍", "休息座椅", "卫生间"],
-    },
-    "P12": {
-        "name": "宠物独居青年",
-        "group_type": "独居",
-        "age": "26-32",
-        "social": 0.3,
-        "pace": "闲逛型",
-        "budget": 250,
-        "queue_tolerance": "低",
-        "culture": 0.4,
-        "food": 0.5,
-        "keywords": ["宠物", "狗", "猫", "毛孩子", "狗子", "带出去转转"],
-        "constraints": ["pet_friendly", "宠物饮水点", "户外空间"],
-    },
-    "P13": {
-        "name": "异地恋情侣",
-        "group_type": "情侣",
-        "age": "25-30",
-        "social": 0.5,
-        "pace": "平衡型",
-        "budget": 600,
-        "queue_tolerance": "低",
-        "culture": 0.5,
-        "food": 0.7,
-        "keywords": ["专程", "特别", "值得", "异地"],
-        "constraints": ["值得专程", "拍照记录"],
-    },
-    "P14": {
-        "name": "三代同堂",
-        "group_type": "亲子",
-        "age": "混合30-70",
-        "social": 0.5,
-        "pace": "闲逛型",
-        "budget": 400,
-        "queue_tolerance": "低",
-        "culture": 0.5,
-        "food": 0.6,
-        "keywords": ["一家人", "老人", "孩子", "三代", "大家都能玩"],
-        "constraints": ["无障碍", "儿童设施", "多人停车"],
-    },
-    "P15": {
-        "name": "室友合租团",
-        "group_type": "朋友",
-        "age": "23-27",
-        "social": 0.8,
-        "pace": "平衡型",
-        "budget": 120,
-        "queue_tolerance": "中等",
-        "culture": 0.3,
-        "food": 0.7,
-        "keywords": ["室友们", "一起出去玩", "聊天", "吃东西", "人多热闹"],
-        "constraints": ["适合3-4人", "轻松随意"],
-    },
-    "P16": {
-        "name": "独居职业女性",
-        "group_type": "独居",
-        "age": "28-35",
-        "social": 0.3,
-        "pace": "闲逛型",
-        "budget": 500,
-        "queue_tolerance": "低",
-        "culture": 0.8,
-        "food": 0.7,
-        "keywords": ["一个人好好休息", "有调性", "咖啡", "看展", "品质"],
-        "constraints": ["有品质感", "单独出行友好"],
-    },
-    "P17": {
-        "name": "带孩子的爷爷奶奶",
-        "group_type": "亲子",
-        "age": "58-68",
-        "social": 0.4,
-        "pace": "闲逛型",
-        "budget": 100,
-        "queue_tolerance": "高",
-        "culture": 0.6,
-        "food": 0.4,
-        "keywords": ["带孙子", "不花钱", "儿子加班"],
-        "constraints": ["安全封闭", "免费低价停车"],
-    },
-    "P18": {
-        "name": "初中生好友",
-        "group_type": "朋友",
-        "age": "13-15",
-        "social": 0.7,
-        "pace": "特种兵型",
-        "budget": 80,
-        "queue_tolerance": "低",
-        "culture": 0.3,
-        "food": 0.6,
-        "keywords": ["同学", "一起出去玩", "家长同意", "注意安全"],
-        "constraints": ["安全保障", "家长放心"],
-    },
-    "P19": {
-        "name": "男生室友团",
-        "group_type": "朋友",
-        "age": "24-28",
-        "social": 0.8,
-        "pace": "平衡型",
-        "budget": 200,
-        "queue_tolerance": "中等",
-        "culture": 0.3,
-        "food": 0.7,
-        "keywords": ["兄弟们", "能吃能玩", "新鲜感", "一起出去玩"],
-        "constraints": ["互动性", "轻松随意", "能大声聊天"],
-    },
-    "P20": {
-        "name": "社恐女孩",
-        "group_type": "独居",
-        "age": "22-26",
-        "social": 0.1,
-        "pace": "闲逛型",
-        "budget": 80,
-        "queue_tolerance": "极低",
-        "culture": 0.7,
-        "food": 0.4,
-        "keywords": ["散散心", "不想人多", "安静", "好看", "独处"],
-        "constraints": ["低人流", "安静环境", "独处空间"],
-    },
-}
 
-# ---------------------------------------------------------------------------
 # LLM Prompt 模板
 # ---------------------------------------------------------------------------
 
@@ -505,7 +241,7 @@ def merge_user_preference(
     合并策略（优先级递减）:
     1. user_stated_prefs: 对话中用户明确表达的
     2. ltm_prediction: LTM 基于上下文的预测
-    3. base_intent: intent_parser 的结果（含画像默认）
+    3. base_intent: intent_parser 的结果
 
     每个维度的来源被标记在 preferences_source 中。
     """
@@ -659,7 +395,7 @@ def _rule_based_parse(user_input: str) -> dict:
 
     # 硬约束
     hard_constraints: list[str] = []
-    if _neg_crowd or any(w in text for w in ["社恐", "不想人多", "不要人多"]):
+    if _neg_crowd or any(w in text for w in ["社恐", "不想人多", "不要人多", "不想去人多"]):
         hard_constraints.append("低人流")
     if any(w in text for w in ["宠物", "狗", "猫", "狗子", "毛孩子"]):
         hard_constraints.append("pet_friendly")
@@ -770,100 +506,6 @@ def _rule_based_parse(user_input: str) -> dict:
     }
 
 
-# ---------------------------------------------------------------------------
-# 画像匹配（改进版，基于20组画像的详细特征）
-# ---------------------------------------------------------------------------
-
-
-def _match_profile(intent: dict, available_profiles: dict, user_input: str = "") -> tuple[str, list[tuple[str, float, str]]]:
-    """将解析结果与画像库进行模糊匹配，返回 (最佳画像ID, [(pid, score, name), ...])。
-
-    兼容两种画像字段结构:
-    - intent_parser.PROFILES 格式: keywords/constraints/budget(数字)
-    - user_profiles.USER_PROFILES 格式: budget_level(字符串)/preferences(字典)
-    """
-    best_id = "P1"
-    best_score = -1.0
-
-    group_type = intent.get("group", {}).get("type", "独居")
-    social = intent.get("preferences", {}).get("social", 0.5)
-    pace = intent.get("pace", "平衡型")
-    hard_constraints = intent.get("hard_constraints", [])
-
-    match_text = user_input + " " + " ".join(hard_constraints)
-
-    all_scores: list[tuple[str, float, str]] = []
-
-    for pid, profile in available_profiles.items():
-        score = 0.0
-
-        # 群体类型匹配（权重 3.0）
-        if profile.get("group_type") == group_type:
-            score += 3.0
-
-        # 社交倾向匹配（权重 3.0）
-        profile_social = profile.get("social", 0.5)
-        score += 3.0 * (1 - abs(profile_social - social))
-
-        # 节奏匹配（权重 2.0）
-        if profile.get("pace") == pace:
-            score += 2.0
-
-        # 预算匹配（兼容两套字段结构）
-        user_budget = intent.get("budget", {}).get("per_person", 500)
-        profile_budget_raw = profile.get("budget")  # 数字: intent_parser 格式
-        if profile_budget_raw is not None and isinstance(profile_budget_raw, (int, float)):
-            budget_diff = abs(profile_budget_raw - user_budget) / max(profile_budget_raw, user_budget)
-            score += 1.0 * (1 - budget_diff)
-        else:
-            # USER_PROFILES 格式: budget_level = "低"/"中"/"高"
-            _MAP = {"低": 0.2, "中": 0.5, "高": 0.8}
-            profile_level = profile.get("budget_level", "中")
-            user_level = "低" if user_budget < 200 else "中" if user_budget < 800 else "高"
-            budget_diff = abs(_MAP.get(profile_level, 0.5) - _MAP.get(user_level, 0.5))
-            score += 1.0 * (1 - budget_diff)
-
-        # 文化偏好匹配（兼容两套结构）
-        profile_culture = profile.get("culture") or profile.get("preferences", {}).get("culture", 0.5)
-        user_culture = intent.get("preferences", {}).get("culture", 0.3)
-        score += 1.0 * (1 - abs(profile_culture - user_culture))
-
-        # 关键词匹配（兼容两套结构）
-        keywords = profile.get("keywords", [])
-        if not keywords:
-            # USER_PROFILES 没有 keywords 字段，略过
-            pass
-        for kw in keywords:
-            if kw in match_text:
-                score += 2.0
-
-        # 约束匹配（兼容两套结构）
-        profile_constraints = profile.get("constraints") or profile.get("hard_constraints", [])
-        pc_str = " ".join(profile_constraints) if isinstance(profile_constraints, list) else ""
-        if "pet_friendly" in hard_constraints and "pet_friendly" in pc_str:
-            score += 5.0
-        if "accessible" in hard_constraints and "无障碍" in pc_str:
-            score += 3.0
-        if "儿童友好" in hard_constraints and "儿童" in pc_str:
-            score += 3.0
-        if "低人流" in hard_constraints and "低人流" in pc_str:
-            score += 4.0
-
-        # 社恐关键词强化
-        profile_name = profile.get("name", "")
-        if any(w in match_text for w in ["社恐", "不想人多", "安静", "独处"]) and "社恐" in profile_name:
-            score += 5.0
-        if any(w in match_text for w in ["宠物", "狗", "猫", "狗子"]) and "宠物" in profile_name:
-            score += 5.0
-
-        all_scores.append((pid, score, profile_name))
-        if score > best_score:
-            best_score = score
-            best_id = pid
-
-    all_scores.sort(key=lambda x: -x[1])
-    return best_id, all_scores[:3]
-
 
 # ---------------------------------------------------------------------------
 # 时间工具
@@ -885,20 +527,16 @@ def _is_late_night_time(time_str: str) -> bool:
 # ---------------------------------------------------------------------------
 
 
-async def parse_intent(user_input: str, available_profiles: dict | None = None) -> dict:
+async def parse_intent(user_input: str) -> dict:
     """
     将用户自然语言输入解析为结构化出行需求。
 
     参数:
         user_input: 用户的自然语言出行需求
-        available_profiles: 画像字典，默认使用内置 PROFILES
 
     返回:
-        结构化意图字典，包含 time/budget/group/preferences/pace/hard_constraints/matched_profile_id
+        结构化意图字典，包含 time/budget/group/preferences/pace/hard_constraints/demand_vector
     """
-    if available_profiles is None:
-        available_profiles = PROFILES
-
     logger.info("收到用户输入: %s", user_input)
 
     # 尝试 LLM 解析（重试3次，每次30秒超时）
@@ -966,6 +604,7 @@ async def parse_intent(user_input: str, available_profiles: dict | None = None) 
     valid_constraints = {
         "queue_intolerant", "accessible", "pet_friendly", "indoor_only",
         "outdoor_preferred", "late_night", "needs_entertainment", "free",
+        "低人流", "儿童友好", "排队容忍度<10min",
     }
     hc = intent.get("hard_constraints", [])
     intent["hard_constraints"] = list(set(c for c in hc if c in valid_constraints))
@@ -1015,18 +654,10 @@ async def parse_intent(user_input: str, available_profiles: dict | None = None) 
             intent["hard_constraints"] = [c for c in intent.get("hard_constraints", []) if c != "late_night"]
             logger.debug("移除late_night约束（无明确深夜关键词）")
 
-    # 画像匹配
-    matched_id, top_scores = _match_profile(intent, available_profiles, user_input)
-    intent["matched_profile_id"] = matched_id
     intent["_llm_used"] = llm_used
     intent["_llm_error"] = llm_error
-    intent["_profile_top3"] = [
-        {"id": pid, "score": round(s, 1), "name": nm}
-        for pid, s, nm in top_scores
-    ]
 
     logger.info("解析结果: %s", json.dumps(intent, ensure_ascii=False))
-    logger.info("匹配画像: %s - %s", matched_id, available_profiles.get(matched_id, {}).get('name', '未知'))
 
     return intent
 

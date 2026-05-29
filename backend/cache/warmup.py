@@ -7,14 +7,13 @@
 
 使用方式::
 
-    from backend.cache.warmup import CacheWarmup, warmup_poi_cache, warmup_user_profiles
+    from backend.cache.warmup import CacheWarmup, warmup_poi_cache
     from backend.services.cache import get_multilevel_cache
 
     cache = get_multilevel_cache()
     warmup = CacheWarmup(cache)
 
     warmup.register(warmup_poi_cache)
-    warmup.register(warmup_user_profiles)
 
     # 启动时预热
     await warmup.warmup_all()
@@ -315,37 +314,6 @@ async def warmup_city_category_cache(cache: MultiLevelCache) -> None:
     logger.info("城市-类别索引预热: %d 个组合", len(index))
 
 
-async def warmup_user_profiles(cache: MultiLevelCache) -> None:
-    """预热用户画像匹配结果缓存。
-
-    预计算 20 组画像与典型意图的匹配结果，减少首次匹配延迟。
-
-    Args:
-        cache: 多级缓存实例
-    """
-    from backend.services.user_profiles import USER_PROFILES, match_profile
-
-    # 用每个画像自身的偏好作为"典型意图"预计算匹配
-    for pid, profile in USER_PROFILES.items():
-        typical_intent = {
-            "group": {"type": profile["group_type"]},
-            "preferences": profile["preferences"],
-            "pace": profile["pace"],
-            "budget": {
-                "per_person": {"低": 100, "中": 500, "高": 1000}.get(
-                    profile["budget_level"], 500
-                )
-            },
-        }
-        matched_id = match_profile(typical_intent)
-        await cache.set(f"warmup:profile_match:{pid}", matched_id, ttl=3600)
-
-    # 画像字典本身也缓存
-    await cache.set("warmup:user_profiles", USER_PROFILES, ttl=3600)
-
-    logger.info("用户画像预热完成: %d 组画像", len(USER_PROFILES))
-
-
 async def warmup_other_datasets(cache: MultiLevelCache) -> None:
     """预热非 POI 的其他数据集。
 
@@ -399,5 +367,4 @@ def _register_default_tasks(warmup: CacheWarmup) -> None:
     """注册默认预热任务（按依赖顺序）。"""
     warmup.register("poi", warmup_poi_cache)
     warmup.register("city_category_index", warmup_city_category_cache)
-    warmup.register("user_profiles", warmup_user_profiles)
     warmup.register("other_datasets", warmup_other_datasets)

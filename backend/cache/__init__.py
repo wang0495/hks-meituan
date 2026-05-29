@@ -26,7 +26,6 @@ from backend.cache.warmup import (
     warmup_city_category_cache,
     warmup_other_datasets,
     warmup_poi_cache,
-    warmup_user_profiles,
 )
 
 __all__ = [
@@ -43,6 +42,5 @@ __all__ = [
     # 预热任务
     "warmup_poi_cache",
     "warmup_city_category_cache",
-    "warmup_user_profiles",
     "warmup_other_datasets",
 ]

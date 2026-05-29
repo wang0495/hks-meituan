@@ -247,7 +247,6 @@ class TestGlobalWarmer:
         names = warmer.task_names
         assert "poi" in names
         assert "city_category_index" in names
-        assert "user_profiles" in names
         assert "other_datasets" in names
 
     def test_reset(self) -> None:
@@ -323,37 +322,6 @@ class TestDefaultWarmupTasks:
 
         # 3 个组合: BJ:景点, BJ:餐厅, SH:景点
         assert mock_cache.set.await_count == 3
-
-    @pytest.mark.asyncio
-    async def test_warmup_user_profiles(self) -> None:
-        from backend.services.cache_warmer import warmup_user_profiles
-
-        mock_profiles = {
-            "P1": {
-                "group_type": "独居",
-                "preferences": {
-                    "culture": 0.6,
-                    "food": 0.4,
-                    "nature": 0.7,
-                    "social": 0.1,
-                },
-                "pace": "闲逛型",
-                "budget_level": "中",
-            },
-        }
-        mock_cache = AsyncMock()
-
-        with (
-            patch(
-                "backend.services.cache.get_multilevel_cache", return_value=mock_cache
-            ),
-            patch("backend.services.user_profiles.USER_PROFILES", mock_profiles),
-            patch("backend.services.user_profiles.match_profile", return_value="P1"),
-        ):
-            await warmup_user_profiles()
-
-        # 1 个 profile_match + 1 个 user_profiles dict = 2
-        assert mock_cache.set.await_count == 2
 
     @pytest.mark.asyncio
     async def test_warmup_other_datasets(self) -> None:

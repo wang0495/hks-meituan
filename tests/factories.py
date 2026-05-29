@@ -104,7 +104,6 @@ class IntentFactory:
             },
             "pace": "平衡型",
             "hard_constraints": [],
-            "matched_profile_id": "P1",
         }
 
         defaults.update(kwargs)
@@ -118,7 +117,6 @@ class IntentFactory:
             preferences={"culture": 0.6, "food": 0.3, "nature": 0.7, "social": 0.1},
             pace="闲逛型",
             hard_constraints=["低人流"],
-            matched_profile_id="P1",
         )
 
     @classmethod
@@ -129,7 +127,6 @@ class IntentFactory:
             preferences={"culture": 0.4, "food": 0.7, "nature": 0.5, "social": 0.5},
             pace="平衡型",
             hard_constraints=[],
-            matched_profile_id="P2",
         )
 
     @classmethod
@@ -140,7 +137,6 @@ class IntentFactory:
             preferences={"culture": 0.3, "food": 0.5, "nature": 0.6, "social": 0.6},
             pace="平衡型",
             hard_constraints=["儿童友好"],
-            matched_profile_id="P3",
         )
 
     @classmethod
@@ -151,7 +147,6 @@ class IntentFactory:
             preferences={"culture": 0.2, "food": 0.8, "nature": 0.3, "social": 0.9},
             pace="特种兵型",
             hard_constraints=[],
-            matched_profile_id="P4",
         )
 
 

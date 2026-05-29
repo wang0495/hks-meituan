@@ -5,7 +5,7 @@
 - LLM 超时降级
 - LLM 异常降级
 - 规则匹配兜底
-- 画像匹配
+
 """
 
 from __future__ import annotations
@@ -15,8 +15,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from backend.services.intent_parser import (PROFILES, _match_profile,
-                                            _rule_based_parse, parse_intent)
+from backend.services.intent_parser import _rule_based_parse, parse_intent
 from tests.factories import IntentFactory
 
 # ---------------------------------------------------------------------------
@@ -53,7 +52,6 @@ class TestParseIntentWithMockLLM:
 
             assert result["group"]["type"] == "独居"
             assert result["pace"] == "闲逛型"
-            assert result["matched_profile_id"] in ("P1", "P20")
             mock_llm.assert_called_once()
 
     @pytest.mark.asyncio
@@ -82,7 +80,6 @@ class TestParseIntentWithMockLLM:
             result = await parse_intent("和女朋友下午约会")
 
             assert result["group"]["type"] == "情侣"
-            assert result["matched_profile_id"] == "P2"
 
 
 # ---------------------------------------------------------------------------
@@ -109,7 +106,6 @@ class TestParseIntentLLMFallback:
             assert "group" in result
             assert result["preferences"]["social"] <= 0.2
             assert "低人流" in result.get("hard_constraints", [])
-            assert result["matched_profile_id"] in ("P1", "P20")
 
     @pytest.mark.asyncio
     async def test_llm_connection_error_falls_back(self) -> None:
@@ -123,7 +119,6 @@ class TestParseIntentLLMFallback:
             result = await parse_intent("带狗子出去转转")
 
             assert "pet_friendly" in result.get("hard_constraints", [])
-            assert result["matched_profile_id"] == "P12"
 
     @pytest.mark.asyncio
     async def test_llm_returns_none_falls_back(self) -> None:
@@ -137,7 +132,6 @@ class TestParseIntentLLMFallback:
             result = await parse_intent("和女朋友约会，想找有氛围的地方")
 
             assert result["group"]["type"] == "情侣"
-            assert result["matched_profile_id"] == "P2"
 
 
 # ---------------------------------------------------------------------------
@@ -181,48 +175,6 @@ class TestRuleBasedParseDetailed:
         assert result["group"]["type"] == "朋友"
         assert result["group"]["size"] == 4
         assert result["preferences"]["social"] >= 0.8
-
-
-# ---------------------------------------------------------------------------
-# 画像匹配边界测试
-# ---------------------------------------------------------------------------
-
-
-class TestMatchProfileEdgeCases:
-    """测试画像匹配的边界情况。"""
-
-    def test_empty_intent_returns_default(self) -> None:
-        """空意图返回默认画像 P1。"""
-        intent: dict = {}
-        pid = _match_profile(intent, PROFILES)
-        assert pid in PROFILES
-
-    def test_unknown_group_type_still_matches(self) -> None:
-        """未知群体类型也能匹配到某个画像。"""
-        intent = {
-            "group": {"type": "未知类型", "size": 1},
-            "preferences": {"social": 0.5},
-            "pace": "平衡型",
-            "hard_constraints": [],
-        }
-        pid = _match_profile(intent, PROFILES)
-        assert pid in PROFILES
-
-    def test_custom_profiles(self) -> None:
-        """自定义画像库匹配。"""
-        custom_profiles = {
-            "X1": {
-                "name": "自定义画像",
-                "group_type": "独居",
-                "social": 0.1,
-                "pace": "闲逛型",
-                "keywords": ["测试"],
-            },
-        }
-        intent = IntentFactory.create_solo_quiet()
-        intent["hard_constraints"] = ["测试"]
-        pid = _match_profile(intent, custom_profiles)
-        assert pid == "X1"
 
 
 # ---------------------------------------------------------------------------

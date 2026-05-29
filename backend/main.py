@@ -523,10 +523,9 @@ async def plan_route(request: PlanRequest):
             yield _sse("phase", {"phase": "parsing", "message": "正在理解你的需求..."})
 
             from backend.services.intent_parser import parse_intent
-            from backend.services.user_profiles import USER_PROFILES
 
             user_intent = await _with_timeout(
-                parse_intent(request.user_input, USER_PROFILES),
+                parse_intent(request.user_input),
                 timeout_seconds=35.0,
             )
             if user_intent is None:
@@ -546,15 +545,6 @@ async def plan_route(request: PlanRequest):
                 if user_intent.get("_llm_model"):
                     llm_debug["model"] = user_intent["_llm_model"]
                 yield _sse("debug_llm", llm_debug)
-
-            # Debug: 画像匹配 TOP3（仅开发环境）
-            if settings.debug:
-                top3 = user_intent.get("_profile_top3", [])
-                if top3:
-                    yield _sse("debug_profile", {
-                        "top3": top3,
-                        "selected": user_intent.get("matched_profile_id", "?"),
-                    })
 
             # V2: PreferenceManager 偏好融合 + 权重计算
             dynamic_weights = None

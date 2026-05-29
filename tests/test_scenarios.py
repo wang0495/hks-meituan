@@ -2,9 +2,8 @@
 
 用法:
     python test_scenarios.py                  全部测试
-    python test_scenarios.py --profile-only   只测画像匹配
-    python test_scenarios.py --api-only   只测 API 规划
-    python test_scenarios.py "关键词"       测试指定输入
+    python test_scenarios.py --api-only       只测 API 规划
+    python test_scenarios.py "关键词"         测试指定输入
 """
 
 import asyncio
@@ -26,21 +25,21 @@ results: list[dict] = []
 # ── 场景定义 ────────────────────────────────────────────────────
 
 SCENARIOS = [
-    # (测试名, 输入, 期望画像, 期望约束, 期望群体)
-    ("社恐独居", "周末想一个人安静走走，不想去人多的地方", "P1", ["低人流"], "独居"),
-    ("情侣约会", "和女朋友约会，想找有氛围的地方", "P2", [], "情侣"),
-    ("亲子出游", "周末带娃出去玩，让他消耗体力", "P3", ["儿童友好"], "亲子"),
-    ("宠物友好", "带狗子出去转转，找个户外空间", "P12", ["pet_friendly"], "独居"),
-    ("朋友聚会", "周末和朋友们一起聚餐唱歌", "P4", [], "朋友"),
-    ("退休散步", "退休了想出去走走，散散步", "P5", [], "退休"),
-    ("文化探索", "想去博物馆和历史古迹看看", "P6", [], "独居"),
-    ("美食探店", "想找好吃的餐厅探店", "P7", [], "朋友"),
-    ("自然户外", "想去爬山呼吸新鲜空气", "P8", [], "独居"),
-    ("摄影打卡", "想找拍照好看的地方出片", "P10", [], "独居"),
-    ("三代同堂", "带老人和孩子一家人出去玩", "P14", ["无障碍"], "亲子"),
-    ("商务休闲", "找个环境优雅的地方谈事情", "P15", [], "独居"),
-    ("学生穷游", "预算不多，想找免费好玩的地方", "P16", [], "朋友"),
-    ("艺术家", "想去看展览找灵感", "P17", [], "独居"),
+    # (测试名, 输入, 期望约束, 期望群体)
+    ("社恐独居", "周末想一个人安静走走，不想去人多的地方", ["低人流"], "独居"),
+    ("情侣约会", "和女朋友约会，想找有氛围的地方", [], "情侣"),
+    ("亲子出游", "周末带娃出去玩，让他消耗体力", ["儿童友好"], "亲子"),
+    ("宠物友好", "带狗子出去转转，找个户外空间", ["pet_friendly"], "独居"),
+    ("朋友聚会", "周末和朋友们一起聚餐唱歌", [], "朋友"),
+    ("退休散步", "退休了想出去走走，散散步", [], "退休"),
+    ("文化探索", "想去博物馆和历史古迹看看", [], "独居"),
+    ("美食探店", "想找好吃的餐厅探店", [], "朋友"),
+    ("自然户外", "想去爬山呼吸新鲜空气", [], "独居"),
+    ("摄影打卡", "想找拍照好看的地方出片", [], "独居"),
+    ("三代同堂", "带老人和孩子一家人出去玩", ["无障碍"], "亲子"),
+    ("商务休闲", "找个环境优雅的地方谈事情", [], "独居"),
+    ("学生穷游", "预算不多，想找免费好玩的地方", [], "朋友"),
+    ("艺术家", "想去看展览找灵感", [], "独居"),
 ]
 
 
@@ -48,69 +47,34 @@ SCENARIOS = [
 
 
 async def test_intent_parsing() -> None:
-    """只测试意图解析 + 画像匹配。"""
+    """只测试意图解析。"""
     sys.path.insert(0, str(Path(__file__).parent))
-    from backend.services.intent_parser import parse_intent, PROFILES
+    from backend.services.intent_parser import parse_intent
 
     print(f"\n{'='*80}")
-    print(f"📋 意图解析测试（使用 intent_parser.PROFILES）")
+    print(f"📋 意图解析测试")
     print(f"{'='*80}")
 
-    for name, user_input, exp_pid, exp_constraints, exp_group in SCENARIOS:
+    for name, user_input, exp_constraints, exp_group in SCENARIOS:
         print(f"\n  [{name}] {user_input}")
-        print(f"    期望: {exp_pid} ({exp_group})")
+        print(f"    期望群体: {exp_group}")
 
-        intent = await parse_intent(user_input, PROFILES)
-        pid = intent.get("matched_profile_id", "?")
+        intent = await parse_intent(user_input)
         group = intent.get("group", {}).get("type", "?")
         constraints = intent.get("hard_constraints", [])
         llm = intent.get("_llm_used", False)
 
-        ok = pid == exp_pid
+        ok = group == exp_group
         icon = PASS if ok else FAIL
-        print(f"    {icon} 实际: {pid} ({group})  LLM={'是' if llm else '否'}")
+        print(f"    {icon} 实际群体: {group}  LLM={'是' if llm else '否'}")
         print(f"      约束: {constraints}")
 
         results.append({
             "type": "intent", "name": name, "input": user_input,
-            "expected": f"{exp_pid}({exp_group})",
-            "actual": f"{pid}({group})",
+            "expected": exp_group,
+            "actual": group,
             "passed": ok,
             "intent": intent,
-        })
-
-
-async def test_user_profiles_matching() -> None:
-    """使用 user_profiles.USER_PROFILES + match_profile 匹配。"""
-    sys.path.insert(0, str(Path(__file__).parent))
-    from backend.services.intent_parser import parse_intent, PROFILES
-    from backend.services.user_profiles import match_profile, USER_PROFILES
-
-    print(f"\n{'='*80}")
-    print(f"📋 画像匹配测试（使用 user_profiles.match_profile）")
-    print(f"{'='*80}")
-
-    for name, user_input, exp_pid, exp_constraints, exp_group in SCENARIOS:
-        print(f"\n  [{name}] {user_input}")
-
-        # 先用 intent_parser 解析（用 PROFILES 做关键词匹配更准）
-        intent = await parse_intent(user_input, PROFILES)
-
-        # 再用 user_profiles 的余弦相似度匹配
-        matched_id = match_profile(intent)
-        profile = USER_PROFILES.get(matched_id, {})
-        profile_name = profile.get("name", "?")
-
-        # 期望映射（USER_PROFILES 的 ID 可能不同）
-        ok = matched_id == exp_pid
-        icon = PASS if ok else FAIL
-        print(f"    {icon} 匹配: {matched_id} - {profile_name}")
-
-        results.append({
-            "type": "profile", "name": name, "input": user_input,
-            "expected": exp_pid,
-            "actual": f"{matched_id}({profile_name})",
-            "passed": ok,
         })
 
 
@@ -123,7 +87,7 @@ async def test_api_plan() -> None:
     passed = 0
     failed = 0
 
-    for name, user_input, exp_pid, exp_constraints, exp_group in SCENARIOS:
+    for name, user_input, exp_constraints, exp_group in SCENARIOS:
         print(f"\n  [{name}] {user_input}")
         start = time.time()
 
@@ -142,21 +106,20 @@ async def test_api_plan() -> None:
             step_count = len(steps)
             route = done.get("full_route", {})
             intent = route.get("user_intent", {})
-            pid = intent.get("matched_profile_id", "?")
             group = intent.get("group", {}).get("type", "?")
             llm = intent.get("_llm_used", False)
             anomalies = result.get("anomalies", [])
 
-            print(f"    {PASS if pid == exp_pid else WARN} route_id={route_id[:8]}  |  "
+            print(f"    {PASS} route_id={route_id[:8]}  |  "
                   f"{step_count}步  |  {elapsed:.1f}s")
-            print(f"      画像: {pid}({group})  |  LLM={'是' if llm else '否'}  |  "
+            print(f"      群体: {group}  |  LLM={'是' if llm else '否'}  |  "
                   f"异常:{len(anomalies)}")
 
             results.append({
                 "type": "api", "name": name, "input": user_input,
-                "expected": exp_pid,
-                "actual": f"{pid}({group})",
-                "passed": pid == exp_pid or step_count > 0,
+                "expected": exp_group,
+                "actual": group,
+                "passed": step_count > 0,
                 "steps": step_count,
                 "time": f"{elapsed:.1f}s",
             })
@@ -224,14 +187,14 @@ def print_report() -> None:
     print(f"  总计: {total}  通过: {PASS} {passed}  失败: {FAIL} {failed}")
 
     # 按类型分组
-    for test_type in ["intent", "profile", "api"]:
+    for test_type in ["intent", "api"]:
         type_results = [r for r in results if r.get("type") == test_type]
         if not type_results:
             continue
         type_passed = sum(1 for r in type_results if r.get("passed"))
         type_failed = len(type_results) - type_passed
 
-        label = {"intent": "意图解析", "profile": "画像匹配", "api": "API端到端"}.get(test_type, test_type)
+        label = {"intent": "意图解析", "api": "API端到端"}.get(test_type, test_type)
         print(f"\n  [{label}] {type_passed}/{len(type_results)} 通过")
 
         for r in type_results:
@@ -243,19 +206,15 @@ def print_report() -> None:
 
 
 async def main() -> None:
-    if "--profile-only" in sys.argv:
-        await test_intent_parsing()
-        await test_user_profiles_matching()
-    elif "--api-only" in sys.argv:
+    if "--api-only" in sys.argv:
         await test_api_plan()
     elif len(sys.argv) > 1 and not sys.argv[1].startswith("--"):
         # 测试指定输入
-        from backend.services.intent_parser import parse_intent, PROFILES
-        intent = await parse_intent(" ".join(sys.argv[1:]), PROFILES)
+        from backend.services.intent_parser import parse_intent
+        intent = await parse_intent(" ".join(sys.argv[1:]))
         print(json.dumps(intent, ensure_ascii=False, indent=2))
     else:
         await test_intent_parsing()
-        await test_user_profiles_matching()
         print()
         print()
         await test_api_plan()
