@@ -1,0 +1,17 @@
+{
+  "label": "基线 - feedback_entry 改造前",
+  "model": "xopqwen35v35b",
+  "base_url": "https://maas-coding-api.cn-huabei-1.xf-yun.com/v2",
+  "timestamp": "2026-05-29",
+  "avg_score": 77.0,
+  "avg_elapsed": 63.7,
+  "route_ok": "4/5",
+  "grade_distribution": {"A": 3, "B": 1, "C": 1},
+  "scenes": [
+    {"scene": "美食型", "score": 72.8, "grade": "B", "elapsed": 87.4, "stops": 6, "route_ok": true},
+    {"scene": "目的地型", "score": 64.6, "grade": "C", "elapsed": 43.9, "stops": 2, "route_ok": false},
+    {"scene": "特种兵型", "score": 80.8, "grade": "A", "elapsed": 68.1, "stops": 9, "route_ok": true},
+    {"scene": "休闲型", "score": 83.3, "grade": "A", "elapsed": 61.7, "stops": 5, "route_ok": true},
+    {"scene": "观光型", "score": 83.6, "grade": "A", "elapsed": 57.6, "stops": 5, "route_ok": true}
+  ]
+}
