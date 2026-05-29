@@ -400,8 +400,18 @@
         <mxCell id="fb_reentry" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=8;fontColor=#333;arcSize=15;dashed=1;strokeWidth=2;" value="&lt;b&gt;原 graph 重入点&lt;/b&gt;&lt;br/&gt;&lt;font style=&quot;font-size:7px&quot;&gt;Command(goto=&quot;expert_router&quot;)&lt;br/&gt;复用原 graph 后半段全部逻辑&lt;br/&gt;review↔rework 循环保留&lt;/font&gt;" vertex="1">
           <mxGeometry height="50" width="170" x="1420" y="1130" as="geometry" />
         </mxCell>
-        <mxCell id="e_reentry_expert" edge="1" parent="1" source="fb_intent_router" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#b85450;strokeWidth=1.5;dashed=1;fontSize=7;fontColor=#b85450;" target="fb_reentry" value="subgraph re-entry">
+        <mxCell id="e_reentry_expert" edge="1" parent="1" source="fb_intent_router" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#b85450;strokeWidth=1.5;dashed=1;fontSize=7;fontColor=#b85450;" target="fb_reentry" value="">
           <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_reentry_line" edge="1" parent="1" source="fb_reentry" target="expert_router" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#b85450;strokeWidth=3;dashed=1;dashPattern=8 4;fontSize=9;fontColor=#b85450;fontStyle=1;exitX=0;exitY=1;exitDx=0;exitDy=0;entryX=1;entryY=1;entryDx=0;entryDy=0;" value="Command(goto=&quot;expert_router&quot;) 选择性重跑">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1380" y="1200" />
+              <mxPoint x="1380" y="1380" />
+              <mxPoint x="300" y="1380" />
+              <mxPoint x="300" y="455" />
+            </Array>
+          </mxGeometry>
         </mxCell>
         <mxCell id="fb_reuse_box" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#9673a6;strokeWidth=1.5;dashed=1;arcSize=8;fontSize=7;fontColor=#9673a6;verticalAlign=top;align=center;" value="选择复用 vs 重跑" vertex="1">
           <mxGeometry height="60" width="170" x="1420" y="1195" as="geometry" />
