@@ -157,12 +157,15 @@ def score_route(route_list: list[dict], scene_type: str, proposals: list[dict],
     nice_cats = expect.get("nice_categories", set())
     forbidden = expect.get("forbidden_categories", set())
 
-    # 必须类别
-    must_hit = sum(1 for c in must_cats if c in cat_set)
+    # 必须类别（模糊匹配：category包含关键字即可）
+    def _cat_hit(cat: str, target_set: set) -> bool:
+        return any(t in cat or cat in t for t in target_set)
+
+    must_hit = sum(1 for c in categories if _cat_hit(c, must_cats))
     cat_score = (must_hit / len(must_cats) * 70) if must_cats else 70
 
     # 加分类别
-    nice_hit = sum(1 for c in nice_cats if c in cat_set)
+    nice_hit = sum(1 for c in categories if _cat_hit(c, nice_cats))
     cat_score += min(30, nice_hit * 15) if nice_cats else 30
 
     # 禁止类别惩罚
@@ -236,8 +239,10 @@ def score_route(route_list: list[dict], scene_type: str, proposals: list[dict],
                 time_score -= 20
                 notes.append(f"总行程过长: {total_min}分钟")
     else:
-        time_score = 60
-        notes.append("无时间数据")
+        # 1站或无时间数据：目的地型合理，其他给中等分
+        time_score = 100 if (scene_type == "目的地型" and n == 1) else 60
+        if time_score < 100:
+            notes.append("无时间数据")
 
     dims["时间可行"] = round(max(0, time_score), 1)
 
@@ -257,6 +262,9 @@ def score_route(route_list: list[dict], scene_type: str, proposals: list[dict],
         if max_consec >= 3:
             diversity -= (max_consec - 2) * 10
             notes.append(f"连续{max_consec+1}站同类别")
+    elif scene_type == "目的地型" and n == 1:
+        # 目的地型单站合理（如长隆玩一天），不罚分
+        diversity = 100
     else:
         diversity = 50
 

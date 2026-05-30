@@ -298,6 +298,11 @@ def _get_llm_client(prefix: str = "EXPERT_LLM") -> AsyncOpenAI:
     return _llm_clients[prefix]
 
 
+def clear_llm_cache():
+    """Clear cached LLM clients so next call picks up new env vars."""
+    _llm_clients.clear()
+
+
 def _llm_model(prefix: str = "EXPERT_LLM") -> str:
     """Return the model name for a given prefix."""
     return os.getenv(f"{prefix}_MODEL") or os.getenv("LLM_MODEL", "deepseek-chat")
