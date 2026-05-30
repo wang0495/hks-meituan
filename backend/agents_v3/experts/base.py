@@ -340,7 +340,7 @@ async def _llm_decide(
     system_prompt: str,
     user_prompt: str,
     *,
-    retries: int = 2,
+    retries: int = 5,
     prefix: str = "EXPERT_LLM",
     temperature: float = 0.1,
 ) -> dict | None:
@@ -416,7 +416,7 @@ async def _llm_decide(
         except Exception as e:
             error_feedback = f"解析失败: {str(e)[:200]}"
             if attempt < retries - 1:
-                await asyncio.sleep(1)
+                await asyncio.sleep(2)
     logger.warning("_llm_decide failed after %d retries: prefix=%s, error=%s", retries, prefix, error_feedback)
     return None
 
