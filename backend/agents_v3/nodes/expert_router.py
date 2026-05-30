@@ -322,6 +322,13 @@ async def expert_router(state: TravelState) -> dict:
     # Ensure "poi" is always in active_experts
     if "poi" not in active:
         active.append("poi")
+    # Ensure "food" has floor >= 0.3 unless user explicitly excludes food
+    _no_food_keywords = ["不要餐饮", "不要吃", "不需要吃", "只玩不吃", "不用吃饭", "无餐饮"]
+    user_text = user_input.lower()
+    if not any(kw in user_text for kw in _no_food_keywords):
+        weights["food"] = max(float(weights.get("food", 0)), 0.3)
+        if "food" not in active:
+            active.append("food")
     pools = _compute_pools(candidates, state)
 
     await sse_emit(state, "agent_result", {"agent": "expert_router", "summary": f"场景: {result['scene_type']}，激活: {', '.join(active)}"})
