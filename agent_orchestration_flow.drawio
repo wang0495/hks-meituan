@@ -441,8 +441,8 @@
         <mxCell id="emergence_note" parent="1" style="shape=note;whiteSpace=wrap;html=1;backgroundOutline=1;size=8;fillColor=#fff2cc;strokeColor=#d79b00;fontSize=8;align=left;spacingLeft=5;" value="&lt;div style=&quot;font-size:8px;text-align:left;line-height:1.3&quot;&gt;&lt;b&gt;涌现式校验 (emergence/conflict_detector.py):&lt;/b&gt;&lt;br/&gt;检测Agent间矛盾，自动解决可解决的:&lt;br/&gt;1. 预算矛盾: 总花费超预算150%/200%&lt;br/&gt;2. 主题矛盾: 亲子行程含酒吧/夜店/club&lt;br/&gt;3. 地理矛盾: 住宿距景点 &gt; 20km&lt;br/&gt;resolve_conflicts: 自动移除不合适提案&lt;br/&gt;should_escalate: high+不可自动解决→升级用户&lt;br/&gt;&lt;b&gt;注意: 当前未注册到build_graph_c()&lt;/b&gt;&lt;/div&gt;" vertex="1">
           <mxGeometry height="100" width="230" x="-190" y="580" as="geometry" />
         </mxCell>
-        <mxCell id="issue_synth" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6e6;strokeColor=#cc0000;fontSize=8;fontColor=#cc0000;arcSize=10;" value="&lt;b&gt;问题:&lt;/b&gt; 时间分配冲突&lt;br&gt;反馈测试3/5变差(5.8/10)&lt;br&gt;LLM规划路线时间不合理" vertex="1">
-          <mxGeometry height="45" width="180" x="660" y="145" as="geometry" />
+        <mxCell id="issue_synth" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6e6;strokeColor=#cc0000;fontSize=8;fontColor=#cc0000;arcSize=10;" value="&lt;b&gt;核心问题: 时间分配&lt;/b&gt;&lt;br&gt;_build_route_from_llm_order()&lt;br&gt;机械累加90min/站，不考虑:&lt;br&gt;• 餐饮应在11:30-13:00/17:30-19:00&lt;br&gt;• 不同POI停留时间不同&lt;br&gt;• 空白时段应填充" vertex="1">
+          <mxGeometry height="80" width="200" x="660" y="145" as="geometry" />
         </mxCell>
         <mxCell id="issue_food" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6e6;strokeColor=#cc0000;fontSize=8;fontColor=#cc0000;arcSize=10;" value="&lt;b&gt;问题:&lt;/b&gt; 美食型多样性50分&lt;br&gt;选了多个同类餐厅&lt;br&gt;连续同类被惩罚" vertex="1">
           <mxGeometry height="45" width="160" x="170" y="770" as="geometry" />
