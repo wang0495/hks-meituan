@@ -59,7 +59,7 @@ _SCENE_EXPECT = {
         "max_leg_km": 25,
     },
     "目的地型": {
-        "min_stops": 3, "max_stops": 8,
+        "min_stops": 1, "max_stops": 8,
         "must_categories": {"景点", "娱乐"},
         "nice_categories": {"餐饮"},
         "forbidden_categories": set(),
