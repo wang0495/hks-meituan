@@ -39,7 +39,7 @@ def _init():
                 continue
             k, _, v = line.partition("=")
             os.environ.setdefault(k.strip(), v.strip())
-    # Monkey-patch
+    # Monkey-patch meituan_client (must happen before importing agents_v3)
     import urllib.request
     try:
         urllib.request.urlopen("http://localhost:8001/api/poi/search?limit=1", timeout=2)
@@ -50,6 +50,8 @@ def _init():
             _mc.BASE = "http://localhost:8002/api"
         except Exception:
             pass
+    # Pre-import to catch errors early
+    from backend.agents_v3.test_5_scenes import SCENES  # noqa: F401
 
 
 def _run_model(model: str, api_key: str, base_url: str) -> dict:
@@ -100,6 +102,7 @@ async def _run_one(scene_type: str, user_input: str, model: str) -> dict:
     from backend.agents_v3 import get_graph_c, TravelState
     from backend.agents_v3.experts.base import clear_llm_cache
     from backend.agents_v3.meituan_client import clear_cache
+    from backend.agents_v3.test_5_scenes import score_route
 
     last_error = None
     for attempt in range(1, MAX_RETRIES + 1):
@@ -166,7 +169,7 @@ def main():
         for fut in futures:
             model = futures[fut]
             try:
-                result = fut.result(timeout=SCENE_TIMEOUT * len(SCENES) * MAX_RETRIES)
+                result = fut.result(timeout=SCENE_TIMEOUT * 5 * MAX_RETRIES)
                 model_results.append(result)
             except Exception as e:
                 model_results.append({"model": model, "avg_score": 0, "total_elapsed": 0, "scenes": [], "_error": str(e)})
