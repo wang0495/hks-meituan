@@ -15,6 +15,11 @@ import sys
 import time
 from pathlib import Path
 
+# 确保项目根目录在 sys.path 中（支持 cd backend && python -m agents_v3.test_5_scenes）
+_project_root = str(Path(__file__).resolve().parent.parent.parent)
+if _project_root not in sys.path:
+    sys.path.insert(0, _project_root)
+
 # ── 加载 .env ──────────────────────────────────────────────────────
 _env_file = Path(__file__).resolve().parent.parent.parent / ".env"
 if _env_file.exists():

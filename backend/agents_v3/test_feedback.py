@@ -19,6 +19,11 @@ import sys
 import time
 from pathlib import Path
 
+# 确保项目根目录在 sys.path 中
+_project_root = str(Path(__file__).resolve().parent.parent.parent)
+if _project_root not in sys.path:
+    sys.path.insert(0, _project_root)
+
 import httpx
 
 # ── 加载 .env ──────────────────────────────────────────────────────
