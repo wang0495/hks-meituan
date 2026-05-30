@@ -1,0 +1,190 @@
+[
+  {
+    "id": 1,
+    "name": "情侣珠海一日游",
+    "success": true,
+    "elapsed": 48.064,
+    "route_steps": 3,
+    "proposals": 12,
+    "conflicts": 0,
+    "has_narrative": true,
+    "poi_names": [
+      "竹仙洞公园",
+      "芝麻串串香",
+      "中心咖啡店"
+    ],
+    "errors": [
+      "美团API不可用: Client error '422 Unprocessable Entity' for url 'http://localhost:8001/api/poi/search?limit=5000'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/422"
+    ],
+    "eval": {
+      "scores": {
+        "intent_match": 6,
+        "poi_quality": 7,
+        "geo_continuity": 5,
+        "scene_diversity": 4,
+        "overall": 6
+      },
+      "overall": 6,
+      "good_points": [
+        "路线包含了适合情侣拍照打卡的景点（如竹仙洞公园），且餐饮选择环境较好，符合用户偏好。",
+        "时间安排较为紧凑但合理，覆盖了上午至中午的时段，适合一日游节奏。"
+      ],
+      "bad_points": [
+        "地理连续性较差：竹仙洞公园、芝麻串串香和中心咖啡店之间缺乏明确的地理位置关联，可能存在跨区域折返，影响游览体验。",
+        "场景多样性不足：路线以运动和餐饮为主，缺少具有珠海特色或浪漫氛围的标志性景点（如情侣路、野狸岛、日月贝等），不利于深度拍照打卡。"
+      ]
+    }
+  },
+  {
+    "id": 2,
+    "name": "亲子海洋王国",
+    "success": true,
+    "elapsed": 19.989,
+    "route_steps": 3,
+    "proposals": 12,
+    "conflicts": 0,
+    "has_narrative": true,
+    "poi_names": [
+      "竹仙洞公园",
+      "世記咖啡",
+      "中心咖啡店"
+    ],
+    "errors": [
+      "美团API不可用: Client error '422 Unprocessable Entity' for url 'http://localhost:8001/api/poi/search?limit=5000'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/422"
+    ],
+    "eval": {
+      "scores": {
+        "intent_match": 2,
+        "poi_quality": 6,
+        "geo_continuity": 4,
+        "scene_diversity": 5,
+        "overall": 3
+      },
+      "overall": 3,
+      "good_points": [
+        "路线中包含了餐饮安排，且选择了性价比高的咖啡店，符合家庭出行需求。",
+        "时间安排较为紧凑但合理，上午安排了运动和用餐，适合亲子节奏。"
+      ],
+      "bad_points": [
+        "路线完全未包含用户明确提到的核心目的地‘长隆海洋王国’，严重偏离用户需求。",
+        "所选POI（竹仙洞公园、世記咖啡、中心咖啡店）地理位置分散，缺乏连贯性，不符合目的地型场景的集中游览逻辑。"
+      ]
+    }
+  },
+  {
+    "id": 3,
+    "name": "美食探索",
+    "success": true,
+    "elapsed": 20.455,
+    "route_steps": 4,
+    "proposals": 12,
+    "conflicts": 0,
+    "has_narrative": true,
+    "poi_names": [
+      "美食街",
+      "竹仙洞公园",
+      "澳美居茶餐厅",
+      "横琴蚝庄·小蚝湾分店（非百年蚝仓）"
+    ],
+    "errors": [
+      "美团API不可用: Client error '422 Unprocessable Entity' for url 'http://localhost:8001/api/poi/search?limit=5000'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/422"
+    ],
+    "eval": {
+      "scores": {
+        "intent_match": 9,
+        "poi_quality": 8,
+        "geo_continuity": 7,
+        "scene_diversity": 6,
+        "overall": 8
+      },
+      "overall": 8,
+      "good_points": [
+        "路线紧扣‘珠海美食一日游’主题，覆盖了海鲜和本地特色餐饮需求，尤其是横琴蚝庄作为珠海特色海鲜代表被合理纳入。",
+        "时间安排紧凑但合理，从上午到中午逐步推进用餐节奏，符合游客正常进食习惯。",
+        "所选餐厅（如澳美居茶餐厅、横琴蚝庄）均为珠海本地知名或口碑较好的餐饮点，POI质量较高。"
+      ],
+      "bad_points": [
+        "前两站（美食街、竹仙洞公园）与核心美食主题关联较弱，尤其竹仙洞公园属运动健身类景点，偏离用户主要诉求，造成资源分散。",
+        "未充分突出‘本地特色’深度体验，例如缺少对珠海疍家文化、渔女传说等饮食文化背景的介绍或联动安排。"
+      ]
+    }
+  },
+  {
+    "id": 4,
+    "name": "特种兵打卡",
+    "success": true,
+    "elapsed": 21.877,
+    "route_steps": 6,
+    "proposals": 15,
+    "conflicts": 0,
+    "has_narrative": true,
+    "poi_names": [
+      "美食街",
+      "竹仙洞公园",
+      "世記咖啡",
+      "银沙滩（东澳岛）",
+      "中心咖啡店",
+      "东澳岛南沙湾沙滩（非东澳码头侧）"
+    ],
+    "errors": [
+      "美团API不可用: Client error '422 Unprocessable Entity' for url 'http://localhost:8001/api/poi/search?limit=5000'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/422"
+    ],
+    "eval": {
+      "scores": {
+        "intent_match": 7,
+        "poi_quality": 6,
+        "geo_continuity": 5,
+        "scene_diversity": 8,
+        "overall": 6
+      },
+      "overall": 6,
+      "good_points": [
+        "路线覆盖了珠海多个代表性景点，包括文化、自然风光和海滨体验，场景多样性高。",
+        "包含网红咖啡店和免费沙滩等高性价比选择，兼顾打卡与实用需求。"
+      ],
+      "bad_points": [
+        "地理连续性较差：从市区（美食街、竹仙洞）直接前往东澳岛（需乘船），再返回市区用餐，存在明显折返，交通耗时未明确标注，实际一天内完成难度极大。",
+        "时间分配紧张：多个POI间隔仅30-40分钟，且东澳岛往返至少需2小时以上，整体行程过于紧凑，不符合‘一天打卡所有著名景点’的可行性。"
+      ]
+    }
+  },
+  {
+    "id": 5,
+    "name": "休闲养老游",
+    "success": true,
+    "elapsed": 30.164,
+    "route_steps": 5,
+    "proposals": 13,
+    "conflicts": 0,
+    "has_narrative": true,
+    "poi_names": [
+      "美食街",
+      "竹仙洞公园",
+      "世記咖啡",
+      "中心咖啡店",
+      "白莲洞公园"
+    ],
+    "errors": [
+      "美团API不可用: Client error '422 Unprocessable Entity' for url 'http://localhost:8001/api/poi/search?limit=5000'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/422"
+    ],
+    "eval": {
+      "scores": {
+        "intent_match": 7,
+        "poi_quality": 6,
+        "geo_continuity": 5,
+        "scene_diversity": 4,
+        "overall": 6
+      },
+      "overall": 6,
+      "good_points": [
+        "路线节奏较为舒缓，时间安排合理，适合慢节奏旅行。",
+        "包含多个公园和餐饮点，兼顾自然风光与美食体验，符合用户对公园和海边兴趣的部分需求。"
+      ],
+      "bad_points": [
+        "未包含任何海边景点，未能满足用户对‘海边’的明确偏好，意图匹配度受限。",
+        "地理连续性较差，从美食街到竹仙洞公园、再到市中心咖啡店和白莲洞公园，行程跳跃较大，缺乏连贯性。",
+        "场景多样性偏低，以餐饮和运动为主，缺少文化或休闲放松类高质量POI，整体体验较单一。"
+      ]
+    }
+  }
+]

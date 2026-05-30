@@ -1,0 +1,190 @@
+[
+  {
+    "id": 1,
+    "name": "情侣珠海一日游",
+    "success": true,
+    "elapsed": 66.143,
+    "route_steps": 6,
+    "proposals": 14,
+    "conflicts": 0,
+    "has_narrative": true,
+    "poi_names": [
+      "珠海大剧院（野狸岛）",
+      "野狸岛·屿见咖啡",
+      "香洲渔港码头日落点",
+      "情侣中路沙滩栈道",
+      "湾仔海鲜夜市",
+      "武二廣潮福粉麵食館"
+    ],
+    "errors": [],
+    "eval": {
+      "scores": {
+        "intent_match": 8,
+        "poi_quality": 7,
+        "geo_continuity": 7,
+        "scene_diversity": 6,
+        "overall": 7
+      },
+      "overall": 7,
+      "good_points": [
+        "包含珠海大剧院、野狸岛等经典拍照打卡点，符合情侣拍照需求",
+        "路线覆盖了文化景点、海景咖啡馆、沙滩和夜市，体验较丰富",
+        "整体预算控制在500元以内，符合用户预算要求"
+      ],
+      "bad_points": [
+        "香洲渔港码头日落点安排在中午12:50，时间不合理，建议调整到傍晚",
+        "场景多样性一般，主要是景点和餐饮，缺少其他类型（如购物、文化体验）",
+        "湾仔海鲜夜市与武二廣潮福粉麵食館均为餐饮，且距离较远，可考虑合并或替换"
+      ]
+    }
+  },
+  {
+    "id": 2,
+    "name": "亲子海洋王国",
+    "success": true,
+    "elapsed": 58.611,
+    "route_steps": 3,
+    "proposals": 12,
+    "conflicts": 0,
+    "has_narrative": true,
+    "poi_names": [
+      "珠海长隆海洋王国",
+      "横琴蚝庄",
+      "波爾圖餐廳"
+    ],
+    "errors": [],
+    "eval": {
+      "scores": {
+        "intent_match": 7,
+        "poi_quality": 7,
+        "geo_continuity": 8,
+        "scene_diversity": 4,
+        "overall": 6
+      },
+      "overall": 6,
+      "good_points": [
+        "包含了核心目的地长隆海洋王国，满足用户主要需求",
+        "路线地理集中，长隆和横琴蚝庄距离近，无需长途奔波",
+        "预算控制合理，总花费约492元，远低于1000元"
+      ],
+      "bad_points": [
+        "餐饮安排过于密集且类型单一，两个餐厅均为正餐，缺乏多样性，且时间安排不合理（17:15和18:15连续用餐）",
+        "缺少适合6岁孩子的其他活动或休息点，全天仅一个景点，可能过于单调",
+        "未考虑孩子饮食需求，横琴蚝庄以生蚝为主，可能不适合儿童"
+      ]
+    }
+  },
+  {
+    "id": 3,
+    "name": "美食探索",
+    "success": true,
+    "elapsed": 61.986,
+    "route_steps": 6,
+    "proposals": 9,
+    "conflicts": 0,
+    "has_narrative": true,
+    "poi_names": [
+      "湾仔海鲜街",
+      "武二廣潮福粉麵食館",
+      "金悅軒酒家",
+      "夏湾夜市后巷小吃摊",
+      "野狸岛·屿见咖啡",
+      "得月舫"
+    ],
+    "errors": [],
+    "eval": {
+      "scores": {
+        "intent_match": 8,
+        "poi_quality": 7,
+        "geo_continuity": 6,
+        "scene_diversity": 7,
+        "overall": 7
+      },
+      "overall": 7,
+      "good_points": [
+        "包含了海鲜街和本地特色餐厅，符合用户对海鲜和本地美食的需求",
+        "餐饮类型多样，有海鲜街、粉面、粤式酒楼、夜市小吃和咖啡厅",
+        "夜市安排在晚上，时间合理"
+      ],
+      "bad_points": [
+        "湾仔海鲜街与后续餐厅距离较远，且上午9点海鲜街可能未完全营业",
+        "野狸岛咖啡厅与餐饮主题关联较弱，且时间安排较晚",
+        "金悦轩酒家标注价格18元，与实际高端定位不符，可能信息有误"
+      ]
+    }
+  },
+  {
+    "id": 4,
+    "name": "特种兵打卡",
+    "success": true,
+    "elapsed": 66.997,
+    "route_steps": 7,
+    "proposals": 12,
+    "conflicts": 0,
+    "has_narrative": true,
+    "poi_names": [
+      "珠海长隆海洋王国",
+      "肯德基 KFC",
+      "圆明新园",
+      "情侣南路·海风书吧",
+      "情侣中路骑行道",
+      "珠海大剧院（野狸岛）"
+    ],
+    "errors": [],
+    "eval": {
+      "scores": {
+        "intent_match": 7,
+        "poi_quality": 5,
+        "geo_continuity": 4,
+        "scene_diversity": 6,
+        "overall": 5
+      },
+      "overall": 5,
+      "good_points": [
+        "覆盖了珠海多个著名景点，如长隆海洋王国、圆明新园、珠海大剧院等",
+        "包含多种类型景点（主题公园、文化、自然、运动），多样性尚可"
+      ],
+      "bad_points": [
+        "时间安排极不合理，深夜安排骑行和景点，不符合正常作息",
+        "餐饮选择单一且质量低，仅有一家快餐，与景点质量不匹配",
+        "地理连续性差，长隆与市区景点距离远，且深夜跨区域移动不合理"
+      ]
+    }
+  },
+  {
+    "id": 5,
+    "name": "休闲养老游",
+    "success": true,
+    "elapsed": 60.117,
+    "route_steps": 5,
+    "proposals": 7,
+    "conflicts": 0,
+    "has_narrative": true,
+    "poi_names": [
+      "情侣路",
+      "野狸岛·屿见咖啡",
+      "银都酒店",
+      "新海灣",
+      "珠海横琴国家湿地公园"
+    ],
+    "errors": [],
+    "eval": {
+      "scores": {
+        "intent_match": 7,
+        "poi_quality": 6,
+        "geo_continuity": 7,
+        "scene_diversity": 5,
+        "overall": 6
+      },
+      "overall": 6,
+      "good_points": [
+        "路线包含情侣路和湿地公园，符合用户喜欢公园和海边的需求",
+        "节奏较慢，景点数量适中，适合休闲"
+      ],
+      "bad_points": [
+        "第一天下午才到湿地公园，时间安排偏晚，可能影响游览体验",
+        "餐饮和景点类型单一，缺乏多样性，建议增加其他休闲活动如博物馆或文化景点"
+      ]
+    }
+  }
+]

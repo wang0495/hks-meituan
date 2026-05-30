@@ -1,0 +1,64 @@
+[
+  {
+    "id": 1,
+    "name": "情侣珠海一日游",
+    "success": false,
+    "error": "超时"
+  },
+  {
+    "id": 2,
+    "name": "亲子海洋王国",
+    "success": false,
+    "error": "超时"
+  },
+  {
+    "id": 3,
+    "name": "美食探索",
+    "success": false,
+    "error": "超时"
+  },
+  {
+    "id": 4,
+    "name": "特种兵打卡",
+    "success": true,
+    "elapsed": 261.403,
+    "route_steps": 6,
+    "proposals": 8,
+    "conflicts": 0,
+    "has_narrative": true,
+    "poi_names": [
+      "圆明新园",
+      "台灣帝鈞炭烤胡椒餅",
+      "石景山公园",
+      "野狸岛公园",
+      "珠海大剧院",
+      "情侣路"
+    ],
+    "errors": [],
+    "eval": {
+      "scores": {
+        "intent_match": 7,
+        "poi_quality": 6,
+        "geo_continuity": 7,
+        "scene_diversity": 5,
+        "overall": 6
+      },
+      "overall": 6,
+      "good_points": [
+        "覆盖了圆明新园、珠海大剧院等著名景点，基本满足打卡需求",
+        "路线整体呈线性，没有明显折返，地理连续性尚可"
+      ],
+      "bad_points": [
+        "景点类型单一，以文化/运动为主，缺乏自然或娱乐类景点，多样性不足",
+        "餐饮安排仅一个胡椒饼，与密集行程不匹配，建议增加快速用餐点",
+        "时间安排较紧，部分景点停留时间可能不足，建议优化时间分配"
+      ]
+    }
+  },
+  {
+    "id": 5,
+    "name": "休闲养老游",
+    "success": false,
+    "error": "超时"
+  }
+]

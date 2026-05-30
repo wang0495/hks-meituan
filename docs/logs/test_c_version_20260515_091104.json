@@ -1,0 +1,182 @@
+[
+  {
+    "id": 1,
+    "name": "情侣珠海一日游",
+    "success": true,
+    "elapsed": 54.177,
+    "route_steps": 6,
+    "proposals": 11,
+    "conflicts": 0,
+    "has_narrative": true,
+    "poi_names": [
+      "情侣路",
+      "情侣中路骑行道",
+      "情侣南路·海风书吧",
+      "正宗石磨肠粉",
+      "珠海渔女",
+      "珠海大剧院（野狸岛）"
+    ],
+    "errors": [],
+    "eval": {
+      "scores": {
+        "intent_match": 7,
+        "poi_quality": 6,
+        "geo_continuity": 8,
+        "scene_diversity": 5,
+        "overall": 6
+      },
+      "overall": 6,
+      "good_points": [
+        "路线沿情侣路展开，地理连续性较好，无需折返",
+        "包含珠海渔女、大剧院等标志性拍照打卡点",
+        "预算控制合理，总花费约336元，符合500元预算"
+      ],
+      "bad_points": [
+        "前两个POI（情侣路、骑行道）本质相同，均为海滨运动，重复且缺乏变化",
+        "餐饮仅安排一顿肠粉，种类单一，且与拍照打卡主题关联弱",
+        "缺少更多适合情侣的互动或特色体验，整体略显平淡"
+      ]
+    }
+  },
+  {
+    "id": 2,
+    "name": "亲子海洋王国",
+    "success": true,
+    "elapsed": 34.315,
+    "route_steps": 1,
+    "proposals": 9,
+    "conflicts": 0,
+    "has_narrative": true,
+    "poi_names": [
+      "珠海横琴长隆海洋王国"
+    ],
+    "errors": [],
+    "eval": {
+      "scores": {
+        "intent_match": 8,
+        "poi_quality": 8,
+        "geo_continuity": 10,
+        "scene_diversity": 5,
+        "overall": 7
+      },
+      "overall": 7,
+      "good_points": [
+        "明确包含用户指定的核心目的地长隆海洋王国",
+        "POI质量高，长隆海洋王国是适合6岁孩子的优质景区",
+        "单一景点无需移动，地理连续性极佳"
+      ],
+      "bad_points": [
+        "路线仅包含一个景点，缺乏餐饮或其他活动安排，整体体验单一",
+        "未考虑预算内餐饮、纪念品等额外消费，建议补充附近平价餐饮推荐",
+        "未提供具体游玩建议（如表演时间、儿童项目），可增加细节提升实用性"
+      ]
+    }
+  },
+  {
+    "id": 3,
+    "name": "美食探索",
+    "success": true,
+    "elapsed": 32.361,
+    "route_steps": 2,
+    "proposals": 8,
+    "conflicts": 0,
+    "has_narrative": true,
+    "poi_names": [
+      "囍囍茶餐厅",
+      "湾仔海鲜街"
+    ],
+    "errors": [],
+    "eval": {
+      "scores": {
+        "intent_match": 7,
+        "poi_quality": 6,
+        "geo_continuity": 6,
+        "scene_diversity": 4,
+        "overall": 6
+      },
+      "overall": 6,
+      "good_points": [
+        "包含了茶餐厅和海鲜街，覆盖了用户提到的海鲜和本地特色",
+        "两个POI都是珠海知名美食地点，有一定代表性"
+      ],
+      "bad_points": [
+        "路线只有2个POI，行程过于单薄，缺乏足够的美食体验",
+        "两个POI类型相似（都是餐饮），餐饮子类型单一，缺少多样性",
+        "时间安排不合理：00:00开始吃茶餐厅，01:05到海鲜街，深夜吃海鲜不现实"
+      ]
+    }
+  },
+  {
+    "id": 4,
+    "name": "特种兵打卡",
+    "success": true,
+    "elapsed": 56.602,
+    "route_steps": 7,
+    "proposals": 9,
+    "conflicts": 0,
+    "has_narrative": true,
+    "poi_names": [
+      "珠海大剧院（野狸岛）",
+      "珠海渔女",
+      "珠海城市阳台",
+      "情侣路",
+      "珠海博物馆",
+      "麦当劳"
+    ],
+    "errors": [],
+    "eval": {
+      "scores": {
+        "intent_match": 7,
+        "poi_quality": 6,
+        "geo_continuity": 7,
+        "scene_diversity": 5,
+        "overall": 6
+      },
+      "overall": 6,
+      "good_points": [
+        "覆盖了珠海大剧院、渔女、情侣路等核心地标，符合打卡需求",
+        "路线基本沿情侣路一线，地理连续性较好，没有明显折返"
+      ],
+      "bad_points": [
+        "景点类型单一，多为文化/景点类，缺少自然或娱乐多样性",
+        "餐饮安排薄弱，仅有一家麦当劳，且时间较晚，建议增加特色餐饮",
+        "凤凰山森林公园安排在傍晚，可能光线不足，影响体验"
+      ]
+    }
+  },
+  {
+    "id": 5,
+    "name": "休闲养老游",
+    "success": true,
+    "elapsed": 35.602,
+    "route_steps": 4,
+    "proposals": 7,
+    "conflicts": 0,
+    "has_narrative": true,
+    "poi_names": [
+      "凤凰山森林公园（南门入口）",
+      "珠海城市阳台",
+      "情侣南路·海风书吧",
+      "银沙滩（东澳岛）"
+    ],
+    "errors": [],
+    "eval": {
+      "scores": {
+        "intent_match": 8,
+        "poi_quality": 7,
+        "geo_continuity": 5,
+        "scene_diversity": 6,
+        "overall": 7
+      },
+      "overall": 7,
+      "good_points": [
+        "选择了凤凰山森林公园和城市阳台，符合用户喜欢公园和海边的需求",
+        "海风书吧作为海景咖啡馆，提供了休闲放松的场所"
+      ],
+      "bad_points": [
+        "银沙滩位于东澳岛，需乘船前往，与前三项陆上景点地理连续性差，建议替换为珠海市区的海边景点如海滨泳场或香炉湾沙滩",
+        "路线仅包含4个POI，且银沙滩的到达时间较晚（07:36），实际游玩时间可能不足，建议增加1-2个附近景点或调整顺序"
+      ]
+    }
+  }
+]

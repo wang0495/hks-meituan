@@ -1,0 +1,190 @@
+[
+  {
+    "id": 1,
+    "name": "情侣珠海一日游",
+    "success": true,
+    "elapsed": 41.607,
+    "route_steps": 6,
+    "proposals": 13,
+    "conflicts": 0,
+    "has_narrative": true,
+    "poi_names": [
+      "日月贝（珠海大剧院）",
+      "情侣南路·海风书吧",
+      "野狸岛·屿见咖啡",
+      "香洲渔港码头日落点",
+      "新海灣",
+      "珠海横琴花海长廊"
+    ],
+    "errors": [],
+    "eval": {
+      "scores": {
+        "intent_match": 7,
+        "poi_quality": 7,
+        "geo_continuity": 8,
+        "scene_diversity": 6,
+        "overall": 7
+      },
+      "overall": 7,
+      "good_points": [
+        "路线包含了珠海经典地标日月贝和野狸岛，适合拍照打卡",
+        "地理上集中在香洲区，行程流畅，无需长距离移动",
+        "预算控制合理，总花费约245元，远低于500元"
+      ],
+      "bad_points": [
+        "场景多样性不足，两个咖啡馆（情侣南路·海风书吧和野狸岛·屿见咖啡）类型重复，建议替换其中一个为其他类型景点",
+        "餐饮选择单一，仅有一家餐厅，且未突出情侣拍照打卡特色，可增加网红餐厅或小吃",
+        "花海长廊安排在傍晚，但日落点已在香洲渔港，建议调整顺序或合并日落观赏点"
+      ]
+    }
+  },
+  {
+    "id": 2,
+    "name": "亲子海洋王国",
+    "success": true,
+    "elapsed": 30.68,
+    "route_steps": 3,
+    "proposals": 11,
+    "conflicts": 0,
+    "has_narrative": true,
+    "poi_names": [
+      "珠海海洋王国",
+      "珠海横琴长隆攀岩体验中心",
+      "肯德基 KFC"
+    ],
+    "errors": [],
+    "eval": {
+      "scores": {
+        "intent_match": 7,
+        "poi_quality": 6,
+        "geo_continuity": 8,
+        "scene_diversity": 4,
+        "overall": 6
+      },
+      "overall": 6,
+      "good_points": [
+        "包含了核心目的地长隆海洋王国",
+        "攀岩体验中心适合亲子活动",
+        "路线地理上集中在横琴区域，无需折返"
+      ],
+      "bad_points": [
+        "攀岩体验中心与海洋王国主题关联弱，且时间安排不合理（下午1:31到达，可能影响游玩体验）",
+        "餐饮选择单一，仅肯德基，缺乏本地特色或多样性",
+        "预算1000元，但路线总花费仅562元，未充分利用预算提升体验"
+      ]
+    }
+  },
+  {
+    "id": 3,
+    "name": "美食探索",
+    "success": true,
+    "elapsed": 36.499,
+    "route_steps": 4,
+    "proposals": 9,
+    "conflicts": 0,
+    "has_narrative": true,
+    "poi_names": [
+      "台灣帝鈞炭烤胡椒餅",
+      "雲浮石磨腸粉店",
+      "情侣路",
+      "得月舫"
+    ],
+    "errors": [],
+    "eval": {
+      "scores": {
+        "intent_match": 5,
+        "poi_quality": 6,
+        "geo_continuity": 7,
+        "scene_diversity": 4,
+        "overall": 5
+      },
+      "overall": 5,
+      "good_points": [
+        "包含了海鲜和本地特色元素，如得月舫的海鲜和雲浮石磨腸粉的本地小吃",
+        "路线地理上基本合理，没有明显折返"
+      ],
+      "bad_points": [
+        "餐饮选择不够丰富，只有3家餐厅，且胡椒饼和肠粉不属于海鲜或珠海核心特色",
+        "场景多样性低，全部为餐饮，缺少其他类型体验，且餐饮类型单一（无海鲜正餐、夜市等）",
+        "情侣路作为运动景点与美食主题关联弱，且时间安排上下午3点多去海边不太合理"
+      ]
+    }
+  },
+  {
+    "id": 4,
+    "name": "特种兵打卡",
+    "success": true,
+    "elapsed": 42.64,
+    "route_steps": 7,
+    "proposals": 12,
+    "conflicts": 0,
+    "has_narrative": true,
+    "poi_names": [
+      "珠海渔女",
+      "情侣路",
+      "圆明新园",
+      "日月贝（珠海大剧院）",
+      "香炉湾沙滩",
+      "野狸岛公园"
+    ],
+    "errors": [],
+    "eval": {
+      "scores": {
+        "intent_match": 8,
+        "poi_quality": 7,
+        "geo_continuity": 7,
+        "scene_diversity": 6,
+        "overall": 7
+      },
+      "overall": 7,
+      "good_points": [
+        "覆盖了珠海渔女、情侣路、圆明新园、日月贝等核心地标，符合'著名景点'需求",
+        "路线紧凑，一天内安排了6个景点，符合'时间紧'的节奏",
+        "地理上沿情侣路一线分布，整体方向一致，没有明显折返"
+      ],
+      "bad_points": [
+        "景点类型以文化/景点为主，缺少自然或娱乐类，多样性一般",
+        "最后安排胡椒饼作为晚餐，但时间较晚（20:08），且与前面景点关联弱",
+        "圆明新园停留时间可能不足（11:37-14:15约2.5小时），实际游览需压缩"
+      ]
+    }
+  },
+  {
+    "id": 5,
+    "name": "休闲养老游",
+    "success": true,
+    "elapsed": 33.414,
+    "route_steps": 5,
+    "proposals": 7,
+    "conflicts": 0,
+    "has_narrative": true,
+    "poi_names": [
+      "情侣路",
+      "海滨公园",
+      "珠海渔女",
+      "日月贝（珠海大剧院）",
+      "金悅軒酒家"
+    ],
+    "errors": [],
+    "eval": {
+      "scores": {
+        "intent_match": 8,
+        "poi_quality": 7,
+        "geo_continuity": 8,
+        "scene_diversity": 5,
+        "overall": 7
+      },
+      "overall": 7,
+      "good_points": [
+        "路线节奏慢，景点数量适中，符合休闲需求",
+        "情侣路、海滨公园、珠海渔女、日月贝均在海边，地理连贯性好",
+        "包含了用户喜欢的公园和海滨元素"
+      ],
+      "bad_points": [
+        "餐饮仅安排一家，且为晚餐，午餐未提及，建议增加午餐或小吃",
+        "场景多样性不足，全程以海边景点为主，缺乏其他类型体验",
+        "金悅軒酒家距离日月贝较远，建议调整顺序或选择附近餐厅"
+      ]
+    }
+  }
+]

@@ -1,0 +1,158 @@
+[
+  {
+    "scene": "美食型",
+    "feedback": "我想多看海边，不要只在市区里",
+    "rerun_experts": [
+      "poi",
+      "destination"
+    ],
+    "normal_score": 65.6,
+    "normal_grade": "C",
+    "normal_elapsed": 66.9,
+    "normal_stops": 2,
+    "normal_stops_list": [
+      "多记甜品",
+      "湾仔海鲜码头夜市"
+    ],
+    "fb_score": 78.0,
+    "fb_grade": "B",
+    "fb_elapsed": 23.7,
+    "fb_stops": 4,
+    "fb_stops_list": [
+      "正宗石磨肠粉",
+      "梅溪牌坊旅游区",
+      "情侣北路观景台（非情侣路）",
+      "聚潮轩"
+    ],
+    "score_diff": 12.4,
+    "time_saved": 43.2
+  },
+  {
+    "scene": "目的地型",
+    "feedback": "多加几个好吃的，孩子想吃冰淇淋",
+    "rerun_experts": [
+      "food",
+      "poi"
+    ],
+    "normal_score": 64.7,
+    "normal_grade": "C",
+    "normal_elapsed": 25.3,
+    "normal_stops": 2,
+    "normal_stops_list": [
+      "珠海长隆海洋王国",
+      "澳美居茶餐厅"
+    ],
+    "fb_score": 55.5,
+    "fb_grade": "D",
+    "fb_elapsed": 78.2,
+    "fb_stops": 2,
+    "fb_stops_list": [
+      "长隆海洋王国",
+      "潮汕牛肉火锅"
+    ],
+    "score_diff": -9.2,
+    "time_saved": -52.9
+  },
+  {
+    "scene": "特种兵型",
+    "feedback": "景点太多了精简一下，但加上咖啡店",
+    "rerun_experts": [
+      "poi",
+      "food"
+    ],
+    "normal_score": 80.5,
+    "normal_grade": "A",
+    "normal_elapsed": 51.3,
+    "normal_stops": 8,
+    "normal_stops_list": [
+      "珠海渔女",
+      "吉大景山路涂鸦墙",
+      "珠海大剧院",
+      "柳州螺蛳粉",
+      "凤凰山森林公园（板樟山段）",
+      "华发商都屋顶花园",
+      "香洲渔港",
+      "桥头臭豆腐"
+    ],
+    "fb_score": 83.4,
+    "fb_grade": "A",
+    "fb_elapsed": 49.0,
+    "fb_stops": 10,
+    "fb_stops_list": [
+      "珠海大剧院",
+      "情侣路海滨长廊",
+      "梅溪牌坊旅游区",
+      "柳州螺蛳粉",
+      "华发商都屋顶花园",
+      "星巴克臻选·珠海华发商都店",
+      "北山艺术村",
+      "凤凰山半山观景台",
+      "吉大景山路咖啡小巷",
+      "新疆美味羊肉串"
+    ],
+    "score_diff": 2.9,
+    "time_saved": 2.3
+  },
+  {
+    "scene": "休闲型",
+    "feedback": "换个更安静的区域，不想太商业化",
+    "rerun_experts": [
+      "poi",
+      "local_expert"
+    ],
+    "normal_score": 83.5,
+    "normal_grade": "A",
+    "normal_elapsed": 34.5,
+    "normal_stops": 5,
+    "normal_stops_list": [
+      "情侣路海滨长廊",
+      "吉大旧邮局改建咖啡馆",
+      "香洲区图书馆阅读花园",
+      "夏美路手作工坊",
+      "九洲港老码头茶馆"
+    ],
+    "fb_score": 77.8,
+    "fb_grade": "B",
+    "fb_elapsed": 59.1,
+    "fb_stops": 4,
+    "fb_stops_list": [
+      "北山艺术村",
+      "凤凰山绿道（板樟山段）",
+      "香洲区图书馆（香洲书城）",
+      "情侣路海滨长廊"
+    ],
+    "score_diff": -5.7,
+    "time_saved": -24.6
+  },
+  {
+    "scene": "观光型",
+    "feedback": "想看更多文化类景点，少点自然风光",
+    "rerun_experts": [
+      "poi"
+    ],
+    "normal_score": 80.5,
+    "normal_grade": "A",
+    "normal_elapsed": 57.9,
+    "normal_stops": 5,
+    "normal_stops_list": [
+      "珠海渔女",
+      "珠海大剧院",
+      "吉大旧邮局改建咖啡馆",
+      "香洲渔港",
+      "北山艺术村"
+    ],
+    "fb_score": 80.8,
+    "fb_grade": "A",
+    "fb_elapsed": 27.7,
+    "fb_stops": 5,
+    "fb_stops_list": [
+      "珠海渔女",
+      "珠海大剧院",
+      "情侣路海滨长廊",
+      "香洲渔港",
+      "澳美居茶餐厅"
+    ],
+    "score_diff": 0.3,
+    "time_saved": 30.2
+  }
+]

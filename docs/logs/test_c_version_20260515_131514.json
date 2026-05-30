@@ -1,0 +1,190 @@
+[
+  {
+    "id": 1,
+    "name": "情侣珠海一日游",
+    "success": true,
+    "elapsed": 52.871,
+    "route_steps": 6,
+    "proposals": 14,
+    "conflicts": 0,
+    "has_narrative": true,
+    "poi_names": [
+      "珠海大剧院（野狸岛）",
+      "情侣路",
+      "野狸岛骑行道",
+      "香洲渔港码头日落点",
+      "芝麻串串香",
+      "圆明新园"
+    ],
+    "errors": [],
+    "eval": {
+      "scores": {
+        "intent_match": 7,
+        "poi_quality": 7,
+        "geo_continuity": 6,
+        "scene_diversity": 6,
+        "overall": 7
+      },
+      "overall": 7,
+      "good_points": [
+        "包含珠海标志性景点大剧院和情侣路，适合拍照打卡",
+        "预算控制合理，大部分景点免费，总花费约281元",
+        "路线覆盖了文化、运动、自然风光等多种类型"
+      ],
+      "bad_points": [
+        "野狸岛骑行道与情侣路、大剧院位置重叠，导致重复绕路，建议优化顺序",
+        "圆明新园安排在傍晚，可能来不及充分游览（17:58到达，景区可能关闭）",
+        "餐饮选择单一，仅一家串串香，且与拍照打卡主题关联弱"
+      ]
+    }
+  },
+  {
+    "id": 2,
+    "name": "亲子海洋王国",
+    "success": true,
+    "elapsed": 34.911,
+    "route_steps": 4,
+    "proposals": 9,
+    "conflicts": 0,
+    "has_narrative": true,
+    "poi_names": [
+      "珠海长隆海洋王国",
+      "肯德基 KFC",
+      "珠海横琴国家地理探险家中心",
+      "珠海横琴科学城儿童科技馆"
+    ],
+    "errors": [],
+    "eval": {
+      "scores": {
+        "intent_match": 7,
+        "poi_quality": 6,
+        "geo_continuity": 4,
+        "scene_diversity": 5,
+        "overall": 5
+      },
+      "overall": 5,
+      "good_points": [
+        "包含了用户明确提到的核心目的地长隆海洋王国",
+        "预算控制合理，总花费约782元，未超1000元"
+      ],
+      "bad_points": [
+        "时间安排不合理：海洋王国09:00入园，但后续景点安排在凌晨01:19和09:29，不符合正常作息，且与6岁儿童需求不符",
+        "地理连续性差：海洋王国与横琴其他景点虽在同一区域，但凌晨安排不合理，且肯德基晚餐时间过晚（20:36）",
+        "POI质量一般：肯德基作为餐饮选择过于普通，且国家地理探险家中心和科学城儿童科技馆与海洋王国主题重复，缺乏多样性"
+      ]
+    }
+  },
+  {
+    "id": 3,
+    "name": "美食探索",
+    "success": true,
+    "elapsed": 49.127,
+    "route_steps": 6,
+    "proposals": 9,
+    "conflicts": 0,
+    "has_narrative": true,
+    "poi_names": [
+      "雲浮石磨腸粉店",
+      "湾仔海鲜街",
+      "一和味雅",
+      "囍囍茶餐厅",
+      "金悅軒酒家",
+      "台灣帝鈞炭烤胡椒餅"
+    ],
+    "errors": [],
+    "eval": {
+      "scores": {
+        "intent_match": 8,
+        "poi_quality": 7,
+        "geo_continuity": 6,
+        "scene_diversity": 6,
+        "overall": 7
+      },
+      "overall": 7,
+      "good_points": [
+        "路线全部为餐饮，符合美食一日游主题",
+        "包含了海鲜街和本地特色茶餐厅，覆盖海鲜和本地美食需求",
+        "POI数量适中，时间安排基本合理"
+      ],
+      "bad_points": [
+        "餐饮类型多样性不足，多为正餐和小吃，缺少甜品、夜市等子类",
+        "地理连续性一般，湾仔海鲜街与后续POI距离较远，有折返",
+        "部分POI价格标注异常（如湾仔海鲜街¥13、金悅軒酒家¥18），可能影响评分准确性"
+      ]
+    }
+  },
+  {
+    "id": 4,
+    "name": "特种兵打卡",
+    "success": true,
+    "elapsed": 49.171,
+    "route_steps": 8,
+    "proposals": 9,
+    "conflicts": 0,
+    "has_narrative": true,
+    "poi_names": [
+      "珠海大剧院（野狸岛）",
+      "情侣中路骑行道",
+      "圆明新园",
+      "凤凰山森林公园（板樟山段）",
+      "珠海城市阳台",
+      "絕味鴨脖"
+    ],
+    "errors": [],
+    "eval": {
+      "scores": {
+        "intent_match": 7,
+        "poi_quality": 6,
+        "geo_continuity": 5,
+        "scene_diversity": 6,
+        "overall": 6
+      },
+      "overall": 6,
+      "good_points": [
+        "覆盖了珠海大剧院、圆明新园等核心景点，基本满足打卡需求",
+        "包含骑行、登山、湿地等多种体验，有一定多样性"
+      ],
+      "bad_points": [
+        "路线折返严重，从凤凰山到城市阳台再到淇澳红树林，地理不连贯",
+        "傍晚安排湿地公园，时间不合理且可能已关闭",
+        "餐饮选择普通，与景点打卡主题关联弱"
+      ]
+    }
+  },
+  {
+    "id": 5,
+    "name": "休闲养老游",
+    "success": true,
+    "elapsed": 34.802,
+    "route_steps": 4,
+    "proposals": 7,
+    "conflicts": 0,
+    "has_narrative": true,
+    "poi_names": [
+      "野狸岛骑行道",
+      "香洲渔港码头日落点",
+      "珠海横琴花海长廊",
+      "金鼎湿地公园"
+    ],
+    "errors": [],
+    "eval": {
+      "scores": {
+        "intent_match": 7,
+        "poi_quality": 6,
+        "geo_continuity": 4,
+        "scene_diversity": 5,
+        "overall": 6
+      },
+      "overall": 6,
+      "good_points": [
+        "选择了野狸岛骑行道和香洲渔港日落点，符合用户喜欢公园和海边的需求",
+        "全部免费景点，经济实惠"
+      ],
+      "bad_points": [
+        "路线地理跨度大，从野狸岛到横琴花海长廊再到金鼎湿地公园，折返严重，不符合休闲慢节奏",
+        "POI类型单一，全部为公园/自然类，缺乏餐饮、文化等多样性",
+        "时间安排不合理，上午骑行后直接去日落点过早，且下午两个公园距离远"
+      ]
+    }
+  }
+]

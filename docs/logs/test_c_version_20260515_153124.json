@@ -1,0 +1,156 @@
+[
+  {
+    "id": 1,
+    "name": "情侣珠海一日游",
+    "success": true,
+    "elapsed": 45.631,
+    "route_steps": 6,
+    "proposals": 13,
+    "conflicts": 0,
+    "has_narrative": true,
+    "poi_names": [
+      "情侣中路沙滩栈道",
+      "北山社区艺术空间",
+      "金悅軒酒家",
+      "海韵城·拾光海岸咖啡",
+      "日月贝（珠海大剧院）",
+      "香洲渔港码头日落点"
+    ],
+    "errors": [],
+    "eval": {
+      "scores": {
+        "intent_match": 8,
+        "poi_quality": 7,
+        "geo_continuity": 8,
+        "scene_diversity": 6,
+        "overall": 7
+      },
+      "overall": 7,
+      "good_points": [
+        "路线覆盖了珠海经典地标（日月贝、情侣路），适合拍照打卡",
+        "行程节奏适中，景点间距离合理，没有明显折返",
+        "包含免费景点，预算控制较好"
+      ],
+      "bad_points": [
+        "餐饮选择单一，仅一家餐厅，且非珠海特色小吃，建议增加茶餐厅或糖水店",
+        "场景多样性不足，以景点和咖啡馆为主，缺乏文化或互动体验",
+        "北山社区艺术空间停留时间可能较短，建议增加拍照时间或调整顺序"
+      ]
+    }
+  },
+  {
+    "id": 2,
+    "name": "亲子海洋王国",
+    "success": true,
+    "elapsed": 24.053,
+    "route_steps": 3,
+    "proposals": 9,
+    "conflicts": 0,
+    "has_narrative": true,
+    "poi_names": [
+      "珠海横琴科学城儿童科技馆",
+      "囍囍茶餐厅",
+      "珠海横琴长隆海洋王国"
+    ],
+    "errors": [],
+    "eval": {
+      "scores": {
+        "intent_match": 7,
+        "poi_quality": 7,
+        "geo_continuity": 8,
+        "scene_diversity": 5,
+        "overall": 7
+      },
+      "overall": 7,
+      "good_points": [
+        "包含了用户明确要求的长隆海洋王国，且安排下午入园，适合孩子游玩",
+        "路线地理上集中在横琴区域，没有不必要的折返",
+        "儿童科技馆作为上午活动，与海洋王国形成互补，适合亲子"
+      ],
+      "bad_points": [
+        "预算1000元，但路线总花费约481元（门票+餐饮），未充分利用预算，可增加一个免费或低消费活动",
+        "餐饮仅安排一顿茶餐厅，且标签显示排队，带6岁孩子可能不便，建议备选或调整时间",
+        "场景多样性较低，仅两个景点和一顿餐饮，可考虑增加一个适合孩子的免费公园或休息点"
+      ]
+    }
+  },
+  {
+    "id": 3,
+    "name": "美食探索",
+    "success": true,
+    "elapsed": 39.226,
+    "route_steps": 4,
+    "proposals": 9,
+    "conflicts": 0,
+    "has_narrative": true,
+    "poi_names": [
+      "台灣帝鈞炭烤胡椒餅",
+      "湾仔海鲜街",
+      "囍囍茶餐厅",
+      "金悅軒酒家"
+    ],
+    "errors": [],
+    "eval": {
+      "scores": {
+        "intent_match": 7,
+        "poi_quality": 6,
+        "geo_continuity": 7,
+        "scene_diversity": 5,
+        "overall": 6
+      },
+      "overall": 6,
+      "good_points": [
+        "包含了海鲜街和茶餐厅，符合用户对海鲜和本地特色的需求",
+        "路线集中在珠海市区，地理上较为连贯，没有明显折返"
+      ],
+      "bad_points": [
+        "餐饮类型单一，四个POI中三个是正餐类（海鲜街、茶餐厅、酒家），缺乏小吃、甜品等多样性",
+        "胡椒饼作为第一站，与海鲜和本地特色关联较弱，且时间安排上11点吃胡椒饼可能过早",
+        "金悦轩酒家到达时间14:56，可能已过午餐高峰，且与囍囍茶餐厅间隔仅50分钟，时间安排略显紧凑"
+      ]
+    }
+  },
+  {
+    "id": 4,
+    "name": "特种兵打卡",
+    "success": false,
+    "error": "'str' object has no attribute 'get'"
+  },
+  {
+    "id": 5,
+    "name": "休闲养老游",
+    "success": true,
+    "elapsed": 41.212,
+    "route_steps": 4,
+    "proposals": 7,
+    "conflicts": 0,
+    "has_narrative": true,
+    "poi_names": [
+      "日月贝（珠海大剧院）",
+      "情侣南路·海风书吧",
+      "野狸岛·屿见咖啡",
+      "一和味雅"
+    ],
+    "errors": [],
+    "eval": {
+      "scores": {
+        "intent_match": 8,
+        "poi_quality": 7,
+        "geo_continuity": 8,
+        "scene_diversity": 5,
+        "overall": 7
+      },
+      "overall": 7,
+      "good_points": [
+        "路线节奏慢，符合休闲需求",
+        "包含海边和公园元素（日月贝、野狸岛）",
+        "地理上集中在情侣路沿线，无需折返"
+      ],
+      "bad_points": [
+        "第二天行程缺失，仅覆盖一天",
+        "场景单一，几乎全是海景咖啡馆，缺乏公园和海边自然景观的多样性",
+        "餐饮选择较少，仅有一家正餐"
+      ]
+    }
+  }
+]

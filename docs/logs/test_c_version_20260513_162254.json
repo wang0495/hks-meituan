@@ -1,0 +1,201 @@
+[
+  {
+    "id": 1,
+    "name": "情侣珠海一日游",
+    "success": true,
+    "elapsed": 52.254,
+    "route_steps": 6,
+    "proposals": 11,
+    "conflicts": 0,
+    "has_narrative": true,
+    "poi_names": [
+      "珠海渔女",
+      "情侣路",
+      "得月舫",
+      "日月贝（珠海大剧院）",
+      "野狸岛·屿见咖啡",
+      "海韵城·拾光海岸咖啡"
+    ],
+    "errors": [
+      "美团API不可用: Client error '422 Unprocessable Entity' for url 'http://localhost:8001/api/poi/search?limit=5000'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/422"
+    ],
+    "eval": {
+      "scores": {
+        "intent_match": 8,
+        "poi_quality": 7,
+        "geo_continuity": 9,
+        "scene_diversity": 6,
+        "overall": 7
+      },
+      "overall": 7,
+      "good_points": [
+        "路线集中在珠海渔女、情侣路、日月贝等经典拍照打卡点，符合情侣拍照需求",
+        "地理连续性极佳，景点沿情侣路一线分布，无需折返",
+        "预算控制合理，总花费约291元，远低于500元预算"
+      ],
+      "bad_points": [
+        "餐饮选择单一，仅得月舫一家正餐，且未考虑情侣拍照场景下的特色餐饮",
+        "下午连续安排两家海景咖啡馆，场景重复，缺乏多样性",
+        "缺少互动性强的体验项目，如手作、游船等，可增加浪漫元素"
+      ]
+    }
+  },
+  {
+    "id": 2,
+    "name": "亲子海洋王国",
+    "success": true,
+    "elapsed": 40.908,
+    "route_steps": 4,
+    "proposals": 12,
+    "conflicts": 0,
+    "has_narrative": true,
+    "poi_names": [
+      "长隆海洋王国",
+      "得月舫",
+      "珠海渔女",
+      "美食街"
+    ],
+    "errors": [
+      "美团API不可用: Client error '422 Unprocessable Entity' for url 'http://localhost:8001/api/poi/search?limit=5000'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/422"
+    ],
+    "eval": {
+      "scores": {
+        "intent_match": 8,
+        "poi_quality": 7,
+        "geo_continuity": 7,
+        "scene_diversity": 5,
+        "overall": 7
+      },
+      "overall": 7,
+      "good_points": [
+        "核心目的地长隆海洋王国已包含，符合用户需求",
+        "预算控制在1000元以内，经济实惠",
+        "景点间距离较近，地理上基本合理"
+      ],
+      "bad_points": [
+        "下午安排的两个景点（珠海渔女、美食街）对6岁孩子吸引力较低，建议替换为亲子友好项目",
+        "餐饮选择单一，仅一个正餐，且得月舫可能不适合儿童口味",
+        "场景多样性不足，缺乏适合孩子的互动或娱乐环节"
+      ]
+    }
+  },
+  {
+    "id": 3,
+    "name": "美食探索",
+    "success": true,
+    "elapsed": 47.972,
+    "route_steps": 5,
+    "proposals": 11,
+    "conflicts": 0,
+    "has_narrative": true,
+    "poi_names": [
+      "武二廣潮福粉麵食館",
+      "湾仔海鲜街",
+      "得月舫",
+      "美食街",
+      "伙工殿餐厅"
+    ],
+    "errors": [
+      "美团API不可用: Client error '422 Unprocessable Entity' for url 'http://localhost:8001/api/poi/search?limit=5000'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/422"
+    ],
+    "eval": {
+      "scores": {
+        "intent_match": 7,
+        "poi_quality": 6,
+        "geo_continuity": 7,
+        "scene_diversity": 5,
+        "overall": 6
+      },
+      "overall": 6,
+      "good_points": [
+        "包含了用户要求的海鲜和本地特色，如湾仔海鲜街和得月舫",
+        "路线时间安排合理，没有明显折返"
+      ],
+      "bad_points": [
+        "餐饮类型单一，主要是粉面、海鲜和普通餐厅，缺乏多样性",
+        "部分POI（如美食街）与餐饮主题重复，且标签为文化类，实际体验可能不佳",
+        "湾仔海鲜街作为文化景点，与美食主题关联较弱"
+      ]
+    }
+  },
+  {
+    "id": 4,
+    "name": "特种兵打卡",
+    "success": true,
+    "elapsed": 52.865,
+    "route_steps": 9,
+    "proposals": 16,
+    "conflicts": 0,
+    "has_narrative": true,
+    "poi_names": [
+      "圆明新园",
+      "日月贝（珠海大剧院）",
+      "得月舫",
+      "情侣路",
+      "珠海渔女",
+      "海滨公园"
+    ],
+    "errors": [
+      "美团API不可用: Client error '422 Unprocessable Entity' for url 'http://localhost:8001/api/poi/search?limit=5000'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/422"
+    ],
+    "eval": {
+      "scores": {
+        "intent_match": 8,
+        "poi_quality": 7,
+        "geo_continuity": 7,
+        "scene_diversity": 6,
+        "overall": 7
+      },
+      "overall": 7,
+      "good_points": [
+        "覆盖了珠海主要地标如圆明新园、日月贝、珠海渔女等",
+        "路线紧凑，符合特种兵型一天打卡的需求",
+        "包含文化、自然、餐饮等多种类型，有一定多样性"
+      ],
+      "bad_points": [
+        "部分景点停留时间过短（如圆明新园仅1小时55分），实际游览体验可能不佳",
+        "得月舫安排在中午，但作为餐饮点与前后景点距离较远，可优化用餐地点",
+        "拱北口岸广场和湾仔海鲜街安排在傍晚，但海鲜街更适合晚餐，时间稍早"
+      ]
+    }
+  },
+  {
+    "id": 5,
+    "name": "休闲养老游",
+    "success": true,
+    "elapsed": 39.596,
+    "route_steps": 4,
+    "proposals": 12,
+    "conflicts": 0,
+    "has_narrative": true,
+    "poi_names": [
+      "珠海渔女",
+      "情侣路",
+      "得月舫",
+      "白莲洞公园"
+    ],
+    "errors": [
+      "美团API不可用: Client error '422 Unprocessable Entity' for url 'http://localhost:8001/api/poi/search?limit=5000'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/422"
+    ],
+    "eval": {
+      "scores": {
+        "intent_match": 8,
+        "poi_quality": 7,
+        "geo_continuity": 8,
+        "scene_diversity": 6,
+        "overall": 7
+      },
+      "overall": 7,
+      "good_points": [
+        "路线节奏慢，符合休闲需求",
+        "包含公园和海边，匹配用户偏好",
+        "地理上集中在珠海市区，无需长途奔波"
+      ],
+      "bad_points": [
+        "餐饮选择单一，仅一家餐厅，可增加美食多样性",
+        "景点数量偏少，可考虑增加一个公园或海边景点",
+        "白莲洞公园与海边主题关联较弱，可替换为更贴近海边的公园"
+      ]
+    }
+  }
+]

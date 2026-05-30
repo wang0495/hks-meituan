@@ -1,0 +1,192 @@
+[
+  {
+    "id": 1,
+    "name": "情侣珠海一日游",
+    "success": true,
+    "elapsed": 58.617,
+    "route_steps": 6,
+    "proposals": 14,
+    "conflicts": 0,
+    "has_narrative": true,
+    "poi_names": [
+      "珠海大剧院（野狸岛）",
+      "情侣路",
+      "野狸岛骑行道",
+      "香洲渔港码头日落点",
+      "吉大蜂巢艺术空间",
+      "芝麻串串香"
+    ],
+    "errors": [],
+    "eval": {
+      "scores": {
+        "intent_match": 7,
+        "poi_quality": 6,
+        "geo_continuity": 7,
+        "scene_diversity": 5,
+        "overall": 6
+      },
+      "overall": 6,
+      "good_points": [
+        "包含珠海大剧院、情侣路等经典拍照打卡点，符合情侣拍照需求",
+        "路线整体沿情侣路展开，地理连续性较好，无需折返",
+        "预算控制合理，大部分景点免费，总花费约221元，远低于500元"
+      ],
+      "bad_points": [
+        "场景多样性不足，以运动和文化类为主，缺少自然景观或娱乐项目",
+        "POI质量一般，如野狸岛骑行道与情侣路功能重叠，香洲渔港码头日落点知名度较低",
+        "餐饮安排单一，仅有一家串串香，且未突出珠海特色美食（如海鲜）"
+      ]
+    }
+  },
+  {
+    "id": 2,
+    "name": "亲子海洋王国",
+    "success": true,
+    "elapsed": 30.541,
+    "route_steps": 4,
+    "proposals": 9,
+    "conflicts": 0,
+    "has_narrative": true,
+    "poi_names": [
+      "珠海横琴长隆海洋王国",
+      "横琴蚝庄生态农场",
+      "波爾圖餐廳",
+      "珠海横琴国家地理探险家中心"
+    ],
+    "errors": [],
+    "eval": {
+      "scores": {
+        "intent_match": 8,
+        "poi_quality": 7,
+        "geo_continuity": 6,
+        "scene_diversity": 5,
+        "overall": 6
+      },
+      "overall": 6,
+      "good_points": [
+        "包含了核心目的地长隆海洋王国，满足用户主要需求",
+        "预算控制合理，总花费约632元，在1000元以内",
+        "有亲子活动元素（海洋王国、探险家中心）"
+      ],
+      "bad_points": [
+        "时间安排不合理：20:44到达国家地理探险家中心，该景点通常18:00关门，无法游玩",
+        "地理连续性差：横琴蚝庄生态农场与海洋王国距离较远，且与后续餐厅、探险家中心不在同一区域，导致折返",
+        "场景多样性不足：路线以景点为主，餐饮仅1家，且未考虑6岁孩子的饮食和休息需求"
+      ]
+    }
+  },
+  {
+    "id": 3,
+    "name": "美食探索",
+    "success": true,
+    "elapsed": 47.843,
+    "route_steps": 5,
+    "proposals": 9,
+    "conflicts": 0,
+    "has_narrative": true,
+    "poi_names": [
+      "武二廣潮福粉麵食館",
+      "湾仔海鲜街",
+      "梅华海鲜城",
+      "金悅軒酒家",
+      "野狸岛公园骑行道"
+    ],
+    "errors": [],
+    "eval": {
+      "scores": {
+        "intent_match": 8,
+        "poi_quality": 7,
+        "geo_continuity": 7,
+        "scene_diversity": 6,
+        "overall": 7
+      },
+      "overall": 7,
+      "good_points": [
+        "路线以餐饮为主，符合美食一日游主题",
+        "包含了海鲜街和海鲜城，满足用户吃海鲜的需求",
+        "有本地特色粉面馆和粤式酒楼，体现本地特色"
+      ],
+      "bad_points": [
+        "餐饮类型不够多样，主要是粉面、海鲜、粤菜，缺少小吃、甜品等子类",
+        "湾仔海鲜街和梅华海鲜城功能重叠，可替换为其他类型美食",
+        "野狸岛公园骑行道与美食主题关联弱，且安排在晚餐后时间较紧"
+      ]
+    }
+  },
+  {
+    "id": 4,
+    "name": "特种兵打卡",
+    "success": true,
+    "elapsed": 150.502,
+    "route_steps": 7,
+    "proposals": 9,
+    "conflicts": 0,
+    "has_narrative": true,
+    "poi_names": [
+      "珠海大剧院（野狸岛）",
+      "圆明新园",
+      "凤凰山森林公园（板樟山段）",
+      "情侣中路沙滩栈道",
+      "珠海城市阳台",
+      "麦当劳"
+    ],
+    "errors": [],
+    "eval": {
+      "scores": {
+        "intent_match": 7,
+        "poi_quality": 6,
+        "geo_continuity": 7,
+        "scene_diversity": 5,
+        "overall": 6
+      },
+      "overall": 6,
+      "good_points": [
+        "覆盖了珠海大剧院、圆明新园等核心景点，基本满足打卡需求",
+        "路线整体呈线性，没有明显折返，地理连续性尚可"
+      ],
+      "bad_points": [
+        "景点类型单一，以文化景点和自然景点为主，缺乏多样性",
+        "餐饮安排仅有一家麦当劳，与特种兵型高强度打卡需求不匹配，建议增加快速餐饮点",
+        "时间安排较紧，部分景点停留时间可能不足，如圆明新园仅安排约2小时"
+      ]
+    }
+  },
+  {
+    "id": 5,
+    "name": "休闲养老游",
+    "success": true,
+    "elapsed": 36.594,
+    "route_steps": 5,
+    "proposals": 7,
+    "conflicts": 0,
+    "has_narrative": true,
+    "poi_names": [
+      "野狸岛骑行道",
+      "日月贝（珠海大剧院）",
+      "野狸岛·屿见咖啡",
+      "香洲渔港码头日落点",
+      "珠海城市阳台"
+    ],
+    "errors": [],
+    "eval": {
+      "scores": {
+        "intent_match": 8,
+        "poi_quality": 7,
+        "geo_continuity": 9,
+        "scene_diversity": 5,
+        "overall": 7
+      },
+      "overall": 7,
+      "good_points": [
+        "路线节奏慢，景点少，符合休闲需求",
+        "地理连续性很好，所有POI集中在野狸岛和情侣路沿线，无需折返",
+        "包含公园（野狸岛）和海景（城市阳台、日落点），匹配用户对公园和海边的偏好"
+      ],
+      "bad_points": [
+        "场景多样性不足，5个POI中4个属于自然/海景类，缺乏文化或餐饮多样性",
+        "缺少明确的公园类景点（如海滨公园、景山公园），野狸岛骑行道更偏向运动而非公园",
+        "第二天行程缺失，两日游只安排了第一天，建议补充第二天行程"
+      ]
+    }
+  }
+]

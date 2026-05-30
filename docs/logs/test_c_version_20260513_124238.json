@@ -1,0 +1,200 @@
+[
+  {
+    "id": 1,
+    "name": "情侣珠海一日游",
+    "success": true,
+    "elapsed": 39.567,
+    "route_steps": 6,
+    "proposals": 11,
+    "conflicts": 0,
+    "has_narrative": true,
+    "poi_names": [
+      "爱情邮局（灯塔）",
+      "珠海渔女",
+      "海滨公园",
+      "野狸岛·屿见咖啡",
+      "日月贝（珠海大剧院）",
+      "海韵城·拾光海岸咖啡"
+    ],
+    "errors": [
+      "美团API不可用: Client error '422 Unprocessable Entity' for url 'http://localhost:8001/api/poi/search?limit=5000'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/422"
+    ],
+    "eval": {
+      "scores": {
+        "intent_match": 8,
+        "poi_quality": 7,
+        "geo_continuity": 7,
+        "scene_diversity": 6,
+        "overall": 7
+      },
+      "overall": 7,
+      "good_points": [
+        "路线覆盖了爱情邮局、珠海渔女、日月贝等经典拍照打卡点，符合情侣拍照需求",
+        "预算控制较好，总花费约230元，远低于500元预算",
+        "景点之间距离较近，地理上相对集中，无需长途奔波"
+      ],
+      "bad_points": [
+        "场景多样性不足，以拍照打卡为主，缺少互动体验或特色餐饮",
+        "时间安排略显紧凑，如海滨公园仅停留约1小时，可能无法充分享受",
+        "部分景点如海韵城咖啡与野狸岛咖啡类型重复，可替换为其他体验"
+      ]
+    }
+  },
+  {
+    "id": 2,
+    "name": "亲子海洋王国",
+    "success": true,
+    "elapsed": 34.293,
+    "route_steps": 3,
+    "proposals": 13,
+    "conflicts": 0,
+    "has_narrative": true,
+    "poi_names": [
+      "珠海横琴长隆海洋王国",
+      "珠海横琴花海长廊",
+      "横琴长隆海洋科学馆"
+    ],
+    "errors": [
+      "美团API不可用: Client error '422 Unprocessable Entity' for url 'http://localhost:8001/api/poi/search?limit=5000'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/422"
+    ],
+    "eval": {
+      "scores": {
+        "intent_match": 8,
+        "poi_quality": 7,
+        "geo_continuity": 8,
+        "scene_diversity": 6,
+        "overall": 7
+      },
+      "overall": 7,
+      "good_points": [
+        "包含核心目的地长隆海洋王国，满足用户主要需求",
+        "花海长廊免费且适合傍晚散步，增加休闲体验",
+        "科学馆与海洋王国主题一致，且适合亲子"
+      ],
+      "bad_points": [
+        "科学馆18:50到达可能已接近闭馆，时间安排紧张",
+        "花海长廊与海洋王国距离较远，需考虑交通时间",
+        "预算1000元，门票合计450元，剩余550元需覆盖餐饮和交通，可能紧张"
+      ]
+    }
+  },
+  {
+    "id": 3,
+    "name": "美食探索",
+    "success": true,
+    "elapsed": 35.908,
+    "route_steps": 5,
+    "proposals": 11,
+    "conflicts": 0,
+    "has_narrative": true,
+    "poi_names": [
+      "湾仔海鲜街",
+      "美食街",
+      "湾仔海鲜夜市",
+      "伙工殿餐厅",
+      "朝阳市场"
+    ],
+    "errors": [
+      "美团API不可用: Client error '422 Unprocessable Entity' for url 'http://localhost:8001/api/poi/search?limit=5000'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/422"
+    ],
+    "eval": {
+      "scores": {
+        "intent_match": 7,
+        "poi_quality": 6,
+        "geo_continuity": 5,
+        "scene_diversity": 6,
+        "overall": 6
+      },
+      "overall": 6,
+      "good_points": [
+        "包含了海鲜街和夜市，符合用户海鲜需求",
+        "有本地特色餐厅伙工殿，体现美食主题"
+      ],
+      "bad_points": [
+        "朝阳市场与美食主题关联弱，且购物时间过长",
+        "路线有折返：湾仔海鲜街与夜市在同一区域，但中间插入美食街导致绕路",
+        "部分POI标签与内容不符，如美食街标注文化历史但实际是餐饮"
+      ]
+    }
+  },
+  {
+    "id": 4,
+    "name": "特种兵打卡",
+    "success": true,
+    "elapsed": 40.661,
+    "route_steps": 7,
+    "proposals": 16,
+    "conflicts": 0,
+    "has_narrative": true,
+    "poi_names": [
+      "圆明新园",
+      "香洲埠文化创意园",
+      "野狸岛",
+      "情侣路",
+      "珠海渔女",
+      "拱北口岸广场"
+    ],
+    "errors": [
+      "美团API不可用: Client error '422 Unprocessable Entity' for url 'http://localhost:8001/api/poi/search?limit=5000'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/422"
+    ],
+    "eval": {
+      "scores": {
+        "intent_match": 7,
+        "poi_quality": 6,
+        "geo_continuity": 5,
+        "scene_diversity": 7,
+        "overall": 6
+      },
+      "overall": 6,
+      "good_points": [
+        "覆盖了圆明新园、珠海渔女、情侣路等核心景点，基本满足打卡需求",
+        "景点类型多样，包含文化、购物、自然、运动等，体验丰富"
+      ],
+      "bad_points": [
+        "路线存在折返，如从香洲埠到野狸岛再到情侣路，地理连续性较差",
+        "部分景点如香洲埠文化创意园和湾仔海鲜街知名度较低，可能不符合用户对'著名景点'的预期",
+        "时间安排过于紧凑，每个景点停留时间不足1小时，实际游览体验可能不佳"
+      ]
+    }
+  },
+  {
+    "id": 5,
+    "name": "休闲养老游",
+    "success": true,
+    "elapsed": 32.482,
+    "route_steps": 5,
+    "proposals": 12,
+    "conflicts": 0,
+    "has_narrative": true,
+    "poi_names": [
+      "珠海渔女",
+      "情侣路",
+      "野狸岛公园骑行道",
+      "日月贝（珠海大剧院）",
+      "白莲洞公园"
+    ],
+    "errors": [
+      "美团API不可用: Client error '422 Unprocessable Entity' for url 'http://localhost:8001/api/poi/search?limit=5000'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/422"
+    ],
+    "eval": {
+      "scores": {
+        "intent_match": 8,
+        "poi_quality": 7,
+        "geo_continuity": 7,
+        "scene_diversity": 6,
+        "overall": 7
+      },
+      "overall": 7,
+      "good_points": [
+        "路线覆盖了珠海渔女、情侣路、野狸岛等经典海滨景点，符合用户对海边和公园的需求",
+        "整体节奏较慢，上午和下午各安排2-3个景点，适合休闲游览",
+        "景点之间距离较近，地理上相对集中，无需长途奔波"
+      ],
+      "bad_points": [
+        "白莲洞公园与前面海滨景点主题重复，且位置较远，建议替换为更靠近市区的公园或增加餐饮点",
+        "缺少午餐和晚餐安排，用户可能需要在景点间自行解决，建议补充餐饮推荐",
+        "日月贝（珠海大剧院）门票80元，性价比一般，且白天参观不如夜景，建议调整时间或替换为免费观景点"
+      ]
+    }
+  }
+]

@@ -1,0 +1,187 @@
+[
+  {
+    "id": 1,
+    "name": "情侣珠海一日游",
+    "success": true,
+    "elapsed": 56.412,
+    "route_steps": 6,
+    "proposals": 14,
+    "conflicts": 0,
+    "has_narrative": true,
+    "poi_names": [
+      "情侣路",
+      "情侣南路·海风书吧",
+      "珠海大剧院（野狸岛）",
+      "野狸岛·屿见咖啡",
+      "圆明新园",
+      "芝麻串串香"
+    ],
+    "errors": [],
+    "eval": {
+      "scores": {
+        "intent_match": 7,
+        "poi_quality": 6,
+        "geo_continuity": 5,
+        "scene_diversity": 6,
+        "overall": 6
+      },
+      "overall": 6,
+      "good_points": [
+        "包含了情侣路、珠海大剧院、圆明新园等经典拍照打卡点",
+        "预算控制合理，总花费约405元，符合500元预算"
+      ],
+      "bad_points": [
+        "路线存在严重折返：从野狸岛到圆明新园（约10公里），再从圆明新园到芝麻串串香（约8公里），且时间安排不合理（圆明新园17:55到达已接近闭园）",
+        "场景单一：除餐饮外，景点均为文化/地标类，缺乏自然或娱乐多样性",
+        "晚餐时间过晚（22:20），且芝麻串串香与整体路线风格不搭"
+      ]
+    }
+  },
+  {
+    "id": 2,
+    "name": "亲子海洋王国",
+    "success": true,
+    "elapsed": 38.116,
+    "route_steps": 4,
+    "proposals": 9,
+    "conflicts": 0,
+    "has_narrative": true,
+    "poi_names": [
+      "珠海长隆海洋王国",
+      "波爾圖餐廳",
+      "横琴岛芒洲湿地观鸟区",
+      "横琴蚝庄生态农场"
+    ],
+    "errors": [],
+    "eval": {
+      "scores": {
+        "intent_match": 7,
+        "poi_quality": 6,
+        "geo_continuity": 7,
+        "scene_diversity": 5,
+        "overall": 6
+      },
+      "overall": 6,
+      "good_points": [
+        "包含了用户明确指定的核心目的地长隆海洋王国",
+        "路线整体在横琴区域，地理上相对集中，没有明显折返",
+        "安排了晚餐和后续活动，时间利用较充分"
+      ],
+      "bad_points": [
+        "湿地观鸟区和生态农场对6岁孩子吸引力有限，且晚上观鸟效果差",
+        "餐饮选择单一，只有一家餐厅，且未考虑儿童口味",
+        "预算1000元，但门票和餐饮已超支，未控制总花费"
+      ]
+    }
+  },
+  {
+    "id": 3,
+    "name": "美食探索",
+    "success": true,
+    "elapsed": 43.566,
+    "route_steps": 4,
+    "proposals": 9,
+    "conflicts": 0,
+    "has_narrative": true,
+    "poi_names": [
+      "台灣帝鈞炭烤胡椒餅",
+      "武二廣潮福粉麵食館",
+      "湾仔海鲜街",
+      "情侣路"
+    ],
+    "errors": [],
+    "eval": {
+      "scores": {
+        "intent_match": 6,
+        "poi_quality": 5,
+        "geo_continuity": 7,
+        "scene_diversity": 5,
+        "overall": 6
+      },
+      "overall": 6,
+      "good_points": [
+        "包含了海鲜街，符合用户吃海鲜的需求",
+        "路线地理上基本连贯，没有明显折返"
+      ],
+      "bad_points": [
+        "胡椒饼和粉面馆并非海鲜或珠海本地特色，与用户需求匹配度一般",
+        "餐饮类型单一，只有小吃和面食，缺少海鲜正餐或多样化的本地美食体验",
+        "情侣路作为运动景点与美食主题无关，挤占了餐饮时间"
+      ]
+    }
+  },
+  {
+    "id": 4,
+    "name": "特种兵打卡",
+    "success": true,
+    "elapsed": 45.959,
+    "route_steps": 5,
+    "proposals": 9,
+    "conflicts": 0,
+    "has_narrative": true,
+    "poi_names": [
+      "珠海长隆海洋王国",
+      "肯德基 KFC",
+      "珠海大剧院",
+      "情侣路",
+      "圆明新园"
+    ],
+    "errors": [],
+    "eval": {
+      "scores": {
+        "intent_match": 7,
+        "poi_quality": 6,
+        "geo_continuity": 5,
+        "scene_diversity": 6,
+        "overall": 6
+      },
+      "overall": 6,
+      "good_points": [
+        "包含了珠海长隆海洋王国、珠海大剧院、圆明新园等著名景点，基本覆盖用户提到的著名景点",
+        "景点类型多样，涵盖主题公园、文化场馆、自然景观等"
+      ],
+      "bad_points": [
+        "路线地理跨度大，从长隆（横琴）到大剧院（香洲）再到圆明新园（香洲）有折返，且时间安排不合理，圆明新园19:49到达已闭园",
+        "餐饮选择单一，仅安排肯德基，与珠海美食体验不符",
+        "时间过于紧凑，长隆海洋王国仅安排半天，实际需一整天，导致体验不佳"
+      ]
+    }
+  },
+  {
+    "id": 5,
+    "name": "休闲养老游",
+    "success": true,
+    "elapsed": 41.471,
+    "route_steps": 5,
+    "proposals": 7,
+    "conflicts": 0,
+    "has_narrative": true,
+    "poi_names": [
+      "野狸岛骑行道",
+      "野狸岛·屿见咖啡",
+      "香洲渔港码头日落点",
+      "騎士吧",
+      "珠海横琴花海长廊"
+    ],
+    "errors": [],
+    "eval": {
+      "scores": {
+        "intent_match": 7,
+        "poi_quality": 7,
+        "geo_continuity": 6,
+        "scene_diversity": 5,
+        "overall": 6
+      },
+      "overall": 6,
+      "good_points": [
+        "包含野狸岛骑行和海边咖啡馆，符合慢节奏和海边偏好",
+        "野狸岛骑行道和花海长廊适合休闲散步"
+      ],
+      "bad_points": [
+        "路线仅覆盖野狸岛和横琴两个区域，中间有较长车程，且香洲渔港码头日落点安排在中午，时间不合理",
+        "场景多样性不足，主要是自然景点和餐饮，缺乏公园类景点（如海滨公园）",
+        "骑士吧作为餐饮点与整体休闲主题关联较弱，且时间安排紧凑"
+      ]
+    }
+  }
+]

@@ -1,0 +1,189 @@
+[
+  {
+    "id": 1,
+    "name": "情侣珠海一日游",
+    "success": true,
+    "elapsed": 49.217,
+    "route_steps": 6,
+    "proposals": 13,
+    "conflicts": 0,
+    "has_narrative": true,
+    "poi_names": [
+      "情侣中路骑行道",
+      "珠海大剧院（野狸岛）",
+      "情侣南路·海风书吧",
+      "芝麻串串香",
+      "香洲渔港码头日落点",
+      "珠海城市阳台"
+    ],
+    "errors": [],
+    "eval": {
+      "scores": {
+        "intent_match": 8,
+        "poi_quality": 7,
+        "geo_continuity": 8,
+        "scene_diversity": 6,
+        "overall": 7
+      },
+      "overall": 7,
+      "good_points": [
+        "路线覆盖了珠海经典地标，如珠海大剧院和情侣路，适合拍照打卡",
+        "地理连续性较好，沿情侣路一线展开，无需折返",
+        "预算控制合理，总花费约280元，远低于500元预算"
+      ],
+      "bad_points": [
+        "餐饮选择单一，仅有一家串串香，缺乏多样性",
+        "缺少情侣互动或浪漫元素，可增加如爱情邮局等景点",
+        "下午时段安排较松散，可优化时间分配或增加一个POI"
+      ]
+    }
+  },
+  {
+    "id": 2,
+    "name": "亲子海洋王国",
+    "success": true,
+    "elapsed": 35.0,
+    "route_steps": 3,
+    "proposals": 9,
+    "conflicts": 0,
+    "has_narrative": true,
+    "poi_names": [
+      "珠海长隆海洋王国",
+      "横琴蚝庄·百年蚝仓",
+      "横琴岛芒洲湿地观鸟区"
+    ],
+    "errors": [],
+    "eval": {
+      "scores": {
+        "intent_match": 7,
+        "poi_quality": 7,
+        "geo_continuity": 8,
+        "scene_diversity": 5,
+        "overall": 7
+      },
+      "overall": 7,
+      "good_points": [
+        "核心目的地长隆海洋王国已包含，且安排了一整天游玩",
+        "晚餐选择横琴蚝庄，距离长隆近，符合当地特色",
+        "路线地理集中，无需长途奔波，适合带娃"
+      ],
+      "bad_points": [
+        "湿地观鸟区在傍晚开放，但6岁孩子可能兴趣不高，且时间较晚",
+        "预算1000元，但门票300元+餐饮80元，剩余预算未充分利用，可增加适合孩子的活动",
+        "场景单一，仅有景点和餐饮，缺乏多样性"
+      ]
+    }
+  },
+  {
+    "id": 3,
+    "name": "美食探索",
+    "success": true,
+    "elapsed": 47.045,
+    "route_steps": 5,
+    "proposals": 9,
+    "conflicts": 0,
+    "has_narrative": true,
+    "poi_names": [
+      "雲浮石磨腸粉店",
+      "台灣帝鈞炭烤胡椒餅",
+      "湾仔海鲜街",
+      "梅华海鲜城",
+      "金悅軒酒家"
+    ],
+    "errors": [],
+    "eval": {
+      "scores": {
+        "intent_match": 8,
+        "poi_quality": 7,
+        "geo_continuity": 6,
+        "scene_diversity": 6,
+        "overall": 7
+      },
+      "overall": 7,
+      "good_points": [
+        "包含了海鲜和本地特色，如湾仔海鲜街、梅华海鲜城",
+        "餐饮类型多样，有肠粉、胡椒饼、海鲜街、海鲜城、粤式酒楼"
+      ],
+      "bad_points": [
+        "地理连续性一般，从湾仔海鲜街到梅华海鲜城有折返",
+        "场景多样性不足，全部为餐饮，缺乏其他体验元素",
+        "部分POI价格较低，可能影响整体体验质量"
+      ]
+    }
+  },
+  {
+    "id": 4,
+    "name": "特种兵打卡",
+    "success": true,
+    "elapsed": 53.298,
+    "route_steps": 8,
+    "proposals": 9,
+    "conflicts": 0,
+    "has_narrative": true,
+    "poi_names": [
+      "圆明新园",
+      "情侣路",
+      "珠海渔女",
+      "日月贝（珠海大剧院）",
+      "野狸岛公园骑行道",
+      "珠海博物馆"
+    ],
+    "errors": [],
+    "eval": {
+      "scores": {
+        "intent_match": 8,
+        "poi_quality": 7,
+        "geo_continuity": 6,
+        "scene_diversity": 6,
+        "overall": 7
+      },
+      "overall": 7,
+      "good_points": [
+        "覆盖了珠海多个著名景点，如圆明新园、情侣路、珠海渔女等，符合用户打卡需求",
+        "景点类型多样，包含文化、运动、自然等，有一定丰富性"
+      ],
+      "bad_points": [
+        "路线存在折返，如从野狸岛到博物馆再到淇澳红树林，地理连续性可优化",
+        "时间安排较紧，部分景点停留时间可能不足，建议适当精简或延长总时长",
+        "餐饮安排单一，仅一个胡椒饼，与密集行程不匹配，建议增加快速用餐点"
+      ]
+    }
+  },
+  {
+    "id": 5,
+    "name": "休闲养老游",
+    "success": true,
+    "elapsed": 97.997,
+    "route_steps": 4,
+    "proposals": 7,
+    "conflicts": 0,
+    "has_narrative": true,
+    "poi_names": [
+      "圆明新园",
+      "香洲渔港码头日落点",
+      "新海灣",
+      "情侣中路沙滩栈道"
+    ],
+    "errors": [],
+    "eval": {
+      "scores": {
+        "intent_match": 7,
+        "poi_quality": 6,
+        "geo_continuity": 7,
+        "scene_diversity": 5,
+        "overall": 6
+      },
+      "overall": 6,
+      "good_points": [
+        "路线节奏较慢，符合休闲需求",
+        "包含了公园（圆明新园）和海边（情侣中路沙滩栈道）",
+        "地理上基本连贯，没有明显折返"
+      ],
+      "bad_points": [
+        "POI数量偏少，两日游仅4个点，可适当增加",
+        "餐饮选择单一，仅一个餐厅，且未体现珠海特色",
+        "缺少夜间活动安排，第一天下午结束较早"
+      ]
+    }
+  }
+]

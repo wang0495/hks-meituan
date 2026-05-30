@@ -1,0 +1,97 @@
+[
+  {
+    "id": 1,
+    "name": "情侣珠海一日游",
+    "success": true,
+    "elapsed": 32.523,
+    "route_steps": 7,
+    "proposals": 14,
+    "conflicts": 0,
+    "has_narrative": true,
+    "poi_names": [
+      "珠海大剧院（野狸岛）",
+      "野狸岛骑行道",
+      "情侣南路·海风书吧",
+      "圆明新园",
+      "香洲埠文化创意园",
+      "芝麻串串香"
+    ],
+    "errors": [],
+    "eval": null
+  },
+  {
+    "id": 2,
+    "name": "亲子海洋王国",
+    "success": true,
+    "elapsed": 25.076,
+    "route_steps": 4,
+    "proposals": 9,
+    "conflicts": 0,
+    "has_narrative": true,
+    "poi_names": [
+      "珠海长隆海洋王国",
+      "横琴蚝庄·百年蚝仓（替代名称：横琴蚝乡小筑）",
+      "横琴岛芒洲湿地观鸟区",
+      "波爾圖餐廳"
+    ],
+    "errors": [],
+    "eval": null
+  },
+  {
+    "id": 3,
+    "name": "美食探索",
+    "success": true,
+    "elapsed": 30.561,
+    "route_steps": 5,
+    "proposals": 9,
+    "conflicts": 0,
+    "has_narrative": true,
+    "poi_names": [
+      "雲浮石磨腸粉店",
+      "金悅軒酒家",
+      "台灣帝鈞炭烤胡椒餅",
+      "湾仔海鲜街",
+      "多记甜品"
+    ],
+    "errors": [],
+    "eval": null
+  },
+  {
+    "id": 4,
+    "name": "特种兵打卡",
+    "success": true,
+    "elapsed": 30.937,
+    "route_steps": 9,
+    "proposals": 9,
+    "conflicts": 0,
+    "has_narrative": true,
+    "poi_names": [
+      "珠海大剧院（野狸岛）",
+      "野狸岛骑行道",
+      "情侣中路骑行道",
+      "圆明新园",
+      "雅佳茶餐廳",
+      "珠海渔女观景平台"
+    ],
+    "errors": [],
+    "eval": null
+  },
+  {
+    "id": 5,
+    "name": "休闲养老游",
+    "success": true,
+    "elapsed": 24.369,
+    "route_steps": 4,
+    "proposals": 7,
+    "conflicts": 0,
+    "has_narrative": true,
+    "poi_names": [
+      "野狸岛骑行道",
+      "情侣南路·海风书吧",
+      "野狸岛·屿见咖啡",
+      "日月贝（珠海大剧院）"
+    ],
+    "errors": [],
+    "eval": null
+  }
+]

@@ -1,0 +1,188 @@
+[
+  {
+    "id": 1,
+    "name": "情侣珠海一日游",
+    "success": true,
+    "elapsed": 60.03,
+    "route_steps": 6,
+    "proposals": 14,
+    "conflicts": 0,
+    "has_narrative": true,
+    "poi_names": [
+      "情侣路",
+      "野狸岛骑行道",
+      "野狸岛·屿见咖啡",
+      "珠海大剧院（野狸岛）",
+      "爱情邮局（灯塔）",
+      "珠海城市阳台"
+    ],
+    "errors": [],
+    "eval": {
+      "scores": {
+        "intent_match": 7,
+        "poi_quality": 7,
+        "geo_continuity": 8,
+        "scene_diversity": 5,
+        "overall": 7
+      },
+      "overall": 7,
+      "good_points": [
+        "路线集中在情侣路沿线，地理连续性好，骑行和步行衔接顺畅",
+        "包含多个拍照打卡点（爱情邮局、珠海大剧院），符合情侣拍照需求",
+        "预算控制合理，大部分景点免费，总花费约265元，远低于500元"
+      ],
+      "bad_points": [
+        "场景类型单一，几乎全是观光景点，缺乏餐饮和互动体验，建议增加午餐或甜品店",
+        "野狸岛·屿见咖啡和珠海大剧院都在野狸岛，时间安排上可合并，避免重复往返",
+        "整体节奏偏紧，从9点到17点安排6个点，情侣休闲游可适当减少景点，留出自由拍照时间"
+      ]
+    }
+  },
+  {
+    "id": 2,
+    "name": "亲子海洋王国",
+    "success": true,
+    "elapsed": 28.878,
+    "route_steps": 4,
+    "proposals": 9,
+    "conflicts": 0,
+    "has_narrative": true,
+    "poi_names": [
+      "珠海横琴长隆海洋王国",
+      "珠海横琴花海长廊",
+      "肯德基 KFC",
+      "珠海横琴科学城儿童科技馆"
+    ],
+    "errors": [],
+    "eval": {
+      "scores": {
+        "intent_match": 7,
+        "poi_quality": 6,
+        "geo_continuity": 7,
+        "scene_diversity": 5,
+        "overall": 6
+      },
+      "overall": 6,
+      "good_points": [
+        "包含了核心目的地长隆海洋王国，符合用户需求",
+        "路线集中在横琴区域，地理上较为紧凑"
+      ],
+      "bad_points": [
+        "花海长廊和儿童科技馆与海洋王国主题关联度低，且科技馆门票超预算",
+        "餐饮选择单一（肯德基），缺乏当地特色或适合儿童的多样化餐饮",
+        "整体节奏偏紧，下午安排科技馆可能影响孩子在海洋王国的游玩体验"
+      ]
+    }
+  },
+  {
+    "id": 3,
+    "name": "美食探索",
+    "success": true,
+    "elapsed": 43.727,
+    "route_steps": 4,
+    "proposals": 9,
+    "conflicts": 0,
+    "has_narrative": true,
+    "poi_names": [
+      "台灣帝鈞炭烤胡椒餅",
+      "一和味雅",
+      "湾仔海鲜街",
+      "囍囍茶餐厅"
+    ],
+    "errors": [],
+    "eval": {
+      "scores": {
+        "intent_match": 7,
+        "poi_quality": 6,
+        "geo_continuity": 5,
+        "scene_diversity": 6,
+        "overall": 6
+      },
+      "overall": 6,
+      "good_points": [
+        "包含了海鲜和本地特色，如湾仔海鲜街和囍囍茶餐厅",
+        "有正餐、小吃、茶餐厅等不同餐饮类型"
+      ],
+      "bad_points": [
+        "路线时间安排不合理，胡椒饼和海鲜街到达时间过早，且间隔过长",
+        "地理连续性差，从胡椒饼到一和味雅再到湾仔海鲜街有折返",
+        "餐饮多样性一般，缺少甜品、夜市等子类型"
+      ]
+    }
+  },
+  {
+    "id": 4,
+    "name": "特种兵打卡",
+    "success": true,
+    "elapsed": 44.385,
+    "route_steps": 5,
+    "proposals": 9,
+    "conflicts": 0,
+    "has_narrative": true,
+    "poi_names": [
+      "圆明新园",
+      "珠海博物馆",
+      "情侣路沙滩骑行道",
+      "肯德基 KFC",
+      "珠海大剧院（野狸岛）"
+    ],
+    "errors": [],
+    "eval": {
+      "scores": {
+        "intent_match": 7,
+        "poi_quality": 6,
+        "geo_continuity": 7,
+        "scene_diversity": 5,
+        "overall": 6
+      },
+      "overall": 6,
+      "good_points": [
+        "覆盖了圆明新园、珠海博物馆、情侣路、珠海大剧院等核心景点，基本满足打卡需求",
+        "路线时间安排紧凑，符合特种兵型节奏",
+        "景点之间地理距离相对集中，没有明显折返"
+      ],
+      "bad_points": [
+        "餐饮选择单一，仅安排肯德基，与珠海美食特色不符",
+        "缺少长隆海洋王国等标志性景点，未能覆盖所有著名景点",
+        "场景多样性不足，文化类景点偏多，缺乏自然或娱乐类体验"
+      ]
+    }
+  },
+  {
+    "id": 5,
+    "name": "休闲养老游",
+    "success": true,
+    "elapsed": 36.456,
+    "route_steps": 4,
+    "proposals": 7,
+    "conflicts": 0,
+    "has_narrative": true,
+    "poi_names": [
+      "海滨公园",
+      "情侣南路·海风书吧",
+      "日月贝（珠海大剧院）",
+      "一和味雅"
+    ],
+    "errors": [],
+    "eval": {
+      "scores": {
+        "intent_match": 8,
+        "poi_quality": 7,
+        "geo_continuity": 7,
+        "scene_diversity": 6,
+        "overall": 7
+      },
+      "overall": 7,
+      "good_points": [
+        "路线节奏慢，符合休闲需求",
+        "包含了海滨公园和海边咖啡馆，契合喜欢公园和海边的偏好",
+        "日月贝是珠海地标，文化体验不错"
+      ],
+      "bad_points": [
+        "第一天只有4个POI，第二天完全空白，行程不完整",
+        "餐饮只有一家，缺乏多样性",
+        "海风书吧和日月贝距离较近，但整体路线可进一步优化地理连续性"
+      ]
+    }
+  }
+]

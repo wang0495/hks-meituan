@@ -1,0 +1,191 @@
+[
+  {
+    "id": 1,
+    "name": "情侣珠海一日游",
+    "success": true,
+    "elapsed": 37.208,
+    "route_steps": 7,
+    "proposals": 13,
+    "conflicts": 0,
+    "has_narrative": true,
+    "poi_names": [
+      "情侣中路骑行道",
+      "情侣路",
+      "情侣南路·海风书吧",
+      "芝麻串串香",
+      "香洲渔港码头日落点",
+      "北山社区艺术空间"
+    ],
+    "errors": [],
+    "eval": {
+      "scores": {
+        "intent_match": 7,
+        "poi_quality": 7,
+        "geo_continuity": 8,
+        "scene_diversity": 6,
+        "overall": 7
+      },
+      "overall": 7,
+      "good_points": [
+        "路线包含了多个适合拍照打卡的地点，如情侣路、海风书吧、北山社区艺术空间等，符合用户拍照打卡的需求。",
+        "地理连续性较好，景点沿情侣路和香洲区分布，没有明显折返，骑行和步行衔接自然。",
+        "预算控制合理，总花费约238元，远低于500元预算，留有弹性空间。"
+      ],
+      "bad_points": [
+        "场景多样性不足，以运动、海景和餐饮为主，缺少文化或娱乐类景点，可增加如珠海博物馆或圆明新园等。",
+        "餐饮选择较少，仅有两家餐厅，且芝麻串串香与一和味雅风格相近，建议增加甜品或小吃店丰富体验。",
+        "情侣中路骑行道和情侣路本质相似，可合并或替换为其他特色景点，避免重复。"
+      ]
+    }
+  },
+  {
+    "id": 2,
+    "name": "亲子海洋王国",
+    "success": true,
+    "elapsed": 26.517,
+    "route_steps": 4,
+    "proposals": 9,
+    "conflicts": 0,
+    "has_narrative": true,
+    "poi_names": [
+      "珠海长隆海洋王国",
+      "波爾圖餐廳",
+      "横琴岛芒洲湿地观鸟区",
+      "横琴蚝庄生态农场"
+    ],
+    "errors": [],
+    "eval": {
+      "scores": {
+        "intent_match": 7,
+        "poi_quality": 6,
+        "geo_continuity": 7,
+        "scene_diversity": 5,
+        "overall": 6
+      },
+      "overall": 6,
+      "good_points": [
+        "包含了核心目的地长隆海洋王国",
+        "路线集中在横琴区域，地理上较合理",
+        "预算控制较好，总花费约452元"
+      ],
+      "bad_points": [
+        "湿地观鸟区和生态农场对6岁孩子吸引力有限，建议替换为儿童友好项目",
+        "餐饮选择单一，仅一家餐厅，且未考虑孩子口味",
+        "行程后半段景点安排较晚，可能影响孩子休息"
+      ]
+    }
+  },
+  {
+    "id": 3,
+    "name": "美食探索",
+    "success": true,
+    "elapsed": 36.776,
+    "route_steps": 4,
+    "proposals": 9,
+    "conflicts": 0,
+    "has_narrative": true,
+    "poi_names": [
+      "湾仔海鲜街",
+      "金悅軒酒家",
+      "多记甜品",
+      "情侣路"
+    ],
+    "errors": [],
+    "eval": {
+      "scores": {
+        "intent_match": 8,
+        "poi_quality": 7,
+        "geo_continuity": 6,
+        "scene_diversity": 6,
+        "overall": 7
+      },
+      "overall": 7,
+      "good_points": [
+        "包含了海鲜街和本地特色餐厅，符合用户对海鲜和本地美食的需求",
+        "金悅軒酒家是知名粤菜餐厅，品质有保障",
+        "多记甜品作为甜品店，增加了餐饮多样性"
+      ],
+      "bad_points": [
+        "湾仔海鲜街与金悅軒酒家距离较远，且中间有折返，地理连续性一般",
+        "餐饮类型不够丰富，海鲜街和酒家均以海鲜为主，缺少其他本地特色小吃或茶餐厅",
+        "情侣路作为运动景点与美食主题关联较弱，且安排在下午，可能影响后续餐饮安排"
+      ]
+    }
+  },
+  {
+    "id": 4,
+    "name": "特种兵打卡",
+    "success": true,
+    "elapsed": 42.61,
+    "route_steps": 6,
+    "proposals": 9,
+    "conflicts": 0,
+    "has_narrative": true,
+    "poi_names": [
+      "珠海大剧院（野狸岛）",
+      "野狸岛公园骑行道",
+      "情侣中路骑行道",
+      "珠海渔女",
+      "圆明新园",
+      "珠海长隆海洋王国"
+    ],
+    "errors": [],
+    "eval": {
+      "scores": {
+        "intent_match": 8,
+        "poi_quality": 7,
+        "geo_continuity": 6,
+        "scene_diversity": 5,
+        "overall": 7
+      },
+      "overall": 7,
+      "good_points": [
+        "覆盖了珠海多个标志性景点，如珠海大剧院、渔女、圆明新园和长隆海洋王国",
+        "时间安排紧凑，符合特种兵型需求",
+        "包含文化、运动、景点等多种类型，有一定多样性"
+      ],
+      "bad_points": [
+        "圆明新园和长隆海洋王国距离较远，下午行程紧张，建议调整顺序或减少一个景点",
+        "野狸岛公园骑行道和情侣中路骑行道性质重复，可合并或替换为其他景点",
+        "长隆海洋王国建议安排一整天，半天时间不足，可考虑替换为其他景点"
+      ]
+    }
+  },
+  {
+    "id": 5,
+    "name": "休闲养老游",
+    "success": true,
+    "elapsed": 41.068,
+    "route_steps": 4,
+    "proposals": 7,
+    "conflicts": 0,
+    "has_narrative": true,
+    "poi_names": [
+      "圆明新园",
+      "野狸岛·屿见咖啡",
+      "珠海城市阳台",
+      "情侣中路沙滩栈道"
+    ],
+    "errors": [],
+    "eval": {
+      "scores": {
+        "intent_match": 8,
+        "poi_quality": 7,
+        "geo_continuity": 8,
+        "scene_diversity": 5,
+        "overall": 7
+      },
+      "overall": 7,
+      "good_points": [
+        "路线节奏慢，景点数量适中，符合休闲需求",
+        "包含公园（圆明新园）和海边（野狸岛、情侣路），匹配用户偏好",
+        "地理上集中在珠海市区，无需长途奔波"
+      ],
+      "bad_points": [
+        "场景多样性不足，全部为观光类景点，缺乏餐饮或文化体验",
+        "圆明新园门票60元，性价比一般，且与后续海边景点风格差异较大",
+        "野狸岛·屿见咖啡作为咖啡馆，停留时间可能过长，影响后续行程"
+      ]
+    }
+  }
+]

@@ -1,0 +1,189 @@
+[
+  {
+    "id": 1,
+    "name": "情侣珠海一日游",
+    "success": true,
+    "elapsed": 68.007,
+    "route_steps": 8,
+    "proposals": 21,
+    "conflicts": 0,
+    "has_narrative": true,
+    "poi_names": [
+      "爱情邮局（灯塔）",
+      "珠海渔女",
+      "海滨泳场",
+      "景山公园观景台",
+      "香炉湾沙滩",
+      "野狸岛"
+    ],
+    "errors": [],
+    "eval": {
+      "scores": {
+        "intent_match": 8,
+        "poi_quality": 7,
+        "geo_continuity": 8,
+        "scene_diversity": 6,
+        "overall": 7
+      },
+      "overall": 7,
+      "good_points": [
+        "路线覆盖了珠海经典拍照打卡点，如爱情邮局、珠海渔女、景山公园观景台等，符合情侣拍照需求。",
+        "地理连续性较好，景点沿海岸线分布，无需折返，行程流畅。",
+        "预算控制合理，大部分景点免费，总花费约221元，远低于500元预算。"
+      ],
+      "bad_points": [
+        "餐饮选择单一，仅有两家餐厅且类型相近（均为正餐），缺乏多样性，建议增加小吃或甜品店。",
+        "景山公园观景台门票75元，对预算敏感的情侣可能偏高，可考虑替代方案。",
+        "下午时段（15:00-16:40）安排沙滩和野狸岛，但野狸岛以运动为主，拍照元素较少，可替换为更有特色的拍照点。"
+      ]
+    }
+  },
+  {
+    "id": 2,
+    "name": "亲子海洋王国",
+    "success": true,
+    "elapsed": 28.441,
+    "route_steps": 3,
+    "proposals": 16,
+    "conflicts": 0,
+    "has_narrative": true,
+    "poi_names": [
+      "长隆海洋王国",
+      "肯德基 KFC",
+      "珠海横琴花海长廊"
+    ],
+    "errors": [],
+    "eval": {
+      "scores": {
+        "intent_match": 8,
+        "poi_quality": 7,
+        "geo_continuity": 7,
+        "scene_diversity": 5,
+        "overall": 7
+      },
+      "overall": 7,
+      "good_points": [
+        "核心目的地长隆海洋王国完全匹配用户需求",
+        "预算控制合理，总花费512元，远低于1000元",
+        "花海长廊免费且适合傍晚散步，增加亲子体验"
+      ],
+      "bad_points": [
+        "餐饮选择单一，肯德基缺乏当地特色，且与亲子主题关联弱",
+        "花海长廊与长隆距离较远，需打车约15分钟，且到达时间较晚",
+        "场景多样性不足，仅包含景点和快餐，缺少其他类型活动"
+      ]
+    }
+  },
+  {
+    "id": 3,
+    "name": "美食探索",
+    "success": true,
+    "elapsed": 38.6,
+    "route_steps": 4,
+    "proposals": 13,
+    "conflicts": 0,
+    "has_narrative": true,
+    "poi_names": [
+      "台灣帝鈞炭烤胡椒餅",
+      "湾仔海鲜街",
+      "情侣路",
+      "多记甜品"
+    ],
+    "errors": [],
+    "eval": {
+      "scores": {
+        "intent_match": 6,
+        "poi_quality": 6,
+        "geo_continuity": 5,
+        "scene_diversity": 5,
+        "overall": 6
+      },
+      "overall": 6,
+      "good_points": [
+        "包含了海鲜街和甜品店，部分满足美食需求",
+        "胡椒饼作为特色小吃，有一定本地特色"
+      ],
+      "bad_points": [
+        "海鲜街安排在上午，但午餐时间未明确，且后续无正餐，餐饮体验不完整",
+        "情侣路作为非餐饮景点，与美食主题关联弱，且占用中午时段",
+        "路线地理上从胡椒饼（市区）到湾仔（南）再到情侣路（东），有折返，不够流畅"
+      ]
+    }
+  },
+  {
+    "id": 4,
+    "name": "特种兵打卡",
+    "success": true,
+    "elapsed": 37.903,
+    "route_steps": 8,
+    "proposals": 13,
+    "conflicts": 0,
+    "has_narrative": true,
+    "poi_names": [
+      "圆明新园",
+      "景山公园观景台",
+      "珠海渔女",
+      "香炉湾沙滩",
+      "野狸岛公园",
+      "野狸岛"
+    ],
+    "errors": [],
+    "eval": {
+      "scores": {
+        "intent_match": 8,
+        "poi_quality": 7,
+        "geo_continuity": 8,
+        "scene_diversity": 6,
+        "overall": 7
+      },
+      "overall": 7,
+      "good_points": [
+        "覆盖了珠海多个标志性景点，如圆明新园、珠海渔女、日月贝等",
+        "路线地理上基本沿情侣路一线，没有明显折返，符合特种兵型高效打卡需求"
+      ],
+      "bad_points": [
+        "景点类型以文化/景点为主，缺乏自然或娱乐类多样性",
+        "部分景点如野狸岛和野狸岛公园可能重复，建议合并或替换为其他景点"
+      ]
+    }
+  },
+  {
+    "id": 5,
+    "name": "休闲养老游",
+    "success": true,
+    "elapsed": 56.829,
+    "route_steps": 6,
+    "proposals": 15,
+    "conflicts": 0,
+    "has_narrative": true,
+    "poi_names": [
+      "野狸岛",
+      "野狸岛骑行道",
+      "騎士吧",
+      "石景山公园",
+      "海滨公园",
+      "珠海渔女"
+    ],
+    "errors": [],
+    "eval": {
+      "scores": {
+        "intent_match": 8,
+        "poi_quality": 7,
+        "geo_continuity": 7,
+        "scene_diversity": 5,
+        "overall": 7
+      },
+      "overall": 7,
+      "good_points": [
+        "路线包含多个公园和海滨景点，符合用户对公园和海边的偏好",
+        "节奏较慢，上午野狸岛骑行，下午石景山公园和海滨公园，适合休闲",
+        "野狸岛骑行道和石景山公园提供了户外运动体验"
+      ],
+      "bad_points": [
+        "场景多样性不足，6个POI中4个为运动/景点类型，缺乏文化或购物等变化",
+        "骑士吧到达时间12:50晚于石景山公园12:40，时间顺序有冲突",
+        "珠海渔女作为文化景点，但停留时间较短，可考虑增加周边活动"
+      ]
+    }
+  }
+]

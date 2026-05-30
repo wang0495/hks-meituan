@@ -1,0 +1,199 @@
+[
+  {
+    "id": 1,
+    "name": "情侣珠海一日游",
+    "success": true,
+    "elapsed": 73.296,
+    "route_steps": 8,
+    "proposals": 13,
+    "conflicts": 0,
+    "has_narrative": true,
+    "poi_names": [
+      "情侣路",
+      "爱情邮局（灯塔）",
+      "珠海渔女",
+      "澳美居茶餐厅",
+      "景山公园观景台",
+      "野狸岛·屿见咖啡"
+    ],
+    "errors": [
+      "美团API不可用: "
+    ],
+    "eval": {
+      "scores": {
+        "intent_match": 8,
+        "poi_quality": 7,
+        "geo_continuity": 7,
+        "scene_diversity": 6,
+        "overall": 7
+      },
+      "overall": 7,
+      "good_points": [
+        "路线覆盖了情侣路、爱情邮局、珠海渔女等经典拍照打卡点，符合用户拍照需求",
+        "预算控制合理，总花费约413元，在500元预算内",
+        "景点之间距离较近，整体路线较为流畅"
+      ],
+      "bad_points": [
+        "场景多样性不足，以观光和拍照为主，缺少互动体验或文化深度",
+        "部分POI标签缺失（如景山公园），影响评分准确性",
+        "南屏老街咖啡巷安排在晚上，可能错过白天拍照效果"
+      ]
+    }
+  },
+  {
+    "id": 2,
+    "name": "亲子海洋王国",
+    "success": true,
+    "elapsed": 38.787,
+    "route_steps": 3,
+    "proposals": 9,
+    "conflicts": 0,
+    "has_narrative": true,
+    "poi_names": [
+      "珠海横琴长隆海洋王国",
+      "横琴蚝庄·百年蚝仓",
+      "横琴金融岛滨海步道"
+    ],
+    "errors": [
+      "美团API不可用: Server error '503 Service Unavailable' for url 'http://localhost:8001/api/poi/search?limit=200&offset=0'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/503"
+    ],
+    "eval": {
+      "scores": {
+        "intent_match": 8,
+        "poi_quality": 8,
+        "geo_continuity": 9,
+        "scene_diversity": 5,
+        "overall": 7
+      },
+      "overall": 7,
+      "good_points": [
+        "核心目的地长隆海洋王国完全匹配用户需求，且安排了充足游玩时间",
+        "路线集中在横琴区域，地理连续性极佳，无需长途奔波",
+        "晚餐选择当地特色海鲜餐厅，符合亲子用餐需求"
+      ],
+      "bad_points": [
+        "场景多样性不足，仅包含游乐和餐饮两类，可考虑增加一个适合儿童的轻量活动",
+        "预算1000元，实际花费约380元，剩余预算未充分利用，可适当增加体验项目",
+        "滨海步道安排在傍晚，但6岁孩子可能兴趣不高，建议替换为更亲子友好的活动"
+      ]
+    }
+  },
+  {
+    "id": 3,
+    "name": "美食探索",
+    "success": true,
+    "elapsed": 63.207,
+    "route_steps": 4,
+    "proposals": 9,
+    "conflicts": 0,
+    "has_narrative": true,
+    "poi_names": [
+      "湾仔海鲜街",
+      "得月舫",
+      "情侣路",
+      "梅华海鲜城"
+    ],
+    "errors": [
+      "美团API不可用: Server error '503 Service Unavailable' for url 'http://localhost:8001/api/poi/search?limit=200&offset=0'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/503"
+    ],
+    "eval": {
+      "scores": {
+        "intent_match": 8,
+        "poi_quality": 7,
+        "geo_continuity": 6,
+        "scene_diversity": 5,
+        "overall": 7
+      },
+      "overall": 7,
+      "good_points": [
+        "包含了海鲜街和海鲜城，满足用户吃海鲜的需求",
+        "得月舫提供本地特色正餐，符合本地美食探索"
+      ],
+      "bad_points": [
+        "湾仔海鲜街和梅华海鲜城都是海鲜主题，餐饮类型重复，多样性不足",
+        "情侣路作为运动景点与美食主题关联弱，且安排在午餐后，时间利用不合理",
+        "路线有折返：湾仔海鲜街在南部，得月舫在市区，梅华海鲜城又在北部，地理连续性较差"
+      ]
+    }
+  },
+  {
+    "id": 4,
+    "name": "特种兵打卡",
+    "success": true,
+    "elapsed": 46.982,
+    "route_steps": 8,
+    "proposals": 9,
+    "conflicts": 0,
+    "has_narrative": true,
+    "poi_names": [
+      "珠海渔女",
+      "情侣路",
+      "石景山公园",
+      "海滨公园",
+      "珠海博物馆",
+      "圆明新园"
+    ],
+    "errors": [
+      "美团API不可用: Server error '503 Service Unavailable' for url 'http://localhost:8001/api/poi/search?limit=200&offset=0'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/503"
+    ],
+    "eval": {
+      "scores": {
+        "intent_match": 8,
+        "poi_quality": 7,
+        "geo_continuity": 8,
+        "scene_diversity": 6,
+        "overall": 7
+      },
+      "overall": 7,
+      "good_points": [
+        "覆盖了珠海主要著名景点，如渔女、情侣路、日月贝等",
+        "路线基本沿情侣路一线，地理连续性较好，没有明显折返",
+        "时间安排紧凑，符合特种兵型需求"
+      ],
+      "bad_points": [
+        "景点类型偏单一，多为文化/运动类，缺少餐饮或娱乐多样性",
+        "部分景点停留时间可能不足，如石景山公园仅1小时",
+        "未包含长隆等大型主题公园，可能遗漏部分著名景点"
+      ]
+    }
+  },
+  {
+    "id": 5,
+    "name": "休闲养老游",
+    "success": true,
+    "elapsed": 56.943,
+    "route_steps": 5,
+    "proposals": 7,
+    "conflicts": 0,
+    "has_narrative": true,
+    "poi_names": [
+      "野狸岛公园",
+      "得月舫",
+      "白莲洞公园",
+      "竹仙洞公园",
+      "珮納宮西餐廳"
+    ],
+    "errors": [
+      "美团API不可用: Server error '503 Service Unavailable' for url 'http://localhost:8001/api/poi/search?limit=200&offset=0'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/503"
+    ],
+    "eval": {
+      "scores": {
+        "intent_match": 7,
+        "poi_quality": 6,
+        "geo_continuity": 6,
+        "scene_diversity": 5,
+        "overall": 6
+      },
+      "overall": 6,
+      "good_points": [
+        "包含多个公园，符合用户喜欢公园和海边的需求",
+        "节奏较慢，上午和下午各安排两个公园，符合休闲型场景"
+      ],
+      "bad_points": [
+        "野狸岛公园后直接去得月舫，但得月舫位于野狸岛上，实际无需移动，但路线中未体现衔接，且后续白莲洞和竹仙洞距离较远，地理连续性一般",
+        "餐饮选择单一，只有正餐，缺乏多样性，且未突出海边特色餐饮",
+        "竹仙洞公园标签为运动健身，与休闲主题略有偏差，且两个公园类型重复，场景多样性不足"
+      ]
+    }
+  }
+]

@@ -1,0 +1,200 @@
+[
+  {
+    "id": 1,
+    "name": "情侣珠海一日游",
+    "success": true,
+    "elapsed": 37.416,
+    "route_steps": 6,
+    "proposals": 11,
+    "conflicts": 0,
+    "has_narrative": true,
+    "poi_names": [
+      "情侣路",
+      "石景山·山海之间",
+      "野狸岛·屿见咖啡",
+      "得月舫",
+      "香洲埠文化创意园",
+      "情侣中路夜市"
+    ],
+    "errors": [
+      "美团API不可用: Client error '422 Unprocessable Entity' for url 'http://localhost:8001/api/poi/search?limit=5000'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/422"
+    ],
+    "eval": {
+      "scores": {
+        "intent_match": 9,
+        "poi_quality": 8,
+        "geo_continuity": 7,
+        "scene_diversity": 8,
+        "overall": 8
+      },
+      "overall": 8,
+      "good_points": [
+        "路线高度契合情侣拍照打卡需求，精选多个海滨、山景与艺术氛围浓厚的优质POI，如石景山·山海之间、野狸岛·屿见咖啡等，均为珠海网红打卡地，出片率高。",
+        "整体行程节奏适中，兼顾自然风光、休闲体验与美食购物，场景丰富多样，从海滨漫步到文创园区再到夜市，满足情侣一日多元体验。",
+        "预算控制合理，总花费约309元，远低于500元上限，留有充足弹性空间用于额外消费或应急支出。"
+      ],
+      "bad_points": [
+        "部分POI间交通衔接略显紧凑（如12:30至14:07间隔仅1.5小时），若遇排队或拍照耗时较长，可能影响后续安排流畅性。",
+        "香洲埠文化创意园为购物点，虽具艺术气息，但对非购物导向的情侣而言吸引力有限，建议增加互动性或体验类项目以提升参与感。"
+      ]
+    }
+  },
+  {
+    "id": 2,
+    "name": "亲子海洋王国",
+    "success": true,
+    "elapsed": 31.517,
+    "route_steps": 4,
+    "proposals": 13,
+    "conflicts": 0,
+    "has_narrative": true,
+    "poi_names": [
+      "珠海长隆海洋王国",
+      "得月舫",
+      "横琴长隆海洋科学馆",
+      "粤华苑茶餐厅"
+    ],
+    "errors": [
+      "美团API不可用: Client error '422 Unprocessable Entity' for url 'http://localhost:8001/api/poi/search?limit=5000'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/422"
+    ],
+    "eval": {
+      "scores": {
+        "intent_match": 9,
+        "poi_quality": 8,
+        "geo_continuity": 7,
+        "scene_diversity": 6,
+        "overall": 7
+      },
+      "overall": 7,
+      "good_points": [
+        "路线以珠海长隆海洋王国为核心，完美匹配用户带孩子游玩的主题需求，且时间安排合理，上午入园可充分体验主要项目。",
+        "餐饮选择兼顾性价比与文化体验（得月舫分量足、粤华苑茶餐厅具文化历史感），适合家庭用餐。",
+        "横琴长隆海洋科学馆作为亲子友好型景点，与海洋王国主题一致，延伸了科普教育价值，增强整体体验深度。"
+      ],
+      "bad_points": [
+        "行程后半段时间较晚（19:05到达海洋科学馆），对6岁儿童而言可能过于疲劳，建议调整或取消该点以保证孩子休息。",
+        "总预算约646元，虽在1000元内，但未充分利用预算提升住宿或交通舒适度，如增加一晚园区附近酒店可优化体验。"
+      ]
+    }
+  },
+  {
+    "id": 3,
+    "name": "美食探索",
+    "success": true,
+    "elapsed": 34.241,
+    "route_steps": 6,
+    "proposals": 11,
+    "conflicts": 0,
+    "has_narrative": true,
+    "poi_names": [
+      "湾仔海鲜街",
+      "湾仔海鲜夜市",
+      "情侣路",
+      "香洲埠文化创意园",
+      "诚品书店·珠海店（24H阅读空间）",
+      "珮納宮西餐廳"
+    ],
+    "errors": [
+      "美团API不可用: Client error '422 Unprocessable Entity' for url 'http://localhost:8001/api/poi/search?limit=5000'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/422"
+    ],
+    "eval": {
+      "scores": {
+        "intent_match": 9,
+        "poi_quality": 8,
+        "geo_continuity": 7,
+        "scene_diversity": 6,
+        "overall": 8
+      },
+      "overall": 8,
+      "good_points": [
+        "路线紧扣‘珠海美食一日游’主题，从湾仔海鲜街到海鲜夜市，再到情侣路用餐，全程围绕海鲜和本地特色展开，意图匹配度高。",
+        "选择的POI质量较高：湾仔海鲜街和海鲜夜市是珠海知名海鲜聚集地，香洲埠文创园和诚品书店体现了本地文化与生活方式，珮納宮西餐厅也符合经济实惠的美食需求。",
+        "时间安排合理，上午至中午聚焦海鲜餐饮体验，下午转入文化休闲，傍晚至晚上延续慢节奏，符合主题探索型行程的松弛感。"
+      ],
+      "bad_points": [
+        "场景多样性略显不足，主要集中在餐饮和文化类POI，缺少更具代表性的本地特色体验（如渔女传说、拱北口岸历史等）。",
+        "地理连续性存在轻微绕路：从湾仔海鲜街到香洲埠文创园距离较远，且中间未安排过渡性景点或休息点，可能影响体力和体验连贯性。"
+      ]
+    }
+  },
+  {
+    "id": 4,
+    "name": "特种兵打卡",
+    "success": true,
+    "elapsed": 51.227,
+    "route_steps": 10,
+    "proposals": 16,
+    "conflicts": 0,
+    "has_narrative": true,
+    "poi_names": [
+      "情侣路",
+      "野狸岛骑行道",
+      "珠海市科普馆",
+      "香洲埠文化创意园",
+      "得月舫",
+      "珠海渔女夜市"
+    ],
+    "errors": [
+      "美团API不可用: Client error '422 Unprocessable Entity' for url 'http://localhost:8001/api/poi/search?limit=5000'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/422"
+    ],
+    "eval": {
+      "scores": {
+        "intent_match": 8,
+        "poi_quality": 7,
+        "geo_continuity": 6,
+        "scene_diversity": 9,
+        "overall": 7
+      },
+      "overall": 7,
+      "good_points": [
+        "路线覆盖了珠海多个代表性景点，包括情侣路、珠海渔女、拱北口岸等标志性地点，基本满足‘打卡所有著名景点’的核心需求。",
+        "场景类型丰富，涵盖海滨观光、骑行运动、文化展览、文创购物、美食餐饮和夜市体验，多样性突出，适合追求紧凑多元体验的游客。",
+        "时间安排较为紧凑但逻辑清晰，从早到晚逐步推进，无明显时间浪费或深夜高强度活动，符合一天赶场节奏。"
+      ],
+      "bad_points": [
+        "地理连续性一般，存在明显跨区域跳跃（如从香洲埠到南屏创意园再到拱北口岸），缺乏连贯路径规划，可能增加交通耗时与疲劳感。",
+        "部分POI停留时间过短（如珠海市科普馆仅50分钟），难以深入体验；而某些高价值景点（如野狸岛）未充分开发为正式景区，实际吸引力有限。"
+      ]
+    }
+  },
+  {
+    "id": 5,
+    "name": "休闲养老游",
+    "success": true,
+    "elapsed": 37.747,
+    "route_steps": 6,
+    "proposals": 12,
+    "conflicts": 0,
+    "has_narrative": true,
+    "poi_names": [
+      "情侣路",
+      "野狸岛公园骑行道",
+      "得月舫",
+      "情侣南路·海风书吧",
+      "香洲埠文化创意园",
+      "粤华苑茶餐厅"
+    ],
+    "errors": [
+      "美团API不可用: Client error '422 Unprocessable Entity' for url 'http://localhost:8001/api/poi/search?limit=5000'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/422"
+    ],
+    "eval": {
+      "scores": {
+        "intent_match": 9,
+        "poi_quality": 8,
+        "geo_continuity": 7,
+        "scene_diversity": 6,
+        "overall": 8
+      },
+      "overall": 8,
+      "good_points": [
+        "路线紧扣用户‘喜欢公园和海边’的核心需求，情侣路、野狸岛公园骑行道等POI高度契合海滨与绿道体验。",
+        "节奏舒缓，时间安排合理，每个点位停留时间充裕（如13:25到14:26用餐，17:11到20:01文创园+晚餐），符合慢游理念。",
+        "所选餐饮与文化体验点兼具品质与在地特色，如得月舫分量足、海风书吧文艺氛围佳、粤华苑承载文化历史，提升了整体体验深度。"
+      ],
+      "bad_points": [
+        "香洲埠文化创意园安排在傍晚17:11，虽为购物类但略显突兀，若调整为下午稍早时段或替换为更贴近自然/公园的休憩点会更协调。",
+        "整体场景多样性尚可，但缺乏明确的‘公园’主题集中体验——野狸岛仅为骑行道，未深入园区景观；可考虑增加一个综合性公园（如景山公园）以强化‘公园偏好’。"
+      ]
+    }
+  }
+]

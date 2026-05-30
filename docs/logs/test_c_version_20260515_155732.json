@@ -1,0 +1,184 @@
+[
+  {
+    "id": 1,
+    "name": "情侣珠海一日游",
+    "success": true,
+    "elapsed": 67.074,
+    "route_steps": 6,
+    "proposals": 14,
+    "conflicts": 0,
+    "has_narrative": true,
+    "poi_names": [
+      "珠海大剧院（野狸岛）",
+      "野狸岛·屿见咖啡",
+      "情侣中路骑行道",
+      "珠海城市阳台",
+      "香洲渔港码头日落点",
+      "騎士吧"
+    ],
+    "errors": [],
+    "eval": {
+      "scores": {
+        "intent_match": 8,
+        "poi_quality": 7,
+        "geo_continuity": 9,
+        "scene_diversity": 6,
+        "overall": 7
+      },
+      "overall": 7,
+      "good_points": [
+        "路线沿情侣路展开，地理连续性好，骑行和步行衔接流畅",
+        "包含多个拍照打卡点（大剧院、城市阳台、日落点），符合拍照需求",
+        "预算控制合理，总花费约366元，在500元以内"
+      ],
+      "bad_points": [
+        "餐饮选择单一，仅一家餐厅，且未突出情侣特色",
+        "场景多样性不足，以观光景点为主，缺少互动体验或文化元素",
+        "部分景点停留时间较短，可能影响体验深度"
+      ]
+    }
+  },
+  {
+    "id": 2,
+    "name": "亲子海洋王国",
+    "success": true,
+    "elapsed": 53.215,
+    "route_steps": 3,
+    "proposals": 12,
+    "conflicts": 0,
+    "has_narrative": true,
+    "poi_names": [
+      "珠海横琴长隆攀岩体验中心",
+      "横琴蚝庄",
+      "珠海海洋王国"
+    ],
+    "errors": [],
+    "eval": {
+      "scores": {
+        "intent_match": 7,
+        "poi_quality": 6,
+        "geo_continuity": 6,
+        "scene_diversity": 5,
+        "overall": 6
+      },
+      "overall": 6,
+      "good_points": [
+        "包含了用户明确提到的核心目的地长隆海洋王国",
+        "攀岩体验中心适合亲子活动，与海洋王国在同一区域"
+      ],
+      "bad_points": [
+        "海洋王国到达时间21:06过晚，孩子可能无法充分游玩",
+        "餐饮选择单一，仅一个餐厅，且未考虑儿童饮食偏好",
+        "攀岩项目对6岁儿童可能难度偏高，且与海洋王国主题关联弱"
+      ]
+    }
+  },
+  {
+    "id": 3,
+    "name": "美食探索",
+    "success": true,
+    "elapsed": 61.498,
+    "route_steps": 3,
+    "proposals": 9,
+    "conflicts": 0,
+    "has_narrative": true,
+    "poi_names": [
+      "野狸岛·屿见咖啡",
+      "金悅軒酒家",
+      "武二廣潮福粉麵食館"
+    ],
+    "errors": [],
+    "eval": {
+      "scores": {
+        "intent_match": 5,
+        "poi_quality": 6,
+        "geo_continuity": 7,
+        "scene_diversity": 3,
+        "overall": 5
+      },
+      "overall": 5,
+      "good_points": [
+        "包含了海鲜餐厅金悅軒酒家，符合用户吃海鲜的需求",
+        "路线地理上集中在珠海市区，没有明显折返"
+      ],
+      "bad_points": [
+        "路线中混入了一个海景咖啡馆，与美食主题不匹配，且占用午餐时段",
+        "餐饮类型单一：金悅軒和武二廣潮福都是正餐类，缺乏多样性（如小吃、甜品、夜市等）",
+        "POI数量少且时间安排不合理：11点咖啡馆、13:40午餐、17:00晚餐，中间有长时间空白"
+      ]
+    }
+  },
+  {
+    "id": 4,
+    "name": "特种兵打卡",
+    "success": true,
+    "elapsed": 63.465,
+    "route_steps": 8,
+    "proposals": 12,
+    "conflicts": 0,
+    "has_narrative": true,
+    "poi_names": [
+      "情侣路",
+      "珠海渔女",
+      "香炉湾沙滩",
+      "野狸岛公园",
+      "日月贝（珠海大剧院）",
+      "圆明新园"
+    ],
+    "errors": [],
+    "eval": {
+      "scores": {
+        "intent_match": 8,
+        "poi_quality": 7,
+        "geo_continuity": 6,
+        "scene_diversity": 6,
+        "overall": 7
+      },
+      "overall": 7,
+      "good_points": [
+        "覆盖了珠海大部分著名景点，如情侣路、珠海渔女、日月贝、圆明新园等",
+        "时间安排紧凑，符合特种兵型密集打卡的需求"
+      ],
+      "bad_points": [
+        "最后安排长隆海洋王国在晚上10点，但该景区通常闭园较早，可能无法入园",
+        "路线存在折返：从圆明新园到肯德基再到长隆，地理连续性较差",
+        "餐饮仅安排肯德基，与珠海美食特色不符，且缺乏多样性"
+      ]
+    }
+  },
+  {
+    "id": 5,
+    "name": "休闲养老游",
+    "success": true,
+    "elapsed": 54.142,
+    "route_steps": 4,
+    "proposals": 7,
+    "conflicts": 0,
+    "has_narrative": true,
+    "poi_names": [
+      "情侣路",
+      "野狸岛·屿见咖啡",
+      "淇澳红树林湿地公园",
+      "珠海横琴国家湿地公园"
+    ],
+    "errors": [],
+    "eval": {
+      "scores": {
+        "intent_match": 8,
+        "poi_quality": 7,
+        "geo_continuity": 5,
+        "scene_diversity": 5,
+        "overall": 6
+      },
+      "overall": 6,
+      "good_points": [
+        "选择了情侣路和野狸岛，符合用户喜欢海边和公园的需求",
+        "野狸岛·屿见咖啡提供了休闲放松的场所，节奏较慢"
+      ],
+      "bad_points": [
+        "淇澳红树林湿地公园与横琴国家湿地公园距离较远，且与情侣路、野狸岛不在同一区域，导致路线折返，地理连续性差",
+        "两个湿地公园类型重复，场景多样性不足，且下午时间安排较紧，可能影响休闲体验"
+      ]
+    }
+  }
+]

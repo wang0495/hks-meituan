@@ -1,0 +1,189 @@
+[
+  {
+    "id": 1,
+    "name": "情侣珠海一日游",
+    "success": true,
+    "elapsed": 41.809,
+    "route_steps": 6,
+    "proposals": 13,
+    "conflicts": 0,
+    "has_narrative": true,
+    "poi_names": [
+      "情侣中路骑行道",
+      "野狸岛·屿见咖啡",
+      "日月贝（珠海大剧院）",
+      "香洲渔港码头日落点",
+      "情侣中路沙滩栈道",
+      "騎士吧"
+    ],
+    "errors": [],
+    "eval": {
+      "scores": {
+        "intent_match": 7,
+        "poi_quality": 7,
+        "geo_continuity": 8,
+        "scene_diversity": 6,
+        "overall": 7
+      },
+      "overall": 7,
+      "good_points": [
+        "路线集中在情侣路沿线，地理连续性好，骑行+步行体验流畅",
+        "包含多个拍照打卡点（日月贝、野狸岛、沙滩栈道），符合情侣拍照需求",
+        "预算控制合理，总花费约246元，远低于500元"
+      ],
+      "bad_points": [
+        "餐饮仅安排一家骑士吧，且标签为朋友聚会，与情侣氛围略有偏差，建议增加特色小吃或甜品店",
+        "场景多样性不足，以自然景点和运动为主，缺少文化或娱乐类POI",
+        "香洲渔港码头日落点安排在13:59到达，时间过早，建议调整到傍晚"
+      ]
+    }
+  },
+  {
+    "id": 2,
+    "name": "亲子海洋王国",
+    "success": true,
+    "elapsed": 26.902,
+    "route_steps": 3,
+    "proposals": 11,
+    "conflicts": 0,
+    "has_narrative": true,
+    "poi_names": [
+      "珠海横琴长隆攀岩体验中心",
+      "珠海海洋王国",
+      "横琴蚝庄·小蚝湾分店（非百年蚝仓）"
+    ],
+    "errors": [],
+    "eval": {
+      "scores": {
+        "intent_match": 7,
+        "poi_quality": 6,
+        "geo_continuity": 7,
+        "scene_diversity": 5,
+        "overall": 6
+      },
+      "overall": 6,
+      "good_points": [
+        "包含了用户明确提到的核心目的地长隆海洋王国",
+        "攀岩体验中心适合亲子活动，与海洋王国在同一园区内，地理上合理"
+      ],
+      "bad_points": [
+        "攀岩体验中心与海洋王国主题关联性弱，且预算1000元内攀岩额外花费100元，可能超支",
+        "餐饮选择单一，仅一家餐厅，且到达时间安排不合理（11:00到餐厅，但海洋王国安排在13:46，时间衔接不流畅）",
+        "缺少针对6岁孩子的其他活动安排，如儿童游乐设施或表演"
+      ]
+    }
+  },
+  {
+    "id": 3,
+    "name": "美食探索",
+    "success": true,
+    "elapsed": 36.188,
+    "route_steps": 6,
+    "proposals": 9,
+    "conflicts": 0,
+    "has_narrative": true,
+    "poi_names": [
+      "横琴蚝庄·小蚝湾分店（非百年蚝仓）",
+      "台灣帝鈞炭烤胡椒餅",
+      "金悅軒酒家",
+      "雲浮石磨腸粉店",
+      "情侣路",
+      "野狸岛·屿见咖啡"
+    ],
+    "errors": [],
+    "eval": {
+      "scores": {
+        "intent_match": 8,
+        "poi_quality": 7,
+        "geo_continuity": 6,
+        "scene_diversity": 7,
+        "overall": 7
+      },
+      "overall": 7,
+      "good_points": [
+        "包含了海鲜和本地特色餐饮，符合用户核心需求",
+        "餐饮类型多样，有海鲜、小吃、茶楼、肠粉等"
+      ],
+      "bad_points": [
+        "路线有折返，横琴蚝庄与后续餐饮距离较远，地理连续性一般",
+        "部分餐饮价格较低，可能品质一般，如胡椒饼和肠粉店"
+      ]
+    }
+  },
+  {
+    "id": 4,
+    "name": "特种兵打卡",
+    "success": true,
+    "elapsed": 39.41,
+    "route_steps": 8,
+    "proposals": 12,
+    "conflicts": 0,
+    "has_narrative": true,
+    "poi_names": [
+      "珠海大剧院（野狸岛）",
+      "海滨公园",
+      "圆明新园",
+      "珠海城市阳台",
+      "凤凰山森林公园",
+      "情侣中路沙滩栈道"
+    ],
+    "errors": [],
+    "eval": {
+      "scores": {
+        "intent_match": 7,
+        "poi_quality": 6,
+        "geo_continuity": 7,
+        "scene_diversity": 5,
+        "overall": 6
+      },
+      "overall": 6,
+      "good_points": [
+        "覆盖了珠海多个著名景点，如珠海大剧院、圆明新园等",
+        "路线紧凑，符合特种兵型一天打卡的需求"
+      ],
+      "bad_points": [
+        "餐饮安排不合理，胡椒饼和肯德基与景点无关，且时间过晚",
+        "景点类型单一，多为公园和景点，缺乏文化或娱乐多样性",
+        "凤凰山森林公园安排在下午，时间紧张且可能体力不足"
+      ]
+    }
+  },
+  {
+    "id": 5,
+    "name": "休闲养老游",
+    "success": true,
+    "elapsed": 31.529,
+    "route_steps": 5,
+    "proposals": 7,
+    "conflicts": 0,
+    "has_narrative": true,
+    "poi_names": [
+      "情侣路",
+      "野狸岛·屿见咖啡",
+      "香洲渔港码头日落点",
+      "金悅軒酒家",
+      "珠海横琴国家湿地公园"
+    ],
+    "errors": [],
+    "eval": {
+      "scores": {
+        "intent_match": 8,
+        "poi_quality": 7,
+        "geo_continuity": 7,
+        "scene_diversity": 6,
+        "overall": 7
+      },
+      "overall": 7,
+      "good_points": [
+        "路线包含情侣路、野狸岛、湿地公园等符合用户对公园和海边的偏好",
+        "节奏较慢，上午到下午共5个点，适合休闲",
+        "野狸岛咖啡和渔港日落点提供了放松体验"
+      ],
+      "bad_points": [
+        "香洲渔港日落点安排在中午12:51，时间不合理，建议调整到傍晚",
+        "金悅軒酒家作为餐饮点，与休闲主题关联较弱，且位置偏离海边路线",
+        "场景多样性不足，主要为自然景观和餐饮，缺少文化或娱乐元素"
+      ]
+    }
+  }
+]

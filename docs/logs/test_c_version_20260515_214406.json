@@ -1,0 +1,190 @@
+[
+  {
+    "id": 1,
+    "name": "情侣珠海一日游",
+    "success": true,
+    "elapsed": 58.237,
+    "route_steps": 8,
+    "proposals": 13,
+    "conflicts": 0,
+    "has_narrative": true,
+    "poi_names": [
+      "情侣中路沙滩栈道",
+      "北山社区艺术空间",
+      "北山村",
+      "芝麻串串香",
+      "香洲渔港码头日落点",
+      "吉大蜂巢艺术空间"
+    ],
+    "errors": [],
+    "eval": {
+      "scores": {
+        "intent_match": 8,
+        "poi_quality": 7,
+        "geo_continuity": 7,
+        "scene_diversity": 6,
+        "overall": 7
+      },
+      "overall": 7,
+      "good_points": [
+        "路线包含了多个适合拍照打卡的景点，如情侣中路沙滩栈道、北山社区艺术空间、珠海大剧院等，符合用户拍照打卡的需求。",
+        "预算控制合理，总花费约339元，在500元预算内。",
+        "景点类型多样，包括自然景观、文化空间和餐饮，满足不同体验。"
+      ],
+      "bad_points": [
+        "部分景点如北山村和北山社区艺术空间距离较近，但路线中安排的时间间隔较长，可优化顺序减少等待。",
+        "餐饮选择较少，仅有两家，且骑士吧消费较高，可能超出预算预期。",
+        "场景多样性一般，主要集中在文化和景点，缺乏自然或娱乐类项目。"
+      ]
+    }
+  },
+  {
+    "id": 2,
+    "name": "亲子海洋王国",
+    "success": true,
+    "elapsed": 33.173,
+    "route_steps": 3,
+    "proposals": 9,
+    "conflicts": 0,
+    "has_narrative": true,
+    "poi_names": [
+      "珠海横琴长隆海洋王国",
+      "横琴蚝庄·小蚝湾分店（非百年蚝仓）",
+      "横琴金融岛滨海步道"
+    ],
+    "errors": [],
+    "eval": {
+      "scores": {
+        "intent_match": 8,
+        "poi_quality": 7,
+        "geo_continuity": 8,
+        "scene_diversity": 5,
+        "overall": 7
+      },
+      "overall": 7,
+      "good_points": [
+        "核心目的地长隆海洋王国完全匹配用户需求",
+        "路线集中在横琴区域，地理流畅无折返",
+        "预算控制合理，总花费约420元，远低于1000元"
+      ],
+      "bad_points": [
+        "场景多样性不足，仅包含景点和餐饮两类，且餐饮仅一家",
+        "带6岁孩子，晚餐后无其他活动安排，可考虑增加亲子友好项目",
+        "横琴蚝庄可能不适合儿童口味，建议备选儿童餐选项"
+      ]
+    }
+  },
+  {
+    "id": 3,
+    "name": "美食探索",
+    "success": true,
+    "elapsed": 49.147,
+    "route_steps": 5,
+    "proposals": 9,
+    "conflicts": 0,
+    "has_narrative": true,
+    "poi_names": [
+      "雲浮石磨腸粉店",
+      "湾仔海鲜街",
+      "台灣帝鈞炭烤胡椒餅",
+      "金悅軒酒家",
+      "多记甜品"
+    ],
+    "errors": [],
+    "eval": {
+      "scores": {
+        "intent_match": 8,
+        "poi_quality": 6,
+        "geo_continuity": 7,
+        "scene_diversity": 5,
+        "overall": 7
+      },
+      "overall": 7,
+      "good_points": [
+        "路线以餐饮为主，符合美食一日游主题",
+        "包含了海鲜街（湾仔海鲜街）和本地特色（金悅軒酒家）",
+        "时间安排合理，没有明显折返"
+      ],
+      "bad_points": [
+        "餐饮类型多样性不足，多为小吃和正餐，缺少甜品、夜市等子类",
+        "部分POI质量一般，如雲浮石磨腸粉店和台灣帝鈞炭烤胡椒餅属于普通小吃，非必吃",
+        "湾仔海鲜街标签为文化历史，实际是海鲜市场，与用户期望的海鲜体验有偏差"
+      ]
+    }
+  },
+  {
+    "id": 4,
+    "name": "特种兵打卡",
+    "success": true,
+    "elapsed": 49.167,
+    "route_steps": 6,
+    "proposals": 9,
+    "conflicts": 0,
+    "has_narrative": true,
+    "poi_names": [
+      "珠海大剧院（野狸岛）",
+      "情侣中路骑行道",
+      "圆明新园",
+      "凤凰山森林公园（板樟山段）",
+      "淇澳红树林湿地公园",
+      "珠海横琴花海长廊"
+    ],
+    "errors": [],
+    "eval": {
+      "scores": {
+        "intent_match": 7,
+        "poi_quality": 6,
+        "geo_continuity": 5,
+        "scene_diversity": 6,
+        "overall": 6
+      },
+      "overall": 6,
+      "good_points": [
+        "覆盖了珠海多个著名景点，包括大剧院、圆明新园、红树林等",
+        "时间安排紧凑，符合特种兵型需求"
+      ],
+      "bad_points": [
+        "地理跨度大，从北到南折返，单段路程耗时较长",
+        "部分景点如凤凰山森林公园和花海长廊并非珠海最核心景点，可替换为更著名的景点",
+        "缺少午餐安排，建议加入餐饮点"
+      ]
+    }
+  },
+  {
+    "id": 5,
+    "name": "休闲养老游",
+    "success": true,
+    "elapsed": 39.287,
+    "route_steps": 4,
+    "proposals": 6,
+    "conflicts": 0,
+    "has_narrative": true,
+    "poi_names": [
+      "情侣中路沙滩栈道",
+      "香洲渔港码头日落点",
+      "野狸岛·屿见咖啡",
+      "珠海横琴国家湿地公园"
+    ],
+    "errors": [],
+    "eval": {
+      "scores": {
+        "intent_match": 8,
+        "poi_quality": 7,
+        "geo_continuity": 6,
+        "scene_diversity": 5,
+        "overall": 7
+      },
+      "overall": 7,
+      "good_points": [
+        "路线包含公园和海边，符合用户对自然景观的偏好",
+        "节奏较慢，一天只安排4个点，适合休闲需求",
+        "野狸岛海景咖啡馆提供了放松的休憩场所"
+      ],
+      "bad_points": [
+        "地理连续性较差，从野狸岛到横琴湿地公园距离较远，建议调整顺序或减少跨区",
+        "场景多样性不足，主要为自然景点，缺少餐饮或文化体验，可适当增加",
+        "香洲渔港日落点安排在上午，时间不合理，建议调整到傍晚"
+      ]
+    }
+  }
+]

@@ -1,0 +1,187 @@
+[
+  {
+    "id": 1,
+    "name": "情侣珠海一日游",
+    "success": true,
+    "elapsed": 71.604,
+    "route_steps": 6,
+    "proposals": 11,
+    "conflicts": 0,
+    "has_narrative": true,
+    "poi_names": [
+      "日月贝（珠海大剧院）",
+      "野狸岛公园骑行道",
+      "野狸岛·屿见咖啡",
+      "情侣路",
+      "香洲区图书馆天台咖啡角",
+      "北山社区艺术空间"
+    ],
+    "errors": [],
+    "eval": {
+      "scores": {
+        "intent_match": 7,
+        "poi_quality": 7,
+        "geo_continuity": 8,
+        "scene_diversity": 6,
+        "overall": 7
+      },
+      "overall": 7,
+      "good_points": [
+        "路线覆盖了珠海经典地标日月贝和情侣路，适合拍照打卡",
+        "地理连续性较好，景点沿情侣路分布，无需折返",
+        "预算控制合理，总花费约190元，远低于500元预算"
+      ],
+      "bad_points": [
+        "场景多样性不足，以文化/运动类为主，缺少餐饮或自然类景点",
+        "部分POI如香洲区图书馆天台咖啡角知名度较低，拍照打卡价值一般",
+        "野狸岛公园骑行道与情侣路功能重叠，可考虑替换为其他类型景点"
+      ]
+    }
+  },
+  {
+    "id": 2,
+    "name": "亲子海洋王国",
+    "success": true,
+    "elapsed": 46.271,
+    "route_steps": 3,
+    "proposals": 9,
+    "conflicts": 0,
+    "has_narrative": true,
+    "poi_names": [
+      "长隆海洋王国",
+      "横琴花海长廊",
+      "珠海横琴国家地理探险家中心"
+    ],
+    "errors": [],
+    "eval": {
+      "scores": {
+        "intent_match": 8,
+        "poi_quality": 7,
+        "geo_continuity": 8,
+        "scene_diversity": 5,
+        "overall": 7
+      },
+      "overall": 7,
+      "good_points": [
+        "核心目的地长隆海洋王国完全匹配用户需求",
+        "路线集中在横琴区域，地理连贯性好，无需长途奔波",
+        "预算控制合理，总花费约530元，远低于1000元预算"
+      ],
+      "bad_points": [
+        "下午安排的两个景点（花海长廊、国家地理探险家中心）与海洋王国主题关联性弱，且对6岁孩子吸引力一般",
+        "场景多样性不足，三个景点均为娱乐/观光类，缺乏餐饮或休息环节",
+        "花海长廊更适合散步拍照，但下午2点到达可能较晒，且孩子可能兴趣不高"
+      ]
+    }
+  },
+  {
+    "id": 3,
+    "name": "美食探索",
+    "success": true,
+    "elapsed": 51.748,
+    "route_steps": 2,
+    "proposals": 9,
+    "conflicts": 0,
+    "has_narrative": true,
+    "poi_names": [
+      "珠海大剧院",
+      "夏湾夜市后巷小吃摊"
+    ],
+    "errors": [],
+    "eval": {
+      "scores": {
+        "intent_match": 4,
+        "poi_quality": 5,
+        "geo_continuity": 3,
+        "scene_diversity": 3,
+        "overall": 4
+      },
+      "overall": 4,
+      "good_points": [
+        "包含了用户提到的美食元素（夜市小吃）",
+        "珠海大剧院是地标性文化景点"
+      ],
+      "bad_points": [
+        "路线仅2个POI，且第一个是文化景点而非餐饮，与美食主题偏离",
+        "缺少海鲜和本地特色餐厅，未满足核心需求",
+        "两个POI时间间隔过长（09:00到17:00），中间无安排，地理上也不连贯"
+      ]
+    }
+  },
+  {
+    "id": 4,
+    "name": "特种兵打卡",
+    "success": true,
+    "elapsed": 70.647,
+    "route_steps": 6,
+    "proposals": 9,
+    "conflicts": 0,
+    "has_narrative": true,
+    "poi_names": [
+      "珠海渔女",
+      "珠海大剧院",
+      "圆明新园",
+      "麦当劳",
+      "珠海城市阳台",
+      "北山村"
+    ],
+    "errors": [],
+    "eval": {
+      "scores": {
+        "intent_match": 7,
+        "poi_quality": 6,
+        "geo_continuity": 7,
+        "scene_diversity": 5,
+        "overall": 6
+      },
+      "overall": 6,
+      "good_points": [
+        "覆盖了珠海渔女、大剧院、圆明新园等核心景点，基本满足打卡需求",
+        "路线时间安排紧凑，符合特种兵型节奏"
+      ],
+      "bad_points": [
+        "景点类型单一，全部为文化类，缺乏自然或娱乐多样性",
+        "午餐选择麦当劳，与珠海美食体验不符，建议替换为当地特色餐饮",
+        "北山村安排在傍晚，但该区域更适合白天游览，可调整顺序"
+      ]
+    }
+  },
+  {
+    "id": 5,
+    "name": "休闲养老游",
+    "success": true,
+    "elapsed": 51.927,
+    "route_steps": 5,
+    "proposals": 7,
+    "conflicts": 0,
+    "has_narrative": true,
+    "poi_names": [
+      "情侣路",
+      "野狸岛公园骑行道",
+      "情侣南路·海风书吧",
+      "香炉湾·蓝湾咖啡",
+      "世記咖啡"
+    ],
+    "errors": [],
+    "eval": {
+      "scores": {
+        "intent_match": 8,
+        "poi_quality": 6,
+        "geo_continuity": 7,
+        "scene_diversity": 5,
+        "overall": 7
+      },
+      "overall": 7,
+      "good_points": [
+        "路线节奏慢，符合用户休闲需求",
+        "包含公园和海滨元素，匹配用户偏好",
+        "地理上沿情侣路一线，基本顺畅"
+      ],
+      "bad_points": [
+        "POI类型单一，主要是运动和海景咖啡馆，缺乏多样性",
+        "两个咖啡馆（海风书吧、蓝湾咖啡）功能重复，建议替换为其他体验",
+        "最后一家餐厅（世記咖啡）与前面咖啡馆风格相近，且时间安排较晚"
+      ]
+    }
+  }
+]

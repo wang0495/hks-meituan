@@ -1,0 +1,188 @@
+[
+  {
+    "id": 1,
+    "name": "情侣珠海一日游",
+    "success": true,
+    "elapsed": 31.69,
+    "route_steps": 7,
+    "proposals": 13,
+    "conflicts": 0,
+    "has_narrative": true,
+    "poi_names": [
+      "情侣路",
+      "情侣南路·海风书吧",
+      "澳美居茶餐厅",
+      "野狸岛骑行道",
+      "珠海大剧院（野狸岛）",
+      "凤凰山森林公园（板樟山段）"
+    ],
+    "errors": [],
+    "eval": {
+      "scores": {
+        "intent_match": 7,
+        "poi_quality": 6,
+        "geo_continuity": 6,
+        "scene_diversity": 7,
+        "overall": 6
+      },
+      "overall": 6,
+      "good_points": [
+        "包含了情侣路、珠海大剧院等经典拍照打卡点，符合拍照需求",
+        "预算控制合理，总花费约510元，接近500元预算",
+        "场景类型较丰富，有自然景观、文化地标、餐饮等"
+      ],
+      "bad_points": [
+        "地理连续性较差，野狸岛骑行道与澳美居茶餐厅时间顺序不合理（到达时间13:36早于出发13:26），且凤凰山森林公园与骑士吧距离较远",
+        "部分POI质量一般，如凤凰山森林公园（板樟山段）并非核心景点，且骑士吧作为餐饮选择性价比不高",
+        "整体节奏偏紧，景点间交通时间未充分考虑，可能导致实际体验仓促"
+      ]
+    }
+  },
+  {
+    "id": 2,
+    "name": "亲子海洋王国",
+    "success": true,
+    "elapsed": 23.196,
+    "route_steps": 3,
+    "proposals": 9,
+    "conflicts": 0,
+    "has_narrative": true,
+    "poi_names": [
+      "珠海横琴长隆海洋王国",
+      "横琴花海长廊",
+      "珠海横琴科学城儿童科技馆"
+    ],
+    "errors": [],
+    "eval": {
+      "scores": {
+        "intent_match": 7,
+        "poi_quality": 7,
+        "geo_continuity": 8,
+        "scene_diversity": 5,
+        "overall": 7
+      },
+      "overall": 7,
+      "good_points": [
+        "包含了核心目的地长隆海洋王国，满足用户主要需求",
+        "路线集中在横琴区域，地理连续性较好，无需长距离移动",
+        "预算控制合理，总花费约440元，远低于1000元预算"
+      ],
+      "bad_points": [
+        "花海长廊和儿童科技馆与海洋王国主题关联性弱，且对6岁孩子吸引力一般",
+        "场景多样性不足，三个景点均为观光/游乐类，缺乏餐饮或休息安排",
+        "时间安排较紧，海洋王国游玩时间仅约8小时，可能无法充分体验"
+      ]
+    }
+  },
+  {
+    "id": 3,
+    "name": "美食探索",
+    "success": true,
+    "elapsed": 29.014,
+    "route_steps": 4,
+    "proposals": 9,
+    "conflicts": 0,
+    "has_narrative": true,
+    "poi_names": [
+      "台灣帝鈞炭烤胡椒餅",
+      "湾仔海鲜街",
+      "金悅軒酒家",
+      "得月舫"
+    ],
+    "errors": [],
+    "eval": {
+      "scores": {
+        "intent_match": 7,
+        "poi_quality": 6,
+        "geo_continuity": 6,
+        "scene_diversity": 5,
+        "overall": 6
+      },
+      "overall": 6,
+      "good_points": [
+        "包含了海鲜街和本地特色餐厅，符合用户对海鲜和本地美食的需求",
+        "路线以餐饮为主，符合美食型场景定位"
+      ],
+      "bad_points": [
+        "餐饮类型单一，胡椒饼、海鲜街、粤菜酒楼、得月舫均属于正餐或小吃，缺乏甜品、夜市等多样性",
+        "地理连续性一般，湾仔海鲜街与金悦轩、得月舫距离较远，存在折返",
+        "部分POI质量一般，如得月舫标签为'分量足'而非高品质美食，胡椒饼为小吃，整体餐饮选择不够突出"
+      ]
+    }
+  },
+  {
+    "id": 4,
+    "name": "特种兵打卡",
+    "success": true,
+    "elapsed": 28.39,
+    "route_steps": 7,
+    "proposals": 9,
+    "conflicts": 0,
+    "has_narrative": true,
+    "poi_names": [
+      "珠海大剧院（野狸岛）",
+      "情侣中路骑行道",
+      "石景山公园",
+      "珠海渔女",
+      "圆明新园",
+      "野狸岛公园骑行道"
+    ],
+    "errors": [],
+    "eval": {
+      "scores": {
+        "intent_match": 7,
+        "poi_quality": 6,
+        "geo_continuity": 5,
+        "scene_diversity": 5,
+        "overall": 6
+      },
+      "overall": 6,
+      "good_points": [
+        "覆盖了珠海大剧院、渔女、圆明新园等核心景点",
+        "安排了骑行和登山，体验较丰富"
+      ],
+      "bad_points": [
+        "野狸岛公园骑行道与珠海大剧院重复，且时间安排不合理（下午2点才到，实际上午已去过）",
+        "石景山公园和圆明新园之间距离较远，且圆明新园后返回野狸岛造成折返",
+        "餐饮安排过晚（17:00），且仅一个餐饮点，不符合一天行程需求"
+      ]
+    }
+  },
+  {
+    "id": 5,
+    "name": "休闲养老游",
+    "success": true,
+    "elapsed": 24.781,
+    "route_steps": 4,
+    "proposals": 7,
+    "conflicts": 0,
+    "has_narrative": true,
+    "poi_names": [
+      "珠海横琴花海长廊",
+      "香洲渔港码头日落点",
+      "野狸岛骑行道",
+      "金鼎湿地公园"
+    ],
+    "errors": [],
+    "eval": {
+      "scores": {
+        "intent_match": 8,
+        "poi_quality": 7,
+        "geo_continuity": 6,
+        "scene_diversity": 5,
+        "overall": 7
+      },
+      "overall": 7,
+      "good_points": [
+        "路线节奏慢，符合用户休闲需求",
+        "包含公园和海边元素，匹配用户偏好",
+        "景点免费，性价比高"
+      ],
+      "bad_points": [
+        "地理连续性较差，横琴花海长廊与金鼎湿地公园距离较远，建议优化顺序或减少跨区域",
+        "场景多样性不足，全部为自然/公园类，缺乏餐饮或文化体验",
+        "野狸岛骑行道与香洲渔港码头日落点距离较近，但金鼎湿地公园较远，整体路线不够流畅"
+      ]
+    }
+  }
+]

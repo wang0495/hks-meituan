@@ -1,0 +1,190 @@
+[
+  {
+    "id": 1,
+    "name": "情侣珠海一日游",
+    "success": true,
+    "elapsed": 58.515,
+    "route_steps": 6,
+    "proposals": 12,
+    "conflicts": 0,
+    "has_narrative": true,
+    "poi_names": [
+      "珠海大剧院（野狸岛）",
+      "情侣路",
+      "武二廣潮福粉麵食館",
+      "情侣南路·海风书吧",
+      "香洲埠文化创意园",
+      "新海灣"
+    ],
+    "errors": [],
+    "eval": {
+      "scores": {
+        "intent_match": 7,
+        "poi_quality": 7,
+        "geo_continuity": 8,
+        "scene_diversity": 6,
+        "overall": 7
+      },
+      "overall": 7,
+      "good_points": [
+        "路线覆盖了珠海经典地标（大剧院、情侣路），适合拍照打卡",
+        "地理上沿情侣路一线分布，行程流畅，无需折返",
+        "预算控制合理，总花费约558元，接近500元预算"
+      ],
+      "bad_points": [
+        "餐饮选择单一，两餐均为潮汕粉面类，缺乏多样性",
+        "香洲埠文化创意园与拍照打卡主题关联度一般，可替换为更出片的景点",
+        "缺少自然风光或特色文化体验，场景多样性不足"
+      ]
+    }
+  },
+  {
+    "id": 2,
+    "name": "亲子海洋王国",
+    "success": true,
+    "elapsed": 36.894,
+    "route_steps": 4,
+    "proposals": 9,
+    "conflicts": 0,
+    "has_narrative": true,
+    "poi_names": [
+      "珠海横琴长隆海洋王国",
+      "横琴金融岛滨海步道",
+      "波爾圖餐廳",
+      "珠海横琴科学城儿童科技馆"
+    ],
+    "errors": [],
+    "eval": {
+      "scores": {
+        "intent_match": 8,
+        "poi_quality": 7,
+        "geo_continuity": 7,
+        "scene_diversity": 5,
+        "overall": 7
+      },
+      "overall": 7,
+      "good_points": [
+        "包含了核心目的地长隆海洋王国，满足用户主要需求",
+        "预算控制合理，总花费约512元，远低于1000元预算",
+        "路线集中在横琴区域，地理上较为紧凑"
+      ],
+      "bad_points": [
+        "儿童科技馆19:58到达可能已闭馆或时间紧张，建议确认营业时间",
+        "场景多样性不足，三个景点均为科技/海洋类，缺乏餐饮多样性（仅一家餐厅）",
+        "滨海步道安排在17:15，可能错过日落最佳观赏时间，且与后续行程衔接稍紧"
+      ]
+    }
+  },
+  {
+    "id": 3,
+    "name": "美食探索",
+    "success": true,
+    "elapsed": 46.801,
+    "route_steps": 5,
+    "proposals": 9,
+    "conflicts": 0,
+    "has_narrative": true,
+    "poi_names": [
+      "台灣帝鈞炭烤胡椒餅",
+      "武二廣潮福粉麵食館",
+      "金悅軒酒家",
+      "湾仔海鲜街",
+      "情侣路"
+    ],
+    "errors": [],
+    "eval": {
+      "scores": {
+        "intent_match": 7,
+        "poi_quality": 6,
+        "geo_continuity": 6,
+        "scene_diversity": 5,
+        "overall": 6
+      },
+      "overall": 6,
+      "good_points": [
+        "包含了海鲜街和本地特色餐饮，符合用户需求",
+        "路线有餐饮和休闲景点结合，节奏适中"
+      ],
+      "bad_points": [
+        "胡椒饼和粉面馆与海鲜/本地特色关联较弱，建议替换为更地道的海鲜餐厅或本地小吃",
+        "湾仔海鲜街安排在下午，但海鲜街更适合午餐或晚餐时段，建议调整时间",
+        "餐饮类型较单一，缺少甜品、茶餐厅等多样性，可增加不同子类"
+      ]
+    }
+  },
+  {
+    "id": 4,
+    "name": "特种兵打卡",
+    "success": true,
+    "elapsed": 48.683,
+    "route_steps": 8,
+    "proposals": 9,
+    "conflicts": 0,
+    "has_narrative": true,
+    "poi_names": [
+      "珠海大剧院（野狸岛）",
+      "海滨公园",
+      "肯德基 KFC",
+      "情侣路",
+      "珠海博物馆",
+      "圆明新园"
+    ],
+    "errors": [],
+    "eval": {
+      "scores": {
+        "intent_match": 8,
+        "poi_quality": 7,
+        "geo_continuity": 5,
+        "scene_diversity": 7,
+        "overall": 6
+      },
+      "overall": 6,
+      "good_points": [
+        "覆盖了珠海多个著名景点，如大剧院、圆明新园、长隆海洋王国等",
+        "景点类型多样，包含文化、自然、娱乐等"
+      ],
+      "bad_points": [
+        "路线存在严重折返，如从凤凰山到长隆跨越整个珠海，地理连续性差",
+        "时间安排过于紧凑，长隆海洋王国仅安排2小时，无法充分游玩",
+        "餐饮选择单一，仅有一家快餐，不符合美食探索需求"
+      ]
+    }
+  },
+  {
+    "id": 5,
+    "name": "休闲养老游",
+    "success": true,
+    "elapsed": 40.331,
+    "route_steps": 4,
+    "proposals": 7,
+    "conflicts": 0,
+    "has_narrative": true,
+    "poi_names": [
+      "情侣中路沙滩栈道",
+      "新海灣",
+      "圆明新园",
+      "野狸岛·屿见咖啡"
+    ],
+    "errors": [],
+    "eval": {
+      "scores": {
+        "intent_match": 8,
+        "poi_quality": 7,
+        "geo_continuity": 8,
+        "scene_diversity": 6,
+        "overall": 7
+      },
+      "overall": 7,
+      "good_points": [
+        "路线节奏慢，景点少，符合休闲需求",
+        "包含了海边（情侣中路沙滩栈道、野狸岛）和公园（圆明新园），匹配用户偏好",
+        "地理上集中在珠海市区，没有折返，路线流畅"
+      ],
+      "bad_points": [
+        "圆明新园门票60元，但用户喜欢公园和海边，该景点偏文化，可考虑替换为免费公园",
+        "餐饮只有一家，且为海鲜餐厅，缺乏多样性，建议增加其他类型餐饮",
+        "野狸岛·屿见咖啡安排在16:48，接近傍晚，可能错过最佳海景光线"
+      ]
+    }
+  }
+]
