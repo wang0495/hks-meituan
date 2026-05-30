@@ -108,8 +108,7 @@ def _haversine(lat1, lng1, lat2, lng2):
     return R * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
 
 
-def score_route(route_list: list[dict], scene_type: str, proposals: list[dict],
-                guide_route_order: list[str]) -> dict:
+def score_route(route_list: list[dict], scene_type: str, proposals: list[dict]) -> dict:
     """多维评分，返回各维度分数 + 总分 + 评语。"""
     expect = _SCENE_EXPECT.get(scene_type, {})
     dims = {}
@@ -270,27 +269,7 @@ def score_route(route_list: list[dict], scene_type: str, proposals: list[dict],
 
     dims["多样性"] = round(max(0, diversity), 1)
 
-    # ── 6. guide 贡献度 (0~100) ──
-    if guide_route_order:
-        route_names_lower = [s.lower() for s in [si["name"] for si in stops_info]]
-        guide_lower = [g.lower() for g in guide_route_order]
-        # 有多少 guide 推荐 POI 出现在最终路线中
-        matched = 0
-        for gn in guide_lower:
-            for rn in route_names_lower:
-                if gn in rn or rn in gn:
-                    matched += 1
-                    break
-        guide_hit_rate = matched / len(guide_lower) if guide_lower else 0
-        guide_score = min(100, guide_hit_rate * 120)  # 稍微放大
-        if guide_hit_rate > 0:
-            notes.append(f"guide采纳率: {guide_hit_rate:.0%}({matched}/{len(guide_lower)})")
-    else:
-        guide_score = 0
-
-    dims["guide贡献"] = round(guide_score, 1)
-
-    # ── 7. POI 质量 (0~100) ──
+    # ── 6. POI 质量 (0~100) ──
     ratings = [s["rating"] for s in stops_info if s["rating"]]
     if ratings:
         avg_rating = sum(ratings) / len(ratings)
@@ -309,9 +288,8 @@ def score_route(route_list: list[dict], scene_type: str, proposals: list[dict],
         "类别匹配": 20,
         "地理连贯": 15,
         "时间可行": 10,
-        "多样性": 10,
-        "guide贡献": 15,
-        "POI质量": 15,
+        "多样性": 15,
+        "POI质量": 25,
     }
     total = sum(dims.get(k, 0) * w for k, w in weights.items()) / sum(weights.values())
 
@@ -375,12 +353,6 @@ async def run_scene(scene_type: str, user_input: str) -> dict:
     route_list = route.get("route", [])
     stop_names = [s.get("poi", s).get("name", "?") for s in route_list] if route_list else []
 
-    # guide 提案
-    guide_route = next((p for p in proposals if p.get("agent") == "guide_route"), None)
-    guide_pois = [p for p in proposals if p.get("agent") == "guide"]
-    guide_order = guide_route.get("content", {}).get("suggested_order", []) if guide_route else []
-    search_used = guide_route.get("content", {}).get("search_used", False) if guide_route else False
-
     # 按agent统计提案
     agent_counts = {}
     for p in proposals:
@@ -390,25 +362,19 @@ async def run_scene(scene_type: str, user_input: str) -> dict:
         agent_counts[key] = agent_counts.get(key, 0) + 1
 
     # 评分
-    scoring = score_route(route_list, scene_type, proposals, guide_order)
+    scoring = score_route(route_list, scene_type, proposals)
 
     return {
         "scene": scene_type,
         "input": user_input,
         "elapsed": round(elapsed, 1),
         "active_experts": active,
-        "guide_weight": weights.get("guide", 0),
-        "guide_proposals": len(guide_pois) + (1 if guide_route else 0),
-        "guide_poi_count": len(guide_pois),
-        "guide_route": guide_order,
-        "guide_search_used": search_used,
         "stops": stop_names,
         "stop_count": len(stop_names),
         "errors": errors,
         "route_ok": len(stop_names) >= 3,
         "total_proposals": len(proposals),
         "agent_counts": agent_counts,
-        # 评分
         "score": scoring["total"],
         "grade": scoring["grade"],
         "dims": scoring["dims"],
@@ -423,7 +389,7 @@ async def run_scene(scene_type: str, user_input: str) -> dict:
 
 async def main():
     print("=" * 70)
-    print("  五场景 E2E 验证 + 多维评分 — agents_v3 (含 guide_expert)")
+    print("  五场景 E2E 验证 + 多维评分 — agents_v3")
     print("=" * 70)
 
     # 预加载
@@ -450,12 +416,7 @@ async def main():
         # ── 基础信息 ──
         print(f"  耗时: {r['elapsed']}s | 激活专家: {', '.join(r['active_experts'])}")
 
-        # ── guide 信息 ──
-        print(f"  guide: 搜索={'成功' if r['guide_search_used'] else 'LLM兜底'} "
-              f"| 提案={r['guide_proposals']} | 权重={r['guide_weight']}")
-        if r["guide_route"]:
-            print(f"  guide参考: {' → '.join(r['guide_route'][:6])}{'...' if len(r['guide_route'])>6 else ''}")
-
+        # ── 路线信息 ──
         # ── 最终路线 ──
         print(f"  路线 ({r['stop_count']}站): {' → '.join(r['stops'])}")
 
@@ -481,28 +442,25 @@ async def main():
     print(f"{'═' * 70}")
 
     ok_count = sum(1 for r in results if r.get("route_ok"))
-    guide_ok = sum(1 for r in results if r.get("guide_proposals", 0) > 0)
     avg_score = sum(r.get("score", 0) for r in results) / len(results)
     avg_time = sum(r.get("elapsed", 0) for r in results) / len(results)
 
     print(f"\n  路线生成: {ok_count}/{len(SCENES)}")
-    print(f"  guide搜索: {guide_ok}/{len(SCENES)}")
     print(f"  平均耗时: {avg_time:.1f}s")
     print(f"  平均评分: {avg_score:.1f}")
 
     # 每个场景一行
-    print(f"\n  {'场景':8s} │ {'等级':3s} │ {'评分':5s} │ {'耗时':5s} │ {'站数':3s} │ guide │ 路线")
-    print(f"  {'─'*8}─┼─{'─'*3}─┼─{'─'*5}─┼─{'─'*5}─┼─{'─'*3}─┼─{'─'*5}─┼─{'─'*30}")
+    print(f"\n  {'场景':8s} │ {'等级':3s} │ {'评分':5s} │ {'耗时':5s} │ {'站数':3s} │ 路线")
+    print(f"  {'─'*8}─┼─{'─'*3}─┼─{'─'*5}─┼─{'─'*5}─┼─{'─'*3}─┼─{'─'*30}")
     for r in results:
         if "route_ok" not in r:
-            print(f"  {r['scene']:8s} │ F   │ {'0.0':5s} │ {r.get('elapsed','?'):>5}s │  -  │ FAIL  │ (执行失败)")
+            print(f"  {r['scene']:8s} │ F   │ {'0.0':5s} │ {r.get('elapsed','?'):>5}s │  -  │ (执行失败)")
             continue
         status = "✓" if r["route_ok"] else "✗"
-        guide_tag = f"{r['guide_proposals']:>2}个" if r["guide_search_used"] else "兜底"
         route_short = " → ".join(r["stops"][:5])
         if len(r["stops"]) > 5:
             route_short += "..."
-        print(f"  {r['scene']:8s} │ {r['grade']:3s} │ {r['score']:5.1f} │ {r['elapsed']:>4.0f}s │ {r['stop_count']:>3} │ {guide_tag:5s} │ {route_short}")
+        print(f"  {r['scene']:8s} │ {r['grade']:3s} │ {r['score']:5.1f} │ {r['elapsed']:>4.0f}s │ {r['stop_count']:>3} │ {route_short}")
 
     # 等级统计
     grades = [r.get("grade", "F") for r in results if "route_ok" in r]
