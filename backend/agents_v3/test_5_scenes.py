@@ -505,6 +505,7 @@ async def run_scene(scene_type: str, user_input: str) -> dict:
         "agent_counts": agent_counts,
         "score": scoring["total"],
         "grade": scoring["grade"],
+        "source": scoring.get("source", "rule"),
         "dims": scoring["dims"],
         "score_notes": scoring["notes"],
         "narrative_preview": (narrative.get("description") or "")[:120],

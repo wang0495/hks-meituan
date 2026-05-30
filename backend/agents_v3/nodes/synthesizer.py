@@ -844,8 +844,132 @@ async def _llm_assemble_route(
     if not result or "ordered_stops" not in result:
         return None
 
-    return _build_route_from_llm_order(result["ordered_stops"], poi_proposals, food_proposals,
+    route = _build_route_from_llm_order(result["ordered_stops"], poi_proposals, food_proposals,
                                          hotel_proposals, intent)
+    return route
+
+
+# ═══════════════════════════════════════════════════════════
+# LLM 时间修正：替代纯算法的机械累加
+# ═══════════════════════════════════════════════════════════
+
+_TIME_FIX_SYSTEM = """你是行程时间分配专家。你需要为一日游路线的每个站点分配合理的到达/离开时间。
+
+规则：
+1. 午餐对齐 11:30-13:00，晚餐对齐 17:30-19:00
+2. 停留时长按类型区分：
+   - 大型主题公园/游乐园: 4-6小时
+   - 博物馆/展览馆: 1.5-2.5小时
+   - 公园/自然风光: 1-2小时
+   - 拍照打卡点/地标: 20-40分钟
+   - 普通景点: 1-1.5小时
+   - 餐厅: 40-60分钟
+3. 站间交通：市区内5-15分钟，跨区15-30分钟
+4. 总行程不超过起止时间范围
+5. 节奏{pace_desc}
+6. 站点顺序已确定，不要改变顺序，只分配时间
+
+输出JSON：
+{{"stops":[{{"name":"站点名","arrival":"HH:MM","departure":"HH:MM","stay_min":int}}]}}
+只输出JSON。"""
+
+
+async def _llm_fix_times(
+    route: dict,
+    intent: dict,
+    user_input: str,
+    scene_type: str,
+    pace: str = "平衡型",
+) -> dict:
+    """用LLM修正路线时间分配。失败则返回原始route（纯算法兜底）。"""
+    steps = route.get("route", [])
+    if not steps:
+        return route
+
+    start_time = intent.get("time", {}).get("start", "09:00")
+    end_time = intent.get("time", {}).get("end", "21:00")
+
+    if "特种兵" in pace:
+        pace_desc = "紧凑高效，减少停留时间"
+    elif "闲逛" in pace or "慢" in pace:
+        pace_desc = "悠闲放松，延长停留时间"
+    else:
+        pace_desc = "适中平衡"
+
+    # 构建站点摘要给LLM
+    stops_summary = []
+    for s in steps:
+        poi = s.get("poi", s)
+        stops_summary.append({
+            "name": poi.get("name", ""),
+            "category": poi.get("category", ""),
+            "type": s.get("_type", "poi"),
+            "avg_stay_min": poi.get("avg_stay_min", 0),
+            "rating": poi.get("rating", 0),
+            "tags": poi.get("tags", [])[:3],
+            "old_arrival": s.get("arrival_time", ""),
+            "old_departure": s.get("departure_time", ""),
+        })
+
+    user_prompt = f"""用户需求: {user_input}
+场景类型: {scene_type}
+节奏: {pace}
+时间范围: {start_time} - {end_time}
+
+当前站点顺序（{len(stops_summary)}站）:
+{json.dumps(stops_summary, ensure_ascii=False)}
+
+请为每个站点分配合理的到达/离开时间和停留时长。"""
+
+    system_prompt = _TIME_FIX_SYSTEM.format(pace_desc=pace_desc)
+
+    result = await _llm_decide(system_prompt, user_prompt, temperature=0.1)
+    if not result or "stops" not in result:
+        return route  # LLM失败，返回原始纯算法结果
+
+    llm_stops = result["stops"]
+    if not isinstance(llm_stops, list) or len(llm_stops) != len(steps):
+        return route  # 站数不匹配，返回原始
+
+    # 用LLM结果覆盖时间
+    new_steps = []
+    for i, s in enumerate(steps):
+        llm = llm_stops[i]
+        new_step = dict(s)
+        new_step["arrival_time"] = llm.get("arrival", s.get("arrival_time", ""))
+        new_step["departure_time"] = llm.get("departure", s.get("departure_time", ""))
+        new_step["stay_min"] = llm.get("stay_min", 0)
+        new_steps.append(new_step)
+
+    # 重新计算 travel_from_prev
+    for i, s in enumerate(new_steps):
+        if i == 0:
+            s["travel_from_prev"] = {"distance_m": 0, "time_min": 0}
+            continue
+        try:
+            dep_prev = datetime.strptime(new_steps[i - 1]["departure_time"], "%H:%M")
+            arr_curr = datetime.strptime(s["arrival_time"], "%H:%M")
+            gap = max(0, int((arr_curr - dep_prev).total_seconds() / 60))
+        except ValueError:
+            gap = s.get("travel_from_prev", {}).get("time_min", 15)
+        s["travel_from_prev"] = {"distance_m": gap * 120, "time_min": gap}
+
+    # 重新计算 total_time
+    try:
+        end_t = datetime.strptime(new_steps[-1].get("departure_time", "18:00"), "%H:%M")
+        start_t = datetime.strptime(new_steps[0].get("arrival_time", "09:00"), "%H:%M")
+        total_time = int((end_t - start_t).total_seconds() / 60)
+    except ValueError:
+        total_time = len(new_steps) * 90
+
+    return {
+        "route": new_steps,
+        "total_cost": {
+            "time_min": total_time,
+            "budget_used": sum(s.get("poi", {}).get("avg_price", 0) for s in new_steps),
+        },
+        "emotion_curve": route.get("emotion_curve", []),
+    }
 
 
 def _build_route_from_llm_order(
@@ -1317,6 +1441,11 @@ async def synthesizer(state: TravelState) -> dict:
 
     if not route or not route.get("route"):
         route = _fallback_assemble(proposals, intent)
+
+    # LLM修正时间分配（tournament和fallback都需要）
+    pace = intent.get("pace", "平衡型")
+    if route and route.get("route"):
+        route = await _llm_fix_times(route, intent, state.get("user_input", ""), scene_type, pace)
 
     # BUG-1 fix: 反馈重入时保留上一轮核心POI
     prev_ctx = state.get("prev_round_context", {})

@@ -1,0 +1,116 @@
+<mxfile host="Electron" agent="Claude Code">
+  <diagram name="Synthesizer 时间分配流程 (LLM版)" id="time-flow">
+    <mxGraphModel dx="635" dy="412" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="900" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="title" parent="1" style="text;html=1;align=center;verticalAlign=middle;fillColor=none;strokeColor=none;" value="&lt;div style=&quot;font-size:18px;font-weight:bold;color:#1a1a2e&quot;&gt;_build_route_from_llm_order() 时间分配流程 (LLM版)&lt;/div&gt;" vertex="1">
+          <mxGeometry height="35" width="500" x="200" y="10" as="geometry" />
+        </mxCell>
+        <mxCell id="input" parent="1" style="shape=parallelogram;perimeter=parallelogramPerimeter;whiteSpace=wrap;html=1;fixedSize=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;size=15;" value="&lt;b&gt;输入&lt;/b&gt;&lt;br/&gt;ordered_stops: [{name, type}]&lt;br/&gt;proposals: poi/food/hotel&lt;br/&gt;intent: time/pace/budget" vertex="1">
+          <mxGeometry height="70" width="250" x="50" y="60" as="geometry" />
+        </mxCell>
+        <mxCell id="s1" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666;fontSize=10;fontColor=#333;arcSize=15;" value="&lt;b&gt;1. 构建 name_map&lt;/b&gt;&lt;br/&gt;poi + food + hotel proposals&lt;br/&gt;→ {name: content} 映射" vertex="1">
+          <mxGeometry height="50" width="200" x="75" y="160" as="geometry" />
+        </mxCell>
+        <mxCell id="s2" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666;fontSize=10;fontColor=#333;arcSize=15;" value="&lt;b&gt;2. 读取时间参数&lt;/b&gt;&lt;br/&gt;start_time (默认09:00)&lt;br/&gt;end_time (默认21:00)" vertex="1">
+          <mxGeometry height="50" width="200" x="75" y="230" as="geometry" />
+        </mxCell>
+        <mxCell id="s3" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666;fontSize=10;fontColor=#333;arcSize=15;" value="&lt;b&gt;3. 节奏参数&lt;/b&gt;&lt;br/&gt;特种兵: stay×0.7, travel=10&lt;br/&gt;平衡: stay×1.0, travel=15&lt;br/&gt;慢游: stay×1.3, travel=20" vertex="1">
+          <mxGeometry height="60" width="200" x="75" y="300" as="geometry" />
+        </mxCell>
+        <mxCell id="loop_start" parent="1" style="rhombus;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;fontColor=#333;" value="&lt;b&gt;遍历 ordered_stops&lt;/b&gt;" vertex="1">
+          <mxGeometry height="60" width="150" x="100" y="390" as="geometry" />
+        </mxCell>
+        <mxCell id="s4" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666;fontSize=10;fontColor=#333;arcSize=10;" value="&lt;b&gt;4. 模糊匹配 name&lt;/b&gt;&lt;br/&gt;精确 → 包含 → 去括号&lt;br/&gt;找不到则 skip" vertex="1">
+          <mxGeometry height="50" width="150" x="300" y="390" as="geometry" />
+        </mxCell>
+        <mxCell id="s5" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666;fontSize=10;fontColor=#333;arcSize=10;" value="&lt;b&gt;5. 去重检查&lt;/b&gt;&lt;br/&gt;canonical_name&lt;br/&gt;已用则 skip" vertex="1">
+          <mxGeometry height="50" width="130" x="480" y="390" as="geometry" />
+        </mxCell>
+        <mxCell id="s_llm_branch" parent="1" style="rhombus;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=10;fontColor=#333;fontStyle=1;" value="&lt;b&gt;LLM 时间分配&lt;/b&gt;&lt;br/&gt;_llm_allocate_times()" vertex="1">
+          <mxGeometry height="70" width="160" x="560" y="610" as="geometry" />
+        </mxCell>
+        <mxCell id="s_llm_ok" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=9;fontColor=#333;arcSize=10;" value="&lt;b&gt;✓ LLM 成功&lt;/b&gt;&lt;br/&gt;返回每个站的:&lt;br/&gt;arrival / departure / stay_min&lt;br/&gt;&lt;br/&gt;LLM 已考虑:&lt;br/&gt;• 午餐 11:30-13:00&lt;br/&gt;• 晚餐 17:30-19:00&lt;br/&gt;• POI类型定时长&lt;br/&gt;• 市区/跨区交通" vertex="1">
+          <mxGeometry height="100" width="160" x="870" y="290" as="geometry" />
+        </mxCell>
+        <mxCell id="s_llm_fail" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6e6;strokeColor=#cc0000;fontSize=9;fontColor=#cc0000;arcSize=10;" value="&lt;b&gt;✗ LLM 失败&lt;/b&gt;&lt;br/&gt;降级到纯算法兜底" vertex="1">
+          <mxGeometry height="50" width="140" x="870" y="430" as="geometry" />
+        </mxCell>
+        <mxCell id="s_algo_fallback" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=9;fontColor=#333;arcSize=10;" value="&lt;b&gt;⚠ 纯算法兜底&lt;/b&gt;&lt;br/&gt;_algo_allocate_times()&lt;br/&gt;原有逻辑: 90min×multiplier&lt;br/&gt;dist×8min clamp(5,60)&lt;br/&gt;机械累加" vertex="1">
+          <mxGeometry height="70" width="160" x="1060" y="420" as="geometry" />
+        </mxCell>
+        <mxCell id="loop_end" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;fontColor=#333;arcSize=15;" value="&lt;b&gt;循环结束&lt;/b&gt;&lt;br/&gt;生成 steps[]" vertex="1">
+          <mxGeometry height="40" width="120" x="100" y="540" as="geometry" />
+        </mxCell>
+        <mxCell id="s9" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666;fontSize=10;fontColor=#333;arcSize=15;" value="&lt;b&gt;9. 时间窗过滤&lt;/b&gt;&lt;br/&gt;arrival &gt; end_dt 的站移除" vertex="1">
+          <mxGeometry height="40" width="180" x="100" y="610" as="geometry" />
+        </mxCell>
+        <mxCell id="s10" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666;fontSize=10;fontColor=#333;arcSize=15;" value="&lt;b&gt;10. _dedup_route + _enforce_time_windows&lt;/b&gt;" vertex="1">
+          <mxGeometry height="40" width="250" x="100" y="670" as="geometry" />
+        </mxCell>
+        <mxCell id="output" parent="1" style="shape=parallelogram;perimeter=parallelogramPerimeter;whiteSpace=wrap;html=1;fixedSize=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;size=15;" value="&lt;b&gt;输出&lt;/b&gt;&lt;br/&gt;{route: steps[], total_cost, emotion_curve}" vertex="1">
+          <mxGeometry height="50" width="280" x="80" y="740" as="geometry" />
+        </mxCell>
+        <mxCell id="e1" edge="1" parent="1" source="input" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#333;strokeWidth=1.5;" target="s1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e2" edge="1" parent="1" source="s1" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#333;strokeWidth=1.5;" target="s2">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e3" edge="1" parent="1" source="s2" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#333;strokeWidth=1.5;" target="s3">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e4" edge="1" parent="1" source="s3" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#333;strokeWidth=1.5;" target="loop_start">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e5" edge="1" parent="1" source="loop_start" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#d6b656;strokeWidth=1.5;" target="s4">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e6" edge="1" parent="1" source="s4" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#666;strokeWidth=1.5;" target="s5">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e7" edge="1" parent="1" source="s5" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#82b366;strokeWidth=2;" target="s_llm_branch">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_llm_ok" edge="1" parent="1" source="s_llm_branch" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#82b366;strokeWidth=2;" target="s_llm_ok" value="成功">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_llm_fail" edge="1" parent="1" source="s_llm_branch" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#cc0000;strokeWidth=1.5;" target="s_llm_fail" value="失败">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_algo" edge="1" parent="1" source="s_llm_fail" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#d6b656;strokeWidth=1.5;" target="s_algo_fallback">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_ok_end" edge="1" parent="1" source="s_llm_ok" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#82b366;strokeWidth=2;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=1;" target="loop_end" value="">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="950" y="415" />
+              <mxPoint x="160" y="415" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e_fallback_end" edge="1" parent="1" source="s_algo_fallback" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#d6b656;strokeWidth=1.5;dashed=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.8;entryY=1;" target="loop_end" value="兜底">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1140" y="530" />
+              <mxPoint x="196" y="530" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e_loop_end" edge="1" parent="1" source="loop_end" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#333;strokeWidth=1.5;" target="s9">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e11" edge="1" parent="1" source="s9" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#333;strokeWidth=1.5;" target="s10">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e12" edge="1" parent="1" source="s10" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#333;strokeWidth=1.5;" target="output">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="legend_box" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8f8f8;strokeColor=#ccc;fontSize=9;align=left;spacingLeft=8;arcSize=10;" value="&lt;div style=&quot;font-size:9px;text-align:left;line-height:1.6&quot;&gt;&lt;b&gt;图例&lt;/b&gt;&lt;br/&gt;&lt;span style=&quot;color:#82b366&quot;&gt;■ 绿色&lt;/span&gt;: LLM 分配时间 (新)&lt;br/&gt;&lt;span style=&quot;color:#d6b656&quot;&gt;■ 黄色&lt;/span&gt;: 纯算法兜底 (旧逻辑)&lt;br/&gt;&lt;span style=&quot;color:#cc0000&quot;&gt;■ 红色&lt;/span&gt;: 降级路径&lt;/div&gt;" vertex="1">
+          <mxGeometry height="80" width="160" x="1060" y="290" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
