@@ -528,46 +528,49 @@ async def main():
     clear_cache()
     print("[预热] 完成\n")
 
-    results = []
-    for scene_type, user_input in SCENES:
-        print(f"\n{'━' * 70}")
-        print(f"  {scene_type}  |  {user_input}")
-        print(f"{'━' * 70}")
+    # 全并发跑5场景
+    print("\n  启动5场景并发...")
+    tasks = [run_scene(st, ui) for st, ui in SCENES]
+    results = await asyncio.gather(*tasks, return_exceptions=True)
 
-        r = await run_scene(scene_type, user_input)
-        results.append(r)
+    # 处理异常
+    for i, r in enumerate(results):
+        if isinstance(r, Exception):
+            results[i] = {"scene": SCENES[i][0], "input": SCENES[i][1],
+                          "error": str(r)[:100], "score": 0, "grade": "F",
+                          "stops": [], "stop_count": 0, "elapsed": 0,
+                          "dims": {}, "score_notes": [], "route_ok": False}
+
+    # 打印结果
+    for r in results:
+        print(f"\n{'━' * 70}")
+        print(f"  {r.get('scene', '?')}  |  {r.get('input', '?')}")
+        print(f"{'━' * 70}")
 
         if "error" in r and "route_ok" not in r:
             print(f"  ✗ 失败: {r['error']}")
             continue
 
-        # ── 基础信息 ──
-        print(f"  耗时: {r['elapsed']}s | 激活专家: {', '.join(r['active_experts'])}")
+        print(f"  耗时: {r['elapsed']}s | 激活专家: {', '.join(r.get('active_experts', []))}")
+        print(f"  路线 ({r['stop_count']}站): {' → '.join(r.get('stops', []))}")
 
-        # ── 路线信息 ──
-        # ── 最终路线 ──
-        print(f"  路线 ({r['stop_count']}站): {' → '.join(r['stops'])}")
-
-        # ── 评分 ──
         src = r.get("source", "rule")
         print(f"\n  ┌─ 评分: {r['score']:5.1f} / 100  等级 {r['grade']}  [{src}] ─┐")
-        for dim_name, dim_val in r["dims"].items():
+        for dim_name, dim_val in r.get("dims", {}).items():
             bar_len = int(dim_val / 5)
             bar = "█" * bar_len + "░" * (20 - bar_len)
             print(f"  │ {dim_name:6s} {bar} {dim_val:5.1f}")
-        # LLM评分优点/缺点
         for gp in r.get("good_points", []):
             print(f"  │ ✓ {gp}")
         for bp in r.get("bad_points", []):
             print(f"  │ ✗ {bp}")
         if r.get("suggestion"):
             print(f"  │ → {r['suggestion']}")
-        # 规则评分备注
         for note in r.get("score_notes", []):
             print(f"  │ ※ {note}")
         print(f"  └{'─' * 38}┘")
 
-        if r["errors"]:
+        if r.get("errors"):
             print(f"  ⚠ 错误: {r['errors']}")
 
     # ══════════════════════════════════════════════════════════════
