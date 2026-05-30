@@ -97,8 +97,129 @@ _SCENE_EXPECT = {
 
 
 # ═══════════════════════════════════════════════════════════════════
-# 评分函数
+# LLM 评分函数
 # ═══════════════════════════════════════════════════════════════════
+
+_LLM_SCORE_RUBRIC = """你是路线规划评估专家。评估以下城市一日游路线的质量。
+
+用户需求: {user_input}
+场景类型: {scene_type}
+
+【生成的路线】:
+{route_text}
+
+请评估这条路线，输出JSON:
+{{
+  "score": <0-100, 综合评分>,
+  "grade": "<S/A/B/C/D/F>",
+  "dims": {{
+    "场景匹配": <0-100, 路线是否符合场景类型>,
+    "逻辑合理": <0-100, 时间/距离/顺序是否合理>,
+    "体验丰富": <0-100, 类型多样性/节奏感>,
+    "POI质量": <0-100, 景点/餐厅评分和口碑>
+  }},
+  "good_points": ["优点1", "优点2"],
+  "bad_points": ["问题1", "问题2"],
+  "suggestion": "改进建议"
+}}
+
+评分标准:
+- S(90+): 完美路线，逻辑自洽，体验丰富
+- A(80-89): 优秀，有小瑕疵但整体很好
+- B(70-79): 良好，基本合理但有改进空间
+- C(60-69): 及格，能用但问题较多
+- D(40-59): 较差，明显不合理
+- F(<40): 失败，路线不可用
+
+注意:
+- 长隆等大型主题公园本身就是一天行程，1站是合理的
+- "114.7分"之类的超100分是不可能的，满分100
+- 美食型路线餐饮占比应>=40%
+- 目的地型路线应围绕核心目的地展开"""
+
+
+def _format_route_text(route_list: list[dict]) -> str:
+    """格式化路线供 LLM 评估。"""
+    lines = []
+    for i, s in enumerate(route_list, 1):
+        poi = s.get("poi", s)
+        name = poi.get("name", "?")
+        cat = poi.get("category", "?")
+        price = poi.get("avg_price", 0)
+        arrive = s.get("arrival_time", "?")
+        depart = s.get("departure_time", "?")
+        rating = poi.get("rating", 0)
+        lines.append(f"{i}. {name} [{cat}] 评分:{rating} 均价:¥{price} 到达:{arrive} 离开:{depart}")
+    return "\n".join(lines) if lines else "(空路线)"
+
+
+async def llm_score_route(
+    user_input: str,
+    scene_type: str,
+    route_list: list[dict],
+) -> dict | None:
+    """LLM 评估路线质量。"""
+    import httpx
+
+    api_key = os.getenv("LLM_API_KEY", "")
+    base_url = os.getenv("LLM_BASE_URL", "")
+    model = os.getenv("LLM_MODEL", "")
+
+    if not api_key or not base_url or not model:
+        return None
+
+    url = f"{base_url.rstrip('/')}/chat/completions"
+    prompt = _LLM_SCORE_RUBRIC.format(
+        user_input=user_input,
+        scene_type=scene_type,
+        route_text=_format_route_text(route_list),
+    )
+
+    for attempt in range(2):
+        try:
+            async with httpx.AsyncClient(timeout=60.0) as c:
+                r = await c.post(
+                    url,
+                    headers={
+                        "Authorization": f"Bearer {api_key}",
+                        "Content-Type": "application/json",
+                    },
+                    json={
+                        "model": model,
+                        "max_tokens": 1000,
+                        "messages": [{"role": "user", "content": prompt}],
+                        "temperature": 0,
+                    },
+                )
+                if r.status_code != 200:
+                    continue
+                text = r.json()["choices"][0]["message"]["content"].strip()
+                if text.startswith("```"):
+                    text = text.split("\n", 1)[1] if "\n" in text else text[3:]
+                if text.endswith("```"):
+                    text = text[:-3]
+                data = json.loads(text.strip())
+
+                score = data.get("score", 0)
+                grade = data.get("grade", "F")
+                dims = data.get("dims", {})
+
+                if not (0 <= score <= 100):
+                    continue
+
+                return {
+                    "score": score,
+                    "grade": grade,
+                    "dims": dims,
+                    "good_points": data.get("good_points", []),
+                    "bad_points": data.get("bad_points", []),
+                    "suggestion": data.get("suggestion", ""),
+                    "source": "llm",
+                }
+        except Exception as e:
+            if attempt < 1:
+                await asyncio.sleep(2)
+    return None
 
 def _haversine(lat1, lng1, lat2, lng2):
     R = 6371.0
@@ -361,8 +482,15 @@ async def run_scene(scene_type: str, user_input: str) -> dict:
         key = f"{a}{'*' if has_name else ''}"
         agent_counts[key] = agent_counts.get(key, 0) + 1
 
-    # 评分
-    scoring = score_route(route_list, scene_type, proposals)
+    # 评分（LLM优先，规则降级）
+    scoring = await llm_score_route(user_input, scene_type, route_list)
+    if scoring is None:
+        scoring = score_route(route_list, scene_type, proposals)
+        scoring["source"] = "rule"
+    else:
+        # LLM评分结果，补上total和grade
+        scoring["total"] = scoring.get("score", 0)
+        scoring["notes"] = scoring.get("bad_points", [])
 
     return {
         "scene": scene_type,
@@ -421,14 +549,22 @@ async def main():
         print(f"  路线 ({r['stop_count']}站): {' → '.join(r['stops'])}")
 
         # ── 评分 ──
-        print(f"\n  ┌─ 评分: {r['score']:5.1f} / 100  等级 {r['grade']} ─┐")
+        src = r.get("source", "rule")
+        print(f"\n  ┌─ 评分: {r['score']:5.1f} / 100  等级 {r['grade']}  [{src}] ─┐")
         for dim_name, dim_val in r["dims"].items():
             bar_len = int(dim_val / 5)
             bar = "█" * bar_len + "░" * (20 - bar_len)
             print(f"  │ {dim_name:6s} {bar} {dim_val:5.1f}")
-        if r["score_notes"]:
-            for note in r["score_notes"]:
-                print(f"  │ ※ {note}")
+        # LLM评分优点/缺点
+        for gp in r.get("good_points", []):
+            print(f"  │ ✓ {gp}")
+        for bp in r.get("bad_points", []):
+            print(f"  │ ✗ {bp}")
+        if r.get("suggestion"):
+            print(f"  │ → {r['suggestion']}")
+        # 规则评分备注
+        for note in r.get("score_notes", []):
+            print(f"  │ ※ {note}")
         print(f"  └{'─' * 38}┘")
 
         if r["errors"]:
