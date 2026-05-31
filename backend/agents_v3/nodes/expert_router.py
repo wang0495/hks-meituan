@@ -38,6 +38,7 @@ few-shot示例理解这种微妙区别，而关键词匹配永远做不到。
 
 from __future__ import annotations
 
+import json
 import logging
 
 from backend.agents_v3.experts.base import (
@@ -54,6 +55,7 @@ logger = logging.getLogger(__name__)
 # Constants
 # ---------------------------------------------------------------------------
 _DEST_COORDS: dict[str, tuple[float, float]] = {
+    # Fallback only — primary detection now uses LLM + POI data
     "长隆": (22.11, 113.54), "海洋王国": (22.11, 113.54),
     "御温泉": (22.17, 113.28), "圆明新园": (22.27, 113.55),
     "梦幻水城": (22.27, 113.55),
@@ -237,7 +239,67 @@ def _is_food_poi(p: dict) -> bool:
     return cat in _FOOD_CATS or any(kw in name for kw in _FOOD_NAME_PARTS)
 
 
-def _compute_pools(candidates: list[dict], state: TravelState) -> dict[str, list[dict]]:
+async def _detect_destination_center(user_input: str, candidates: list[dict]) -> tuple[str | None, tuple[float, float] | None]:
+    """LLM 从候选 POI 中识别用户的目的地，返回 (名称, 坐标) 或 (None, None)。"""
+    # Level 1: 硬编码关键词（常见目的地零延迟）
+    for name_kw, coords in _DEST_COORDS.items():
+        if name_kw in user_input:
+            return name_kw, coords
+
+    # Level 2: 从全量 POI 中模糊匹配
+    _SCENIC_WORDS = {"温泉", "乐园", "沙滩", "大桥", "公园", "景区", "海洋", "王国",
+                     "岛屿", "沙滩", "古镇", "博物馆", "水城", "创新方", "海泉湾"}
+    best_match = None
+    best_score = 0
+    for p in candidates:
+        name = p.get("name", "")
+        lat, lng = p.get("lat"), p.get("lng")
+        if not lat or not lng or len(name) < 2:
+            continue
+        # POI 名完全出现在 user_input 里（最强匹配）
+        if name in user_input:
+            score = len(name) * 20 + 200
+            if score > best_score:
+                best_match = (name, (float(lat), float(lng)))
+                best_score = score
+            continue
+        # user_input 的2-5字片段出现在 POI 名里
+        for flen in range(min(5, len(user_input)), 1, -1):
+            for si in range(len(user_input) - flen + 1):
+                frag = user_input[si:si + flen]
+                if frag in name and len(frag) >= 2:
+                    # 景点名匹配大幅加分，普通词匹配低分
+                    is_scenic = any(w in frag for w in _SCENIC_WORDS)
+                    score = len(frag) * 10 + (200 if is_scenic else 10 if len(frag) >= 3 else 0)
+                    if score > best_score:
+                        best_match = (name, (float(lat), float(lng)))
+                        best_score = score
+                    break
+    if best_match:
+        return best_match
+
+    # Level 3: LLM 检测（兜底）
+    top_pois = [
+        {"name": p.get("name", ""), "category": p.get("category", ""), "rating": p.get("rating", 0)}
+        for p in candidates[:80]
+        if p.get("lat") and p.get("lng") and p.get("rating", 0) >= 3.5
+    ]
+    if not top_pois:
+        return None, None
+
+    if not result or not result.get("destination"):
+        return None, None
+
+    dest_name = result["destination"]
+    for p in candidates:
+        if dest_name in p.get("name", "") or p.get("name", "") in dest_name:
+            lat, lng = p.get("lat"), p.get("lng")
+            if lat and lng:
+                return p.get("name"), (float(lat), float(lng))
+    return dest_name, None
+
+
+async def _compute_pools(candidates: list[dict], state: TravelState) -> dict[str, list[dict]]:
     user_input = state.get("user_input", "")
     pools: dict[str, list[dict]] = {}
 
@@ -261,14 +323,20 @@ def _compute_pools(candidates: list[dict], state: TravelState) -> dict[str, list
         p for p in candidates
         if p.get("rating") is not None and float(p["rating"]) >= 4.0
     ]
+
+    # 目的地候选池：LLM 识别目的地坐标，5km 范围内过滤
+    dest_name, dest_coords = await _detect_destination_center(user_input, candidates)
     pools["destination"] = []
-    for name_kw, (dlat, dlng) in _DEST_COORDS.items():
-        if name_kw in user_input:
-            pools["destination"] = [
-                p for p in candidates
-                if _haversine_km(dlat, dlng, float(p.get("lat", 0)), float(p.get("lng", 0))) <= 5.0
-            ]
-            break
+    if dest_coords:
+        dlat, dlng = dest_coords
+        pools["destination"] = [
+            p for p in candidates
+            if _haversine_km(dlat, dlng, float(p.get("lat", 0)), float(p.get("lng", 0))) <= 5.0
+        ]
+    # 把目的地信息存到 extra 供下游使用
+    pools["_dest_name"] = dest_name
+    pools["_dest_coords"] = dest_coords
+
     pools["budget_hacker"] = [
         p for p in candidates
         if p.get("avg_price", 999) == 0
@@ -329,14 +397,20 @@ async def expert_router(state: TravelState) -> dict:
         weights["food"] = max(float(weights.get("food", 0)), 0.3)
         if "food" not in active:
             active.append("food")
-    pools = _compute_pools(candidates, state)
+    pools = await _compute_pools(candidates, state)
 
     await sse_emit(state, "agent_result", {"agent": "expert_router", "summary": f"场景: {result['scene_type']}，激活: {', '.join(active)}"})
 
-    return {
+    ret = {
         "scene_type": result["scene_type"],
         "expert_weights": weights,
         "active_experts": active,
-        "expert_candidates": pools,
+        "expert_candidates": {k: v for k, v in pools.items() if not k.startswith("_")},
         "errors": [],
     }
+    # 传递目的地信息到下游 state
+    if pools.get("_dest_name"):
+        ret["destination_name"] = pools["_dest_name"]
+    if pools.get("_dest_coords"):
+        ret["destination_center"] = pools["_dest_coords"]
+    return ret

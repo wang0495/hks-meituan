@@ -30,6 +30,8 @@ class TravelState(TypedDict, total=False):
     expert_weights: dict             # {"poi": 0.9, "food": 0.8, ...}
     active_experts: list[str]        # ["poi", "food", "local_expert"]
     expert_candidates: dict          # {"poi": [...], "food": [...], ...}
+    destination_name: str            # LLM检测到的目的地名称
+    destination_center: tuple        # (lat, lng) 目的地中心坐标
 
     # ── Layer 2: 元规则防火墙结果 ──
     rule_violations: list[dict]

@@ -762,10 +762,19 @@ async def _llm_assemble_route(
    - 海景咖啡馆不是餐厅！除非用户明确要咖啡馆，否则不要放进美食路线
    - 中间最多穿插1个散步点，不需要为了"多样性"硬塞景点/购物/文化"""
     elif scene_type == "目的地型":
-        diversity_rule = """7. 【目的地场景规则】
-   - 用户指定了大景区，会在该景区待大半天
-   - 路线以该景区为中心，周边安排1-2个补充景点+餐饮
-   - 不需要大范围跨区域"""
+        # 目的地中心坐标（从 expert_router 传入）
+        dest_center = state.get("destination_center")
+        dest_name = state.get("destination_name", "")
+        geo_rule = ""
+        if dest_center:
+            geo_rule = f"\n   - 所有站点必须在目的地坐标({dest_center[0]:.2f},{dest_center[1]:.2f})10km范围内，超出范围的POI直接排除"
+        diversity_rule = f"""7. 【目的地场景规则】
+   - 用户指定了{dest_name or '大景区'}，会在该景区待大半天（通常3-6小时）
+   - 路线以该景区为中心，周边安排1-2个补充景点+1家餐饮即可
+   - 不需要大范围跨区域{geo_rule}
+   - 【时间节奏】核心景区上午到达，先游览景区主体
+   - 餐饮安排在景区游览之后（午餐12:00或晚餐18:00），不要在景区前安排远距离用餐
+   - 如果只有半天（如下午场），路线精简为核心景点+附近一餐，不硬凑"""
     elif scene_type == "特种兵型":
         diversity_rule = """7. 【特种兵场景规则】
    - 路线应覆盖尽可能多的类型：地标+自然+文化+娱乐+餐饮

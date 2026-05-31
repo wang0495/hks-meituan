@@ -50,7 +50,12 @@ async def destination_expert(state: TravelState) -> dict:
     user_input = str(state.get("user_input", ""))
     errors: list[str] = []
 
-    dest_name, (center_lat, center_lng) = _detect_destination(user_input)
+    # 优先从 state 读取 expert_router 已检测的目的地信息
+    dest_name = state.get("destination_name")
+    center = state.get("destination_center")
+    if not dest_name or not center:
+        dest_name, center = _detect_destination(user_input)
+    center_lat, center_lng = center
 
     if dest_name is None:
         # No destination keyword matched -- skip this expert
