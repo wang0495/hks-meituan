@@ -230,6 +230,63 @@ def _enforce_time_windows(steps: list[dict]) -> list[dict]:
     return steps
 
 
+# ── 地理重排：消除跨区跳跃 ──
+_MAX_LEG_KM = 15.0  # 单段最大允许距离
+
+
+def _geo_reroute(steps: list[dict], max_leg_km: float = _MAX_LEG_KM) -> list[dict]:
+    """后处理：检测跨区跳跃段，对后续站点做最近邻重排。
+
+    当检测到某段距离 > max_leg_km 时，从该点开始用最近邻（NN）重新排列
+    剩余站点，保证同区域连续走完再跳区。
+    """
+    if len(steps) <= 2:
+        return steps
+
+    # 找到第一段跨区跳跃的位置
+    jump_idx = None
+    for i in range(1, len(steps)):
+        prev_poi = steps[i - 1].get("poi", {})
+        cur_poi = steps[i].get("poi", {})
+        lat1, lng1 = prev_poi.get("lat", 0), prev_poi.get("lng", 0)
+        lat2, lng2 = cur_poi.get("lat", 0), cur_poi.get("lng", 0)
+        if lat1 and lat2:
+            d = _haversine_km(lat1, lng1, lat2, lng2)
+            if d > max_leg_km:
+                jump_idx = i
+                break
+
+    if jump_idx is None:
+        return steps  # 无跨区跳跃
+
+    # 从跳跃点开始，对后续站点做最近邻重排
+    fixed = steps[:jump_idx]
+    remaining = list(steps[jump_idx:])
+
+    while remaining:
+        cur = fixed[-1]
+        cur_poi = cur.get("poi", {})
+        cur_lat, cur_lng = cur_poi.get("lat", 0), cur_poi.get("lng", 0)
+
+        # 找剩余中距离当前最近的
+        best_idx = 0
+        best_dist = float("inf")
+        for j, s in enumerate(remaining):
+            p = s.get("poi", {})
+            lat, lng = p.get("lat", 0), p.get("lng", 0)
+            if cur_lat and lat:
+                d = _haversine_km(cur_lat, cur_lng, lat, lng)
+            else:
+                d = 999
+            if d < best_dist:
+                best_dist = d
+                best_idx = j
+
+        fixed.append(remaining.pop(best_idx))
+
+    return fixed
+
+
 # ── 站数上限 ──
 _SCENE_MAX_STOPS = {
     "美食型": 6,
@@ -929,10 +986,13 @@ async def _llm_assemble_route(
    - 餐饮安排在景区游览之后（午餐12:00或晚餐18:00），不要在景区前安排远距离用餐
    - 如果只有半天（如下午场），路线精简为核心景点+附近一餐，不硬凑"""
     elif scene_type == "特种兵型":
-        diversity_rule = """7. 【特种兵场景规则】
+        diversity_rule = """7. 【特种兵场景规则·硬约束】
    - 路线应覆盖尽可能多的类型：地标+自然+文化+娱乐+餐饮
-   - 跨区域赶场是正常的，但同区域景点应连排
-   - 餐饮穿插在赶场间隙，选快节奏的"""
+   - 【地理硬约束】同区域景点必须连排！先走完一个区域再跳下一个区域
+   - 禁止折返：如果已经从A区到了B区，不要再回A区
+   - 单段距离>15km的跳跃最多1次（否则时间不够）
+   - 餐饮穿插在赶场间隙，选快节奏的
+   - 查看距离矩阵！标有"⚠️跨区不推荐"的不要排相邻"""
     elif scene_type == "休闲型":
         diversity_rule = """7. 【休闲场景规则】
    - 路线节奏慢、站点少（3-4个），每站停留时间长
@@ -1309,7 +1369,17 @@ def _score_route_heuristic(
     # 0km总距离=25分, 每增加1km扣0.5分; 单段超过15km额外扣分
     geo_score = max(0, 25 - total_dist * 0.5)
     if max_segment > 15:
-        geo_score -= (max_segment - 15) * 2  # 跨区大惩罚
+        geo_score -= (max_segment - 15) * 3  # 跨区大惩罚（加重）
+    # 连续跨区惩罚：>1段超15km的每多一段扣5分
+    long_segments = sum(1 for i in range(1, len(steps))
+                       if _haversine_km(
+                           steps[i-1].get("poi",{}).get("lat",0),
+                           steps[i-1].get("poi",{}).get("lng",0),
+                           steps[i].get("poi",{}).get("lat",0),
+                           steps[i].get("poi",{}).get("lng",0),
+                       ) > 15)
+    if long_segments > 1:
+        geo_score -= (long_segments - 1) * 5
 
     # ── 2. 类别多样性 (0-25) ──
     categories = set()
@@ -1328,9 +1398,11 @@ def _score_route_heuristic(
         "海鲜": ["海鲜", "蚝", "鱼排", "渔港"],
         "正餐": ["餐厅", "烧", "煲", "火锅", "烧烤"],
         "小吃": ["粉", "面", "粥", "小吃", "排档"],
-        "茶餐厅/甜品": ["茶餐厅", "甜品", "奶茶", "冰", "柠檬", "饮品"],
+        "茶餐厅/甜品": ["茶餐厅", "甜品", "奶茶", "冰", "柠檬"],
         "综合美食街": ["夜市", "美食街", "海鲜街", "老街"],
+        "饮品/凉茶": ["凉茶", "草本", "龟苓膏"],
     }
+    _LIANGCHA_KWS_LOCAL = {"凉茶", "草本", "龟苓膏"}
     food_subcats = []
     for s in steps:
         name = s.get("poi", {}).get("name", "")
@@ -1339,6 +1411,10 @@ def _score_route_heuristic(
             kw in name for kw in ["餐厅", "海鲜", "粉", "面", "粥", "甜品", "茶餐厅", "烧烤", "火锅", "夜市"]
         )
         if is_food:
+            # 凉茶优先检测
+            if any(kw in name for kw in _LIANGCHA_KWS_LOCAL):
+                food_subcats.append("饮品/凉茶")
+                continue
             for sub, kws in _FOOD_SUBCATS_LOCAL.items():
                 if any(kw in name for kw in kws):
                     food_subcats.append(sub)
@@ -1646,6 +1722,8 @@ async def synthesizer(state: TravelState) -> dict:
     # LLM修正时间分配（tournament和fallback都需要）
     pace = intent.get("pace", "平衡型")
     if route and route.get("route"):
+        # 先做地理重排（消除跨区跳跃），再修时间
+        route["route"] = _geo_reroute(route["route"])
         route = await _llm_fix_times(route, intent, state.get("user_input", ""), scene_type, pace)
 
     # BUG-1 fix: 反馈重入时保留上一轮核心POI
