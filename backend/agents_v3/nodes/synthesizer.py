@@ -576,6 +576,8 @@ def _ensure_poi_in_route(route: dict, poi_proposals: list[dict], intent: dict) -
         departure = t + timedelta(minutes=stay_min)
         if departure > end_dt:
             break
+        if len(steps) >= 10:
+            break
 
         steps.append({
             "poi": content,
@@ -640,6 +642,9 @@ def _ensure_food_in_route(route: dict, food_proposals: list[dict], intent: dict)
         arrival = t
         departure = t + timedelta(minutes=50)
         if departure > end_dt:
+            break
+        # 站数上限保护
+        if len(steps) >= 10:
             break
 
         meal_type = "dinner" if t >= datetime.strptime("15:00", "%H:%M") else "lunch"
@@ -1762,10 +1767,6 @@ async def synthesizer(state: TravelState) -> dict:
     if route and route.get("route") and food_proposals:
         route = _ensure_min_food_in_route(route, food_proposals, intent)
         route = _ensure_food_scene_food_count(route, food_proposals, scene_type)
-
-    # ensure可能追加超限，二次cap
-    if route and route.get("route"):
-        route = _cap_route_stops(route, scene_type, intent)
 
     # 文案
     narrative = None
