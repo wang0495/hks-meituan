@@ -120301,5 +120301,3140 @@
       "has_restroom": false
     },
     "_display_category": "文化景点"
+  },
+  {
+    "id": "poi_04736",
+    "name": "素心素食馆",
+    "city": "珠海",
+    "category": "餐饮",
+    "rating": 4.3,
+    "avg_price": 55,
+    "lat": 22.2682501,
+    "lng": 113.5727503,
+    "business_hours": "09:00-21:30",
+    "tags": [
+      "素食",
+      "健康",
+      "自助"
+    ],
+    "queue_prone": false,
+    "avg_stay_min": 40,
+    "ugc_comments": [
+      {
+        "user": "大雄",
+        "rating": 3,
+        "content": "环境不错，服务态度好，分量足。"
+      },
+      {
+        "user": "甜甜",
+        "rating": 3,
+        "content": "周末来的，人不少但上菜快。"
+      }
+    ],
+    "emotion_tags": {
+      "excitement": 0.3,
+      "tranquility": 0.7,
+      "sociability": 0.57,
+      "culture_depth": 0.4,
+      "surprise": 0.21,
+      "physical_demand": 0.13
+    },
+    "_scene_tags": [
+      "美食",
+      "素食健康"
+    ],
+    "_suitability": {
+      "情侣友好": true,
+      "亲子友好": true,
+      "独自友好": false,
+      "朋友友好": true
+    },
+    "_llm_quality": {
+      "is_tourist": false,
+      "score": 6,
+      "issues": []
+    },
+    "constraints": {
+      "accessible": true,
+      "pet_friendly": false,
+      "queue_time_min": 5,
+      "opening_hours": "09:00-21:30"
+    },
+    "_display_category": "正餐"
+  },
+  {
+    "id": "poi_04737",
+    "name": "一叶菩提素食餐厅",
+    "city": "珠海",
+    "category": "餐饮",
+    "rating": 4.2,
+    "avg_price": 68,
+    "lat": 22.2272654,
+    "lng": 113.5499884,
+    "business_hours": "09:00-21:30",
+    "tags": [
+      "素食",
+      "禅意",
+      "环境好"
+    ],
+    "queue_prone": false,
+    "avg_stay_min": 40,
+    "ugc_comments": [
+      {
+        "user": "甜甜",
+        "rating": 4,
+        "content": "性价比很高，适合多人聚餐。"
+      },
+      {
+        "user": "阿明",
+        "rating": 5,
+        "content": "口味正宗，喜欢这种家常味道。"
+      }
+    ],
+    "emotion_tags": {
+      "excitement": 0.3,
+      "tranquility": 0.7,
+      "sociability": 0.72,
+      "culture_depth": 0.4,
+      "surprise": 0.2,
+      "physical_demand": 0.22
+    },
+    "_scene_tags": [
+      "美食",
+      "素食健康",
+      "拍照出片"
+    ],
+    "_suitability": {
+      "情侣友好": true,
+      "亲子友好": true,
+      "独自友好": false,
+      "朋友友好": true
+    },
+    "_llm_quality": {
+      "is_tourist": false,
+      "score": 6,
+      "issues": []
+    },
+    "constraints": {
+      "accessible": true,
+      "pet_friendly": false,
+      "queue_time_min": 5,
+      "opening_hours": "09:00-21:30"
+    },
+    "_display_category": "正餐"
+  },
+  {
+    "id": "poi_04738",
+    "name": "清心素食自助",
+    "city": "珠海",
+    "category": "餐饮",
+    "rating": 4.4,
+    "avg_price": 42,
+    "lat": 22.2334025,
+    "lng": 113.5485548,
+    "business_hours": "09:00-21:30",
+    "tags": [
+      "素食",
+      "自助",
+      "平价"
+    ],
+    "queue_prone": false,
+    "avg_stay_min": 40,
+    "ugc_comments": [
+      {
+        "user": "老陈",
+        "rating": 3,
+        "content": "环境不错，服务态度好，分量足。"
+      },
+      {
+        "user": "小雅",
+        "rating": 3,
+        "content": "装修有特色，菜品种类多，挑不出来毛病。"
+      }
+    ],
+    "emotion_tags": {
+      "excitement": 0.3,
+      "tranquility": 0.7,
+      "sociability": 0.74,
+      "culture_depth": 0.4,
+      "surprise": 0.38,
+      "physical_demand": 0.22
+    },
+    "_scene_tags": [
+      "美食",
+      "素食健康"
+    ],
+    "_suitability": {
+      "情侣友好": true,
+      "亲子友好": true,
+      "独自友好": false,
+      "朋友友好": true
+    },
+    "_llm_quality": {
+      "is_tourist": false,
+      "score": 6,
+      "issues": []
+    },
+    "constraints": {
+      "accessible": true,
+      "pet_friendly": false,
+      "queue_time_min": 5,
+      "opening_hours": "09:00-21:30"
+    },
+    "_display_category": "正餐"
+  },
+  {
+    "id": "poi_04739",
+    "name": "绿野仙踪素食坊",
+    "city": "珠海",
+    "category": "餐饮",
+    "rating": 4.4,
+    "avg_price": 60,
+    "lat": 22.2523623,
+    "lng": 113.5767312,
+    "business_hours": "09:00-21:30",
+    "tags": [
+      "素食",
+      "创意菜",
+      "有机"
+    ],
+    "queue_prone": false,
+    "avg_stay_min": 40,
+    "ugc_comments": [
+      {
+        "user": "小雅",
+        "rating": 3,
+        "content": "带着家人来的，大家都说好吃。"
+      },
+      {
+        "user": "晓晴",
+        "rating": 5,
+        "content": "周末来的，人不少但上菜快。"
+      }
+    ],
+    "emotion_tags": {
+      "excitement": 0.3,
+      "tranquility": 0.7,
+      "sociability": 0.75,
+      "culture_depth": 0.4,
+      "surprise": 0.31,
+      "physical_demand": 0.13
+    },
+    "_scene_tags": [
+      "美食",
+      "素食健康"
+    ],
+    "_suitability": {
+      "情侣友好": true,
+      "亲子友好": true,
+      "独自友好": false,
+      "朋友友好": true
+    },
+    "_llm_quality": {
+      "is_tourist": false,
+      "score": 6,
+      "issues": []
+    },
+    "constraints": {
+      "accessible": true,
+      "pet_friendly": false,
+      "queue_time_min": 5,
+      "opening_hours": "09:00-21:30"
+    },
+    "_display_category": "正餐"
+  },
+  {
+    "id": "poi_04740",
+    "name": "莲花素食馆",
+    "city": "珠海",
+    "category": "餐饮",
+    "rating": 3.6,
+    "avg_price": 48,
+    "lat": 22.3646126,
+    "lng": 113.5857307,
+    "business_hours": "09:00-21:30",
+    "tags": [
+      "素食",
+      "家常",
+      "安静"
+    ],
+    "queue_prone": false,
+    "avg_stay_min": 40,
+    "ugc_comments": [
+      {
+        "user": "阿杰",
+        "rating": 3,
+        "content": "环境不错，服务态度好，分量足。"
+      },
+      {
+        "user": "小雅",
+        "rating": 4,
+        "content": "意外的惊喜，宝藏小店！"
+      }
+    ],
+    "emotion_tags": {
+      "excitement": 0.3,
+      "tranquility": 0.7,
+      "sociability": 0.65,
+      "culture_depth": 0.4,
+      "surprise": 0.31,
+      "physical_demand": 0.16
+    },
+    "_scene_tags": [
+      "美食",
+      "素食健康"
+    ],
+    "_suitability": {
+      "情侣友好": true,
+      "亲子友好": true,
+      "独自友好": false,
+      "朋友友好": true
+    },
+    "_llm_quality": {
+      "is_tourist": false,
+      "score": 6,
+      "issues": []
+    },
+    "constraints": {
+      "accessible": true,
+      "pet_friendly": false,
+      "queue_time_min": 5,
+      "opening_hours": "09:00-21:30"
+    },
+    "_display_category": "正餐"
+  },
+  {
+    "id": "poi_04741",
+    "name": "慈心素食",
+    "city": "珠海",
+    "category": "餐饮",
+    "rating": 3.8,
+    "avg_price": 52,
+    "lat": 22.2686698,
+    "lng": 113.5723665,
+    "business_hours": "09:00-21:30",
+    "tags": [
+      "素食",
+      "佛系",
+      "养生"
+    ],
+    "queue_prone": false,
+    "avg_stay_min": 40,
+    "ugc_comments": [
+      {
+        "user": "阿杰",
+        "rating": 5,
+        "content": "朋友推荐的，果然没失望，值得打卡。"
+      },
+      {
+        "user": "甜甜",
+        "rating": 5,
+        "content": "性价比很高，适合多人聚餐。"
+      }
+    ],
+    "emotion_tags": {
+      "excitement": 0.3,
+      "tranquility": 0.7,
+      "sociability": 0.47,
+      "culture_depth": 0.4,
+      "surprise": 0.31,
+      "physical_demand": 0.25
+    },
+    "_scene_tags": [
+      "美食",
+      "素食健康"
+    ],
+    "_suitability": {
+      "情侣友好": true,
+      "亲子友好": true,
+      "独自友好": false,
+      "朋友友好": true
+    },
+    "_llm_quality": {
+      "is_tourist": false,
+      "score": 6,
+      "issues": []
+    },
+    "constraints": {
+      "accessible": true,
+      "pet_friendly": false,
+      "queue_time_min": 5,
+      "opening_hours": "09:00-21:30"
+    },
+    "_display_category": "正餐"
+  },
+  {
+    "id": "poi_04742",
+    "name": "海景西餐厅",
+    "city": "珠海",
+    "category": "餐饮",
+    "rating": 4.3,
+    "avg_price": 220,
+    "lat": 22.2515695,
+    "lng": 113.5748461,
+    "business_hours": "11:00-23:00",
+    "tags": [
+      "浪漫",
+      "约会",
+      "海景",
+      "西餐"
+    ],
+    "queue_prone": true,
+    "avg_stay_min": 80,
+    "ugc_comments": [
+      {
+        "user": "小鱼",
+        "rating": 3,
+        "content": "味道很赞，食材新鲜，下次还来。"
+      },
+      {
+        "user": "老陈",
+        "rating": 4,
+        "content": "口味正宗，喜欢这种家常味道。"
+      }
+    ],
+    "emotion_tags": {
+      "excitement": 0.6,
+      "tranquility": 0.6,
+      "sociability": 0.43,
+      "culture_depth": 0.3,
+      "surprise": 0.47,
+      "physical_demand": 0.19
+    },
+    "_scene_tags": [
+      "美食",
+      "浪漫约会",
+      "海景"
+    ],
+    "_suitability": {
+      "情侣友好": true,
+      "亲子友好": false,
+      "独自友好": false,
+      "朋友友好": false
+    },
+    "_llm_quality": {
+      "is_tourist": false,
+      "score": 7,
+      "issues": []
+    },
+    "constraints": {
+      "accessible": true,
+      "pet_friendly": false,
+      "queue_time_min": 15,
+      "opening_hours": "11:00-23:00"
+    },
+    "_display_category": "正餐"
+  },
+  {
+    "id": "poi_04743",
+    "name": "月光法餐厅",
+    "city": "珠海",
+    "category": "餐饮",
+    "rating": 4.4,
+    "avg_price": 280,
+    "lat": 22.2301263,
+    "lng": 113.5709923,
+    "business_hours": "11:00-23:00",
+    "tags": [
+      "浪漫",
+      "约会",
+      "法餐",
+      "烛光晚餐"
+    ],
+    "queue_prone": true,
+    "avg_stay_min": 80,
+    "ugc_comments": [
+      {
+        "user": "阿明",
+        "rating": 3,
+        "content": "口味正宗，喜欢这种家常味道。"
+      },
+      {
+        "user": "琳琳",
+        "rating": 3,
+        "content": "带着家人来的，大家都说好吃。"
+      }
+    ],
+    "emotion_tags": {
+      "excitement": 0.6,
+      "tranquility": 0.6,
+      "sociability": 0.62,
+      "culture_depth": 0.3,
+      "surprise": 0.42,
+      "physical_demand": 0.16
+    },
+    "_scene_tags": [
+      "美食",
+      "浪漫约会"
+    ],
+    "_suitability": {
+      "情侣友好": true,
+      "亲子友好": false,
+      "独自友好": false,
+      "朋友友好": false
+    },
+    "_llm_quality": {
+      "is_tourist": false,
+      "score": 7,
+      "issues": []
+    },
+    "constraints": {
+      "accessible": true,
+      "pet_friendly": false,
+      "queue_time_min": 15,
+      "opening_hours": "11:00-23:00"
+    },
+    "_display_category": "正餐"
+  },
+  {
+    "id": "poi_04744",
+    "name": "蓝湾扒房",
+    "city": "珠海",
+    "category": "餐饮",
+    "rating": 4.3,
+    "avg_price": 260,
+    "lat": 22.21962,
+    "lng": 113.5579733,
+    "business_hours": "11:00-23:00",
+    "tags": [
+      "浪漫",
+      "牛排",
+      "红酒",
+      "约会"
+    ],
+    "queue_prone": true,
+    "avg_stay_min": 80,
+    "ugc_comments": [
+      {
+        "user": "琳琳",
+        "rating": 5,
+        "content": "意外的惊喜，宝藏小店！"
+      },
+      {
+        "user": "阿杰",
+        "rating": 3,
+        "content": "环境不错，服务态度好，分量足。"
+      }
+    ],
+    "emotion_tags": {
+      "excitement": 0.6,
+      "tranquility": 0.6,
+      "sociability": 0.46,
+      "culture_depth": 0.3,
+      "surprise": 0.25,
+      "physical_demand": 0.2
+    },
+    "_scene_tags": [
+      "美食",
+      "浪漫约会"
+    ],
+    "_suitability": {
+      "情侣友好": true,
+      "亲子友好": false,
+      "独自友好": false,
+      "朋友友好": false
+    },
+    "_llm_quality": {
+      "is_tourist": false,
+      "score": 7,
+      "issues": []
+    },
+    "constraints": {
+      "accessible": true,
+      "pet_friendly": false,
+      "queue_time_min": 15,
+      "opening_hours": "11:00-23:00"
+    },
+    "_display_category": "正餐"
+  },
+  {
+    "id": "poi_04745",
+    "name": "星海水岸餐厅",
+    "city": "珠海",
+    "category": "餐饮",
+    "rating": 4.3,
+    "avg_price": 200,
+    "lat": 22.2428477,
+    "lng": 113.5349589,
+    "business_hours": "11:00-23:00",
+    "tags": [
+      "浪漫",
+      "海景",
+      "创意菜",
+      "约会"
+    ],
+    "queue_prone": true,
+    "avg_stay_min": 80,
+    "ugc_comments": [
+      {
+        "user": "阿明",
+        "rating": 5,
+        "content": "口味正宗，喜欢这种家常味道。"
+      },
+      {
+        "user": "甜甜",
+        "rating": 3,
+        "content": "环境不错，服务态度好，分量足。"
+      }
+    ],
+    "emotion_tags": {
+      "excitement": 0.6,
+      "tranquility": 0.6,
+      "sociability": 0.67,
+      "culture_depth": 0.3,
+      "surprise": 0.36,
+      "physical_demand": 0.14
+    },
+    "_scene_tags": [
+      "美食",
+      "浪漫约会",
+      "海景"
+    ],
+    "_suitability": {
+      "情侣友好": true,
+      "亲子友好": false,
+      "独自友好": false,
+      "朋友友好": false
+    },
+    "_llm_quality": {
+      "is_tourist": false,
+      "score": 7,
+      "issues": []
+    },
+    "constraints": {
+      "accessible": true,
+      "pet_friendly": false,
+      "queue_time_min": 15,
+      "opening_hours": "11:00-23:00"
+    },
+    "_display_category": "正餐"
+  },
+  {
+    "id": "poi_04746",
+    "name": "花间集融合菜",
+    "city": "珠海",
+    "category": "餐饮",
+    "rating": 4.3,
+    "avg_price": 180,
+    "lat": 22.2491155,
+    "lng": 113.5743477,
+    "business_hours": "11:00-23:00",
+    "tags": [
+      "浪漫",
+      "融合菜",
+      "环境好",
+      "约会"
+    ],
+    "queue_prone": true,
+    "avg_stay_min": 80,
+    "ugc_comments": [
+      {
+        "user": "阿明",
+        "rating": 3,
+        "content": "口味正宗，喜欢这种家常味道。"
+      },
+      {
+        "user": "甜甜",
+        "rating": 3,
+        "content": "带着家人来的，大家都说好吃。"
+      }
+    ],
+    "emotion_tags": {
+      "excitement": 0.6,
+      "tranquility": 0.6,
+      "sociability": 0.77,
+      "culture_depth": 0.3,
+      "surprise": 0.46,
+      "physical_demand": 0.14
+    },
+    "_scene_tags": [
+      "美食",
+      "浪漫约会",
+      "拍照出片"
+    ],
+    "_suitability": {
+      "情侣友好": true,
+      "亲子友好": false,
+      "独自友好": false,
+      "朋友友好": false
+    },
+    "_llm_quality": {
+      "is_tourist": false,
+      "score": 7,
+      "issues": []
+    },
+    "constraints": {
+      "accessible": true,
+      "pet_friendly": false,
+      "queue_time_min": 15,
+      "opening_hours": "11:00-23:00"
+    },
+    "_display_category": "正餐"
+  },
+  {
+    "id": "poi_04747",
+    "name": "天鹅湖畔餐厅",
+    "city": "珠海",
+    "category": "餐饮",
+    "rating": 4.3,
+    "avg_price": 300,
+    "lat": 22.2250897,
+    "lng": 113.5455284,
+    "business_hours": "11:00-23:00",
+    "tags": [
+      "浪漫",
+      "西餐",
+      "湖景",
+      "纪念日"
+    ],
+    "queue_prone": true,
+    "avg_stay_min": 80,
+    "ugc_comments": [
+      {
+        "user": "琳琳",
+        "rating": 5,
+        "content": "带着家人来的，大家都说好吃。"
+      },
+      {
+        "user": "小鱼",
+        "rating": 5,
+        "content": "装修有特色，菜品种类多，挑不出来毛病。"
+      }
+    ],
+    "emotion_tags": {
+      "excitement": 0.6,
+      "tranquility": 0.6,
+      "sociability": 0.6,
+      "culture_depth": 0.3,
+      "surprise": 0.23,
+      "physical_demand": 0.15
+    },
+    "_scene_tags": [
+      "美食",
+      "浪漫约会"
+    ],
+    "_suitability": {
+      "情侣友好": true,
+      "亲子友好": false,
+      "独自友好": false,
+      "朋友友好": false
+    },
+    "_llm_quality": {
+      "is_tourist": false,
+      "score": 7,
+      "issues": []
+    },
+    "constraints": {
+      "accessible": true,
+      "pet_friendly": false,
+      "queue_time_min": 15,
+      "opening_hours": "11:00-23:00"
+    },
+    "_display_category": "正餐"
+  },
+  {
+    "id": "poi_04748",
+    "name": "斗门老街烧腊店",
+    "city": "珠海",
+    "category": "餐饮",
+    "rating": 4.8,
+    "avg_price": 35,
+    "lat": 22.2250677,
+    "lng": 113.2793945,
+    "business_hours": "10:00-22:00",
+    "tags": [
+      "烧腊",
+      "老字号",
+      "本地特色"
+    ],
+    "queue_prone": false,
+    "avg_stay_min": 30,
+    "ugc_comments": [
+      {
+        "user": "大雄",
+        "rating": 5,
+        "content": "环境不错，服务态度好，分量足。"
+      },
+      {
+        "user": "阿杰",
+        "rating": 5,
+        "content": "意外的惊喜，宝藏小店！"
+      }
+    ],
+    "emotion_tags": {
+      "excitement": 0.35,
+      "tranquility": 0.4,
+      "sociability": 0.73,
+      "culture_depth": 0.5,
+      "surprise": 0.49,
+      "physical_demand": 0.18
+    },
+    "_scene_tags": [
+      "美食",
+      "本地老店"
+    ],
+    "_suitability": {
+      "情侣友好": true,
+      "亲子友好": true,
+      "独自友好": false,
+      "朋友友好": true
+    },
+    "_llm_quality": {
+      "is_tourist": false,
+      "score": 6,
+      "issues": []
+    },
+    "constraints": {
+      "accessible": true,
+      "pet_friendly": false,
+      "queue_time_min": 5,
+      "opening_hours": "10:00-22:00"
+    },
+    "_display_category": "地方小吃"
+  },
+  {
+    "id": "poi_04749",
+    "name": "斗门客家王",
+    "city": "珠海",
+    "category": "餐饮",
+    "rating": 3.7,
+    "avg_price": 55,
+    "lat": 22.2195975,
+    "lng": 113.2894685,
+    "business_hours": "10:00-22:00",
+    "tags": [
+      "客家菜",
+      "本地特色",
+      "实惠"
+    ],
+    "queue_prone": false,
+    "avg_stay_min": 50,
+    "ugc_comments": [
+      {
+        "user": "琳琳",
+        "rating": 4,
+        "content": "带着家人来的，大家都说好吃。"
+      },
+      {
+        "user": "志远",
+        "rating": 4,
+        "content": "性价比很高，适合多人聚餐。"
+      }
+    ],
+    "emotion_tags": {
+      "excitement": 0.35,
+      "tranquility": 0.4,
+      "sociability": 0.77,
+      "culture_depth": 0.5,
+      "surprise": 0.43,
+      "physical_demand": 0.2
+    },
+    "_scene_tags": [
+      "美食",
+      "本地老店"
+    ],
+    "_suitability": {
+      "情侣友好": true,
+      "亲子友好": true,
+      "独自友好": false,
+      "朋友友好": true
+    },
+    "_llm_quality": {
+      "is_tourist": false,
+      "score": 6,
+      "issues": []
+    },
+    "constraints": {
+      "accessible": true,
+      "pet_friendly": false,
+      "queue_time_min": 5,
+      "opening_hours": "10:00-22:00"
+    },
+    "_display_category": "正餐"
+  },
+  {
+    "id": "poi_04750",
+    "name": "赵氏濑粉",
+    "city": "珠海",
+    "category": "餐饮",
+    "rating": 4.4,
+    "avg_price": 18,
+    "lat": 22.2039899,
+    "lng": 113.3047169,
+    "business_hours": "07:00-22:00",
+    "tags": [
+      "濑粉",
+      "早餐",
+      "本地特色"
+    ],
+    "queue_prone": false,
+    "avg_stay_min": 20,
+    "ugc_comments": [
+      {
+        "user": "老陈",
+        "rating": 4,
+        "content": "带着家人来的，大家都说好吃。"
+      },
+      {
+        "user": "阿明",
+        "rating": 3,
+        "content": "性价比很高，适合多人聚餐。"
+      }
+    ],
+    "emotion_tags": {
+      "excitement": 0.35,
+      "tranquility": 0.4,
+      "sociability": 0.49,
+      "culture_depth": 0.5,
+      "surprise": 0.3,
+      "physical_demand": 0.19
+    },
+    "_scene_tags": [
+      "美食",
+      "本地老店"
+    ],
+    "_suitability": {
+      "情侣友好": true,
+      "亲子友好": true,
+      "独自友好": false,
+      "朋友友好": true
+    },
+    "_llm_quality": {
+      "is_tourist": false,
+      "score": 6,
+      "issues": []
+    },
+    "constraints": {
+      "accessible": true,
+      "pet_friendly": false,
+      "queue_time_min": 5,
+      "opening_hours": "07:00-22:00"
+    },
+    "_display_category": "地方小吃"
+  },
+  {
+    "id": "poi_04751",
+    "name": "井岸煲仔饭",
+    "city": "珠海",
+    "category": "餐饮",
+    "rating": 3.8,
+    "avg_price": 28,
+    "lat": 22.2052022,
+    "lng": 113.2937099,
+    "business_hours": "10:00-22:00",
+    "tags": [
+      "煲仔饭",
+      "本地特色",
+      "锅巴"
+    ],
+    "queue_prone": false,
+    "avg_stay_min": 25,
+    "ugc_comments": [
+      {
+        "user": "小鱼",
+        "rating": 3,
+        "content": "环境不错，服务态度好，分量足。"
+      },
+      {
+        "user": "小鱼",
+        "rating": 4,
+        "content": "环境不错，服务态度好，分量足。"
+      }
+    ],
+    "emotion_tags": {
+      "excitement": 0.35,
+      "tranquility": 0.4,
+      "sociability": 0.61,
+      "culture_depth": 0.5,
+      "surprise": 0.28,
+      "physical_demand": 0.17
+    },
+    "_scene_tags": [
+      "美食",
+      "本地老店"
+    ],
+    "_suitability": {
+      "情侣友好": true,
+      "亲子友好": true,
+      "独自友好": false,
+      "朋友友好": true
+    },
+    "_llm_quality": {
+      "is_tourist": false,
+      "score": 6,
+      "issues": []
+    },
+    "constraints": {
+      "accessible": true,
+      "pet_friendly": false,
+      "queue_time_min": 5,
+      "opening_hours": "10:00-22:00"
+    },
+    "_display_category": "地方小吃"
+  },
+  {
+    "id": "poi_04752",
+    "name": "金湾海鲜大排档",
+    "city": "珠海",
+    "category": "餐饮",
+    "rating": 4.2,
+    "avg_price": 85,
+    "lat": 22.1202335,
+    "lng": 113.3568238,
+    "business_hours": "10:00-22:00",
+    "tags": [
+      "海鲜",
+      "大排档",
+      "现捞现做"
+    ],
+    "queue_prone": false,
+    "avg_stay_min": 60,
+    "ugc_comments": [
+      {
+        "user": "志远",
+        "rating": 4,
+        "content": "性价比很高，适合多人聚餐。"
+      },
+      {
+        "user": "阿明",
+        "rating": 4,
+        "content": "性价比很高，适合多人聚餐。"
+      }
+    ],
+    "emotion_tags": {
+      "excitement": 0.35,
+      "tranquility": 0.4,
+      "sociability": 0.44,
+      "culture_depth": 0.5,
+      "surprise": 0.4,
+      "physical_demand": 0.15
+    },
+    "_scene_tags": [
+      "美食",
+      "海鲜大排档"
+    ],
+    "_suitability": {
+      "情侣友好": true,
+      "亲子友好": true,
+      "独自友好": false,
+      "朋友友好": true
+    },
+    "_llm_quality": {
+      "is_tourist": false,
+      "score": 6,
+      "issues": []
+    },
+    "constraints": {
+      "accessible": true,
+      "pet_friendly": false,
+      "queue_time_min": 5,
+      "opening_hours": "10:00-22:00"
+    },
+    "_display_category": "正餐"
+  },
+  {
+    "id": "poi_04753",
+    "name": "红旗烧鹅大王",
+    "city": "珠海",
+    "category": "餐饮",
+    "rating": 4.0,
+    "avg_price": 45,
+    "lat": 22.1266384,
+    "lng": 113.3435417,
+    "business_hours": "10:00-22:00",
+    "tags": [
+      "烧鹅",
+      "烧腊",
+      "本地特色"
+    ],
+    "queue_prone": false,
+    "avg_stay_min": 35,
+    "ugc_comments": [
+      {
+        "user": "阿杰",
+        "rating": 3,
+        "content": "排队等了一会儿但是值得，出品稳定。"
+      },
+      {
+        "user": "老陈",
+        "rating": 3,
+        "content": "性价比很高，适合多人聚餐。"
+      }
+    ],
+    "emotion_tags": {
+      "excitement": 0.35,
+      "tranquility": 0.4,
+      "sociability": 0.48,
+      "culture_depth": 0.5,
+      "surprise": 0.36,
+      "physical_demand": 0.12
+    },
+    "_scene_tags": [
+      "美食",
+      "本地老店"
+    ],
+    "_suitability": {
+      "情侣友好": true,
+      "亲子友好": true,
+      "独自友好": false,
+      "朋友友好": true
+    },
+    "_llm_quality": {
+      "is_tourist": false,
+      "score": 6,
+      "issues": []
+    },
+    "constraints": {
+      "accessible": true,
+      "pet_friendly": false,
+      "queue_time_min": 5,
+      "opening_hours": "10:00-22:00"
+    },
+    "_display_category": "正餐"
+  },
+  {
+    "id": "poi_04754",
+    "name": "三灶田园海鲜",
+    "city": "珠海",
+    "category": "餐饮",
+    "rating": 3.7,
+    "avg_price": 75,
+    "lat": 22.0826263,
+    "lng": 113.3867449,
+    "business_hours": "10:00-22:00",
+    "tags": [
+      "海鲜",
+      "农家",
+      "新鲜"
+    ],
+    "queue_prone": false,
+    "avg_stay_min": 55,
+    "ugc_comments": [
+      {
+        "user": "阿杰",
+        "rating": 4,
+        "content": "带着家人来的，大家都说好吃。"
+      },
+      {
+        "user": "阿杰",
+        "rating": 3,
+        "content": "带着家人来的，大家都说好吃。"
+      }
+    ],
+    "emotion_tags": {
+      "excitement": 0.35,
+      "tranquility": 0.4,
+      "sociability": 0.73,
+      "culture_depth": 0.5,
+      "surprise": 0.49,
+      "physical_demand": 0.24
+    },
+    "_scene_tags": [
+      "美食",
+      "海鲜大排档"
+    ],
+    "_suitability": {
+      "情侣友好": true,
+      "亲子友好": true,
+      "独自友好": false,
+      "朋友友好": true
+    },
+    "_llm_quality": {
+      "is_tourist": false,
+      "score": 6,
+      "issues": []
+    },
+    "constraints": {
+      "accessible": true,
+      "pet_friendly": false,
+      "queue_time_min": 5,
+      "opening_hours": "10:00-22:00"
+    },
+    "_display_category": "正餐"
+  },
+  {
+    "id": "poi_04755",
+    "name": "金湾渔港大排档",
+    "city": "珠海",
+    "category": "餐饮",
+    "rating": 4.6,
+    "avg_price": 90,
+    "lat": 22.0516631,
+    "lng": 113.3818564,
+    "business_hours": "10:00-22:00",
+    "tags": [
+      "海鲜",
+      "大排档",
+      "渔民直供"
+    ],
+    "queue_prone": false,
+    "avg_stay_min": 60,
+    "ugc_comments": [
+      {
+        "user": "大雄",
+        "rating": 4,
+        "content": "味道很赞，食材新鲜，下次还来。"
+      },
+      {
+        "user": "琳琳",
+        "rating": 4,
+        "content": "味道很赞，食材新鲜，下次还来。"
+      }
+    ],
+    "emotion_tags": {
+      "excitement": 0.35,
+      "tranquility": 0.4,
+      "sociability": 0.79,
+      "culture_depth": 0.5,
+      "surprise": 0.28,
+      "physical_demand": 0.22
+    },
+    "_scene_tags": [
+      "美食",
+      "海鲜大排档"
+    ],
+    "_suitability": {
+      "情侣友好": true,
+      "亲子友好": true,
+      "独自友好": false,
+      "朋友友好": true
+    },
+    "_llm_quality": {
+      "is_tourist": false,
+      "score": 6,
+      "issues": []
+    },
+    "constraints": {
+      "accessible": true,
+      "pet_friendly": false,
+      "queue_time_min": 5,
+      "opening_hours": "10:00-22:00"
+    },
+    "_display_category": "正餐"
+  },
+  {
+    "id": "poi_04756",
+    "name": "斗门粥城",
+    "city": "珠海",
+    "category": "餐饮",
+    "rating": 4.1,
+    "avg_price": 25,
+    "lat": 22.2142301,
+    "lng": 113.2825732,
+    "business_hours": "10:00-22:00",
+    "tags": [
+      "粥",
+      "夜宵",
+      "本地特色"
+    ],
+    "queue_prone": false,
+    "avg_stay_min": 30,
+    "ugc_comments": [
+      {
+        "user": "甜甜",
+        "rating": 5,
+        "content": "意外的惊喜，宝藏小店！"
+      },
+      {
+        "user": "琳琳",
+        "rating": 3,
+        "content": "口味正宗，喜欢这种家常味道。"
+      }
+    ],
+    "emotion_tags": {
+      "excitement": 0.35,
+      "tranquility": 0.4,
+      "sociability": 0.49,
+      "culture_depth": 0.5,
+      "surprise": 0.22,
+      "physical_demand": 0.21
+    },
+    "_scene_tags": [
+      "美食",
+      "夜宵"
+    ],
+    "_suitability": {
+      "情侣友好": true,
+      "亲子友好": true,
+      "独自友好": false,
+      "朋友友好": true
+    },
+    "_llm_quality": {
+      "is_tourist": false,
+      "score": 6,
+      "issues": []
+    },
+    "constraints": {
+      "accessible": true,
+      "pet_friendly": false,
+      "queue_time_min": 5,
+      "opening_hours": "10:00-22:00"
+    },
+    "_display_category": "地方小吃"
+  },
+  {
+    "id": "poi_04757",
+    "name": "乾务糖水铺",
+    "city": "珠海",
+    "category": "餐饮",
+    "rating": 3.6,
+    "avg_price": 15,
+    "lat": 22.233136,
+    "lng": 113.2605014,
+    "business_hours": "10:00-22:00",
+    "tags": [
+      "糖水",
+      "甜品",
+      "传统"
+    ],
+    "queue_prone": false,
+    "avg_stay_min": 20,
+    "ugc_comments": [
+      {
+        "user": "阿明",
+        "rating": 5,
+        "content": "带着家人来的，大家都说好吃。"
+      },
+      {
+        "user": "琳琳",
+        "rating": 3,
+        "content": "带着家人来的，大家都说好吃。"
+      }
+    ],
+    "emotion_tags": {
+      "excitement": 0.35,
+      "tranquility": 0.4,
+      "sociability": 0.43,
+      "culture_depth": 0.5,
+      "surprise": 0.26,
+      "physical_demand": 0.19
+    },
+    "_scene_tags": [
+      "美食",
+      "甜品消暑"
+    ],
+    "_suitability": {
+      "情侣友好": true,
+      "亲子友好": true,
+      "独自友好": false,
+      "朋友友好": true
+    },
+    "_llm_quality": {
+      "is_tourist": false,
+      "score": 6,
+      "issues": []
+    },
+    "constraints": {
+      "accessible": true,
+      "pet_friendly": false,
+      "queue_time_min": 5,
+      "opening_hours": "10:00-22:00"
+    },
+    "_display_category": "甜品饮品"
+  },
+  {
+    "id": "poi_04758",
+    "name": "井岸大包店",
+    "city": "珠海",
+    "category": "餐饮",
+    "rating": 4.4,
+    "avg_price": 12,
+    "lat": 22.207352,
+    "lng": 113.2961989,
+    "business_hours": "07:00-22:00",
+    "tags": [
+      "包子",
+      "早餐",
+      "本地特色"
+    ],
+    "queue_prone": false,
+    "avg_stay_min": 15,
+    "ugc_comments": [
+      {
+        "user": "志远",
+        "rating": 3,
+        "content": "周末来的，人不少但上菜快。"
+      },
+      {
+        "user": "志远",
+        "rating": 3,
+        "content": "周末来的，人不少但上菜快。"
+      }
+    ],
+    "emotion_tags": {
+      "excitement": 0.35,
+      "tranquility": 0.4,
+      "sociability": 0.43,
+      "culture_depth": 0.5,
+      "surprise": 0.4,
+      "physical_demand": 0.18
+    },
+    "_scene_tags": [
+      "美食",
+      "本地老店"
+    ],
+    "_suitability": {
+      "情侣友好": true,
+      "亲子友好": true,
+      "独自友好": false,
+      "朋友友好": true
+    },
+    "_llm_quality": {
+      "is_tourist": false,
+      "score": 6,
+      "issues": []
+    },
+    "constraints": {
+      "accessible": true,
+      "pet_friendly": false,
+      "queue_time_min": 5,
+      "opening_hours": "07:00-22:00"
+    },
+    "_display_category": "地方小吃"
+  },
+  {
+    "id": "poi_04759",
+    "name": "三灶咸茶馆",
+    "city": "珠海",
+    "category": "餐饮",
+    "rating": 3.9,
+    "avg_price": 20,
+    "lat": 22.0776077,
+    "lng": 113.3796973,
+    "business_hours": "10:00-22:00",
+    "tags": [
+      "咸茶",
+      "本地特色",
+      "传统"
+    ],
+    "queue_prone": false,
+    "avg_stay_min": 25,
+    "ugc_comments": [
+      {
+        "user": "老陈",
+        "rating": 3,
+        "content": "口味正宗，喜欢这种家常味道。"
+      },
+      {
+        "user": "小雅",
+        "rating": 3,
+        "content": "口味正宗，喜欢这种家常味道。"
+      }
+    ],
+    "emotion_tags": {
+      "excitement": 0.35,
+      "tranquility": 0.4,
+      "sociability": 0.58,
+      "culture_depth": 0.5,
+      "surprise": 0.48,
+      "physical_demand": 0.24
+    },
+    "_scene_tags": [
+      "美食",
+      "本地老店"
+    ],
+    "_suitability": {
+      "情侣友好": true,
+      "亲子友好": true,
+      "独自友好": false,
+      "朋友友好": true
+    },
+    "_llm_quality": {
+      "is_tourist": false,
+      "score": 6,
+      "issues": []
+    },
+    "constraints": {
+      "accessible": true,
+      "pet_friendly": false,
+      "queue_time_min": 5,
+      "opening_hours": "10:00-22:00"
+    },
+    "_display_category": "地方小吃"
+  },
+  {
+    "id": "poi_04760",
+    "name": "莲江农家菜馆",
+    "city": "珠海",
+    "category": "餐饮",
+    "rating": 3.5,
+    "avg_price": 70,
+    "lat": 22.2432116,
+    "lng": 113.2726299,
+    "business_hours": "09:00-21:00",
+    "tags": [
+      "农家菜",
+      "土鸡",
+      "田园"
+    ],
+    "queue_prone": false,
+    "avg_stay_min": 70,
+    "ugc_comments": [
+      {
+        "user": "阿杰",
+        "rating": 3,
+        "content": "带着家人来的，大家都说好吃。"
+      },
+      {
+        "user": "大雄",
+        "rating": 5,
+        "content": "口味正宗，喜欢这种家常味道。"
+      }
+    ],
+    "emotion_tags": {
+      "excitement": 0.35,
+      "tranquility": 0.6,
+      "sociability": 0.45,
+      "culture_depth": 0.3,
+      "surprise": 0.3,
+      "physical_demand": 0.11
+    },
+    "_scene_tags": [
+      "美食",
+      "农家乐"
+    ],
+    "_suitability": {
+      "情侣友好": false,
+      "亲子友好": true,
+      "独自友好": false,
+      "朋友友好": true
+    },
+    "_llm_quality": {
+      "is_tourist": false,
+      "score": 6,
+      "issues": []
+    },
+    "constraints": {
+      "accessible": true,
+      "pet_friendly": true,
+      "queue_time_min": 5,
+      "opening_hours": "09:00-21:00"
+    },
+    "_display_category": "正餐"
+  },
+  {
+    "id": "poi_04761",
+    "name": "斗门田园农庄",
+    "city": "珠海",
+    "category": "餐饮",
+    "rating": 3.8,
+    "avg_price": 65,
+    "lat": 22.2228499,
+    "lng": 113.2773818,
+    "business_hours": "09:00-21:00",
+    "tags": [
+      "农家菜",
+      "采摘",
+      "土猪肉"
+    ],
+    "queue_prone": false,
+    "avg_stay_min": 70,
+    "ugc_comments": [
+      {
+        "user": "甜甜",
+        "rating": 5,
+        "content": "口味正宗，喜欢这种家常味道。"
+      },
+      {
+        "user": "志远",
+        "rating": 5,
+        "content": "带着家人来的，大家都说好吃。"
+      }
+    ],
+    "emotion_tags": {
+      "excitement": 0.35,
+      "tranquility": 0.6,
+      "sociability": 0.4,
+      "culture_depth": 0.3,
+      "surprise": 0.45,
+      "physical_demand": 0.14
+    },
+    "_scene_tags": [
+      "美食",
+      "农家乐"
+    ],
+    "_suitability": {
+      "情侣友好": false,
+      "亲子友好": true,
+      "独自友好": false,
+      "朋友友好": true
+    },
+    "_llm_quality": {
+      "is_tourist": false,
+      "score": 6,
+      "issues": []
+    },
+    "constraints": {
+      "accessible": true,
+      "pet_friendly": false,
+      "queue_time_min": 5,
+      "opening_hours": "09:00-21:00"
+    },
+    "_display_category": "正餐"
+  },
+  {
+    "id": "poi_04762",
+    "name": "金鼎果园农庄",
+    "city": "珠海",
+    "category": "餐饮",
+    "rating": 4.4,
+    "avg_price": 80,
+    "lat": 22.3763893,
+    "lng": 113.5593429,
+    "business_hours": "09:00-21:00",
+    "tags": [
+      "农家菜",
+      "采摘",
+      "荔枝"
+    ],
+    "queue_prone": false,
+    "avg_stay_min": 70,
+    "ugc_comments": [
+      {
+        "user": "阿杰",
+        "rating": 3,
+        "content": "带着家人来的，大家都说好吃。"
+      },
+      {
+        "user": "琳琳",
+        "rating": 4,
+        "content": "口味正宗，喜欢这种家常味道。"
+      }
+    ],
+    "emotion_tags": {
+      "excitement": 0.35,
+      "tranquility": 0.6,
+      "sociability": 0.64,
+      "culture_depth": 0.3,
+      "surprise": 0.42,
+      "physical_demand": 0.13
+    },
+    "_scene_tags": [
+      "美食",
+      "农家乐"
+    ],
+    "_suitability": {
+      "情侣友好": false,
+      "亲子友好": true,
+      "独自友好": false,
+      "朋友友好": true
+    },
+    "_llm_quality": {
+      "is_tourist": false,
+      "score": 6,
+      "issues": []
+    },
+    "constraints": {
+      "accessible": true,
+      "pet_friendly": false,
+      "queue_time_min": 5,
+      "opening_hours": "09:00-21:00"
+    },
+    "_display_category": "正餐"
+  },
+  {
+    "id": "poi_04763",
+    "name": "十里莲江农庄",
+    "city": "珠海",
+    "category": "餐饮",
+    "rating": 4.3,
+    "avg_price": 75,
+    "lat": 22.2456398,
+    "lng": 113.2678853,
+    "business_hours": "09:00-21:00",
+    "tags": [
+      "农家菜",
+      "莲藕",
+      "田园"
+    ],
+    "queue_prone": false,
+    "avg_stay_min": 70,
+    "ugc_comments": [
+      {
+        "user": "小鱼",
+        "rating": 3,
+        "content": "排队等了一会儿但是值得，出品稳定。"
+      },
+      {
+        "user": "晓晴",
+        "rating": 3,
+        "content": "味道很赞，食材新鲜，下次还来。"
+      }
+    ],
+    "emotion_tags": {
+      "excitement": 0.35,
+      "tranquility": 0.6,
+      "sociability": 0.53,
+      "culture_depth": 0.3,
+      "surprise": 0.24,
+      "physical_demand": 0.25
+    },
+    "_scene_tags": [
+      "美食",
+      "农家乐"
+    ],
+    "_suitability": {
+      "情侣友好": false,
+      "亲子友好": true,
+      "独自友好": false,
+      "朋友友好": true
+    },
+    "_llm_quality": {
+      "is_tourist": false,
+      "score": 6,
+      "issues": []
+    },
+    "constraints": {
+      "accessible": true,
+      "pet_friendly": true,
+      "queue_time_min": 5,
+      "opening_hours": "09:00-21:00"
+    },
+    "_display_category": "正餐"
+  },
+  {
+    "id": "poi_04764",
+    "name": "三灶渔家乐",
+    "city": "珠海",
+    "category": "餐饮",
+    "rating": 3.7,
+    "avg_price": 60,
+    "lat": 22.0844184,
+    "lng": 113.3750567,
+    "business_hours": "09:00-21:00",
+    "tags": [
+      "农家菜",
+      "海鲜",
+      "渔家"
+    ],
+    "queue_prone": false,
+    "avg_stay_min": 70,
+    "ugc_comments": [
+      {
+        "user": "甜甜",
+        "rating": 3,
+        "content": "环境不错，服务态度好，分量足。"
+      },
+      {
+        "user": "阿杰",
+        "rating": 5,
+        "content": "朋友推荐的，果然没失望，值得打卡。"
+      }
+    ],
+    "emotion_tags": {
+      "excitement": 0.35,
+      "tranquility": 0.6,
+      "sociability": 0.62,
+      "culture_depth": 0.3,
+      "surprise": 0.45,
+      "physical_demand": 0.19
+    },
+    "_scene_tags": [
+      "美食",
+      "农家乐",
+      "海鲜大排档"
+    ],
+    "_suitability": {
+      "情侣友好": false,
+      "亲子友好": true,
+      "独自友好": false,
+      "朋友友好": true
+    },
+    "_llm_quality": {
+      "is_tourist": false,
+      "score": 6,
+      "issues": []
+    },
+    "constraints": {
+      "accessible": true,
+      "pet_friendly": false,
+      "queue_time_min": 5,
+      "opening_hours": "09:00-21:00"
+    },
+    "_display_category": "正餐"
+  },
+  {
+    "id": "poi_04765",
+    "name": "斗门荔枝园农庄",
+    "city": "珠海",
+    "category": "餐饮",
+    "rating": 3.7,
+    "avg_price": 85,
+    "lat": 22.2282745,
+    "lng": 113.2730826,
+    "business_hours": "09:00-21:00",
+    "tags": [
+      "农家菜",
+      "荔枝",
+      "采摘"
+    ],
+    "queue_prone": false,
+    "avg_stay_min": 70,
+    "ugc_comments": [
+      {
+        "user": "小鱼",
+        "rating": 4,
+        "content": "性价比很高，适合多人聚餐。"
+      },
+      {
+        "user": "大雄",
+        "rating": 5,
+        "content": "环境不错，服务态度好，分量足。"
+      }
+    ],
+    "emotion_tags": {
+      "excitement": 0.35,
+      "tranquility": 0.6,
+      "sociability": 0.54,
+      "culture_depth": 0.3,
+      "surprise": 0.37,
+      "physical_demand": 0.23
+    },
+    "_scene_tags": [
+      "美食",
+      "农家乐"
+    ],
+    "_suitability": {
+      "情侣友好": false,
+      "亲子友好": true,
+      "独自友好": false,
+      "朋友友好": true
+    },
+    "_llm_quality": {
+      "is_tourist": false,
+      "score": 6,
+      "issues": []
+    },
+    "constraints": {
+      "accessible": true,
+      "pet_friendly": false,
+      "queue_time_min": 5,
+      "opening_hours": "09:00-21:00"
+    },
+    "_display_category": "正餐"
+  },
+  {
+    "id": "poi_04766",
+    "name": "金鼎柴火鸡",
+    "city": "珠海",
+    "category": "餐饮",
+    "rating": 4.8,
+    "avg_price": 55,
+    "lat": 22.3774948,
+    "lng": 113.5622576,
+    "business_hours": "09:00-21:00",
+    "tags": [
+      "农家菜",
+      "柴火鸡",
+      "土灶"
+    ],
+    "queue_prone": false,
+    "avg_stay_min": 70,
+    "ugc_comments": [
+      {
+        "user": "大雄",
+        "rating": 3,
+        "content": "朋友推荐的，果然没失望，值得打卡。"
+      },
+      {
+        "user": "小雅",
+        "rating": 3,
+        "content": "朋友推荐的，果然没失望，值得打卡。"
+      }
+    ],
+    "emotion_tags": {
+      "excitement": 0.35,
+      "tranquility": 0.6,
+      "sociability": 0.69,
+      "culture_depth": 0.3,
+      "surprise": 0.3,
+      "physical_demand": 0.24
+    },
+    "_scene_tags": [
+      "美食",
+      "农家乐"
+    ],
+    "_suitability": {
+      "情侣友好": false,
+      "亲子友好": true,
+      "独自友好": false,
+      "朋友友好": true
+    },
+    "_llm_quality": {
+      "is_tourist": false,
+      "score": 6,
+      "issues": []
+    },
+    "constraints": {
+      "accessible": true,
+      "pet_friendly": true,
+      "queue_time_min": 5,
+      "opening_hours": "09:00-21:00"
+    },
+    "_display_category": "正餐"
+  },
+  {
+    "id": "poi_04767",
+    "name": "红旗田园农家乐",
+    "city": "珠海",
+    "category": "餐饮",
+    "rating": 4.5,
+    "avg_price": 50,
+    "lat": 22.1316406,
+    "lng": 113.3461075,
+    "business_hours": "09:00-21:00",
+    "tags": [
+      "农家菜",
+      "土鸡",
+      "池塘钓鱼"
+    ],
+    "queue_prone": false,
+    "avg_stay_min": 70,
+    "ugc_comments": [
+      {
+        "user": "晓晴",
+        "rating": 3,
+        "content": "环境不错，服务态度好，分量足。"
+      },
+      {
+        "user": "小雅",
+        "rating": 3,
+        "content": "意外的惊喜，宝藏小店！"
+      }
+    ],
+    "emotion_tags": {
+      "excitement": 0.35,
+      "tranquility": 0.6,
+      "sociability": 0.49,
+      "culture_depth": 0.3,
+      "surprise": 0.44,
+      "physical_demand": 0.17
+    },
+    "_scene_tags": [
+      "美食",
+      "农家乐"
+    ],
+    "_suitability": {
+      "情侣友好": false,
+      "亲子友好": true,
+      "独自友好": false,
+      "朋友友好": true
+    },
+    "_llm_quality": {
+      "is_tourist": false,
+      "score": 6,
+      "issues": []
+    },
+    "constraints": {
+      "accessible": true,
+      "pet_friendly": false,
+      "queue_time_min": 5,
+      "opening_hours": "09:00-21:00"
+    },
+    "_display_category": "正餐"
+  },
+  {
+    "id": "poi_04768",
+    "name": "利苑酒家",
+    "city": "珠海",
+    "category": "餐饮",
+    "rating": 3.9,
+    "avg_price": 75,
+    "lat": 22.2749535,
+    "lng": 113.570276,
+    "business_hours": "07:00-15:00",
+    "tags": [
+      "早茶",
+      "粤式",
+      "虾饺"
+    ],
+    "queue_prone": true,
+    "avg_stay_min": 55,
+    "ugc_comments": [
+      {
+        "user": "小鱼",
+        "rating": 5,
+        "content": "性价比很高，适合多人聚餐。"
+      },
+      {
+        "user": "小雅",
+        "rating": 4,
+        "content": "口味正宗，喜欢这种家常味道。"
+      }
+    ],
+    "emotion_tags": {
+      "excitement": 0.35,
+      "tranquility": 0.4,
+      "sociability": 0.75,
+      "culture_depth": 0.5,
+      "surprise": 0.49,
+      "physical_demand": 0.14
+    },
+    "_scene_tags": [
+      "美食",
+      "早茶粤菜"
+    ],
+    "_suitability": {
+      "情侣友好": true,
+      "亲子友好": true,
+      "独自友好": false,
+      "朋友友好": true
+    },
+    "_llm_quality": {
+      "is_tourist": false,
+      "score": 7,
+      "issues": []
+    },
+    "constraints": {
+      "accessible": true,
+      "pet_friendly": false,
+      "queue_time_min": 20,
+      "opening_hours": "07:00-15:00"
+    },
+    "_display_category": "茶餐厅"
+  },
+  {
+    "id": "poi_04769",
+    "name": "陶陶居茶楼",
+    "city": "珠海",
+    "category": "餐饮",
+    "rating": 4.3,
+    "avg_price": 68,
+    "lat": 22.2319968,
+    "lng": 113.5568115,
+    "business_hours": "07:00-15:00",
+    "tags": [
+      "早茶",
+      "粤式",
+      "老字号"
+    ],
+    "queue_prone": true,
+    "avg_stay_min": 55,
+    "ugc_comments": [
+      {
+        "user": "甜甜",
+        "rating": 4,
+        "content": "味道很赞，食材新鲜，下次还来。"
+      },
+      {
+        "user": "阿杰",
+        "rating": 4,
+        "content": "朋友推荐的，果然没失望，值得打卡。"
+      }
+    ],
+    "emotion_tags": {
+      "excitement": 0.35,
+      "tranquility": 0.4,
+      "sociability": 0.63,
+      "culture_depth": 0.5,
+      "surprise": 0.5,
+      "physical_demand": 0.11
+    },
+    "_scene_tags": [
+      "美食",
+      "早茶粤菜"
+    ],
+    "_suitability": {
+      "情侣友好": true,
+      "亲子友好": true,
+      "独自友好": false,
+      "朋友友好": true
+    },
+    "_llm_quality": {
+      "is_tourist": false,
+      "score": 7,
+      "issues": []
+    },
+    "constraints": {
+      "accessible": true,
+      "pet_friendly": false,
+      "queue_time_min": 20,
+      "opening_hours": "07:00-15:00"
+    },
+    "_display_category": "茶餐厅"
+  },
+  {
+    "id": "poi_04770",
+    "name": "点心皇",
+    "city": "珠海",
+    "category": "餐饮",
+    "rating": 4.3,
+    "avg_price": 55,
+    "lat": 22.2534569,
+    "lng": 113.5748643,
+    "business_hours": "07:00-15:00",
+    "tags": [
+      "早茶",
+      "粤式",
+      "点心"
+    ],
+    "queue_prone": true,
+    "avg_stay_min": 55,
+    "ugc_comments": [
+      {
+        "user": "小雅",
+        "rating": 5,
+        "content": "带着家人来的，大家都说好吃。"
+      },
+      {
+        "user": "阿杰",
+        "rating": 4,
+        "content": "周末来的，人不少但上菜快。"
+      }
+    ],
+    "emotion_tags": {
+      "excitement": 0.35,
+      "tranquility": 0.4,
+      "sociability": 0.48,
+      "culture_depth": 0.5,
+      "surprise": 0.21,
+      "physical_demand": 0.17
+    },
+    "_scene_tags": [
+      "美食",
+      "早茶粤菜"
+    ],
+    "_suitability": {
+      "情侣友好": true,
+      "亲子友好": true,
+      "独自友好": false,
+      "朋友友好": true
+    },
+    "_llm_quality": {
+      "is_tourist": false,
+      "score": 7,
+      "issues": []
+    },
+    "constraints": {
+      "accessible": true,
+      "pet_friendly": false,
+      "queue_time_min": 20,
+      "opening_hours": "07:00-15:00"
+    },
+    "_display_category": "茶餐厅"
+  },
+  {
+    "id": "poi_04771",
+    "name": "华发粤海茶楼",
+    "city": "珠海",
+    "category": "餐饮",
+    "rating": 4.2,
+    "avg_price": 80,
+    "lat": 22.2470651,
+    "lng": 113.5348686,
+    "business_hours": "07:00-15:00",
+    "tags": [
+      "早茶",
+      "粤式",
+      "环境好"
+    ],
+    "queue_prone": true,
+    "avg_stay_min": 55,
+    "ugc_comments": [
+      {
+        "user": "大雄",
+        "rating": 4,
+        "content": "排队等了一会儿但是值得，出品稳定。"
+      },
+      {
+        "user": "阿杰",
+        "rating": 5,
+        "content": "装修有特色，菜品种类多，挑不出来毛病。"
+      }
+    ],
+    "emotion_tags": {
+      "excitement": 0.35,
+      "tranquility": 0.4,
+      "sociability": 0.65,
+      "culture_depth": 0.5,
+      "surprise": 0.4,
+      "physical_demand": 0.12
+    },
+    "_scene_tags": [
+      "美食",
+      "早茶粤菜"
+    ],
+    "_suitability": {
+      "情侣友好": true,
+      "亲子友好": true,
+      "独自友好": false,
+      "朋友友好": true
+    },
+    "_llm_quality": {
+      "is_tourist": false,
+      "score": 7,
+      "issues": []
+    },
+    "constraints": {
+      "accessible": true,
+      "pet_friendly": false,
+      "queue_time_min": 20,
+      "opening_hours": "07:00-15:00"
+    },
+    "_display_category": "茶餐厅"
+  },
+  {
+    "id": "poi_04772",
+    "name": "金悦轩",
+    "city": "珠海",
+    "category": "餐饮",
+    "rating": 4.7,
+    "avg_price": 65,
+    "lat": 22.2380712,
+    "lng": 113.5566689,
+    "business_hours": "07:00-15:00",
+    "tags": [
+      "早茶",
+      "粤式",
+      "凤爪"
+    ],
+    "queue_prone": true,
+    "avg_stay_min": 55,
+    "ugc_comments": [
+      {
+        "user": "老陈",
+        "rating": 4,
+        "content": "口味正宗，喜欢这种家常味道。"
+      },
+      {
+        "user": "甜甜",
+        "rating": 3,
+        "content": "性价比很高，适合多人聚餐。"
+      }
+    ],
+    "emotion_tags": {
+      "excitement": 0.35,
+      "tranquility": 0.4,
+      "sociability": 0.57,
+      "culture_depth": 0.5,
+      "surprise": 0.48,
+      "physical_demand": 0.2
+    },
+    "_scene_tags": [
+      "美食",
+      "早茶粤菜"
+    ],
+    "_suitability": {
+      "情侣友好": true,
+      "亲子友好": true,
+      "独自友好": false,
+      "朋友友好": true
+    },
+    "_llm_quality": {
+      "is_tourist": false,
+      "score": 7,
+      "issues": []
+    },
+    "constraints": {
+      "accessible": true,
+      "pet_friendly": false,
+      "queue_time_min": 20,
+      "opening_hours": "07:00-15:00"
+    },
+    "_display_category": "茶餐厅"
+  },
+  {
+    "id": "poi_04773",
+    "name": "翠华茶餐厅",
+    "city": "珠海",
+    "category": "餐饮",
+    "rating": 4.7,
+    "avg_price": 48,
+    "lat": 22.2691551,
+    "lng": 113.5660095,
+    "business_hours": "07:00-15:00",
+    "tags": [
+      "早茶",
+      "粤式",
+      "奶茶"
+    ],
+    "queue_prone": true,
+    "avg_stay_min": 55,
+    "ugc_comments": [
+      {
+        "user": "甜甜",
+        "rating": 3,
+        "content": "口味正宗，喜欢这种家常味道。"
+      },
+      {
+        "user": "晓晴",
+        "rating": 3,
+        "content": "排队等了一会儿但是值得，出品稳定。"
+      }
+    ],
+    "emotion_tags": {
+      "excitement": 0.35,
+      "tranquility": 0.4,
+      "sociability": 0.71,
+      "culture_depth": 0.5,
+      "surprise": 0.38,
+      "physical_demand": 0.15
+    },
+    "_scene_tags": [
+      "美食",
+      "早茶粤菜"
+    ],
+    "_suitability": {
+      "情侣友好": true,
+      "亲子友好": true,
+      "独自友好": false,
+      "朋友友好": true
+    },
+    "_llm_quality": {
+      "is_tourist": false,
+      "score": 7,
+      "issues": []
+    },
+    "constraints": {
+      "accessible": true,
+      "pet_friendly": false,
+      "queue_time_min": 20,
+      "opening_hours": "07:00-15:00"
+    },
+    "_display_category": "茶餐厅"
+  },
+  {
+    "id": "poi_04774",
+    "name": "许留山(香洲店)",
+    "city": "珠海",
+    "category": "餐饮",
+    "rating": 4.1,
+    "avg_price": 30,
+    "lat": 22.2717563,
+    "lng": 113.5721117,
+    "business_hours": "10:00-22:30",
+    "tags": [
+      "甜品",
+      "芒果",
+      "消暑"
+    ],
+    "queue_prone": false,
+    "avg_stay_min": 30,
+    "ugc_comments": [
+      {
+        "user": "琳琳",
+        "rating": 5,
+        "content": "环境不错，服务态度好，分量足。"
+      },
+      {
+        "user": "晓晴",
+        "rating": 5,
+        "content": "周末来的，人不少但上菜快。"
+      }
+    ],
+    "emotion_tags": {
+      "excitement": 0.4,
+      "tranquility": 0.5,
+      "sociability": 0.53,
+      "culture_depth": 0.15,
+      "surprise": 0.45,
+      "physical_demand": 0.21
+    },
+    "_scene_tags": [
+      "美食",
+      "甜品消暑"
+    ],
+    "_suitability": {
+      "情侣友好": true,
+      "亲子友好": true,
+      "独自友好": true,
+      "朋友友好": true
+    },
+    "_llm_quality": {
+      "is_tourist": false,
+      "score": 6,
+      "issues": []
+    },
+    "constraints": {
+      "accessible": true,
+      "pet_friendly": false,
+      "queue_time_min": 5,
+      "opening_hours": "10:00-22:30"
+    },
+    "_display_category": "甜品饮品"
+  },
+  {
+    "id": "poi_04775",
+    "name": "满记甜品(吉大店)",
+    "city": "珠海",
+    "category": "餐饮",
+    "rating": 4.4,
+    "avg_price": 35,
+    "lat": 22.2502464,
+    "lng": 113.5679913,
+    "business_hours": "10:00-22:30",
+    "tags": [
+      "甜品",
+      "榴莲",
+      "消暑"
+    ],
+    "queue_prone": false,
+    "avg_stay_min": 30,
+    "ugc_comments": [
+      {
+        "user": "小鱼",
+        "rating": 3,
+        "content": "性价比很高，适合多人聚餐。"
+      },
+      {
+        "user": "阿明",
+        "rating": 5,
+        "content": "环境不错，服务态度好，分量足。"
+      }
+    ],
+    "emotion_tags": {
+      "excitement": 0.4,
+      "tranquility": 0.5,
+      "sociability": 0.58,
+      "culture_depth": 0.15,
+      "surprise": 0.47,
+      "physical_demand": 0.19
+    },
+    "_scene_tags": [
+      "美食",
+      "甜品消暑"
+    ],
+    "_suitability": {
+      "情侣友好": true,
+      "亲子友好": true,
+      "独自友好": true,
+      "朋友友好": true
+    },
+    "_llm_quality": {
+      "is_tourist": false,
+      "score": 6,
+      "issues": []
+    },
+    "constraints": {
+      "accessible": true,
+      "pet_friendly": false,
+      "queue_time_min": 5,
+      "opening_hours": "10:00-22:30"
+    },
+    "_display_category": "甜品饮品"
+  },
+  {
+    "id": "poi_04776",
+    "name": "糖水铺老字号",
+    "city": "珠海",
+    "category": "餐饮",
+    "rating": 4.4,
+    "avg_price": 18,
+    "lat": 22.2338398,
+    "lng": 113.5529965,
+    "business_hours": "10:00-22:30",
+    "tags": [
+      "甜品",
+      "糖水",
+      "传统"
+    ],
+    "queue_prone": false,
+    "avg_stay_min": 30,
+    "ugc_comments": [
+      {
+        "user": "琳琳",
+        "rating": 5,
+        "content": "味道很赞，食材新鲜，下次还来。"
+      },
+      {
+        "user": "阿杰",
+        "rating": 4,
+        "content": "性价比很高，适合多人聚餐。"
+      }
+    ],
+    "emotion_tags": {
+      "excitement": 0.4,
+      "tranquility": 0.5,
+      "sociability": 0.47,
+      "culture_depth": 0.15,
+      "surprise": 0.49,
+      "physical_demand": 0.18
+    },
+    "_scene_tags": [
+      "美食",
+      "甜品消暑"
+    ],
+    "_suitability": {
+      "情侣友好": true,
+      "亲子友好": true,
+      "独自友好": true,
+      "朋友友好": true
+    },
+    "_llm_quality": {
+      "is_tourist": false,
+      "score": 6,
+      "issues": []
+    },
+    "constraints": {
+      "accessible": true,
+      "pet_friendly": false,
+      "queue_time_min": 5,
+      "opening_hours": "10:00-22:30"
+    },
+    "_display_category": "甜品饮品"
+  },
+  {
+    "id": "poi_04777",
+    "name": "芒果冰室",
+    "city": "珠海",
+    "category": "餐饮",
+    "rating": 3.6,
+    "avg_price": 28,
+    "lat": 22.240492,
+    "lng": 113.5374834,
+    "business_hours": "10:00-22:30",
+    "tags": [
+      "甜品",
+      "芒果冰",
+      "消暑"
+    ],
+    "queue_prone": false,
+    "avg_stay_min": 30,
+    "ugc_comments": [
+      {
+        "user": "阿明",
+        "rating": 3,
+        "content": "意外的惊喜，宝藏小店！"
+      },
+      {
+        "user": "甜甜",
+        "rating": 5,
+        "content": "周末来的，人不少但上菜快。"
+      }
+    ],
+    "emotion_tags": {
+      "excitement": 0.4,
+      "tranquility": 0.5,
+      "sociability": 0.53,
+      "culture_depth": 0.15,
+      "surprise": 0.43,
+      "physical_demand": 0.17
+    },
+    "_scene_tags": [
+      "美食",
+      "甜品消暑"
+    ],
+    "_suitability": {
+      "情侣友好": true,
+      "亲子友好": true,
+      "独自友好": true,
+      "朋友友好": true
+    },
+    "_llm_quality": {
+      "is_tourist": false,
+      "score": 6,
+      "issues": []
+    },
+    "constraints": {
+      "accessible": true,
+      "pet_friendly": false,
+      "queue_time_min": 5,
+      "opening_hours": "10:00-22:30"
+    },
+    "_display_category": "甜品饮品"
+  },
+  {
+    "id": "poi_04778",
+    "name": "陈记双皮奶",
+    "city": "珠海",
+    "category": "餐饮",
+    "rating": 4.6,
+    "avg_price": 15,
+    "lat": 22.2709202,
+    "lng": 113.5692674,
+    "business_hours": "10:00-22:30",
+    "tags": [
+      "甜品",
+      "双皮奶",
+      "传统"
+    ],
+    "queue_prone": false,
+    "avg_stay_min": 30,
+    "ugc_comments": [
+      {
+        "user": "甜甜",
+        "rating": 4,
+        "content": "朋友推荐的，果然没失望，值得打卡。"
+      },
+      {
+        "user": "阿明",
+        "rating": 4,
+        "content": "口味正宗，喜欢这种家常味道。"
+      }
+    ],
+    "emotion_tags": {
+      "excitement": 0.4,
+      "tranquility": 0.5,
+      "sociability": 0.7,
+      "culture_depth": 0.15,
+      "surprise": 0.45,
+      "physical_demand": 0.14
+    },
+    "_scene_tags": [
+      "美食",
+      "甜品消暑"
+    ],
+    "_suitability": {
+      "情侣友好": true,
+      "亲子友好": true,
+      "独自友好": true,
+      "朋友友好": true
+    },
+    "_llm_quality": {
+      "is_tourist": false,
+      "score": 6,
+      "issues": []
+    },
+    "constraints": {
+      "accessible": true,
+      "pet_friendly": false,
+      "queue_time_min": 5,
+      "opening_hours": "10:00-22:30"
+    },
+    "_display_category": "甜品饮品"
+  },
+  {
+    "id": "poi_04779",
+    "name": "椰子冰(拱北店)",
+    "city": "珠海",
+    "category": "餐饮",
+    "rating": 4.5,
+    "avg_price": 32,
+    "lat": 22.227846,
+    "lng": 113.5503925,
+    "business_hours": "10:00-22:30",
+    "tags": [
+      "甜品",
+      "椰子",
+      "消暑"
+    ],
+    "queue_prone": false,
+    "avg_stay_min": 30,
+    "ugc_comments": [
+      {
+        "user": "阿明",
+        "rating": 3,
+        "content": "口味正宗，喜欢这种家常味道。"
+      },
+      {
+        "user": "大雄",
+        "rating": 4,
+        "content": "装修有特色，菜品种类多，挑不出来毛病。"
+      }
+    ],
+    "emotion_tags": {
+      "excitement": 0.4,
+      "tranquility": 0.5,
+      "sociability": 0.53,
+      "culture_depth": 0.15,
+      "surprise": 0.36,
+      "physical_demand": 0.12
+    },
+    "_scene_tags": [
+      "美食",
+      "甜品消暑"
+    ],
+    "_suitability": {
+      "情侣友好": true,
+      "亲子友好": true,
+      "独自友好": true,
+      "朋友友好": true
+    },
+    "_llm_quality": {
+      "is_tourist": false,
+      "score": 6,
+      "issues": []
+    },
+    "constraints": {
+      "accessible": true,
+      "pet_friendly": false,
+      "queue_time_min": 5,
+      "opening_hours": "10:00-22:30"
+    },
+    "_display_category": "甜品饮品"
+  },
+  {
+    "id": "poi_04780",
+    "name": "豆花西施",
+    "city": "珠海",
+    "category": "餐饮",
+    "rating": 3.8,
+    "avg_price": 12,
+    "lat": 22.2599395,
+    "lng": 113.5690642,
+    "business_hours": "10:00-22:30",
+    "tags": [
+      "甜品",
+      "豆花",
+      "消暑"
+    ],
+    "queue_prone": false,
+    "avg_stay_min": 30,
+    "ugc_comments": [
+      {
+        "user": "阿杰",
+        "rating": 4,
+        "content": "排队等了一会儿但是值得，出品稳定。"
+      },
+      {
+        "user": "老陈",
+        "rating": 5,
+        "content": "意外的惊喜，宝藏小店！"
+      }
+    ],
+    "emotion_tags": {
+      "excitement": 0.4,
+      "tranquility": 0.5,
+      "sociability": 0.57,
+      "culture_depth": 0.15,
+      "surprise": 0.26,
+      "physical_demand": 0.16
+    },
+    "_scene_tags": [
+      "美食",
+      "甜品消暑"
+    ],
+    "_suitability": {
+      "情侣友好": true,
+      "亲子友好": true,
+      "独自友好": true,
+      "朋友友好": true
+    },
+    "_llm_quality": {
+      "is_tourist": false,
+      "score": 6,
+      "issues": []
+    },
+    "constraints": {
+      "accessible": true,
+      "pet_friendly": false,
+      "queue_time_min": 5,
+      "opening_hours": "10:00-22:30"
+    },
+    "_display_category": "甜品饮品"
+  },
+  {
+    "id": "poi_04781",
+    "name": "冰室七号",
+    "city": "珠海",
+    "category": "餐饮",
+    "rating": 4.7,
+    "avg_price": 25,
+    "lat": 22.2468408,
+    "lng": 113.5399552,
+    "business_hours": "10:00-22:30",
+    "tags": [
+      "甜品",
+      "刨冰",
+      "消暑"
+    ],
+    "queue_prone": false,
+    "avg_stay_min": 30,
+    "ugc_comments": [
+      {
+        "user": "志远",
+        "rating": 4,
+        "content": "意外的惊喜，宝藏小店！"
+      },
+      {
+        "user": "小鱼",
+        "rating": 4,
+        "content": "口味正宗，喜欢这种家常味道。"
+      }
+    ],
+    "emotion_tags": {
+      "excitement": 0.4,
+      "tranquility": 0.5,
+      "sociability": 0.7,
+      "culture_depth": 0.15,
+      "surprise": 0.46,
+      "physical_demand": 0.24
+    },
+    "_scene_tags": [
+      "美食",
+      "甜品消暑"
+    ],
+    "_suitability": {
+      "情侣友好": true,
+      "亲子友好": true,
+      "独自友好": true,
+      "朋友友好": true
+    },
+    "_llm_quality": {
+      "is_tourist": false,
+      "score": 6,
+      "issues": []
+    },
+    "constraints": {
+      "accessible": true,
+      "pet_friendly": false,
+      "queue_time_min": 5,
+      "opening_hours": "10:00-22:30"
+    },
+    "_display_category": "甜品饮品"
+  },
+  {
+    "id": "poi_04782",
+    "name": "横琴蚝生态园",
+    "city": "珠海",
+    "category": "餐饮",
+    "rating": 4.0,
+    "avg_price": 120,
+    "lat": 22.1244752,
+    "lng": 113.5324613,
+    "business_hours": "10:00-23:00",
+    "tags": [
+      "生蚝",
+      "横琴特色",
+      "海鲜"
+    ],
+    "queue_prone": true,
+    "avg_stay_min": 55,
+    "ugc_comments": [
+      {
+        "user": "志远",
+        "rating": 3,
+        "content": "意外的惊喜，宝藏小店！"
+      },
+      {
+        "user": "大雄",
+        "rating": 4,
+        "content": "排队等了一会儿但是值得，出品稳定。"
+      }
+    ],
+    "emotion_tags": {
+      "excitement": 0.4,
+      "tranquility": 0.35,
+      "sociability": 0.59,
+      "culture_depth": 0.35,
+      "surprise": 0.32,
+      "physical_demand": 0.2
+    },
+    "_scene_tags": [
+      "美食",
+      "横琴特色",
+      "海鲜大排档"
+    ],
+    "_suitability": {
+      "情侣友好": true,
+      "亲子友好": true,
+      "独自友好": false,
+      "朋友友好": true
+    },
+    "_llm_quality": {
+      "is_tourist": false,
+      "score": 6,
+      "issues": []
+    },
+    "constraints": {
+      "accessible": true,
+      "pet_friendly": true,
+      "queue_time_min": 5,
+      "opening_hours": "10:00-23:00"
+    },
+    "_display_category": "正餐"
+  },
+  {
+    "id": "poi_04783",
+    "name": "横琴烧腊王",
+    "city": "珠海",
+    "category": "餐饮",
+    "rating": 4.5,
+    "avg_price": 45,
+    "lat": 22.1202418,
+    "lng": 113.5314051,
+    "business_hours": "10:00-23:00",
+    "tags": [
+      "烧腊",
+      "横琴特色",
+      "本地特色"
+    ],
+    "queue_prone": false,
+    "avg_stay_min": 55,
+    "ugc_comments": [
+      {
+        "user": "琳琳",
+        "rating": 5,
+        "content": "带着家人来的，大家都说好吃。"
+      },
+      {
+        "user": "小鱼",
+        "rating": 4,
+        "content": "周末来的，人不少但上菜快。"
+      }
+    ],
+    "emotion_tags": {
+      "excitement": 0.4,
+      "tranquility": 0.35,
+      "sociability": 0.63,
+      "culture_depth": 0.35,
+      "surprise": 0.21,
+      "physical_demand": 0.2
+    },
+    "_scene_tags": [
+      "美食",
+      "横琴特色"
+    ],
+    "_suitability": {
+      "情侣友好": true,
+      "亲子友好": true,
+      "独自友好": false,
+      "朋友友好": true
+    },
+    "_llm_quality": {
+      "is_tourist": false,
+      "score": 6,
+      "issues": []
+    },
+    "constraints": {
+      "accessible": true,
+      "pet_friendly": false,
+      "queue_time_min": 5,
+      "opening_hours": "10:00-23:00"
+    },
+    "_display_category": "正餐"
+  },
+  {
+    "id": "poi_04784",
+    "name": "横琴渔村海鲜",
+    "city": "珠海",
+    "category": "餐饮",
+    "rating": 3.7,
+    "avg_price": 95,
+    "lat": 22.114617,
+    "lng": 113.5305028,
+    "business_hours": "10:00-23:00",
+    "tags": [
+      "海鲜",
+      "渔村",
+      "现捞现做"
+    ],
+    "queue_prone": false,
+    "avg_stay_min": 55,
+    "ugc_comments": [
+      {
+        "user": "小雅",
+        "rating": 4,
+        "content": "性价比很高，适合多人聚餐。"
+      },
+      {
+        "user": "阿明",
+        "rating": 4,
+        "content": "装修有特色，菜品种类多，挑不出来毛病。"
+      }
+    ],
+    "emotion_tags": {
+      "excitement": 0.4,
+      "tranquility": 0.35,
+      "sociability": 0.7,
+      "culture_depth": 0.35,
+      "surprise": 0.31,
+      "physical_demand": 0.21
+    },
+    "_scene_tags": [
+      "美食",
+      "横琴特色",
+      "海鲜大排档"
+    ],
+    "_suitability": {
+      "情侣友好": true,
+      "亲子友好": true,
+      "独自友好": false,
+      "朋友友好": true
+    },
+    "_llm_quality": {
+      "is_tourist": false,
+      "score": 6,
+      "issues": []
+    },
+    "constraints": {
+      "accessible": true,
+      "pet_friendly": true,
+      "queue_time_min": 5,
+      "opening_hours": "10:00-23:00"
+    },
+    "_display_category": "正餐"
+  },
+  {
+    "id": "poi_04785",
+    "name": "琴澳大排档",
+    "city": "珠海",
+    "category": "餐饮",
+    "rating": 4.6,
+    "avg_price": 70,
+    "lat": 22.1225227,
+    "lng": 113.5338191,
+    "business_hours": "10:00-23:00",
+    "tags": [
+      "大排档",
+      "横琴特色",
+      "宵夜"
+    ],
+    "queue_prone": false,
+    "avg_stay_min": 55,
+    "ugc_comments": [
+      {
+        "user": "小鱼",
+        "rating": 5,
+        "content": "带着家人来的，大家都说好吃。"
+      },
+      {
+        "user": "小鱼",
+        "rating": 4,
+        "content": "性价比很高，适合多人聚餐。"
+      }
+    ],
+    "emotion_tags": {
+      "excitement": 0.4,
+      "tranquility": 0.35,
+      "sociability": 0.66,
+      "culture_depth": 0.35,
+      "surprise": 0.43,
+      "physical_demand": 0.2
+    },
+    "_scene_tags": [
+      "美食",
+      "横琴特色"
+    ],
+    "_suitability": {
+      "情侣友好": true,
+      "亲子友好": true,
+      "独自友好": false,
+      "朋友友好": true
+    },
+    "_llm_quality": {
+      "is_tourist": false,
+      "score": 6,
+      "issues": []
+    },
+    "constraints": {
+      "accessible": true,
+      "pet_friendly": false,
+      "queue_time_min": 5,
+      "opening_hours": "10:00-23:00"
+    },
+    "_display_category": "正餐"
+  },
+  {
+    "id": "poi_04786",
+    "name": "横琴老街濑粉",
+    "city": "珠海",
+    "category": "餐饮",
+    "rating": 4.5,
+    "avg_price": 22,
+    "lat": 22.1144961,
+    "lng": 113.5219936,
+    "business_hours": "10:00-23:00",
+    "tags": [
+      "濑粉",
+      "横琴特色",
+      "早餐"
+    ],
+    "queue_prone": false,
+    "avg_stay_min": 55,
+    "ugc_comments": [
+      {
+        "user": "小鱼",
+        "rating": 5,
+        "content": "朋友推荐的，果然没失望，值得打卡。"
+      },
+      {
+        "user": "大雄",
+        "rating": 3,
+        "content": "意外的惊喜，宝藏小店！"
+      }
+    ],
+    "emotion_tags": {
+      "excitement": 0.4,
+      "tranquility": 0.35,
+      "sociability": 0.67,
+      "culture_depth": 0.35,
+      "surprise": 0.37,
+      "physical_demand": 0.13
+    },
+    "_scene_tags": [
+      "美食",
+      "横琴特色"
+    ],
+    "_suitability": {
+      "情侣友好": true,
+      "亲子友好": true,
+      "独自友好": false,
+      "朋友友好": true
+    },
+    "_llm_quality": {
+      "is_tourist": false,
+      "score": 6,
+      "issues": []
+    },
+    "constraints": {
+      "accessible": true,
+      "pet_friendly": true,
+      "queue_time_min": 5,
+      "opening_hours": "10:00-23:00"
+    },
+    "_display_category": "正餐"
+  },
+  {
+    "id": "poi_04787",
+    "name": "蚝庄海鲜酒楼",
+    "city": "珠海",
+    "category": "餐饮",
+    "rating": 4.4,
+    "avg_price": 150,
+    "lat": 22.130669,
+    "lng": 113.5386779,
+    "business_hours": "10:00-23:00",
+    "tags": [
+      "生蚝",
+      "海鲜",
+      "横琴特色",
+      "宴请"
+    ],
+    "queue_prone": true,
+    "avg_stay_min": 55,
+    "ugc_comments": [
+      {
+        "user": "志远",
+        "rating": 5,
+        "content": "环境不错，服务态度好，分量足。"
+      },
+      {
+        "user": "琳琳",
+        "rating": 4,
+        "content": "环境不错，服务态度好，分量足。"
+      }
+    ],
+    "emotion_tags": {
+      "excitement": 0.4,
+      "tranquility": 0.35,
+      "sociability": 0.63,
+      "culture_depth": 0.35,
+      "surprise": 0.48,
+      "physical_demand": 0.19
+    },
+    "_scene_tags": [
+      "美食",
+      "横琴特色",
+      "海鲜大排档"
+    ],
+    "_suitability": {
+      "情侣友好": true,
+      "亲子友好": true,
+      "独自友好": false,
+      "朋友友好": true
+    },
+    "_llm_quality": {
+      "is_tourist": false,
+      "score": 6,
+      "issues": []
+    },
+    "constraints": {
+      "accessible": true,
+      "pet_friendly": false,
+      "queue_time_min": 5,
+      "opening_hours": "10:00-23:00"
+    },
+    "_display_category": "正餐"
   }
 ]

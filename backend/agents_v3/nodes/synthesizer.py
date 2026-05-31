@@ -588,6 +588,107 @@ def _ensure_food_in_route(route: dict, food_proposals: list[dict], intent: dict)
     return route
 
 
+def _ensure_food_scene_food_count(
+    route: dict, food_proposals: list[dict], scene_type: str,
+) -> dict:
+    """美食型专用：确保路线至少含2个不同子类型的餐饮。"""
+    if not route or not route.get("route") or not food_proposals:
+        return route
+    if scene_type != "美食型":
+        return route
+
+    _FOOD_SUBCATS_LOCAL = {
+        "海鲜": ["海鲜", "蚝", "鱼排", "渔港"],
+        "正餐": ["餐厅", "烧", "煲", "火锅", "烧烤"],
+        "小吃": ["粉", "面", "粥", "小吃", "排档"],
+        "茶餐厅/甜品": ["茶餐厅", "甜品", "奶茶", "冰", "柠檬", "饮品"],
+        "综合美食街": ["夜市", "美食街", "海鲜街", "老街"],
+    }
+
+    def _is_food_stop(s: dict) -> bool:
+        cat = s.get("poi", {}).get("category", "")
+        if cat in ("餐饮", "美食", "小吃", "海鲜", "夜市", "夜市小吃"):
+            return True
+        name = s.get("poi", {}).get("name", "")
+        return any(kw in name for kw in [
+            "餐厅", "海鲜", "粉", "面", "粥", "甜品", "茶餐厅",
+            "烧烤", "火锅", "夜市", "小吃", "排档", "肠粉",
+        ])
+
+    def _get_subcat(name: str) -> str:
+        for sub, kws in _FOOD_SUBCATS_LOCAL.items():
+            if any(kw in name for kw in kws):
+                return sub
+        return "其他"
+
+    steps = route["route"]
+    food_steps = [s for s in steps if _is_food_stop(s)]
+    food_subcats = set(_get_subcat(s.get("poi", {}).get("name", "")) for s in food_steps)
+
+    # 美食型需要 >=2 个餐饮 + >=2 种子类型
+    if len(food_steps) >= 2 and len(food_subcats) >= 2:
+        return route
+
+    # 找出路线中已有的名字（避免重复插入）
+    route_names = set()
+    for s in steps:
+        n = s.get("poi", {}).get("name", "")
+        route_names.add(n)
+        cn = _canonical_name(n)
+        if cn != n:
+            route_names.add(cn)
+
+    # 从 food_proposals 中找未占用的、不同子类型的候选
+    needed_subcats = [s for s in _FOOD_SUBCATS_LOCAL if s not in food_subcats]
+    extra = []
+    for fp in food_proposals:
+        if len(extra) >= 3:
+            break
+        name = fp.get("content", {}).get("name", "")
+        if name in route_names:
+            continue
+        sub = _get_subcat(name)
+        if sub in food_subcats and len(extra) >= max(0, 2 - len(food_steps)):
+            continue  # 已有该子类，只在数量不够时补充
+        extra.append(fp)
+        food_subcats.add(sub)
+
+    if not extra:
+        return route
+
+    # 插入到路线中合适的位置
+    end_time_str = "21:00"
+    try:
+        end_dt = datetime.strptime(end_time_str, "%H:%M")
+    except ValueError:
+        end_dt = datetime.strptime("21:00", "%H:%M")
+
+    # 找最后一个站点的离开时间
+    try:
+        t = datetime.strptime(steps[-1].get("departure_time", "18:00"), "%H:%M")
+    except ValueError:
+        t = datetime.strptime("18:00", "%H:%M")
+
+    for fp in extra:
+        content = fp.get("content", {})
+        arrival = t + timedelta(minutes=15)
+        departure = arrival + timedelta(minutes=50)
+        if departure > end_dt:
+            break
+        meal_type = "dinner" if arrival >= datetime.strptime("15:00", "%H:%M") else "lunch"
+        steps.append({
+            "poi": content,
+            "arrival_time": arrival.strftime("%H:%M"),
+            "departure_time": departure.strftime("%H:%M"),
+            "travel_from_prev": {"distance_m": 1800, "time_min": 15},
+            "_type": meal_type,
+        })
+        t = departure
+
+    route["route"] = steps
+    return route
+
+
 def _ensure_min_food_in_route(route: dict, food_proposals: list[dict], intent: dict) -> dict:
     """安全网：确保路线至少含1个餐饮。"""
     if not route or not route.get("route") or not food_proposals:
@@ -757,8 +858,13 @@ async def _llm_assemble_route(
         diversity_rule = f"""7. 【美食场景规则·最重要·硬约束】
    - 这是一条美食探索路线！餐饮是主角，不是景点配角
    - 选3-5家餐厅，按时间排列：早茶/早点→午餐→下午茶→晚餐
-   - 餐厅类型必须多样：至少覆盖2种不同类型（如海鲜+小吃、正餐+甜品、茶餐厅+夜市）
-   - 超过4家时，优先选与主题最匹配的（如海鲜主题只选海鲜餐厅/海鲜市场/海鲜夜市，不要选咖啡馆/甜品店）
+   - 【子类型多样性·硬约束】餐厅类型必须多样，至少覆盖3种不同子类型：
+     · 海鲜类（海鲜餐厅/鱼排/蚝）— 最多1家
+     · 正餐类（粤菜/烧腊/煲仔/火锅/烧烤）— 最多1家
+     · 小吃类（粉面粥/排档）— 最多1家
+     · 茶餐厅/甜品/饮品 — 最多1家
+     · 综合美食场所（夜市/美食街）— 最多1家
+   - 禁止选2家同子类型的餐厅（如2家海鲜、2家茶餐厅都不行）
    - 海景咖啡馆不是餐厅！除非用户明确要咖啡馆，否则不要放进美食路线
    - 中间最多穿插1个散步点，不需要为了"多样性"硬塞景点/购物/文化"""
     elif scene_type == "目的地型":
@@ -1163,6 +1269,36 @@ def _score_route_heuristic(
     unique_types = len(categories) + len(meal_types)
     diversity_score = min(25, unique_types * 5)  # 5种类型=满分
 
+    # 额外惩罚：美食子类重复（同一子类餐厅>1个扣分）
+    from collections import Counter as _Counter
+    _FOOD_SUBCATS_LOCAL = {
+        "海鲜": ["海鲜", "蚝", "鱼排", "渔港"],
+        "正餐": ["餐厅", "烧", "煲", "火锅", "烧烤"],
+        "小吃": ["粉", "面", "粥", "小吃", "排档"],
+        "茶餐厅/甜品": ["茶餐厅", "甜品", "奶茶", "冰", "柠檬", "饮品"],
+        "综合美食街": ["夜市", "美食街", "海鲜街", "老街"],
+    }
+    food_subcats = []
+    for s in steps:
+        name = s.get("poi", {}).get("name", "")
+        cat = s.get("poi", {}).get("category", "")
+        is_food = cat in {"餐饮", "美食", "小吃", "夜市"} or any(
+            kw in name for kw in ["餐厅", "海鲜", "粉", "面", "粥", "甜品", "茶餐厅", "烧烤", "火锅", "夜市"]
+        )
+        if is_food:
+            for sub, kws in _FOOD_SUBCATS_LOCAL.items():
+                if any(kw in name for kw in kws):
+                    food_subcats.append(sub)
+                    break
+            else:
+                food_subcats.append("其他餐饮")
+    if food_subcats:
+        subcat_counts = _Counter(food_subcats)
+        # 每个重复的子类扣2分
+        for sub, cnt in subcat_counts.items():
+            if cnt > 1:
+                diversity_score -= (cnt - 1) * 2
+
     # ── 3. 覆盖率 (0-20) ──
     route_names = set()
     for s in steps:
@@ -1472,6 +1608,7 @@ async def synthesizer(state: TravelState) -> dict:
 
     if route and route.get("route") and food_proposals:
         route = _ensure_min_food_in_route(route, food_proposals, intent)
+        route = _ensure_food_scene_food_count(route, food_proposals, scene_type)
 
     # 文案
     narrative = None

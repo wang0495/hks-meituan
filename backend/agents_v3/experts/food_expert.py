@@ -110,16 +110,17 @@ def _check_food_diversity_issues(
             "内部已有多种美食，最多选1个"
         )
 
-    # 任何子类不超过2个
+    # 任何子类不超过1个（严格：同一子类重复 = 多样性差）
     for sub, cnt in counts.items():
-        if cnt > 2:
-            issues.append(f"{sub}类选了{cnt}个，同类型最多2个")
+        if cnt > 1:
+            issues.append(f"{sub}类选了{cnt}个，同一子类型最多1个，必须换成其他子类")
 
-    # 美食型需要>=3种子类
-    if scene_type == "美食型" and len(set(subcats)) < 3:
+    # 美食型需要>=3种子类，非美食型需要>=2种
+    min_subcats = 3 if scene_type == "美食型" else 2
+    if len(set(subcats)) < min_subcats and len(proposals) >= 2:
         issues.append(
             f"只覆盖{len(set(subcats))}种子类（{', '.join(set(subcats))}），"
-            "美食路线需要>=3种不同子类"
+            f"{'美食路线需要>=3种不同子类' if scene_type == '美食型' else '需要>=2种不同子类'}"
         )
 
     return issues
@@ -325,11 +326,11 @@ async def food_expert(state: TravelState) -> dict:
             subcat_map[f.get("name", "")] = sub_name
             seen_names.add(f.get("name", ""))
 
-    # Build LLM summaries (with coords + UGC)
+    # Build LLM summaries (with coords + UGC + subcat type for diversity awareness)
     summaries = [
         {
             "name": f.get("name", ""),
-            "type": subcat_map.get(f.get("name", ""), "其他"),
+            "subcat": subcat_map.get(f.get("name", ""), "其他"),
             "cat": f.get("category", ""),
             "price": f.get("avg_price", 0),
             "rating": f.get("rating", 0),
@@ -340,6 +341,8 @@ async def food_expert(state: TravelState) -> dict:
         }
         for f in stratified[:15]
     ]
+    # Summary of available subcategories for LLM awareness
+    avail_subcats = sorted(set(s["subcat"] for s in summaries))
 
     group_type = intent.get("group", {}).get("type", "")
 
@@ -389,17 +392,17 @@ async def food_expert(state: TravelState) -> dict:
 用户可能游览的景点位置:
 {json.dumps(poi_locations[:10], ensure_ascii=False)}
 
-候选餐厅（{len(stratified)}家，分层采样）:
+候选餐厅（{len(stratified)}家，分层采样，可用子类: {', '.join(avail_subcats)}）:
 {json.dumps(summaries, ensure_ascii=False)}
 {feedback_hint}{context_hint}
-请根据餐厅与景点的坐标距离，推荐最方便的就餐选择。"""
+请根据餐厅与景点的坐标距离，推荐最方便的就餐选择。必须确保选出的餐厅覆盖不同的子类型(subcat字段)。"""
 
     result = await _llm_decide(system, user)
 
     proposals = _match_food_picks(result.get("picks", []), foods) if result and "picks" in result else []
 
-    # ── Post-hoc diversity check + retry (up to 2 rounds) ──
-    for _ in range(2):
+    # ── Post-hoc diversity check + retry (up to 3 rounds) ──
+    for _ in range(3):
         issues = _check_food_diversity_issues(proposals, _FOOD_SUBCATS, scene_type)
         if not issues:
             break
@@ -407,17 +410,35 @@ async def food_expert(state: TravelState) -> dict:
             f"{p['content']['name']}({_get_food_subcat(p['content']['name'])})"
             for p in proposals if p.get("content", {}).get("name")
         ]
+        # 找出已占用的子类，引导LLM从其他子类选
+        used_subcats = set(
+            _get_food_subcat(p.get("content", {}).get("name", ""))
+            for p in proposals if p.get("content", {}).get("name")
+        )
+        needed_subcats = [s for s in _FOOD_SUBCATS if s not in used_subcats]
+        # 过滤候选：优先展示未占用子类的候选
+        diverse_summaries = [
+            s for s in summaries
+            if s.get("type") in needed_subcats
+        ]
+        # 补上其他候选
+        other_summaries = [s for s in summaries if s not in diverse_summaries]
+        prioritized = diverse_summaries + other_summaries
+
         feedback_lines = "\n".join(f"- {i}" for i in issues)
         reselect_user = f"""你之前选了: {', '.join(current_info)}
 
 存在的问题:
 {feedback_lines}
 
-请从候选餐厅重新选择，确保子类型多样:
-{json.dumps(summaries, ensure_ascii=False)}
+已占用的子类型: {', '.join(used_subcats)}
+还需要覆盖的子类型: {', '.join(needed_subcats) if needed_subcats else '全覆盖了'}
+
+请从以下候选重新选择（优先从{', '.join(needed_subcats[:2])}子类选）:
+{json.dumps(prioritized, ensure_ascii=False)}
 
 输出JSON: {{"picks":[{{"name":"店名","reason":"理由","confidence":0.8,"meal_time":"午餐/下午茶/晚餐"}}]}}
-不要重复之前的错误。"""
+不要重复之前选过的店名。"""
 
         new_result = await _llm_decide(system, reselect_user)
         if new_result and "picks" in new_result:
