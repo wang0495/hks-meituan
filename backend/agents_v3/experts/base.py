@@ -336,6 +336,22 @@ def _extract_json(text: str) -> dict:
     return result
 
 
+# Generic tool schema for Qwen models — avoids response_format's NotEnoughCvError
+_GENERIC_TOOLS = [
+    {
+        "type": "function",
+        "function": {
+            "name": "submit_result",
+            "description": "Submit the structured analysis result",
+            "parameters": {
+                "type": "object",
+            },
+        },
+    },
+]
+_GENERIC_TOOL_CHOICE = {"type": "function", "function": {"name": "submit_result"}}
+
+
 async def _llm_decide(
     system_prompt: str,
     user_prompt: str,
@@ -386,16 +402,23 @@ async def _llm_decide(
                 temperature=temperature,
                 max_tokens=2000,
             )
+            use_tools = False
             if is_ds:
                 kwargs["response_format"] = {"type": "json_object"}
                 kwargs["extra_body"] = {"thinking": {"type": "disabled"}}
+            elif "qwen" in model.lower():
+                # Qwen: 用 tools 替代 response_format，避免 NotEnoughCvError
+                use_tools = True
+                kwargs["tools"] = _GENERIC_TOOLS
+                kwargs["tool_choice"] = _GENERIC_TOOL_CHOICE
             else:
-                # All models: enforce JSON output mode
                 kwargs["response_format"] = {"type": "json_object"}
-                if "qwen" in model.lower():
-                    kwargs["extra_body"] = {"enable_thinking": False}
             resp = await client.chat.completions.create(**kwargs)
-            text = resp.choices[0].message.content or ""
+            msg = resp.choices[0].message
+            if use_tools and msg.tool_calls:
+                text = msg.tool_calls[0].function.arguments or ""
+            else:
+                text = msg.content or ""
             result = _extract_json(text)
             # Ensure list items are dicts (LLM sometimes returns
             # {"picks": ["name"]} instead of {"picks": [{"name": "name"}]})

@@ -115,6 +115,19 @@ _ANALYZE_RESPONSE_PROMPT = """用户对出行偏好的追问做了回答。
 
 _client: AsyncOpenAI | None = None
 
+# Generic tool schema for Qwen models — avoids response_format's NotEnoughCvError
+_GENERIC_TOOLS = [
+    {
+        "type": "function",
+        "function": {
+            "name": "submit_result",
+            "description": "Submit the structured analysis result",
+            "parameters": {"type": "object"},
+        },
+    },
+]
+_GENERIC_TOOL_CHOICE = {"type": "function", "function": {"name": "submit_result"}}
+
 
 def _get_client() -> AsyncOpenAI:
     global _client
@@ -125,26 +138,49 @@ def _get_client() -> AsyncOpenAI:
     return _client
 
 
+def _is_qwen() -> bool:
+    return "qwen" in os.getenv("LLM_MODEL", "").lower()
+
+
 async def _call_llm(system: str, user: str, max_tokens: int = 300) -> dict | None:
-    """调用 LLM 返回 JSON。"""
+    """调用 LLM 返回 JSON。带重试。"""
     client = _get_client()
-    try:
-        resp = await client.chat.completions.create(
-            model=os.getenv("LLM_MODEL", "deepseek-chat"),
-            messages=[
-                {"role": "system", "content": system},
-                {"role": "user", "content": user},
-            ],
-            temperature=0.1,
-            max_tokens=max_tokens,
-            response_format={"type": "json_object"},
-        )
-        raw = resp.choices[0].message.content or ""
-        json_match = re.search(r"\{[\s\S]*\}", raw)
-        if json_match:
-            return json.loads(json_match.group())
-    except Exception as e:
-        logger.warning(f"[PreferenceDialogue] LLM 调用失败: {e}")
+    import asyncio as _aio
+
+    model = os.getenv("LLM_MODEL", "deepseek-chat")
+    kwargs: dict = dict(
+        model=model,
+        messages=[
+            {"role": "system", "content": system},
+            {"role": "user", "content": user},
+        ],
+        temperature=0.1,
+        max_tokens=max_tokens,
+    )
+    use_tools = False
+    if "qwen" in model.lower():
+        use_tools = True
+        kwargs["tools"] = _GENERIC_TOOLS
+        kwargs["tool_choice"] = _GENERIC_TOOL_CHOICE
+    else:
+        kwargs["response_format"] = {"type": "json_object"}
+
+    for attempt in range(5):
+        try:
+            resp = await client.chat.completions.create(**kwargs)
+            msg = resp.choices[0].message
+            if use_tools and msg.tool_calls:
+                raw = msg.tool_calls[0].function.arguments or ""
+            else:
+                raw = msg.content or ""
+            json_match = re.search(r"\{[\s\S]*\}", raw)
+            if json_match:
+                return json.loads(json_match.group())
+        except Exception as e:
+            if attempt < 4:
+                await _aio.sleep(2)
+            else:
+                logger.warning("[PreferenceDialogue] LLM 调用失败(5次): %s", e)
     return None
 
 

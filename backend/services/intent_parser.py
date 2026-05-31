@@ -138,9 +138,22 @@ _intent_cache: dict[str, tuple[dict, float]] = {}
 _INTENT_CACHE_TTL = 1800  # 30 minutes
 _INTENT_CACHE_MAX = 200   # max entries to prevent unbounded growth
 
+# Generic tool schema for Qwen models — avoids response_format's NotEnoughCvError
+_GENERIC_TOOLS = [
+    {
+        "type": "function",
+        "function": {
+            "name": "submit_result",
+            "description": "Submit the structured analysis result",
+            "parameters": {"type": "object"},
+        },
+    },
+]
+_GENERIC_TOOL_CHOICE = {"type": "function", "function": {"name": "submit_result"}}
+
 
 async def _call_llm(user_input: str) -> dict | None:
-    """调用 LLM 解析意图，返回解析结果或 None（失败时）。带缓存。"""
+    """调用 LLM 解析意图，返回解析结果或 None（失败时）。带缓存+重试。"""
     # Check cache
     import hashlib, time as _time
     cache_key = hashlib.md5(user_input.encode()).hexdigest()
@@ -155,48 +168,57 @@ async def _call_llm(user_input: str) -> dict | None:
     client = _get_client()
     cfg = get_settings().intent_llm
     is_ds = "deepseek" in _get_llm_model().lower() or "deepseek" in cfg.base_url
-    try:
-        messages = [
-            {"role": "system", "content": _SYSTEM_PROMPT},
-            {"role": "user", "content": user_input},
-        ]
-        kwargs: dict = dict(
-            model=_get_llm_model(),
-            messages=messages,
-            temperature=0.1,
-            max_tokens=1500,
-        )
-        if is_ds:
-            kwargs["response_format"] = {"type": "json_object"}
-            kwargs["extra_body"] = {"thinking": {"type": "disabled"}}
-        elif "qwen" in _get_llm_model().lower():
-            kwargs["response_format"] = {"type": "json_object"}
-            kwargs["extra_body"] = {"enable_thinking": False}
-        resp = await client.chat.completions.create(**kwargs)
-        raw = resp.choices[0].message.content or ""
-        # 提取 JSON（兼容 markdown 代码块）
-        json_match = re.search(r"\{[\s\S]*\}", raw)
-        if json_match:
-            result = json.loads(json_match.group())
-            # NOTE: _llm_prompt removed — 不应将system prompt存入结果，
-            # 防止通过API/GraphQL泄露给客户端
-            result["_llm_raw_response"] = raw[:200]
-            result["_llm_model"] = _get_llm_model()
-            # Cache the result (evict expired entries if cache is full)
-            if len(_intent_cache) >= _INTENT_CACHE_MAX:
-                now_mono = _time.monotonic()
-                expired = [k for k, (_, ts) in _intent_cache.items()
-                           if now_mono - ts > _INTENT_CACHE_TTL]
-                for k in expired:
-                    del _intent_cache[k]
-                # If still full after eviction, drop oldest
+    messages = [
+        {"role": "system", "content": _SYSTEM_PROMPT},
+        {"role": "user", "content": user_input},
+    ]
+    kwargs: dict = dict(
+        model=_get_llm_model(),
+        messages=messages,
+        temperature=0.1,
+        max_tokens=1500,
+    )
+    use_tools = False
+    if is_ds:
+        kwargs["response_format"] = {"type": "json_object"}
+        kwargs["extra_body"] = {"thinking": {"type": "disabled"}}
+    elif "qwen" in _get_llm_model().lower():
+        # Qwen: 用 tools 替代 response_format，避免 NotEnoughCvError
+        use_tools = True
+        kwargs["tools"] = _GENERIC_TOOLS
+        kwargs["tool_choice"] = _GENERIC_TOOL_CHOICE
+
+    for attempt in range(5):
+        try:
+            resp = await client.chat.completions.create(**kwargs)
+            msg = resp.choices[0].message
+            if use_tools and msg.tool_calls:
+                raw = msg.tool_calls[0].function.arguments or ""
+            else:
+                raw = msg.content or ""
+            # 提取 JSON（兼容 markdown 代码块）
+            json_match = re.search(r"\{[\s\S]*\}", raw)
+            if json_match:
+                result = json.loads(json_match.group())
+                result["_llm_raw_response"] = raw[:200]
+                result["_llm_model"] = _get_llm_model()
+                # Cache the result
                 if len(_intent_cache) >= _INTENT_CACHE_MAX:
-                    oldest_key = min(_intent_cache, key=lambda k: _intent_cache[k][1])
-                    del _intent_cache[oldest_key]
-            _intent_cache[cache_key] = (result.copy(), _time.monotonic())
-            return result
-    except Exception as e:
-        logger.warning(f"LLM 调用失败: {e}")
+                    now_mono = _time.monotonic()
+                    expired = [k for k, (_, ts) in _intent_cache.items()
+                               if now_mono - ts > _INTENT_CACHE_TTL]
+                    for k in expired:
+                        del _intent_cache[k]
+                    if len(_intent_cache) >= _INTENT_CACHE_MAX:
+                        oldest_key = min(_intent_cache, key=lambda k: _intent_cache[k][1])
+                        del _intent_cache[oldest_key]
+                _intent_cache[cache_key] = (result.copy(), _time.monotonic())
+                return result
+        except Exception as e:
+            if attempt < 4:
+                await asyncio.sleep(2)
+            else:
+                logger.warning("LLM 调用失败(5次): %s", e)
     return None
 
 
