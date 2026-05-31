@@ -6,9 +6,9 @@
        → Wave2: [Traffic, Hotel, Local, Budget_hacker 并行, 依赖Wave1结果]
      → review(质疑)
          │
-         ├─ 不通过 → rework(按反馈重选) → synthesizer
-         │                ↑                 ↑
-         └─ 通过 ──────────────────────────┘
+         ├─ 不通过 → rework(按反馈重选) → review
+         │                ↑
+         └─ 通过 → emergence_check(涌现式校验) → synthesizer
                         │
                         ↓
                   live_itinerary → END
@@ -107,6 +107,7 @@ def _register_nodes(graph: StateGraph) -> dict[str, str]:
     from backend.agents_v3.nodes.expert_router import expert_router
     from backend.agents_v3.nodes.feedback_entry import feedback_entry
     from backend.agents_v3.nodes.review import review, rework
+    from backend.agents_v3.nodes.emergence_check import emergence_check
     from backend.agents_v3.nodes.synthesizer import synthesizer
     from backend.agents_v3.nodes.live_itinerary_node import live_itinerary
 
@@ -125,6 +126,7 @@ def _register_nodes(graph: StateGraph) -> dict[str, str]:
 
     graph.add_node("review", review)
     graph.add_node("rework", rework)
+    graph.add_node("emergence_check", emergence_check)
     graph.add_node("synthesizer", synthesizer)
     graph.add_node("live_itinerary", live_itinerary)
 
@@ -146,9 +148,10 @@ def _add_shared_edges(graph: StateGraph, loaded: dict[str, str]) -> None:
     graph.add_conditional_edges(
         "review",
         _review_router,
-        {"approved": "synthesizer", "rework": "rework"},
+        {"approved": "emergence_check", "rework": "rework"},
     )
     graph.add_edge("rework", "review")
+    graph.add_edge("emergence_check", "synthesizer")
     graph.add_edge("synthesizer", "live_itinerary")
     graph.add_edge("live_itinerary", END)
 
