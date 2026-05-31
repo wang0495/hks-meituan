@@ -174,7 +174,7 @@ def _init_worker():
 def _run_batch(batch: list[tuple[int, str, str]]) -> list[dict]:
     """子进程串行跑一批场景。"""
     from backend.agents_v3 import get_graph_c, TravelState
-    from backend.agents_v3.test_5_scenes import llm_score_route, score_route
+    from backend.agents_v3.test_5_scenes import llm_score_route_median, score_route
 
     results = []
     for idx, scene_type, user_input in batch:
@@ -203,7 +203,7 @@ def _run_batch(batch: list[tuple[int, str, str]]) -> list[dict]:
                 ] if route_list else []
 
                 scoring = asyncio.run(
-                    llm_score_route(user_input, scene_type, route_list)
+                    llm_score_route_median(user_input, scene_type, route_list, n_runs=3)
                 )
                 if scoring is None:
                     scoring = score_route(route_list, scene_type, proposals)

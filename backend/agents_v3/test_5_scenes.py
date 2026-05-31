@@ -254,6 +254,68 @@ async def llm_score_route(
                 await asyncio.sleep(2)
     return None
 
+
+def _median_of(vals: list[float]) -> float:
+    """返回中位数。"""
+    s = sorted(vals)
+    n = len(s)
+    if n == 0:
+        return 0
+    if n % 2 == 1:
+        return s[n // 2]
+    return (s[n // 2 - 1] + s[n // 2]) / 2
+
+
+def _grade_from_score(score: float) -> str:
+    if score >= 90: return "S"
+    if score >= 80: return "A"
+    if score >= 70: return "B"
+    if score >= 60: return "C"
+    if score >= 40: return "D"
+    return "F"
+
+
+async def llm_score_route_median(
+    user_input: str,
+    scene_type: str,
+    route_list: list[dict],
+    n_runs: int = 3,
+) -> dict | None:
+    """LLM评分取中位数，消除单次评分噪声。"""
+    scores_list: list[dict] = []
+    for _ in range(n_runs):
+        r = await llm_score_route(user_input, scene_type, route_list)
+        if r is not None:
+            scores_list.append(r)
+
+    if not scores_list:
+        return None
+
+    # 总分取中位数
+    score = _median_of([r["score"] for r in scores_list])
+
+    # 各维度取中位数
+    all_dims: dict[str, list[float]] = {}
+    for r in scores_list:
+        for k, v in r.get("dims", {}).items():
+            all_dims.setdefault(k, []).append(v)
+    dims = {k: round(_median_of(vs), 1) for k, vs in all_dims.items()}
+
+    # 合并所有 good_points/bad_points（去重）
+    good = list(dict.fromkeys(g for r in scores_list for g in r.get("good_points", [])))
+    bad = list(dict.fromkeys(b for r in scores_list for b in r.get("bad_points", [])))
+
+    return {
+        "score": round(score, 1),
+        "grade": _grade_from_score(score),
+        "dims": dims,
+        "good_points": good[:3],
+        "bad_points": bad[:3],
+        "suggestion": scores_list[0].get("suggestion", ""),
+        "source": "llm_median",
+    }
+
+
 def _haversine(lat1, lng1, lat2, lng2):
     R = 6371.0
     dlat = math.radians(lat2 - lat1)
