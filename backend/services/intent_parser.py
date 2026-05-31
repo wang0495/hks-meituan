@@ -325,6 +325,30 @@ def merge_user_preference(
 # 关键词规则匹配（降级方案）
 # ---------------------------------------------------------------------------
 
+# 区域关键词 → 区域名称（用于 synthesizer 位置感知）
+_LOCATION_KW_MAP: list[tuple[list[str], str]] = [
+    (["横琴"], "横琴"),
+    (["金湾机场", "机场"], "金湾机场"),
+    (["金湾", "三灶", "红旗"], "金湾"),
+    (["斗门", "井岸", "乾务", "莲洲"], "斗门"),
+    (["唐家湾", "唐家", "淇澳"], "唐家湾"),
+    (["拱北", "口岸", "关口"], "拱北"),
+    (["香洲"], "香洲"),
+    (["吉大", "免税"], "吉大"),
+    (["湾仔", "南屏"], "湾仔"),
+    (["华发", "商都"], "华发"),
+    (["前山"], "前山"),
+]
+
+
+def _extract_location(text: str) -> str | None:
+    """从用户输入中提取区域位置关键词。"""
+    for kws, loc_name in _LOCATION_KW_MAP:
+        for kw in kws:
+            if kw in text:
+                return loc_name
+    return None
+
 
 def _rule_based_parse(user_input: str) -> dict:
     """基于关键词的降级解析。"""
@@ -524,7 +548,7 @@ def _rule_based_parse(user_input: str) -> dict:
         "scene_requirements": scene_requirements,
         "preferred_categories": preferred_categories,
         "emotion_need": detect_emotion_need(text),
-        "location": None,
+        "location": _extract_location(text),
     }
 
 
