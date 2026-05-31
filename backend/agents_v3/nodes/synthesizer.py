@@ -853,6 +853,37 @@ async def _llm_assemble_route(
     end_time = intent.get("time", {}).get("end", "21:00")
     budget = intent.get("budget", {}).get("per_person", 0)
 
+    # ── 短途/位置感知 ──
+    try:
+        _start_dt = datetime.strptime(start_time, "%H:%M")
+        _end_dt = datetime.strptime(end_time, "%H:%M")
+        _avail_min = (_end_dt - _start_dt).total_seconds() / 60
+    except ValueError:
+        _avail_min = 720  # 默认12小时
+
+    _short_trip = _avail_min < 240  # <4小时 = 短途
+    _max_stops_hint = ""
+    if _short_trip:
+        _max_stops_for_short = min(3, max(2, int(_avail_min / 90)))
+        _max_stops_hint = f"\n9. 【短途硬约束】可用时间仅{int(_avail_min/60)}小时，最多选{_max_stops_for_short}站，不要凑数！"
+
+    # 位置感知：如果用户指定了区域，按坐标过滤/优先
+    _location = intent.get("location") or ""
+    _location_coords: tuple[float, float] | None = None
+    _LOCATION_COORDS = {
+        "横琴": (22.12, 113.53), "金湾": (22.08, 113.38), "金湾机场": (22.05, 113.38),
+        "斗门": (22.22, 113.29), "唐家湾": (22.36, 113.58), "拱北": (22.23, 113.55),
+        "香洲": (22.27, 113.57), "吉大": (22.25, 113.57), "湾仔": (22.20, 113.53),
+        "华发": (22.24, 113.53), "井岸": (22.20, 113.30), "三灶": (22.08, 113.37),
+    }
+    for loc_name, loc_coords in _LOCATION_COORDS.items():
+        if loc_name in _location:
+            _location_coords = loc_coords
+            break
+    _location_hint = ""
+    if _location_coords:
+        _location_hint = f"\n10. 【区域约束】用户在{_location}附近（坐标{_location_coords[0]:.2f},{_location_coords[1]:.2f}），只选该区域5km内的POI，远距离的不要选"
+
     # 场景规则
     if scene_type == "美食型":
         diversity_rule = f"""7. 【美食场景规则·最重要·硬约束】
@@ -924,7 +955,7 @@ async def _llm_assemble_route(
    - 餐厅规则（美食型）：不受2家限制，按第7条美食场景规则执行，可以选3-4家不同类型餐厅
    - 如果用户需求是"吃海鲜"，只选海鲜类餐厅，不要选咖啡馆/甜品店
    - 如果用户需求是"逛街拍照"，只选适合拍照逛街的地方，不要选VR馆/密室逃脱/攀岩等室内娱乐
-   - 禁止为了"多样性"硬塞与用户意图无关的POI类型
+   - 禁止为了"多样性"硬塞与用户意图无关的POI类型{_max_stops_hint}{_location_hint}
 
 专家权重: {weight_desc}
 {f"策略提示: {strategy_hint}" if strategy_hint else ""}
@@ -1600,6 +1631,18 @@ async def synthesizer(state: TravelState) -> dict:
     # 站数上限（在ensure之前，避免截断ensure追加的站点）
     if route and route.get("route"):
         route = _cap_route_stops(route, scene_type, intent)
+        # 短途场景额外截断
+        try:
+            _st = datetime.strptime(intent.get("time", {}).get("start", "09:00"), "%H:%M")
+            _et = datetime.strptime(intent.get("time", {}).get("end", "21:00"), "%H:%M")
+            _avail = (_et - _st).total_seconds() / 60
+        except ValueError:
+            _avail = 720
+        if _avail < 240:
+            _short_max = min(3, max(2, int(_avail / 90)))
+            steps = route.get("route", [])
+            if len(steps) > _short_max:
+                route["route"] = steps[:_short_max]
 
     # 补回遗漏（在cap之后，追加的不受截断影响）
     if route and route.get("route"):
