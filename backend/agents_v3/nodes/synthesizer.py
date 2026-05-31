@@ -1118,7 +1118,12 @@ async def _llm_fix_times(
     end_time = intent.get("time", {}).get("end", "21:00")
 
     if "特种兵" in pace:
-        pace_desc = "紧凑高效，减少停留时间"
+        pace_desc = """紧凑高效，大幅缩短停留时间：
+   - 景点/打卡点: 15-25分钟（拍照+简单游览就走）
+   - 餐厅/小吃: 20-30分钟（快速用餐）
+   - 公园/自然: 20-30分钟（走马观花）
+   - 站间交通: 按实际距离计算，但特种兵可以接受跨区（15-25分钟）
+   - 如果站点超过8个，每个停留再缩短5分钟"""
     elif "闲逛" in pace or "慢" in pace:
         pace_desc = "悠闲放松，延长停留时间"
     else:
@@ -1477,8 +1482,10 @@ def _score_route_heuristic(
         steps_score = 15
     elif 3 <= n_steps <= 8:
         steps_score = 10
-    else:
+    elif n_steps <= 10:
         steps_score = 5
+    else:
+        steps_score = max(-10, 5 - (n_steps - 10) * 3)  # 超过10站重罚
 
     total = geo_score + diversity_score + coverage_score + time_score + steps_score
     return total
@@ -1755,6 +1762,10 @@ async def synthesizer(state: TravelState) -> dict:
     if route and route.get("route") and food_proposals:
         route = _ensure_min_food_in_route(route, food_proposals, intent)
         route = _ensure_food_scene_food_count(route, food_proposals, scene_type)
+
+    # ensure可能追加超限，二次cap
+    if route and route.get("route"):
+        route = _cap_route_stops(route, scene_type, intent)
 
     # 文案
     narrative = None
