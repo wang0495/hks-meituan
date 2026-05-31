@@ -100,6 +100,35 @@ _SCENE_EXPECT = {
 # LLM 评分函数
 # ═══════════════════════════════════════════════════════════════════
 
+# 标准6维度（与规则评分一致）
+_STANDARD_DIMS = {"完整性", "类别匹配", "地理连贯", "时间可行", "多样性", "POI质量"}
+
+# 旧LLM维度 → 标准维度 映射
+_DIM_ALIASES = {
+    "场景匹配": "类别匹配",
+    "逻辑合理": "时间可行",
+    "体验丰富": "多样性",
+}
+
+
+def _normalize_dims(dims: dict) -> dict:
+    """确保dims包含所有6个标准维度。缺失的用已有维度均值填充。"""
+    result = {}
+    for k, v in dims.items():
+        mapped = _DIM_ALIASES.get(k, k)
+        result[mapped] = v
+
+    missing = _STANDARD_DIMS - set(result.keys())
+    if missing and result:
+        avg = sum(result.values()) / len(result)
+        for m in missing:
+            result[m] = round(avg, 1)
+    elif missing:
+        for m in missing:
+            result[m] = 50
+
+    return result
+
 _LLM_SCORE_RUBRIC = """你是路线规划评估专家。评估以下城市一日游路线的质量。
 
 用户需求: {user_input}
@@ -113,9 +142,11 @@ _LLM_SCORE_RUBRIC = """你是路线规划评估专家。评估以下城市一日
   "score": <0-100, 综合评分>,
   "grade": "<S/A/B/C/D/F>",
   "dims": {{
-    "场景匹配": <0-100, 路线是否符合场景类型>,
-    "逻辑合理": <0-100, 时间/距离/顺序是否合理>,
-    "体验丰富": <0-100, 类型多样性/节奏感>,
+    "完整性": <0-100, 站数是否合理（通常3-8站）>,
+    "类别匹配": <0-100, POI类别是否符合场景类型>,
+    "地理连贯": <0-100, 站间距离是否合理，有无跨区跳跃>,
+    "时间可行": <0-100, 时间顺序是否递增，时长是否合理>,
+    "多样性": <0-100, POI类型是否多样，无连续同类>,
     "POI质量": <0-100, 景点/餐厅评分和口碑>
   }},
   "good_points": ["优点1", "优点2"],
@@ -135,7 +166,9 @@ _LLM_SCORE_RUBRIC = """你是路线规划评估专家。评估以下城市一日
 - 长隆等大型主题公园本身就是一天行程，1站是合理的
 - "114.7分"之类的超100分是不可能的，满分100
 - 美食型路线餐饮占比应>=40%
-- 目的地型路线应围绕核心目的地展开"""
+- 目的地型路线应围绕核心目的地展开
+- 特种兵型站数多（6-10站）是合理的
+- 每个维度都必须给分，不要给0分除非该维度完全缺失"""
 
 
 def _format_route_text(route_list: list[dict]) -> str:
@@ -202,7 +235,7 @@ async def llm_score_route(
 
                 score = data.get("score", 0)
                 grade = data.get("grade", "F")
-                dims = data.get("dims", {})
+                dims = _normalize_dims(data.get("dims", {}))
 
                 if not (0 <= score <= 100):
                     continue
