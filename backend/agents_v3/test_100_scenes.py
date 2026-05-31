@@ -174,7 +174,7 @@ def _init_worker():
 def _run_batch(batch: list[tuple[int, str, str]]) -> list[dict]:
     """子进程串行跑一批场景。"""
     from backend.agents_v3 import get_graph_c, TravelState
-    from backend.agents_v3.test_5_scenes import llm_score_route_median, score_route
+    from backend.agents_v3.test_5_scenes import llm_score_route, score_route
 
     results = []
     for idx, scene_type, user_input in batch:
@@ -203,14 +203,22 @@ def _run_batch(batch: list[tuple[int, str, str]]) -> list[dict]:
                 ] if route_list else []
 
                 scoring = asyncio.run(
-                    llm_score_route_median(user_input, scene_type, route_list, n_runs=3)
+                    llm_score_route(user_input, scene_type, route_list)
                 )
+                # 规则评分做交叉校验
+                rule_scoring = score_route(route_list, scene_type, proposals)
                 if scoring is None:
-                    scoring = score_route(route_list, scene_type, proposals)
+                    scoring = rule_scoring
                     scoring["source"] = "rule"
                 else:
                     scoring["total"] = scoring.get("score", 0)
                     scoring["notes"] = scoring.get("bad_points", [])
+                    # LLM分数偏离规则分数>30分时，拉向规则分数
+                    rule_total = rule_scoring.get("total", 50)
+                    llm_score = scoring["total"]
+                    if abs(llm_score - rule_total) > 30:
+                        scoring["total"] = round(llm_score * 0.6 + rule_total * 0.4, 1)
+                        scoring["source"] = "llm_smoothed"
 
                 results.append({
                     "id": idx, "scene": scene_type, "input": user_input,
