@@ -9,9 +9,129 @@
 from __future__ import annotations
 
 import json
+import math
 
 from backend.agents_v3.experts.base import _llm_decide
 from backend.agents_v3.state import TravelState, AGENT_META, sse_emit
+
+
+def _haversine_km(lat1, lng1, lat2, lng2):
+    R = 6371.0
+    dlat = math.radians(lat2 - lat1)
+    dlng = math.radians(lng2 - lng1)
+    a = math.sin(dlat / 2) ** 2 + math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) * math.sin(dlng / 2) ** 2
+    return R * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+
+
+# ── 珠海区域分桶 ──
+_AREA_BOUNDS = {
+    "香洲": (22.24, 22.30, 113.53, 113.59),
+    "吉大/拱北": (22.20, 22.26, 113.52, 113.56),
+    "横琴": (22.08, 22.16, 113.50, 113.58),
+    "金湾/斗门": (22.05, 22.20, 113.20, 113.40),
+    "唐家湾/高新": (22.32, 22.40, 113.55, 113.62),
+}
+
+
+def _get_area(lat, lng):
+    for name, (lat_min, lat_max, lng_min, lng_max) in _AREA_BOUNDS.items():
+        if lat_min <= lat <= lat_max and lng_min <= lng <= lng_max:
+            return name
+    return "其他"
+
+
+def _rule_geo_check(proposals: list[dict], scene_type: str) -> list[dict]:
+    """规则化地理检查：检测跨区POI，返回带坐标和区域信息的精确反馈。"""
+    if len(proposals) < 2:
+        return []
+
+    pois_with_coord = []
+    for p in proposals:
+        c = p.get("content", {})
+        lat, lng = c.get("lat", 0), c.get("lng", 0)
+        if lat and lng:
+            pois_with_coord.append({
+                "agent": p.get("agent", ""),
+                "name": c.get("name", ""),
+                "lat": lat, "lng": lng,
+                "area": _get_area(lat, lng),
+            })
+
+    if len(pois_with_coord) < 2:
+        return []
+
+    # 最大站间距
+    max_dist = 0
+    pair = None
+    for i in range(len(pois_with_coord)):
+        for j in range(i + 1, len(pois_with_coord)):
+            d = _haversine_km(
+                pois_with_coord[i]["lat"], pois_with_coord[i]["lng"],
+                pois_with_coord[j]["lat"], pois_with_coord[j]["lng"],
+            )
+            if d > max_dist:
+                max_dist = d
+                pair = (pois_with_coord[i], pois_with_coord[j])
+
+    threshold = {
+        "目的地型": 8.0, "特种兵型": 12.0, "美食型": 10.0,
+        "休闲型": 15.0, "观光型": 12.0,
+    }.get(scene_type, 15.0)
+
+    if max_dist <= threshold:
+        return []
+
+    # 区域分桶
+    area_counts = {}
+    for p in pois_with_coord:
+        area_counts[p["area"]] = area_counts.get(p["area"], 0) + 1
+
+    # 目的地型：以 destination_expert 选的POI所在区域为准（核心目的地）
+    keep_area = None
+    if scene_type == "目的地型":
+        for p in pois_with_coord:
+            if p["agent"] in ("destination", "destination_expert"):
+                keep_area = p["area"]
+                break
+
+    # 其他类型：保留POI最多的区域
+    if not keep_area:
+        keep_area = max(area_counts, key=area_counts.get)
+
+    keep_pois = [p for p in pois_with_coord if p["area"] == keep_area]
+    center_lat = sum(p["lat"] for p in keep_pois) / len(keep_pois)
+    center_lng = sum(p["lng"] for p in keep_pois) / len(keep_pois)
+
+    # 需要重选的agent
+    bad_agents = set()
+    bad_names = []
+    for p in pois_with_coord:
+        if p["area"] != keep_area:
+            bad_agents.add(p["agent"])
+            bad_names.append(p["name"])
+
+    if not bad_agents:
+        return []
+
+    kept_names = [p["name"] for p in keep_pois[:5]]
+    bad_desc = ", ".join(f"{p['name']}({p['area']})" for p in pois_with_coord if p["area"] != keep_area)
+
+    feedback = []
+    for agent in bad_agents:
+        feedback.append({
+            "agent": agent,
+            "issue": f"跨区跳跃{max_dist:.0f}km：{bad_desc} 距{keep_area}区域过远",
+            "suggestion": f"在{keep_area}区域（中心{center_lat:.3f},{center_lng:.3f}）附近重选，替换{', '.join(bad_names)}。已保留: {', '.join(kept_names)}",
+            "geo_context": {
+                "keep_area": keep_area,
+                "center_lat": round(center_lat, 4),
+                "center_lng": round(center_lng, 4),
+                "max_distance_km": round(max_dist, 1),
+                "bad_names": bad_names,
+            },
+        })
+
+    return feedback
 
 
 async def review(state: TravelState) -> dict:
@@ -33,6 +153,16 @@ async def review(state: TravelState) -> dict:
     if not proposals:
         return {"review_feedback": [], "review_round": round_num + 1}
 
+    # ── 1. 规则化地理检查（在LLM之前，精确快速） ──
+    rule_feedback = _rule_geo_check(proposals, scene_type)
+    if rule_feedback:
+        await sse_emit(state, "agent_result", {
+            "agent": "review",
+            "summary": f"地理检查发现{len(rule_feedback)}个跨区问题，触发rework",
+        })
+        return {"review_feedback": rule_feedback, "review_round": round_num + 1}
+
+    # ── 2. LLM语义审查（规则检查通过后） ──
     # 按agent分类提案
     proposal_summary = []
     for p in proposals:
@@ -152,6 +282,13 @@ async def rework(state: TravelState) -> dict:
         f"[{f['agent']}] {f['issue']} → {f['suggestion']}" for f in feedback
     )
 
+    # 提取地理上下文（如果有规则检查的反馈）
+    geo_ctx = None
+    for f in feedback:
+        if f.get("geo_context"):
+            geo_ctx = f["geo_context"]
+            break
+
     # 构建重选prompt
     old_names = [p.get("content", {}).get("name", "") for p in bad_old]
 
@@ -159,13 +296,13 @@ async def rework(state: TravelState) -> dict:
     reworked_agents = set()
 
     if "poi" in bad_agents or "poi_expert" in bad_agents:
-        poi_result = await _rework_poi(candidates, intent, user_input, old_names, feedback_text)
+        poi_result = await _rework_poi(candidates, intent, user_input, old_names, feedback_text, geo_ctx)
         if poi_result:
             new_proposals.extend(poi_result)
             reworked_agents.add("poi")
 
     if "food" in bad_agents or "food_expert" in bad_agents:
-        food_result = await _rework_food(candidates, intent, user_input, old_names, feedback_text)
+        food_result = await _rework_food(candidates, intent, user_input, old_names, feedback_text, geo_ctx)
         if food_result:
             new_proposals.extend(food_result)
             reworked_agents.add("food")
@@ -206,8 +343,9 @@ async def _rework_poi(
     user_input: str,
     old_names: list[str],
     feedback_text: str,
+    geo_context: dict | None = None,
 ) -> list[dict]:
-    """根据反馈重新选POI。"""
+    """根据反馈重新选POI。geo_context 提供地理约束。"""
     import uuid
 
     # 过滤出景点类POI
@@ -217,6 +355,25 @@ async def _rework_poi(
         and c.get("rating") is not None
         and c.get("name", "") not in old_names
     ]
+
+    # 如果有地理约束，优先筛选保留区域附近的POI
+    geo_hint = ""
+    if geo_context:
+        center_lat = geo_context.get("center_lat", 0)
+        center_lng = geo_context.get("center_lng", 0)
+        keep_area = geo_context.get("keep_area", "")
+        max_km = geo_context.get("max_distance_km", 20)
+        geo_hint = f"""
+
+【地理硬约束】保留的POI集中在{keep_area}区域（中心坐标{center_lat},{center_lng}）。
+新选的POI必须在该中心{max_km * 0.5:.0f}km范围内，确保路线紧凑不跨区。
+候选POI已按距离中心由近到远排序，优先选前面的。"""
+
+        # 按距离中心排序
+        if center_lat and center_lng:
+            pool.sort(key=lambda c: _haversine_km(
+                center_lat, center_lng, c.get("lat", 0), c.get("lng", 0)
+            ))
 
     summaries = [
         {"name": c["name"], "category": c["category"], "rating": c.get("rating"),
@@ -233,6 +390,7 @@ async def _rework_poi(
 之前选的（必须全部替换）: {old_names}
 
 审查反馈: {feedback_text}
+{geo_hint}
 
 候选POI:
 {json.dumps(summaries, ensure_ascii=False)}
@@ -358,8 +516,9 @@ async def _rework_food(
     user_input: str,
     old_names: list[str],
     feedback_text: str,
+    geo_context: dict | None = None,
 ) -> list[dict]:
-    """根据反馈重新选餐饮。"""
+    """根据反馈重新选餐饮。geo_context 提供地理约束。"""
     import uuid
 
     food_cats = ["餐饮", "美食", "小吃", "海鲜", "餐厅", "夜市", "茶餐厅", "甜品", "饮品", "酒吧", "咖啡馆"]
@@ -373,6 +532,17 @@ async def _rework_food(
         and c.get("name", "") not in old_names
         and c.get("rating") is not None
     ]
+
+    geo_hint = ""
+    if geo_context:
+        center_lat = geo_context.get("center_lat", 0)
+        center_lng = geo_context.get("center_lng", 0)
+        keep_area = geo_context.get("keep_area", "")
+        geo_hint = f"\n\n【地理硬约束】新选餐厅必须在{keep_area}区域（中心{center_lat},{center_lng}）附近，确保和景点在同一区域。"
+        if center_lat and center_lng:
+            pool.sort(key=lambda c: _haversine_km(
+                center_lat, center_lng, c.get("lat", 0), c.get("lng", 0)
+            ))
 
     summaries = [
         {"name": c["name"], "category": c["category"], "rating": c.get("rating"),
@@ -388,6 +558,7 @@ async def _rework_food(
 之前选的（必须全部替换）: {old_names}
 
 审查反馈: {feedback_text}
+{geo_hint}
 
 候选餐厅:
 {json.dumps(summaries, ensure_ascii=False)}
