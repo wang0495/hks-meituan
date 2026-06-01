@@ -343,14 +343,16 @@ async def _compute_pools(candidates: list[dict], state: TravelState) -> dict[str
         if p.get("rating") is not None and float(p["rating"]) >= 4.0
     ]
 
-    # 目的地候选池：LLM 识别目的地坐标，5km 范围内过滤
+    # 目的地候选池：LLM 识别目的地坐标，岛类扩大半径
     dest_name, dest_coords = await _detect_destination_center(user_input, candidates)
     pools["destination"] = []
     if dest_coords:
         dlat, dlng = dest_coords
+        _is_island = dest_name and any(kw in dest_name for kw in ("岛", "群岛"))
+        _radius = 20.0 if _is_island else 5.0
         pools["destination"] = [
             p for p in candidates
-            if _haversine_km(dlat, dlng, float(p.get("lat", 0)), float(p.get("lng", 0))) <= 5.0
+            if _haversine_km(dlat, dlng, float(p.get("lat", 0)), float(p.get("lng", 0))) <= _radius
         ]
     # 把目的地信息存到 extra 供下游使用
     pools["_dest_name"] = dest_name

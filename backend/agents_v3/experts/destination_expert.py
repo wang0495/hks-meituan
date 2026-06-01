@@ -70,20 +70,42 @@ async def destination_expert(state: TravelState) -> dict:
         # No destination keyword matched -- skip this expert
         return {"proposals": []}
 
-    # Filter candidates to within 5km of destination
-    nearby: list[dict] = []
+    # ── 强制包含核心目的地POI ──
+    # 从 candidates 中找到核心目的地对应的POI（名称匹配）
+    core_dest = None
     for c in candidates:
-        cat = c.get("category", "")
-        if cat in _EXCLUDE_CATS:
-            continue
-        if _is_likely_macau(c.get("name", "")):
-            continue
-        lat = c.get("lat", 0)
-        lng = c.get("lng", 0)
-        if not lat or not lng:
-            continue
-        if _haversine_km(lat, lng, center_lat, center_lng) <= 5.0:
-            nearby.append(c)
+        cname = c.get("name", "")
+        if dest_name in cname or cname in dest_name:
+            core_dest = c
+            break
+    # 如果精确匹配没找到，用坐标找最近的（1km内）
+    if not core_dest:
+        for c in candidates:
+            lat = c.get("lat", 0)
+            lng = c.get("lng", 0)
+            if lat and lng and _haversine_km(lat, lng, center_lat, center_lng) <= 1.0:
+                core_dest = c
+                break
+
+    # Filter candidates: 渐进扩大半径（岛类POI稀疏）
+    _is_island = any(kw in dest_name for kw in ("岛", "群岛"))
+    nearby: list[dict] = []
+    for radius in ([5.0] if not _is_island else [5.0, 10.0, 20.0]):
+        nearby = []
+        for c in candidates:
+            cat = c.get("category", "")
+            if cat in _EXCLUDE_CATS:
+                continue
+            if _is_likely_macau(c.get("name", "")):
+                continue
+            lat = c.get("lat", 0)
+            lng = c.get("lng", 0)
+            if not lat or not lng:
+                continue
+            if _haversine_km(lat, lng, center_lat, center_lng) <= radius:
+                nearby.append(c)
+        if nearby:
+            break
 
     if not nearby:
         return {"proposals": []}
@@ -104,14 +126,16 @@ async def destination_expert(state: TravelState) -> dict:
     group_type = intent.get("group", {}).get("type", "")
 
     # LLM decision
+    _radius_desc = "15km" if _is_island else "5km"
     system = f"""你是珠海旅游规划专家。用户指定了大景区，需要在附近选择补充景点和餐厅。
 
 核心要求：
-1. 所有推荐必须在{dest_name}附近5km范围内
+1. 所有推荐必须在{dest_name}附近{_radius_desc}范围内
 2. 选1-2个附近补充景点（公园/文化/购物），让用户在景区之外也有去处
 3. 选1家附近餐厅（游览完景区后用餐）
 4. 不要重复推荐{dest_name}本身
-{f'5. 群体适配：{group_type}群体的特殊需求' if group_type else ''}
+{f'5. 海岛场景注意：渡轮单程至少60分钟，只选同一个岛或邻近岛的POI，不要选大陆上的' if _is_island else ''}
+{f'6. 群体适配：{group_type}群体的特殊需求' if group_type else ''}
 
 输出JSON: {{"picks":[{{"name":"景点/餐厅名","reason":"推荐理由","confidence":0.8,"type":"景点/餐厅"}}]}}
 最多选3个。只输出JSON。"""
@@ -149,5 +173,18 @@ async def destination_expert(state: TravelState) -> dict:
         sorted_nearby = sorted(nearby, key=lambda c: c.get("rating", 0), reverse=True)
         for c in sorted_nearby[:2]:
             proposals.append(_proposal("destination", c, 0.5, f"规则引擎：{dest_name}附近高评分"))
+
+    # ── 强制包含核心目的地 ──
+    if core_dest:
+        # 检查是否已在 proposals 中（名称匹配）
+        already = any(
+            core_dest.get("name", "") in p.get("content", {}).get("name", "")
+            or p.get("content", {}).get("name", "") in core_dest.get("name", "")
+            for p in proposals
+        )
+        if not already:
+            proposals.insert(0, _proposal(
+                "destination", core_dest, 1.0, f"核心目的地：{dest_name}"
+            ))
 
     return {"proposals": proposals, "errors": errors}

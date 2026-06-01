@@ -948,8 +948,8 @@ async def _llm_assemble_route(
     _short_trip = _avail_min < 240  # <4小时 = 短途
     _max_stops_hint = ""
     if _short_trip:
-        _max_stops_for_short = min(3, max(2, int(_avail_min / 90)))
-        _max_stops_hint = f"\n9. 【短途硬约束】可用时间仅{int(_avail_min/60)}小时，最多选{_max_stops_for_short}站，不要凑数！"
+        _max_stops_for_short = min(5, max(3, int(_avail_min / 60)))
+        _max_stops_hint = f"\n9. 【短途硬约束】可用时间仅{int(_avail_min/60)}小时，安排{_max_stops_for_short}站左右（含1-2站餐饮），每站停留30-45分钟即可，不用每站都深度体验"
 
     # 位置感知：如果用户指定了区域，按坐标过滤/优先
     _location = intent.get("location") or ""
@@ -990,10 +990,10 @@ async def _llm_assemble_route(
         if dest_center:
             geo_rule = f"\n   - 所有站点必须在目的地坐标({dest_center[0]:.2f},{dest_center[1]:.2f})10km范围内，超出范围的POI直接排除"
         diversity_rule = f"""7. 【目的地场景规则】
-   - 用户指定了{dest_name or '大景区'}，会在该景区待大半天（通常3-6小时）
-   - 路线以该景区为中心，周边安排1-2个补充景点+1家餐饮即可
+   - 用户指定了{dest_name or '大景区'}，会在该景区待3-4小时（不是整天！）
+   - 路线至少3-4站：核心景区 + 周边补充景点1-2个 + 附近餐饮1个
    - 不需要大范围跨区域{geo_rule}
-   - 【时间节奏】核心景区上午到达，先游览景区主体
+   - 【时间节奏】核心景区上午到达，停留3-4小时，下午出来后去周边补充景点
    - 餐饮安排在景区游览之后（午餐12:00或晚餐18:00），不要在景区前安排远距离用餐
    - 如果只有半天（如下午场），路线精简为核心景点+附近一餐，不硬凑"""
     elif scene_type == "特种兵型":
@@ -1020,7 +1020,7 @@ async def _llm_assemble_route(
     system = f"""你是旅行路线编排专家。你需要把MoE专家精选的景点、餐厅、住宿组合成一条完整的一日游路线。
 
 【最重要】你有权拒绝不合理的编排：
-- 如果总时间<3小时，最多排2-3站，不要硬塞更多
+- 如果总时间<3小时，最多排3-4站，不要硬塞更多
 - 如果景点分散在多个岛/区且交通时间>2小时，只保留一个区域，明确说明"舍弃了XX区域因为距离太远"
 - 如果用户要求跳岛（如东澳岛+外伶仃岛），这是不可能一天完成的，只选一个岛，说明原因
 - 如果候选POI地理跨度过大（>30km），只选最紧凑的一个区域
@@ -1945,7 +1945,7 @@ async def synthesizer(state: TravelState) -> dict:
         except ValueError:
             _avail = 720
         if _avail < 240:
-            _short_max = min(3, max(2, int(_avail / 90)))
+            _short_max = min(5, max(3, int(_avail / 60)))
             steps = route.get("route", [])
             if len(steps) > _short_max:
                 route["route"] = steps[:_short_max]
