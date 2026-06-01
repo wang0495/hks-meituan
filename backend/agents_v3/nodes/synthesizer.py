@@ -235,16 +235,16 @@ _MAX_LEG_KM = 15.0  # 单段最大允许距离
 
 
 def _geo_reroute(steps: list[dict], max_leg_km: float = _MAX_LEG_KM) -> list[dict]:
-    """后处理：检测跨区跳跃段，对后续站点做最近邻重排。
+    """后处理：全路线贪心最近邻重排，消除折返。
 
-    当检测到某段距离 > max_leg_km 时，从该点开始用最近邻（NN）重新排列
-    剩余站点，保证同区域连续走完再跳区。
+    从第一站开始，每次选距离当前站最近的未访问站。
+    保留第一站不变（通常是起点/核心POI）。
     """
     if len(steps) <= 2:
         return steps
 
-    # 找到第一段跨区跳跃的位置
-    jump_idx = None
+    # 先检查是否需要重排：如果所有段距离<=max_leg_km，保留原始顺序
+    needs_reroute = False
     for i in range(1, len(steps)):
         prev_poi = steps[i - 1].get("poi", {})
         cur_poi = steps[i].get("poi", {})
@@ -253,22 +253,21 @@ def _geo_reroute(steps: list[dict], max_leg_km: float = _MAX_LEG_KM) -> list[dic
         if lat1 and lat2:
             d = _haversine_km(lat1, lng1, lat2, lng2)
             if d > max_leg_km:
-                jump_idx = i
+                needs_reroute = True
                 break
 
-    if jump_idx is None:
-        return steps  # 无跨区跳跃
+    if not needs_reroute:
+        return steps  # 路线已经足够紧凑
 
-    # 从跳跃点开始，对后续站点做最近邻重排
-    fixed = steps[:jump_idx]
-    remaining = list(steps[jump_idx:])
+    # 全路线最近邻重排
+    fixed = [steps[0]]  # 保留第一站
+    remaining = list(steps[1:])
 
     while remaining:
         cur = fixed[-1]
         cur_poi = cur.get("poi", {})
         cur_lat, cur_lng = cur_poi.get("lat", 0), cur_poi.get("lng", 0)
 
-        # 找剩余中距离当前最近的
         best_idx = 0
         best_dist = float("inf")
         for j, s in enumerate(remaining):
@@ -1291,15 +1290,28 @@ async def _llm_fix_times(
 
 
 def _smooth_times(steps: list[dict], start_time: str, end_time: str) -> list[dict]:
-    """后处理：修正LLM时间分配中的空窗、倒流、溢出。
-
-    策略：
-    1. 如果某段交通时间>45min，压缩到合理值（按距离估算）
-    2. 如果时间倒流（后站到达<前站离开），修正后站到达=前站离开+交通
-    3. 如果总时间溢出end_time，等比压缩停留时间
-    """
+    """后处理：修正LLM时间分配中的空窗、倒流、溢出、异常停留。"""
     if len(steps) <= 1:
         return steps
+
+    # ── 0. 异常停留压缩 ──
+    _MAX_STAY = {"景点": 120, "文化": 90, "公园": 90, "娱乐": 120,
+                 "餐饮": 75, "夜市": 60, "小吃": 50, "美食": 75}
+    for s in steps:
+        stay = s.get("stay_min", 60)
+        cat = s.get("poi", s).get("category", "")
+        cap = 90  # 默认上限
+        for ck, limit in _MAX_STAY.items():
+            if ck in cat:
+                cap = limit
+                break
+        if stay > cap:
+            s["stay_min"] = cap
+            try:
+                arr = datetime.strptime(s["arrival_time"], "%H:%M")
+                s["departure_time"] = (arr + timedelta(minutes=cap)).strftime("%H:%M")
+            except (ValueError, KeyError):
+                pass
 
     # ── 1. 检测并修正空窗/倒流 ──
     for i in range(1, len(steps)):
