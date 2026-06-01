@@ -1092,201 +1092,119 @@ async def _llm_assemble_route(
 
 
 # ═══════════════════════════════════════════════════════════
-# LLM 时间修正：替代纯算法的机械累加
+# 规则化时间分配：替代 _llm_fix_times 的 LLM 调用
 # ═══════════════════════════════════════════════════════════
 
-_TIME_FIX_SYSTEM = """你是行程时间分配专家。你需要为一日游路线的每个站点分配合理的到达/离开时间。
-
-【最重要】如果站点太多塞不进时间范围，你有权砍站：
-- 计算总时间（停留+交通），如果超出起止时间范围，必须砍掉一些站
-- 优先砍：距离远的、评分低的、与主题关系弱的
-- 砍站后在dropped字段说明砍了哪些站及原因
-- 宁可排一条时间宽裕的短路线，也不要排一条时间紧张的拥挤路线
-- 海岛类行程：去程渡轮至少60分钟，回程渡轮至少60分钟，务必预留
-
-规则：
-1. 午餐对齐 11:30-13:00，晚餐对齐 17:30-19:00
-2. 停留时长按类型区分：
-   - 大型主题公园/游乐园: 4-6小时
-   - 博物馆/展览馆: 1.5-2.5小时
-   - 公园/自然风光: 1-2小时
-   - 拍照打卡点/地标: 20-40分钟
-   - 普通景点: 1-1.5小时
-   - 正餐餐厅: 50-70分钟
-   - 小吃/快餐/粉面: 25-40分钟
-   - 茶餐厅/早茶: 45-70分钟
-   - 咖啡馆/甜品店: 30-45分钟
-   - 夜市/美食街: 45-70分钟
-   - 酒吧: 60-90分钟
-3. 站间交通：市区内5-15分钟，跨区15-30分钟，去海岛渡轮单程60分钟
-4. 总行程不超过起止时间范围
-5. 节奏{pace_desc}
-6. 站点顺序已确定，不要改变顺序，只分配时间（可以砍站）
-7. 餐前饭后节奏：先游览景点，再安排用餐。不要出现"先吃完饭再去景点"的倒置安排
-
-输出JSON：
-{{"stops":[{{"name":"站点名","arrival":"HH:MM","departure":"HH:MM","stay_min":int}}],"dropped":[{{"name":"砍掉的站点","reason":"原因"}}]}}
-如果不需要砍站，dropped为空数组[]。只输出JSON。"""
+_THEME_PARK_KW = ("长隆", "海洋王国", "游乐园", "主题公园", "乐园", "海洋科学馆", "水城")
+_LANDMARK_KW = ("渔女", "灯塔", "观景台", "牌坊", "雕塑", "打卡", "地标", "邮局", "书店")
 
 
-async def _llm_fix_times(
-    route: dict,
+def _compute_stay_min(step: dict, scene_type: str, pace: str) -> int:
+    """规则化计算单站停留时间。优先用POI自身的avg_stay_min，按节奏调节。"""
+    poi = step.get("poi", step)
+    _type = step.get("_type", "")
+    name = poi.get("name", "")
+
+    # 1. 餐饮固定
+    if _type in ("lunch", "dinner"):
+        return 55
+
+    # 2. 主题公园 / 大型目的地
+    if scene_type == "目的地型" and any(kw in name for kw in _THEME_PARK_KW):
+        return 240  # 核心目的地4小时
+
+    if any(kw in name for kw in _THEME_PARK_KW):
+        return 180  # 非目的地型遇到主题公园3小时
+
+    # 3. 地标打卡 — 短停留
+    if any(kw in name for kw in _LANDMARK_KW):
+        base = 30
+        if "特种兵" in pace:
+            return 15
+        return base
+
+    # 4. 用POI自身的avg_stay_min（100%覆盖）
+    base_stay = int(poi.get("avg_stay_min", 60))
+    if base_stay <= 0:
+        base_stay = 60
+
+    # 5. 节奏调节
+    if "特种兵" in pace:
+        return max(15, int(base_stay * 0.6))
+    elif "闲逛" in pace or "慢" in pace:
+        return int(base_stay * 1.2)
+
+    return base_stay
+
+
+def _compute_travel_min(prev_poi: dict, curr_poi: dict) -> int:
+    """基于haversine距离计算站间交通时间。"""
+    lat1, lng1 = prev_poi.get("lat", 0), prev_poi.get("lng", 0)
+    lat2, lng2 = curr_poi.get("lat", 0), curr_poi.get("lng", 0)
+    if lat1 and lng1 and lat2 and lng2:
+        dist_km = _haversine_km(lat1, lng1, lat2, lng2)
+        return max(5, min(45, int(dist_km * 3 + 5)))
+    return 15
+
+
+def _rule_assign_times(
+    steps: list[dict],
     intent: dict,
-    user_input: str,
     scene_type: str,
     pace: str = "平衡型",
-) -> dict:
-    """用LLM修正路线时间分配。失败则返回原始route（纯算法兜底）。"""
-    steps = route.get("route", [])
+) -> tuple[list[dict], list[dict]]:
+    """纯规则时间分配。返回 (new_steps, dropped)。
+
+    LLM决定站序，算法决定时间。省一次LLM调用。
+    """
     if not steps:
-        return route
+        return [], []
 
-    start_time = intent.get("time", {}).get("start", "09:00")
-    end_time = intent.get("time", {}).get("end", "21:00")
+    start_time_str = intent.get("time", {}).get("start", "09:00")
+    end_time_str = intent.get("time", {}).get("end", "21:00")
 
-    if "特种兵" in pace:
-        pace_desc = """紧凑高效，大幅缩短停留时间：
-   - 景点/打卡点: 15-25分钟（拍照+简单游览就走）
-   - 餐厅/小吃: 20-30分钟（快速用餐）
-   - 公园/自然: 20-30分钟（走马观花）
-   - 站间交通: 按实际距离计算，但特种兵可以接受跨区（15-25分钟）
-   - 如果站点超过8个，每个停留再缩短5分钟"""
-    elif "闲逛" in pace or "慢" in pace:
-        pace_desc = "悠闲放松，延长停留时间"
-    else:
-        pace_desc = "适中平衡"
-
-    # 构建站点摘要给LLM
-    stops_summary = []
-    for s in steps:
-        poi = s.get("poi", s)
-        stops_summary.append({
-            "name": poi.get("name", ""),
-            "category": poi.get("category", ""),
-            "type": s.get("_type", "poi"),
-            "avg_stay_min": poi.get("avg_stay_min", 0),
-            "rating": poi.get("rating", 0),
-            "tags": poi.get("tags", [])[:3],
-            "old_arrival": s.get("arrival_time", ""),
-            "old_departure": s.get("departure_time", ""),
-        })
-
-    user_prompt = f"""用户需求: {user_input}
-场景类型: {scene_type}
-节奏: {pace}
-时间范围: {start_time} - {end_time}
-
-当前站点顺序（{len(stops_summary)}站）:
-{json.dumps(stops_summary, ensure_ascii=False)}
-
-请为每个站点分配合理的到达/离开时间和停留时长。"""
-
-    system_prompt = _TIME_FIX_SYSTEM.format(pace_desc=pace_desc)
-
-    result = await _llm_decide(system_prompt, user_prompt, temperature=0.1)
-    if not result or "stops" not in result:
-        return route  # LLM失败，返回原始纯算法结果
-
-    llm_stops = result["stops"]
-    if not isinstance(llm_stops, list) or not llm_stops:
-        return route
-
-    # LLM可能砍站（dropped），llm_stops数量 < steps数量
-    dropped_names = set()
-    if isinstance(result.get("dropped"), list):
-        dropped_names = {d.get("name", "") for d in result["dropped"] if isinstance(d, dict)}
-
-    # 构建name→step映射
-    step_by_name = {}
-    for s in steps:
-        poi = s.get("poi", s)
-        name = poi.get("name", "")
-        if name:
-            step_by_name[name] = s
-
-    # 匹配LLM返回的stop到原始step
-    new_steps = []
-    for llm_s in llm_stops:
-        name = llm_s.get("name", "")
-        matched = step_by_name.get(name)
-        if matched:
-            new_step = dict(matched)
-            new_step["arrival_time"] = llm_s.get("arrival", matched.get("arrival_time", ""))
-            new_step["departure_time"] = llm_s.get("departure", matched.get("departure_time", ""))
-            new_step["stay_min"] = llm_s.get("stay_min", 0)
-            new_steps.append(new_step)
-
-    # 兜底：如果匹配太少（<50%），回退到原始路线
-    if len(new_steps) < max(1, len(steps) // 2):
-        # 按原始数量逐个覆盖
-        new_steps = []
-        for i, s in enumerate(steps):
-            if i < len(llm_stops):
-                llm = llm_stops[i]
-                new_step = dict(s)
-                new_step["arrival_time"] = llm.get("arrival", s.get("arrival_time", ""))
-                new_step["departure_time"] = llm.get("departure", s.get("departure_time", ""))
-                new_step["stay_min"] = llm.get("stay_min", 0)
-                new_steps.append(new_step)
-            else:
-                # 被LLM砍掉的站，跳过
-                pass
-        if not new_steps:
-            return route
-
-    # 重新计算 travel_from_prev
-    for i, s in enumerate(new_steps):
-        if i == 0:
-            s["travel_from_prev"] = {"distance_m": 0, "time_min": 0}
-            continue
-        try:
-            dep_prev = datetime.strptime(new_steps[i - 1]["departure_time"], "%H:%M")
-            arr_curr = datetime.strptime(s["arrival_time"], "%H:%M")
-            gap = max(0, int((arr_curr - dep_prev).total_seconds() / 60))
-        except ValueError:
-            gap = s.get("travel_from_prev", {}).get("time_min", 15)
-        s["travel_from_prev"] = {"distance_m": gap * 120, "time_min": gap}
-
-    # 重新计算 total_time
     try:
-        end_t = datetime.strptime(new_steps[-1].get("departure_time", "18:00"), "%H:%M")
-        start_t = datetime.strptime(new_steps[0].get("arrival_time", "09:00"), "%H:%M")
-        total_time = int((end_t - start_t).total_seconds() / 60)
+        cursor = datetime.strptime(start_time_str, "%H:%M")
+        end_limit = datetime.strptime(end_time_str, "%H:%M")
     except ValueError:
-        total_time = len(new_steps) * 90
+        cursor = datetime.strptime("09:00", "%H:%M")
+        end_limit = datetime.strptime("21:00", "%H:%M")
 
-    # 算法修正：消除LLM时间空窗和倒流
-    new_steps = _smooth_times(new_steps, start_time, end_time)
+    new_steps: list[dict] = []
+    dropped: list[dict] = []
 
-    # 重新计算 travel_from_prev（修正后）
-    for i, s in enumerate(new_steps):
-        if i == 0:
-            s["travel_from_prev"] = {"distance_m": 0, "time_min": 0}
+    for i, step in enumerate(steps):
+        stay = _compute_stay_min(step, scene_type, pace)
+
+        # 旅行时间（第一站无前站）
+        if i > 0 and new_steps:
+            prev_poi = new_steps[-1].get("poi", new_steps[-1])
+            curr_poi = step.get("poi", step)
+            travel = _compute_travel_min(prev_poi, curr_poi)
+            cursor += timedelta(minutes=travel)
+        else:
+            travel = 0
+
+        arrival = cursor
+        departure = cursor + timedelta(minutes=stay)
+
+        # 超时砍站
+        if departure > end_limit + timedelta(minutes=15):
+            dropped.append({
+                "name": step.get("poi", step).get("name", ""),
+                "reason": f"超出时间范围 (预计{departure.strftime('%H:%M')}>{end_time_str})",
+            })
             continue
-        try:
-            dep_prev = datetime.strptime(new_steps[i - 1]["departure_time"], "%H:%M")
-            arr_curr = datetime.strptime(s["arrival_time"], "%H:%M")
-            gap = max(0, int((arr_curr - dep_prev).total_seconds() / 60))
-        except ValueError:
-            gap = s.get("travel_from_prev", {}).get("time_min", 15)
-        s["travel_from_prev"] = {"distance_m": gap * 120, "time_min": gap}
 
-    # 重新计算 total_time
-    try:
-        end_t = datetime.strptime(new_steps[-1].get("departure_time", "18:00"), "%H:%M")
-        start_t = datetime.strptime(new_steps[0].get("arrival_time", "09:00"), "%H:%M")
-        total_time = int((end_t - start_t).total_seconds() / 60)
-    except ValueError:
-        total_time = len(new_steps) * 90
+        new_step = dict(step)
+        new_step["arrival_time"] = arrival.strftime("%H:%M")
+        new_step["departure_time"] = departure.strftime("%H:%M")
+        new_step["stay_min"] = stay
+        new_step["travel_from_prev"] = {"distance_m": travel * 120, "time_min": travel}
+        new_steps.append(new_step)
+        cursor = departure
 
-    return {
-        "route": new_steps,
-        "total_cost": {
-            "time_min": total_time,
-            "budget_used": sum(s.get("poi", {}).get("avg_price", 0) for s in new_steps),
-        },
-        "emotion_curve": route.get("emotion_curve", []),
-    }
+    return new_steps, dropped
 
 
 def _smooth_times(steps: list[dict], start_time: str, end_time: str) -> list[dict]:
@@ -1927,7 +1845,26 @@ async def synthesizer(state: TravelState) -> dict:
         # 目的地型用更严格阈值（补充景点不应离核心目的地太远）
         geo_threshold = 10.0 if scene_type == "目的地型" else _MAX_LEG_KM
         route["route"] = _geo_reroute(route["route"], max_leg_km=geo_threshold)
-        route = await _llm_fix_times(route, intent, state.get("user_input", ""), scene_type, pace)
+        # 规则化时间分配（替代 _llm_fix_times）
+        new_steps, dropped = _rule_assign_times(route["route"], intent, scene_type, pace)
+        route["route"] = new_steps
+        if dropped:
+            errors.append(f"规则时间分配砍站: {dropped}")
+        start_time_str = intent.get("time", {}).get("start", "09:00")
+        end_time_str = intent.get("time", {}).get("end", "21:00")
+        route["route"] = _smooth_times(route["route"], start_time_str, end_time_str)
+        # 重新计算总时间
+        steps = route["route"]
+        if steps:
+            try:
+                _s = datetime.strptime(steps[0].get("arrival_time", "09:00"), "%H:%M")
+                _e = datetime.strptime(steps[-1].get("departure_time", "18:00"), "%H:%M")
+                route["total_cost"] = {
+                    "time_min": int((_e - _s).total_seconds() / 60),
+                    "budget_used": sum(s.get("poi", {}).get("avg_price", 0) for s in steps),
+                }
+            except ValueError:
+                pass
 
     # BUG-1 fix: 反馈重入时保留上一轮核心POI
     prev_ctx = state.get("prev_round_context", {})
