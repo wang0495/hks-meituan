@@ -134,7 +134,7 @@ _LLM_SCORE_RUBRIC = """你是路线规划评估专家。评估以下城市一日
 用户需求: {user_input}
 场景类型: {scene_type}
 
-【生成的路线】:
+【生成的路线】（含坐标和站间距离）:
 {route_text}
 
 请评估这条路线，输出JSON:
@@ -162,7 +162,15 @@ _LLM_SCORE_RUBRIC = """你是路线规划评估专家。评估以下城市一日
 - D(40-59): 较差，明显不合理
 - F(<40): 失败，路线不可用
 
-注意:
+【重要】地理连贯评分必须基于坐标和"距上站"距离计算：
+- 站间<3km: 满分(90-100)
+- 站间3-8km: 合理(70-89)
+- 站间8-15km: 偏远(50-69)
+- 站间>15km: 跨区跳跃(0-49)
+- 不要凭名字猜测距离！必须看坐标和"距上站"数据
+- 同一区域的景点（坐标相近）即使名字听起来远，也应该给高分
+
+其他注意:
 - 长隆等大型主题公园本身就是一天行程，1站是合理的
 - "114.7分"之类的超100分是不可能的，满分100
 - 美食型路线餐饮占比应>=40%
@@ -172,8 +180,9 @@ _LLM_SCORE_RUBRIC = """你是路线规划评估专家。评估以下城市一日
 
 
 def _format_route_text(route_list: list[dict]) -> str:
-    """格式化路线供 LLM 评估。"""
+    """格式化路线供 LLM 评估（含坐标和站间距离）。"""
     lines = []
+    prev_coord = None
     for i, s in enumerate(route_list, 1):
         poi = s.get("poi", s)
         name = poi.get("name", "?")
@@ -182,7 +191,22 @@ def _format_route_text(route_list: list[dict]) -> str:
         arrive = s.get("arrival_time", "?")
         depart = s.get("departure_time", "?")
         rating = poi.get("rating", 0)
-        lines.append(f"{i}. {name} [{cat}] 评分:{rating} 均价:¥{price} 到达:{arrive} 离开:{depart}")
+        lat = poi.get("lat", 0)
+        lng = poi.get("lng", 0)
+
+        # 计算站间距离
+        dist_str = ""
+        if prev_coord and lat and lng:
+            d = _haversine(prev_coord[0], prev_coord[1], lat, lng)
+            dist_str = f" 距上站:{d:.1f}km"
+
+        lines.append(
+            f"{i}. {name} [{cat}] 评分:{rating} 均价:¥{price} "
+            f"坐标:({lat:.4f},{lng:.4f}) 到达:{arrive} 离开:{depart}{dist_str}"
+        )
+        if lat and lng:
+            prev_coord = (lat, lng)
+
     return "\n".join(lines) if lines else "(空路线)"
 
 
