@@ -685,6 +685,42 @@ async def plan_route(request: PlanRequest):
                 c_narrative = c_result.get("narrative", {})
                 c_steps = c_route.get("route", []) if c_route else []
 
+                # ── 多日路线支持 ──
+                multi_routes = c_result.get("routes", [])
+                num_days = c_result.get("num_days", 1)
+
+                if multi_routes and len(multi_routes) > 1:
+                    # 多日SSE输出
+                    for day_info in multi_routes:
+                        day_num = day_info.get("day", 1)
+                        day_route = day_info.get("route", {})
+                        day_steps = day_route.get("route", []) if day_route else []
+                        yield _sse("day_start", {"day": day_num, "total_days": len(multi_routes)})
+                        for i, step in enumerate(day_steps):
+                            step_data = {
+                                "index": i + 1,
+                                "day": day_num,
+                                "poi": step.get("poi", {}),
+                                "arrival_time": step.get("arrival_time"),
+                                "departure_time": step.get("departure_time"),
+                                "narrative": "",
+                                "emotion_design": "",
+                            }
+                            yield _sse("step", step_data)
+                            await asyncio.sleep(0.05)
+                        yield _sse("day_end", {"day": day_num})
+
+                    route_id = uuid.uuid4().hex[:8]
+                    yield _sse("done", {
+                        "route_id": route_id,
+                        "full_route": {"days": multi_routes},
+                        "num_days": num_days,
+                        "version": "C-分布式智能体",
+                    })
+                    route_cache.set(route_id, {"days": multi_routes, "user_intent": user_intent})
+                    return
+
+                # ── 单日（原有逻辑） ──
                 if not c_steps:
                     logger.warning("C版本返回空路线，降级到原管线")
                     raise RuntimeError("C版本空路线")

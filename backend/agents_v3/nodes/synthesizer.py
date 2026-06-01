@@ -1792,6 +1792,108 @@ def _fallback_assemble(proposals: list[dict], intent: dict) -> dict | None:
 # ═══════════════════════════════════════════════════════════
 # 主入口
 # ═══════════════════════════════════════════════════════════
+def _split_pois_by_area(
+    poi_props: list[dict], food_props: list[dict], num_days: int
+) -> list[tuple[list[dict], list[dict]]]:
+    """按地理坐标分桶，把POI分成N组（每天一组）。"""
+    if num_days <= 1:
+        return [(poi_props, food_props)]
+
+    # 收集有坐标的POI
+    coords_poi = []
+    for p in poi_props:
+        c = p.get("content", {})
+        lat, lng = c.get("lat", 0), c.get("lng", 0)
+        if lat and lng:
+            coords_poi.append((lat, lng, p))
+    coords_food = []
+    for p in food_props:
+        c = p.get("content", {})
+        lat, lng = c.get("lat", 0), c.get("lng", 0)
+        if lat and lng:
+            coords_food.append((lat, lng, p))
+
+    if len(coords_poi) < num_days:
+        return [(poi_props, food_props)] + [([], []) for _ in range(num_days - 1)]
+
+    # 简单k-means：按lat排序取num_days等分点作为初始中心
+    sorted_poi = sorted(coords_poi, key=lambda x: x[0])
+    step = len(sorted_poi) // num_days
+    centers = [(sorted_poi[min(i * step, len(sorted_poi) - 1)][0], sorted_poi[min(i * step, len(sorted_poi) - 1)][1])
+                for i in range(num_days)]
+
+    poi_clusters: list[list[dict]] = [[] for _ in range(num_days)]
+    for lat, lng, p in coords_poi:
+        best = min(range(num_days), key=lambda d: (lat - centers[d][0]) ** 2 + (lng - centers[d][1]) ** 2)
+        poi_clusters[best].append(p)
+
+    food_clusters: list[list[dict]] = [[] for _ in range(num_days)]
+    for lat, lng, p in coords_food:
+        best = min(range(num_days), key=lambda d: (lat - centers[d][0]) ** 2 + (lng - centers[d][1]) ** 2)
+        food_clusters[best].append(p)
+
+    return list(zip(poi_clusters, food_clusters))
+
+
+async def _build_single_day_route(
+    day_poi: list[dict],
+    day_food: list[dict],
+    hotel_props: list[dict],
+    traffic_prop: dict | None,
+    intent: dict,
+    user_input: str,
+    scene_type: str,
+    expert_weights: dict,
+    pace: str,
+    errors: list[str],
+) -> dict | None:
+    """为一天构建路线（单日版本，从synthesizer()提取）。"""
+    route = await _tournament_assemble(
+        day_poi, day_food, hotel_props,
+        traffic_prop, intent, user_input,
+        scene_type, expert_weights,
+    )
+    if not route or not route.get("route"):
+        combined = day_poi + day_food
+        if combined:
+            route = _fallback_assemble(combined, intent)
+        else:
+            return None
+
+    if route and route.get("route"):
+        geo_threshold = 10.0 if scene_type == "目的地型" else _MAX_LEG_KM
+        route["route"] = _geo_reroute(route["route"], max_leg_km=geo_threshold)
+        new_steps, dropped = _rule_assign_times(route["route"], intent, scene_type, pace)
+        route["route"] = new_steps
+        if dropped:
+            errors.append(f"规则时间分配砍站: {dropped}")
+        start_time_str = intent.get("time", {}).get("start", "09:00")
+        end_time_str = intent.get("time", {}).get("end", "21:00")
+        route["route"] = _smooth_times(route["route"], start_time_str, end_time_str)
+        steps = route.get("route", [])
+        if steps:
+            try:
+                _s = datetime.strptime(steps[0].get("arrival_time", "09:00"), "%H:%M")
+                _e = datetime.strptime(steps[-1].get("departure_time", "18:00"), "%H:%M")
+                route["total_cost"] = {
+                    "time_min": int((_e - _s).total_seconds() / 60),
+                    "budget_used": sum(s.get("poi", {}).get("avg_price", 0) for s in steps),
+                }
+            except ValueError:
+                pass
+
+    # cap/ensure
+    if route and route.get("route"):
+        route = _cap_route_stops(route, scene_type, intent)
+        route = _ensure_food_in_route(route, day_food, intent)
+        route = _ensure_poi_in_route(route, day_poi, intent)
+        if day_food:
+            route = _ensure_min_food_in_route(route, day_food, intent)
+            route = _ensure_food_scene_food_count(route, day_food, scene_type)
+
+    return route
+
+
 async def synthesizer(state: TravelState) -> dict:
     """MoE Synthesizer：按expert_weights组装路线。"""
     meta = AGENT_META.get("synthesizer", {})
@@ -1828,75 +1930,109 @@ async def synthesizer(state: TravelState) -> dict:
         errors.append("无有效POI提案")
         return {"route": None, "narrative": None, "errors": errors}
 
-    # 锦标赛：并行3策略竞争选最优
-    route = await _tournament_assemble(
-        poi_proposals, food_proposals, hotel_proposals,
-        traffic_proposal, intent, state.get("user_input", ""),
-        scene_type, expert_weights,
-    )
-
-    if not route or not route.get("route"):
-        route = _fallback_assemble(proposals, intent)
-
-    # LLM修正时间分配（tournament和fallback都需要）
+    # ── 多日 / 单日分支 ──
+    num_days = intent.get("num_days", 1) or 1
     pace = intent.get("pace", "平衡型")
-    if route and route.get("route"):
-        # 先做地理重排（消除跨区跳跃），再修时间
-        # 目的地型用更严格阈值（补充景点不应离核心目的地太远）
-        geo_threshold = 10.0 if scene_type == "目的地型" else _MAX_LEG_KM
-        route["route"] = _geo_reroute(route["route"], max_leg_km=geo_threshold)
-        # 规则化时间分配（替代 _llm_fix_times）
-        new_steps, dropped = _rule_assign_times(route["route"], intent, scene_type, pace)
-        route["route"] = new_steps
-        if dropped:
-            errors.append(f"规则时间分配砍站: {dropped}")
-        start_time_str = intent.get("time", {}).get("start", "09:00")
-        end_time_str = intent.get("time", {}).get("end", "21:00")
-        route["route"] = _smooth_times(route["route"], start_time_str, end_time_str)
-        # 重新计算总时间
-        steps = route["route"]
-        if steps:
-            try:
-                _s = datetime.strptime(steps[0].get("arrival_time", "09:00"), "%H:%M")
-                _e = datetime.strptime(steps[-1].get("departure_time", "18:00"), "%H:%M")
-                route["total_cost"] = {
-                    "time_min": int((_e - _s).total_seconds() / 60),
-                    "budget_used": sum(s.get("poi", {}).get("avg_price", 0) for s in steps),
-                }
-            except ValueError:
-                pass
+    multi_routes: list[dict] = []
+    route: dict | None = None
 
-    # BUG-1 fix: 反馈重入时保留上一轮核心POI
-    prev_ctx = state.get("prev_round_context", {})
-    if prev_ctx and route and route.get("route"):
-        route = _must_keep_core_pois(route, prev_ctx, proposals)
+    if num_days > 1 and len(poi_proposals) + len(food_proposals) > num_days:
+        # ── 多日循环 ──
+        day_pools = _split_pois_by_area(poi_proposals, food_proposals, num_days)
+        base_start = intent.get("time", {}).get("start", "09:00")
+        base_end = intent.get("time", {}).get("end", "21:00")
 
-    # 站数上限（在ensure之前，避免截断ensure追加的站点）
-    if route and route.get("route"):
-        route = _cap_route_stops(route, scene_type, intent)
-        # 短途场景额外截断
-        try:
-            _st = datetime.strptime(intent.get("time", {}).get("start", "09:00"), "%H:%M")
-            _et = datetime.strptime(intent.get("time", {}).get("end", "21:00"), "%H:%M")
-            _avail = (_et - _st).total_seconds() / 60
-        except ValueError:
-            _avail = 720
-        if _avail < 240:
-            _short_max = min(5, max(3, int(_avail / 60)))
+        for day_idx in range(num_days):
+            day_poi, day_food = day_pools[day_idx]
+            if not day_poi and not day_food:
+                continue
+
+            # 每日时间窗口
+            day_intent = dict(intent)
+            if day_idx == 0:
+                day_intent["time"] = {"period": "全天", "start": base_start, "end": base_end}
+            else:
+                day_intent["time"] = {"period": "全天", "start": "09:00", "end": base_end}
+
+            day_route = await _build_single_day_route(
+                day_poi, day_food, hotel_proposals,
+                traffic_proposal, day_intent, state.get("user_input", ""),
+                scene_type, expert_weights, pace, errors,
+            )
+            if day_route and day_route.get("route"):
+                multi_routes.append({"day": day_idx + 1, "route": day_route})
+                if route is None:
+                    route = day_route  # 第1天兼容单日
+
+        await sse_emit(state, "agent_result", {
+            "agent": "synthesizer",
+            "summary": f"多日组装完成: {len(multi_routes)}天路线",
+        })
+
+    else:
+        # ── 单日（原有逻辑） ──
+        route = await _tournament_assemble(
+            poi_proposals, food_proposals, hotel_proposals,
+            traffic_proposal, intent, state.get("user_input", ""),
+            scene_type, expert_weights,
+        )
+        if not route or not route.get("route"):
+            route = _fallback_assemble(proposals, intent)
+
+        if route and route.get("route"):
+            geo_threshold = 10.0 if scene_type == "目的地型" else _MAX_LEG_KM
+            route["route"] = _geo_reroute(route["route"], max_leg_km=geo_threshold)
+            new_steps, dropped = _rule_assign_times(route["route"], intent, scene_type, pace)
+            route["route"] = new_steps
+            if dropped:
+                errors.append(f"规则时间分配砍站: {dropped}")
+            start_time_str = intent.get("time", {}).get("start", "09:00")
+            end_time_str = intent.get("time", {}).get("end", "21:00")
+            route["route"] = _smooth_times(route["route"], start_time_str, end_time_str)
             steps = route.get("route", [])
-            if len(steps) > _short_max:
-                route["route"] = steps[:_short_max]
+            if steps:
+                try:
+                    _s = datetime.strptime(steps[0].get("arrival_time", "09:00"), "%H:%M")
+                    _e = datetime.strptime(steps[-1].get("departure_time", "18:00"), "%H:%M")
+                    route["total_cost"] = {
+                        "time_min": int((_e - _s).total_seconds() / 60),
+                        "budget_used": sum(s.get("poi", {}).get("avg_price", 0) for s in steps),
+                    }
+                except ValueError:
+                    pass
 
-    # 补回遗漏（在cap之后，追加的不受截断影响）
-    if route and route.get("route"):
-        route = _ensure_food_in_route(route, food_proposals, intent)
-        route = _ensure_poi_in_route(route, poi_proposals, intent)
+        # BUG-1 fix: 反馈重入时保留上一轮核心POI
+        prev_ctx = state.get("prev_round_context", {})
+        if prev_ctx and route and route.get("route"):
+            route = _must_keep_core_pois(route, prev_ctx, proposals)
 
-    if route and route.get("route") and food_proposals:
-        route = _ensure_min_food_in_route(route, food_proposals, intent)
-        route = _ensure_food_scene_food_count(route, food_proposals, scene_type)
+        # 站数上限
+        if route and route.get("route"):
+            route = _cap_route_stops(route, scene_type, intent)
+            try:
+                _st = datetime.strptime(intent.get("time", {}).get("start", "09:00"), "%H:%M")
+                _et = datetime.strptime(intent.get("time", {}).get("end", "21:00"), "%H:%M")
+                _avail = (_et - _st).total_seconds() / 60
+            except ValueError:
+                _avail = 720
+            if _avail < 240:
+                _short_max = min(5, max(3, int(_avail / 60)))
+                steps = route.get("route", [])
+                if len(steps) > _short_max:
+                    route["route"] = steps[:_short_max]
 
-    # 文案
+        # 补回遗漏
+        if route and route.get("route"):
+            route = _ensure_food_in_route(route, food_proposals, intent)
+            route = _ensure_poi_in_route(route, poi_proposals, intent)
+        if route and route.get("route") and food_proposals:
+            route = _ensure_min_food_in_route(route, food_proposals, intent)
+            route = _ensure_food_scene_food_count(route, food_proposals, scene_type)
+
+        steps_count = len(route.get("route", [])) if route else 0
+        await sse_emit(state, "agent_result", {"agent": "synthesizer", "summary": f"组装完成: {steps_count}站路线"})
+
+    # 文案（单日取第1天route，多日取第1天）
     narrative = None
     if route:
         try:
@@ -1907,7 +2043,8 @@ async def synthesizer(state: TravelState) -> dict:
             errors.append(f"文案生成失败: {e}")
             narrative = _build_fallback_narrative(route)
 
-    steps_count = len(route.get("route", [])) if route else 0
-    await sse_emit(state, "agent_result", {"agent": "synthesizer", "summary": f"组装完成: {steps_count}站路线"})
-
-    return {"route": route, "narrative": narrative, "errors": errors}
+    ret: dict = {"route": route, "narrative": narrative, "errors": errors}
+    if multi_routes:
+        ret["routes"] = multi_routes
+        ret["num_days"] = num_days
+    return ret

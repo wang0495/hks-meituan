@@ -51,7 +51,9 @@ class TravelState(TypedDict, total=False):
     conflicts: list[dict]
 
     # ── Layer 6: Live Itinerary ──
-    route: dict | None
+    num_days: int                     # 出行天数 (default=1, max=5)
+    route: dict | None               # 单日路线 (向后兼容，多日时为第1天)
+    routes: list                     # 多日路线 [{day:1, route:{...}}, ...]
     narrative: dict | None
     heatmap: dict
     decision_trace: dict

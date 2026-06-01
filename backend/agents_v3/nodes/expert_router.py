@@ -422,12 +422,24 @@ async def expert_router(state: TravelState) -> dict:
 
     await sse_emit(state, "agent_result", {"agent": "expert_router", "summary": f"场景: {result['scene_type']}，激活: {', '.join(active)}"})
 
+    # 多日行程：提升hotel权重
+    num_days = user_intent.get("num_days", 1)
+    if isinstance(num_days, (int, float)):
+        num_days = int(num_days)
+    else:
+        num_days = 1
+    if num_days > 1:
+        weights["hotel"] = max(float(weights.get("hotel", 0)), 0.7)
+        if "hotel" not in active:
+            active.append("hotel")
+
     ret = {
         "scene_type": result["scene_type"],
         "expert_weights": weights,
         "active_experts": active,
         "expert_candidates": {k: v for k, v in pools.items() if not k.startswith("_")},
         "errors": [],
+        "num_days": num_days,
     }
     # 传递目的地信息到下游 state
     if pools.get("_dest_name"):
