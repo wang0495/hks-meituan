@@ -3,1735 +3,1665 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>CityFlow · 智能路线规划</title>
+<title>CityFlow · 城市出行规划</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,700;1,400&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
-/* ============================================================
-   iOS 手绘动画风格 — 设计系统
-   ============================================================ */
+/* ═══════════════════════════════════════════════════════════════
+   Atlas Nouveau — Design System
+   Luxury cartography meets Art Nouveau
+   ═══════════════════════════════════════════════════════════════ */
 :root {
-  --paper: #faf7f2;
-  --card: rgba(252, 250, 247, 0.94);
-  --sky: #e8f0f8;
-  --text: #3a3530;
-  --text-secondary: #6b6258;
-  --text-muted: #a09888;
-  --border: rgba(0,0,0,0.06);
-  --accent: #e8886a;
-  --accent-blue: #6a9ec8;
-  --accent-yellow: #e8c86a;
-  --green: #6aaa6a;
-  --shadow-sm: 0 2px 8px rgba(80,60,40,0.06);
-  --shadow-md: 0 4px 20px rgba(80,60,40,0.08);
-  --shadow-lg: 0 12px 40px rgba(60,40,20,0.12);
+  --midnight: #0c1222;
+  --ink: #1a2238;
+  --paper: #f5f0e8;
+  --paper-warm: #ede6d8;
+  --cream: #faf7f2;
+  --gold: #d4a853;
+  --gold-light: rgba(212,168,83,0.15);
+  --gold-glow: rgba(212,168,83,0.4);
+  --coral: #e8614d;
+  --coral-light: rgba(232,97,77,0.12);
+  --teal: #3a8f8f;
+  --teal-light: rgba(58,143,143,0.12);
+  --plum: #7a5c8a;
+  --plum-light: rgba(122,92,138,0.12);
+  --text: #2a2a2a;
+  --text-dim: #6b6560;
+  --text-muted: #9a9389;
+  --border: rgba(45,42,38,0.08);
+  --border-gold: rgba(212,168,83,0.3);
+  --shadow-sm: 0 1px 3px rgba(45,42,38,0.06);
+  --shadow-md: 0 4px 16px rgba(45,42,38,0.08);
+  --shadow-lg: 0 8px 32px rgba(45,42,38,0.12);
+  --shadow-gold: 0 4px 20px rgba(212,168,83,0.15);
   --radius: 20px;
-  --radius-sm: 14px;
-  --radius-xs: 10px;
-  --transition: 0.35s cubic-bezier(0.22, 0.61, 0.36, 1);
+  --radius-sm: 12px;
+  --radius-xs: 8px;
+  --font-display: 'Playfair Display', Georgia, 'Noto Serif SC', serif;
+  --font-body: 'DM Sans', 'Noto Sans SC', -apple-system, sans-serif;
+  --font-mono: 'DM Mono', 'Menlo', monospace;
+  --ease: cubic-bezier(0.22, 0.61, 0.36, 1);
+  --ease-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
-* { margin:0; padding:0; box-sizing:border-box; }
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "PingFang SC", "Microsoft YaHei", sans-serif;
-  background: linear-gradient(135deg, #dbe9f4 0%, #e6eef5 35%, #f0ece3 65%, #e8dfd0 100%);
+  font-family: var(--font-body);
+  background: var(--paper);
   color: var(--text);
-  font-size: 0.9rem;
-  line-height: 1.5;
+  font-size: 14px;
+  line-height: 1.6;
   height: 100vh;
   overflow: hidden;
   -webkit-font-smoothing: antialiased;
 }
 
-/* ============================================================
-   Map Canvas — 右侧主区域
-   ============================================================ */
-#mapCanvas {
-  position:fixed;
-  top:0; right:0;
-  width: calc(100vw - 340px);
-  height: 100vh;
-  z-index:1;
-  border-radius: 20px 0 0 20px;
+/* Noise texture overlay */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  opacity: 0.03;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  pointer-events: none;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   Map Container
+   ═══════════════════════════════════════════════════════════════ */
+#mapContainer {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+}
+
+/* Decorative map border */
+#mapContainer::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border: 3px solid var(--gold);
+  border-radius: 0;
+  pointer-events: none;
+  z-index: 100;
+  opacity: 0.15;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   Unified Panel
+   ═══════════════════════════════════════════════════════════════ */
+.unified-panel {
+  position: fixed;
+  left: 20px; right: 20px; top: 20px; bottom: 20px;
+  z-index: 10;
+  pointer-events: none;
+}
+
+.up-inner {
+  pointer-events: auto;
+  height: 100%;
+  display: flex;
   overflow: hidden;
 }
 
-/* ============================================================
-   Side Panel Container
-   ============================================================ */
-.side-panel {
-  position:fixed;
-  left:0; top:3vh; bottom:3vh;
-  width:360px;
-  z-index:10;
-  pointer-events:none;
+.up-section {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
-.panel-sheet {
-  position:absolute;
-  inset:0;
-  background: var(--card);
-  backdrop-filter: blur(24px) saturate(1.2);
-  -webkit-backdrop-filter: blur(24px) saturate(1.2);
-  border-radius: 0 var(--radius) var(--radius) 0;
+
+.up-left {
+  width: 340px;
+  flex-shrink: 0;
+  border-right: 1px solid var(--border);
+}
+
+.up-center {
+  flex: 1;
+  min-width: 0;
+  border-right: 1px solid var(--border);
+}
+
+.up-right {
+  width: 260px;
+  flex-shrink: 0;
+}
+
+.panel {
+  background: var(--cream);
   border: 1px solid var(--border);
-  border-left: none;
+  border-radius: var(--radius);
   box-shadow: var(--shadow-lg);
-  display:flex; flex-direction:column;
-  overflow:hidden;
-  pointer-events:auto;
-  transition: transform var(--transition), opacity var(--transition);
+  pointer-events: auto;
+  overflow: hidden;
+  position: relative;
 }
 
-.panel-layer {
-  position:absolute; inset:0;
-  display:flex; flex-direction:column;
-  padding: 24px 20px;
-  overflow-y:auto;
-  transition: transform var(--transition), opacity var(--transition);
-}
-.panel-layer.hidden {
-  transform: translateX(-20px);
-  opacity:0;
-  pointer-events:none;
-}
-.panel-layer.hidden-right {
-  transform: translateX(40px);
-  opacity:0;
-  pointer-events:none;
+/* Art Nouveau decorative top border */
+.panel::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 20px; right: 20px;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--gold), transparent);
+  z-index: 1;
 }
 
-::-webkit-scrollbar{width:4px}
-::-webkit-scrollbar-track{background:transparent}
-::-webkit-scrollbar-thumb{background:rgba(0,0,0,0.08);border-radius:4px}
-
-/* ============================================================
-   Panel 1 — 搜索设置
-   ============================================================ */
-.search-title {
-  font-size: 1.4rem; font-weight: 700;
-  color: var(--text); margin-bottom: 4px;
-}
-.search-subtitle {
-  font-size: 0.8rem; color: var(--text-muted);
-  margin-bottom: 20px;
+/* ── Input Header ── */
+.input-header {
+  display: flex; align-items: center; gap: 14px; margin-bottom: 20px;
 }
 
-.search-box {
-  display:flex; align-items:center;
-  background:#fff; border:1px solid rgba(0,0,0,0.08);
-  border-radius: 28px; padding: 4px 4px 4px 18px;
-  box-shadow: var(--shadow-sm);
-  margin-bottom: 20px;
-}
-.search-box input {
-  flex:1; border:none; outline:none;
-  font-size: 0.95rem; color: var(--text);
-  background:transparent; padding: 10px 0;
-}
-.search-box input::placeholder { color: var(--text-muted); }
-
-.form-group { margin-bottom: 16px; }
-.form-label {
-  font-size: 0.78rem; font-weight:600; color: var(--text-secondary);
-  margin-bottom: 6px; display:block;
-}
-.form-row { display:flex; gap:8px; flex-wrap:wrap; }
-
-.chip {
-  padding: 7px 14px; border-radius:20px;
-  border:1px solid rgba(0,0,0,0.08);
-  background:#fff; font-size:0.8rem;
-  color:var(--text-secondary); cursor:pointer;
-  transition: all 0.2s ease; user-select:none;
-  white-space:nowrap;
-}
-.chip:hover { border-color: var(--accent); color: var(--accent); }
-.chip.selected {
-  background: rgba(232,136,106,0.10);
-  border-color: var(--accent);
-  color: #d4786a;
+.logo-mark {
+  width: 44px; height: 44px;
+  position: relative;
+  display: flex; align-items: center; justify-content: center;
 }
 
-/* Dropdown */
-.dropdown {
-  flex:1; min-width:100px;
-  padding: 9px 14px; border-radius:20px;
-  border:1px solid rgba(0,0,0,0.08);
-  background:#fff; font-size:0.8rem;
-  color:var(--text); cursor:pointer;
-  outline:none; appearance:none;
-  -webkit-appearance:none;
-  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M3 5l3 3 3-3' fill='none' stroke='%23908880' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E");
-  background-repeat:no-repeat; background-position:right 12px center;
-  padding-right:32px;
+.logo-mark svg {
+  width: 44px; height: 44px;
 }
 
-/* Voice button */
-.btn-voice {
-  width:36px; height:36px; border-radius:50%;
-  border:none; background:#f5f0e8; color:var(--text-secondary);
-  font-size:1rem; cursor:pointer; flex-shrink:0; margin-right:6px;
+.logo-mark::after {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border: 1.5px solid var(--gold);
+  border-radius: 50%;
+  opacity: 0.3;
 }
 
-.btn-generate {
-  width:100%; padding:14px; border-radius:28px;
-  border:none; background: linear-gradient(135deg, #e8886a, #d4685a);
-  color:#fff; font-size:1rem; font-weight:600;
-  cursor:pointer; box-shadow: 0 4px 16px rgba(212,120,100,0.25);
-  transition: all var(--transition); margin-top:8px;
-}
-.btn-generate:hover { transform: translateY(-1px); box-shadow: 0 6px 24px rgba(212,120,100,0.35); }
-.btn-generate:active { transform: scale(0.98); }
-.btn-generate:disabled { opacity:.5; transform:none; cursor:not-allowed; }
-.btn-generate.planning {
-  background: linear-gradient(135deg, #6a9ec8, #5a8ab8);
-  animation: genPulse 1.6s ease-in-out infinite;
-}
-@keyframes genPulse {
-  0%,100% { box-shadow: 0 4px 16px rgba(106,158,200,0.25); }
-  50% { box-shadow: 0 4px 28px rgba(106,158,200,0.5); }
+.brand-text h1 {
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 900;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+  line-height: 1.1;
 }
 
-/* ============================================================
-   Panel 2 — SSE 实时结果
-   ============================================================ */
-.phase-bar {
-  padding: 8px 14px; border-radius: var(--radius-sm);
-  background: rgba(106,158,200,0.06); border:1px solid rgba(106,158,200,0.12);
-  font-size: 0.78rem; color: var(--accent-blue);
-  margin-bottom: 12px; font-weight: 600;
-  min-height: 2rem; display:flex; align-items:center;
-}
-.phase-bar.typing::after {
-  content:''; display:inline-block; width:2px; height:.8em;
-  background:var(--accent-blue); margin-left:4px; vertical-align:middle;
-  animation: cursorBlink 1s steps(2) infinite;
-}
-@keyframes cursorBlink { 0%{opacity:1} 50%{opacity:0} }
-
-/* Agent Pipeline — iOS 浅色适配 */
-.agent-pipeline {
-  display:flex; flex-direction:column; gap:0;
-  margin-bottom:10px; flex-shrink:0;
-}
-.agent-stage { display:flex; align-items:center; gap:.2rem; }
-.agent-stage-cards { display:flex; gap:.3rem; flex:1; flex-wrap:wrap; }
-#stageCards_0 .ag-card,
-#stageCards_2 .ag-card,
-#stageCards_3 .ag-card { flex:1 1 calc(50% - .3rem); }
-#stageCards_3 .ag-card { flex:1 1 100%; }
-#stageCards_1 .ag-card { flex:1 1 calc(33% - .3rem); min-width:70px; }
-
-.agent-arrow {
-  display:flex; align-items:center; justify-content:center;
-  height:.9rem; color:var(--text-muted); font-size:.6rem;
-  opacity:.15; transition:opacity .4s, color .4s;
-}
-.agent-arrow.active { opacity:1; color:var(--accent-blue); }
-.agent-arrow.done { opacity:.4; color:var(--green); }
-.agent-arrow svg { width:.7rem; height:.7rem; }
-.agent-arrow svg path { fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; }
-.agent-arrow.active svg path { stroke-dasharray:4 2; animation:arrowDash .6s linear infinite; }
-@keyframes arrowDash { to { stroke-dashoffset:-6; } }
-
-/* Agent Card — iOS warm style */
-.ag-card {
-  position:relative; overflow:hidden;
-  padding:.35rem .45rem .25rem; border-radius:10px;
-  background:#fff; border:1px solid rgba(0,0,0,0.05);
-  box-shadow: 0 1px 4px rgba(80,60,40,0.04);
-  transition:all .35s cubic-bezier(.25,.46,.45,.94);
-  flex:1; min-width:0; min-height:1.8rem;
-}
-.ag-card::before {
-  content:''; position:absolute; top:0; left:0; bottom:0; width:3px;
-  background:var(--ag-color, var(--accent));
-  opacity:.2; transition:opacity .4s, background .4s;
-}
-/* idle: dimmed */
-.ag-card.idle {
-  opacity:.2; filter:grayscale(.5) brightness(.85);
-  pointer-events:none;
-}
-/* active: highlighted */
-.ag-card.active {
-  opacity:1; filter:none;
-  border-color:rgba(106,158,200,0.3);
-  transform:translateY(-1px) scale(1.02);
-  box-shadow:0 3px 14px rgba(80,60,40,0.08), 0 0 10px rgba(106,158,200,0.1);
-}
-.ag-card.active::before { opacity:1; }
-/* done: completed */
-.ag-card.done {
-  opacity:1; filter:none;
-  border-color:rgba(106,170,106,0.25);
-}
-.ag-card.done::before { opacity:.6; background:var(--green); }
-
-/* Badge */
-.ag-badge {
-  width:1.4rem; height:1.4rem; border-radius:50%;
-  display:grid; place-items:center;
-  font-size:.7rem; line-height:1;
-  background:rgba(106,158,200,0.06);
-  border:1.5px solid rgba(106,158,200,0.12);
-  transition:border-color .3s, box-shadow .3s, background .3s;
-  flex-shrink:0;
-}
-.ag-card.active .ag-badge {
-  border-color:rgba(106,158,200,0.4);
-  background:rgba(106,158,200,0.1);
-  box-shadow:0 0 0 2px rgba(106,158,200,0.08);
-  animation:agBadgeRing 2s ease-in-out infinite;
-}
-.ag-card.done .ag-badge {
-  border-color:rgba(106,170,106,0.35);
-  background:rgba(106,170,106,0.06);
-}
-@keyframes agBadgeRing {
-  0%,100% { box-shadow:0 0 0 2px rgba(106,158,200,0.06), 0 0 5px rgba(106,158,200,0.06); }
-  50% { box-shadow:0 0 0 4px rgba(106,158,200,0.03), 0 0 10px rgba(106,158,200,0.12); }
+.brand-text .tagline {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-muted);
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  margin-top: 2px;
 }
 
-.ag-head { display:flex; align-items:center; gap:.3rem; position:relative; z-index:1; }
-.ag-info { flex:1; min-width:0; }
-.ag-name { font-size:.62rem; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; color:var(--text); }
-.ag-role { font-size:.48rem; color:var(--text-muted); font-weight:600; }
-
-.ag-status {
-  width:.3rem; height:.3rem; border-radius:50%;
-  background:var(--text-muted); transition:all .3s; flex-shrink:0;
-}
-.ag-card.active .ag-status {
-  background:var(--accent-blue);
-  box-shadow:0 0 4px var(--accent-blue);
-  animation:agStatusPulse 1.5s ease-in-out infinite;
-}
-.ag-card.done .ag-status { background:var(--green); box-shadow:0 0 4px var(--green); }
-@keyframes agStatusPulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.3;transform:scale(1.4)} }
-
-.ag-thinking {
-  position:relative; z-index:1;
-  font-size:.5rem; color:var(--text-secondary); line-height:1.3;
-  max-height:0; overflow:hidden; opacity:0;
-  transition:max-height .4s, opacity .3s, margin .3s;
-  margin-top:0; padding-left:.1rem;
-}
-.ag-card.active .ag-thinking { max-height:28px; opacity:1; margin-top:.15rem; }
-.ag-thinking .dots span { animation:dotJump 1.4s ease-in-out infinite; display:inline-block; font-size:.45rem; }
-.ag-thinking .dots span:nth-child(2) { animation-delay:.12s; }
-.ag-thinking .dots span:nth-child(3) { animation-delay:.24s; }
-@keyframes dotJump { 0%,60%,100%{opacity:.2;transform:translateY(0)} 30%{opacity:1;transform:translateY(-1.5px)} }
-
-.ag-result {
-  position:relative; z-index:1;
-  font-size:.48rem; color:var(--green); font-weight:700;
-  max-height:0; overflow:hidden; opacity:0;
-  transition:max-height .4s, opacity .3s, margin .3s;
-  margin-top:0;
-}
-.ag-card.done .ag-result { max-height:18px; opacity:1; margin-top:.1rem; }
-
-/* Route list in panel 2 */
-.step-list {
-  flex:1; min-height:0; overflow-y:auto;
-  display:flex; flex-direction:column; gap:8px;
-  margin-bottom: 12px;
-}
-.step-empty {
-  display:grid; height:100%; min-height:8rem; place-items:center;
-  color:var(--text-muted); text-align:center; line-height:1.8; font-size:0.85rem;
+.badge {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--gold);
+  padding: 4px 10px;
+  border: 1px solid var(--border-gold);
+  border-radius: 20px;
+  letter-spacing: 0.08em;
 }
 
+/* Search Box */
+.search-wrap {
+  position: relative;
+  margin-bottom: 14px;
+}
+
+.search-wrap input {
+  width: 100%;
+  padding: 14px 50px 14px 18px;
+  background: var(--paper);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: 14px;
+  outline: none;
+  transition: all 0.3s var(--ease);
+}
+
+.search-wrap input:focus {
+  border-color: var(--gold);
+  box-shadow: 0 0 0 4px var(--gold-light);
+  background: #fff;
+}
+
+.search-wrap input::placeholder {
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.search-wrap .send-btn {
+  position: absolute;
+  right: 6px; top: 50%;
+  transform: translateY(-50%);
+  width: 38px; height: 38px;
+  border-radius: 10px;
+  border: none;
+  background: var(--ink);
+  color: var(--gold);
+  font-size: 18px;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: all 0.25s var(--ease);
+  font-family: var(--font-display);
+}
+
+.search-wrap .send-btn:hover {
+  background: var(--gold);
+  color: var(--ink);
+  transform: translateY(-50%) scale(1.05);
+  box-shadow: var(--shadow-gold);
+}
+
+.search-wrap .send-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Quick Tags */
+.quick-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+
+.quick-tag {
+  padding: 6px 14px;
+  border-radius: 20px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-dim);
+  font-size: 12px;
+  font-family: var(--font-body);
+  cursor: pointer;
+  transition: all 0.25s var(--ease);
+  white-space: nowrap;
+}
+
+.quick-tag:hover {
+  border-color: var(--gold);
+  color: var(--gold);
+  background: var(--gold-light);
+  transform: translateY(-1px);
+}
+
+/* ── Route Panel ── */
+.route-header {
+  padding: 18px 24px 14px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+}
+
+.route-header h2 {
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--ink);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.day-switch { display: flex; gap: 4px; }
+
+.day-btn {
+  width: 30px; height: 30px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-dim);
+  font-size: 12px;
+  font-weight: 700;
+  font-family: var(--font-mono);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.day-btn.active {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--gold);
+}
+
+.route-steps {
+  flex: 1;
+  overflow-y: auto;
+  padding: 14px 16px;
+}
+
+.route-steps::-webkit-scrollbar { width: 3px; }
+.route-steps::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+/* Step Card */
 .step-card {
-  display:flex; gap:10px; padding:10px 14px;
-  background:#fff; border-radius: var(--radius-sm);
-  border:1px solid rgba(0,0,0,0.06);
-  box-shadow: var(--shadow-sm);
-  animation: stepSlide .4s cubic-bezier(.25,.46,.45,.94) both;
+  display: flex;
+  gap: 14px;
+  padding: 14px;
+  border-radius: var(--radius-sm);
+  margin-bottom: 6px;
+  background: transparent;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all 0.3s var(--ease);
+  position: relative;
+  animation: stepReveal 0.5s var(--ease) backwards;
 }
-@keyframes stepSlide {
-  from { opacity:0; transform:translateY(10px); }
-  to { opacity:1; transform:translateY(0); }
+
+@keyframes stepReveal {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.step-card:hover {
+  background: var(--paper);
+  border-color: var(--border);
+  transform: translateX(6px);
+}
+
+.step-card.active {
+  background: var(--gold-light);
+  border-color: var(--border-gold);
+}
+
+.step-num {
+  width: 34px; height: 34px;
+  border-radius: 50%;
+  background: var(--ink);
+  color: var(--gold);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  position: relative;
+}
+
+.step-num::after {
+  content: '';
+  position: absolute;
+  inset: -3px;
+  border: 1px solid var(--gold);
+  border-radius: 50%;
+  opacity: 0.2;
+}
+
+.step-content { flex: 1; min-width: 0; }
+
+.step-name {
+  font-family: var(--font-display);
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--ink);
+  margin-bottom: 3px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.step-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 11px;
+  color: var(--text-muted);
 }
 
 .step-time {
-  min-width: 42px; text-align:center; font-size:0.72rem;
-  font-weight:700; color:var(--accent); padding-top:2px;
-}
-.step-time small { display:block; font-size:0.6rem; color:var(--text-muted); font-weight:600; margin-top:2px; }
-.step-dot {
-  width:8px; height:8px; border-radius:50%;
-  background:var(--accent); margin:4px auto 0;
-  box-shadow: 0 0 0 3px rgba(232,136,106,0.15);
-}
-.step-info { flex:1; min-width:0; }
-.step-name { font-weight:700; font-size:0.85rem; margin-bottom:2px; }
-.step-meta { font-size:0.7rem; color:var(--text-muted); }
-.step-narr {
-  font-size:0.72rem; color:var(--text-secondary); line-height:1.5;
-  margin-top:4px; padding:6px 8px; border-radius:8px;
-  background:rgba(232,136,106,0.04); border-left:2px solid rgba(232,136,106,0.2);
-  font-style:italic;
-}
-.step-tags { display:flex; flex-wrap:wrap; gap:4px; margin-top:4px; }
-.step-tags span {
-  padding:1px 6px; border-radius:8px;
-  background:rgba(0,0,0,0.03); font-size:0.6rem; color:var(--text-muted);
+  color: var(--gold);
+  font-weight: 600;
+  font-family: var(--font-mono);
 }
 
-/* Dialogue input */
-.dlg-box {
-  display:flex; gap:6px; margin-bottom:8px; flex-shrink:0;
-}
-.dlg-box input {
-  flex:1; padding:8px 14px; border-radius:20px;
-  border:1px solid rgba(0,0,0,0.08); background:#fff;
-  font-size:0.82rem; outline:none;
-}
-.dlg-box input:focus { border-color: var(--accent-blue); }
-.dlg-box button {
-  padding:8px 16px; border-radius:20px; border:none;
-  background:var(--accent); color:#fff; font-size:0.78rem;
-  font-weight:600; cursor:pointer; flex-shrink:0;
-}
-.dlg-box button:hover { filter:brightness(1.08); }
-.dlg-box button:disabled { opacity:.4; }
-
-.dlg-quick {
-  display:flex; gap:6px; flex-wrap:wrap; flex-shrink:0;
-  margin-bottom:8px;
-}
-.qb-btn {
-  padding:5px 12px; border-radius:16px;
-  border:1px solid rgba(0,0,0,0.06); background:#fff;
-  font-size:0.72rem; color:var(--text-secondary);
-  cursor:pointer; transition:all .2s;
-}
-.qb-btn:hover { border-color:var(--accent); color:var(--accent); }
-
-.dlg-reply {
-  font-size:0.72rem; color:var(--text-muted);
-  min-height:1rem; margin-bottom:4px; flex-shrink:0;
-  transition:color .3s;
-}
-.dlg-reply.ok { color:var(--green); }
-.dlg-reply.err { color:#d44a50; }
-
-/* Bottom bar */
-.panel2-actions {
-  display:flex; gap:8px; flex-shrink:0; padding-top:4px;
-}
-.panel2-actions button {
-  flex:1; padding:10px; border-radius:20px;
-  font-size:0.82rem; font-weight:600; cursor:pointer;
-  transition:all var(--transition);
-}
-.btn-back { background:#fff; border:1px solid rgba(0,0,0,0.1); color:var(--text-secondary); }
-.btn-back:hover { border-color:var(--accent); color:var(--accent); }
-
-/* ============================================================
-   Panel 3 — 完成后的对话调整
-   ============================================================ */
-.panel3-header {
-  display:flex; align-items:center; justify-content:space-between;
-  margin-bottom:12px; flex-shrink:0;
-}
-.panel3-title { font-size:1.05rem; font-weight:700; }
-
-.done-summary {
-  padding:12px 14px; border-radius:var(--radius-sm);
-  background:#fff; border:1px solid rgba(0,0,0,0.06);
-  box-shadow:var(--shadow-sm); margin-bottom:12px; flex-shrink:0;
-}
-.done-summary .sum-row {
-  display:flex; justify-content:space-between;
-  padding:4px 0; font-size:0.78rem;
-}
-.done-summary .sum-label { color:var(--text-muted); }
-.done-summary .sum-value { font-weight:700; }
-
-/* ============================================================
-   Map POI Popup
-   ============================================================ */
-.map-poi-popup {
-  position:fixed; z-index:15;
-  background:var(--card); backdrop-filter:blur(20px);
-  -webkit-backdrop-filter:blur(20px);
-  border:1px solid rgba(0,0,0,0.08);
-  border-radius:var(--radius); padding:14px 16px;
-  min-width:200px; box-shadow:var(--shadow-lg);
-  display:none; pointer-events:auto;
-}
-.map-poi-popup.show { display:block; }
-.map-poi-popup .popup-emoji { font-size:1.4rem; }
-.map-poi-popup .popup-name { font-weight:600; font-size:0.88rem; }
-.map-poi-popup .popup-meta { font-size:0.7rem; color:var(--text-muted); margin-top:2px; }
-.map-poi-popup .popup-desc { font-size:0.72rem; color:var(--text-secondary); margin-top:6px; line-height:1.5; }
-.map-poi-popup .popup-close {
-  position:absolute; top:8px; right:8px;
-  width:22px; height:22px; border-radius:50%;
-  border:none; background:rgba(0,0,0,0.04);
-  font-size:12px; cursor:pointer; display:flex;
-  align-items:center; justify-content:center; color:var(--text-muted);
+.step-category {
+  padding: 1px 8px;
+  border-radius: 10px;
+  background: var(--paper-warm);
+  font-size: 10px;
+  color: var(--text-dim);
 }
 
-.map-marker-highlight {
-  position:fixed; width:60px; height:60px; border-radius:50%;
-  border:3px solid var(--accent); background:rgba(232,136,106,0.15);
-  transform:translate(-50%,-50%); z-index:5;
-  pointer-events:none; animation:markerPulse 1.2s ease infinite; display:none;
-}
-@keyframes markerPulse {
-  0%,100%{transform:translate(-50%,-50%) scale(1);opacity:.7}
-  50%{transform:translate(-50%,-50%) scale(1.4);opacity:0}
+.step-narrative {
+  font-size: 12px;
+  color: var(--text-dim);
+  margin-top: 6px;
+  line-height: 1.5;
+  font-style: italic;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
-/* ============================================================
-   POI Detail Overlay — 点击POI后的详细描述
-   ============================================================ */
-.poi-detail-overlay {
-  position: fixed; inset: 0;
-  background: rgba(30,25,20,0.35);
-  z-index: 20;
-  display: none;
-  pointer-events: auto;
+.step-connector {
+  width: 1px;
+  height: 14px;
+  background: linear-gradient(to bottom, var(--gold), transparent);
+  margin-left: 33px;
+  opacity: 0.3;
 }
-.poi-detail-overlay.show {
+
+/* Stats Bar */
+.stats-bar {
+  display: flex;
+  gap: 0;
+  padding: 0;
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.stat-item {
+  flex: 1;
+  text-align: center;
+  padding: 14px 8px;
+  border-right: 1px solid var(--border);
+}
+
+.stat-item:last-child { border-right: none; }
+
+.stat-value {
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 900;
+  color: var(--ink);
+  line-height: 1;
+}
+
+.stat-label {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  margin-top: 4px;
+}
+
+/* Narrative */
+.narrative-section {
+  padding: 16px 20px;
+  border-top: 1px solid var(--border);
+}
+
+.narrative-section .opening {
+  font-family: var(--font-display);
+  font-size: 14px;
+  font-style: italic;
+  color: var(--text-dim);
+  line-height: 1.7;
+}
+
+.narrative-section .closing {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 10px;
+  line-height: 1.6;
+}
+
+/* Emotion Curve */
+.emotion-section {
+  padding: 14px 20px;
+  border-top: 1px solid var(--border);
+}
+
+.emotion-section h3 {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  margin-bottom: 10px;
+}
+
+#emotionCanvas {
+  width: 100%;
+  height: 60px;
+  border-radius: var(--radius-xs);
+}
+
+/* Empty State */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 24px;
+  text-align: center;
+}
+
+.empty-state .icon {
+  width: 64px; height: 64px;
+  margin-bottom: 16px;
+  opacity: 0.15;
+}
+
+.empty-state p {
+  font-family: var(--font-display);
+  font-size: 14px;
+  font-style: italic;
+  color: var(--text-muted);
+  line-height: 1.8;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   Unified Panel — Inner Sections
+   ═══════════════════════════════════════════════════════════════ */
+.up-input {
+  padding: 20px 20px 16px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.up-chat {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.up-right .agent-header {
+  border-bottom: 1px solid var(--border);
+}
+
+.agent-header {
+  padding: 16px 18px 12px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.agent-header h2 {
+  font-family: var(--font-display);
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.status-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--text-muted);
+  transition: all 0.4s;
+}
+
+.status-dot.active {
+  background: var(--coral);
+  box-shadow: 0 0 8px var(--coral);
+  animation: dotPulse 1.5s infinite;
+}
+
+@keyframes dotPulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.6; transform: scale(1.3); }
+}
+
+.agent-body {
+  padding: 12px 14px;
+  overflow-y: auto;
+  max-height: calc(100vh - 120px);
+}
+
+.agent-body::-webkit-scrollbar { width: 3px; }
+.agent-body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+/* Architecture Diagram — compact */
+.arch-diagram {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  margin-bottom: 0;
+}
+
+.wave-row {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  padding: 4px 0;
+  position: relative;
+}
+
+.wave-label {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 600;
+  color: var(--gold);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  width: 54px;
+  flex-shrink: 0;
+  text-align: right;
+  padding-right: 8px;
+}
+
+.wave-nodes {
+  display: flex;
+  gap: 4px;
+  flex: 1;
+  justify-content: center;
+}
+
+.arch-node {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-}
-.poi-detail-card {
+  font-size: 13px;
+  background: var(--paper);
+  border: 1.5px solid var(--border);
+  transition: all 0.4s var(--ease);
+  cursor: default;
   position: relative;
-  background: var(--card);
-  backdrop-filter: blur(24px) saturate(1.2);
-  -webkit-backdrop-filter: blur(24px) saturate(1.2);
-  border: 1px solid rgba(0,0,0,0.08);
-  border-radius: var(--radius);
-  padding: 28px 24px 24px;
-  max-width: 440px;
-  width: 90%;
-  max-height: 72vh;
-  overflow-y: auto;
-  box-shadow: var(--shadow-lg);
-  animation: detailIn 0.4s cubic-bezier(0.22, 0.61, 0.36, 1);
 }
-@keyframes detailIn {
-  from { opacity: 0; transform: translateY(16px) scale(0.96); }
-  to { opacity: 1; transform: translateY(0) scale(1); }
-}
-.detail-close {
-  position: absolute; top: 14px; right: 14px;
-  width: 30px; height: 30px; border-radius: 50%;
-  border: none; background: rgba(0,0,0,0.04);
-  font-size: 14px; cursor: pointer;
-  display: flex; align-items: center; justify-content: center;
-  color: var(--text-muted); transition: all 0.2s;
-}
-.detail-close:hover { background: rgba(0,0,0,0.08); color: var(--text); }
-.detail-header {
-  display: flex; align-items: flex-start; gap: 12px; margin-bottom: 16px;
-}
-.detail-emoji { font-size: 2rem; flex-shrink: 0; }
-.detail-title-area { flex: 1; min-width: 0; }
-.detail-name { font-size: 1.15rem; font-weight: 700; color: var(--text); line-height: 1.3; }
-.detail-meta-line { font-size: 0.78rem; color: var(--text-muted); margin-top: 4px; }
-.detail-times {
-  display: flex; gap: 16px; padding: 10px 14px;
-  background: rgba(106,158,200,0.06); border-radius: var(--radius-xs);
-  margin-bottom: 14px; font-size: 0.8rem;
-}
-.detail-times span { color: var(--text-secondary); }
-.detail-times strong { color: var(--accent); font-weight: 700; }
-.detail-narrative {
-  font-size: 0.85rem; color: var(--text-secondary); line-height: 1.7;
-  padding: 12px 14px; border-radius: var(--radius-sm);
-  background: rgba(232,136,106,0.04); border-left: 3px solid rgba(232,136,106,0.2);
-  margin-bottom: 14px; font-style: italic;
-}
-.detail-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
-.detail-tag {
-  padding: 4px 10px; border-radius: 12px;
-  background: rgba(0,0,0,0.03); font-size: 0.72rem; color: var(--text-muted);
-  border: 1px solid rgba(0,0,0,0.04);
-}
-.detail-info-grid {
-  display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px;
-}
-.detail-info-item {
-  padding: 8px 10px; border-radius: 8px;
-  background: rgba(0,0,0,0.02); font-size: 0.75rem;
-}
-.detail-info-item .dil { color: var(--text-muted); }
-.detail-info-item .div { font-weight: 600; color: var(--text); margin-top: 2px; }
 
-/* ============================================================
-   Responsive
-   ============================================================ */
-@media (max-width:900px) {
-  .side-panel { width:90vw; left:5vw; top:3vh; bottom:3vh; }
-  .panel-layer { padding:16px 14px; }
+.arch-node.active {
+  background: var(--gold);
+  border-color: var(--gold);
+  box-shadow: 0 0 12px var(--gold-glow);
+  transform: scale(1.15);
+  z-index: 2;
+}
+
+.arch-node.done {
+  background: var(--teal);
+  border-color: var(--teal);
+  color: #fff;
+}
+
+/* Connector lines between waves */
+.wave-connector {
+  width: 1.5px;
+  height: 6px;
+  background: linear-gradient(to bottom, var(--gold), transparent);
+  margin-left: 62px;
+  opacity: 0.4;
+}
+
+/* Agent Flow */
+.agent-flow {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 8px;
+}
+
+.agent-step {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: var(--radius-xs);
+  background: transparent;
+  border: 1px solid transparent;
+  transition: all 0.3s var(--ease);
+}
+
+.agent-step.active {
+  background: var(--gold-light);
+  border-color: var(--border-gold);
+}
+
+.agent-step.done { opacity: 0.45; }
+
+.agent-step .step-icon {
+  width: 20px; height: 20px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 10px;
+  flex-shrink: 0;
+  background: var(--paper-warm);
+  color: var(--text-dim);
+  transition: all 0.3s;
+}
+
+.agent-step.active .step-icon {
+  background: var(--ink);
+  color: var(--gold);
+}
+
+.agent-step.done .step-icon {
+  background: var(--teal);
+  color: #fff;
+}
+
+.agent-step .step-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text);
+}
+
+.agent-step .step-status {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   Chat Messages
+   ═══════════════════════════════════════════════════════════════ */
+.chat-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 14px 16px;
+}
+
+.chat-messages::-webkit-scrollbar { width: 3px; }
+.chat-messages::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+.chat-msg {
+  padding: 10px 14px;
+  border-radius: var(--radius-xs);
+  margin-bottom: 8px;
+  font-size: 13px;
+  line-height: 1.5;
+  animation: chatSlide 0.35s var(--ease);
+}
+
+@keyframes chatSlide {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.chat-msg.system {
+  background: var(--paper);
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+}
+
+.chat-msg.user {
+  background: var(--ink);
+  color: var(--paper);
+  margin-left: 40px;
+  border: none;
+}
+
+.chat-msg .msg-label {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 500;
+  color: var(--gold);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  margin-bottom: 4px;
+}
+
+.chat-msg.user .msg-label { color: var(--gold); }
+
+/* ═══════════════════════════════════════════════════════════════
+   Typing Indicator (in chat)
+   ═══════════════════════════════════════════════════════════════ */
+.typing-indicator {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-radius: var(--radius-xs);
+  background: var(--paper);
+  border: 1px solid var(--border);
+  margin-bottom: 8px;
+  animation: chatSlide 0.35s var(--ease);
+}
+
+.typing-indicator .dots {
+  display: flex;
+  gap: 4px;
+}
+
+.typing-indicator .dots span {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--gold);
+  animation: dotBounce 1.2s infinite;
+}
+
+.typing-indicator .dots span:nth-child(2) { animation-delay: 0.2s; }
+.typing-indicator .dots span:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes dotBounce {
+  0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+  30% { transform: translateY(-6px); opacity: 1; }
+}
+
+.typing-indicator .typing-text {
+  font-size: 12px;
+  color: var(--text-dim);
+  font-style: italic;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   Center Agent Display
+   ═══════════════════════════════════════════════════════════════ */
+/* Agent card in chat */
+.chat-agent-card {
+  background: var(--paper);
+  border: 1px solid var(--gold-light);
+  border-left: 3px solid var(--gold);
+  border-radius: var(--radius-xs);
+  padding: 14px 16px;
+  margin-bottom: 8px;
+  animation: fadeSlideIn 0.3s var(--ease);
+}
+.chat-agent-card .agent-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.chat-agent-card .agent-icon {
+  font-size: 28px;
+  line-height: 1;
+}
+.chat-agent-card .agent-name {
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--ink);
+}
+.chat-agent-card .agent-duty {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--gold);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.chat-agent-card .agent-detail {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 6px;
+  font-size: 12px;
+  line-height: 1.5;
+}
+.chat-agent-card .agent-detail .lbl {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--gold);
+  min-width: 36px;
+  flex-shrink: 0;
+  padding-top: 1px;
+}
+.chat-agent-card .agent-detail .val {
+  color: var(--text-dim);
+}
+.chat-agent-card .agent-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  border-radius: 12px;
+  background: var(--gold-light);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--gold);
+  font-weight: 600;
+  margin-top: 4px;
+}
+.chat-agent-card .agent-badge .dot {
+  width: 5px; height: 5px;
+  border-radius: 50%;
+  background: var(--gold);
+  animation: dotBounce 1.2s infinite;
+}
+.chat-agent-card.done {
+  border-left-color: var(--teal);
+  border-color: #e2efe9;
+}
+.chat-agent-card.done .agent-badge {
+  background: #e2efe9;
+  color: var(--teal);
+}
+.chat-agent-card.done .agent-badge .dot {
+  background: var(--teal);
+  animation: none;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   Utility
+   ═══════════════════════════════════════════════════════════════ */
+.hidden { display: none !important; }
+
+/* Responsive */
+@media (max-width: 1100px) {
+  .up-right { display: none; }
+  .up-left { width: 280px; }
+}
+
+@media (max-width: 800px) {
+  .up-left { display: none; }
+  .up-right { display: none; }
 }
 </style>
 </head>
 <body>
 
-<!-- Full-Screen Map -->
-<canvas id="mapCanvas"></canvas>
-<div class="map-marker-highlight" id="markerHighlight"></div>
+<!-- Map Container -->
+<div id="mapContainer"></div>
 
-<!-- Map POI Popup -->
-<div class="map-poi-popup" id="mapPoiPopup">
-  <button class="popup-close" onclick="closeMapPopup()">&#10005;</button>
-  <span class="popup-emoji" id="popupEmoji"></span>
-  <span class="popup-name" id="popupName2"></span>
-  <div class="popup-meta" id="popupMeta2"></div>
-  <div class="popup-desc" id="popupDesc2"></div>
-</div>
+<!-- No more full-screen overlay — loading shown in chat -->
 
-<!-- Map POI Detail Overlay -->
-<div class="poi-detail-overlay" id="poiDetailOverlay" onclick="if(event.target===this)closePoiDetail()">
-  <div class="poi-detail-card">
-    <button class="detail-close" onclick="closePoiDetail()">&#10005;</button>
-    <div class="detail-header">
-      <span class="detail-emoji" id="detailEmoji"></span>
-      <div class="detail-title-area">
-        <div class="detail-name" id="detailName"></div>
-        <div class="detail-meta-line" id="detailMetaLine"></div>
+<!-- Unified Panel -->
+<div class="unified-panel">
+  <div class="panel up-inner">
+    <!-- Left: Route -->
+    <div class="up-section up-left">
+      <div class="route-header">
+        <h2>📍 路线规划</h2>
+        <div class="day-switch" id="daySwitch"></div>
       </div>
-    </div>
-    <div class="detail-times" id="detailTimes"></div>
-    <div class="detail-narrative" id="detailNarrative"></div>
-    <div class="detail-tags" id="detailTags"></div>
-    <div id="detailTravel"></div>
-    <div class="detail-info-grid" id="detailInfo"></div>
-  </div>
-</div>
-
-<!-- Side Panel -->
-<div class="side-panel" id="sidePanel">
-  <div class="panel-sheet" id="panelSheet">
-
-    <!-- ====== Panel 1: Search ====== -->
-    <div class="panel-layer" id="panel1">
-      <div class="search-title">CityFlow</div>
-      <div class="search-subtitle">探索珠海 · 2000+ POI 智能规划</div>
-
-      <div class="search-box">
-        <input type="text" id="searchInput" placeholder="描述你的出行需求..."
-               onkeydown="if(event.key==='Enter')submitPlan()">
-        <button class="btn-voice" title="语音">🎤</button>
+      <div class="route-steps" id="routeSteps">
+        <div class="empty-state">
+          <svg class="icon" viewBox="0 0 64 64" fill="none">
+            <circle cx="32" cy="32" r="28" stroke="#d4a853" stroke-width="1"/>
+            <path d="M32 12 L32 52 M18 22 L32 12 L46 22" stroke="#d4a853" stroke-width="1" stroke-linecap="round"/>
+            <circle cx="32" cy="32" r="6" stroke="#d4a853" stroke-width="0.5" opacity="0.5"/>
+          </svg>
+          <p>输入你的出行需求<br><em>AI 智能体将为你规划最佳路线</em></p>
+        </div>
       </div>
-
-      <div class="form-group">
-        <span class="form-label">出行场景</span>
-        <div class="form-row" id="sceneChips"></div>
+      <div class="stats-bar hidden" id="statsBar">
+        <div class="stat-item">
+          <div class="stat-value" id="statSteps">0</div>
+          <div class="stat-label">Stops</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-value" id="statTime">0h</div>
+          <div class="stat-label">Duration</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-value" id="statCost">¥0</div>
+          <div class="stat-label">Budget</div>
+        </div>
       </div>
-
-      <div class="form-group">
-        <span class="form-label">出行时长</span>
-        <select class="dropdown" id="durationSelect">
-          <option>半天（4小时内）</option>
-          <option selected>一整天（8小时）</option>
-          <option>两天一夜</option>
-          <option>三天两夜</option>
-        </select>
+      <div class="narrative-section hidden" id="narrativeSection">
+        <div class="opening" id="narrativeOpening"></div>
+        <div class="closing" id="narrativeClosing"></div>
       </div>
-
-      <div class="form-group">
-        <span class="form-label">出行风格</span>
-        <div class="form-row" id="styleChips"></div>
-      </div>
-
-      <div class="form-group">
-        <span class="form-label">预算范围（每人）</span>
-        <select class="dropdown" id="budgetSelect">
-          <option value="100">¥100 以下</option>
-          <option value="300">¥100 - ¥300</option>
-          <option value="600" selected>¥300 - ¥600</option>
-          <option value="1000">¥600 - ¥1000</option>
-          <option value="9999">¥1000 以上</option>
-        </select>
-      </div>
-
-      <div class="form-group">
-        <span class="form-label">同行人群</span>
-        <div class="form-row" id="groupChips"></div>
-      </div>
-
-      <button class="btn-generate" id="goBtn" onclick="submitPlan()">生成路线 &#8594;</button>
-    </div>
-
-    <!-- ====== Panel 2: SSE Results ====== -->
-    <div class="panel-layer hidden" id="panel2">
-      <div class="search-title" style="font-size:1.05rem;">AI 智能规划</div>
-      <div class="search-subtitle" style="margin-bottom:10px;">实时观察智能体工作过程</div>
-
-      <!-- Phase indicator -->
-      <div class="phase-bar" id="phaseBar">正在理解你的需求...</div>
-
-      <!-- Agent Pipeline -->
-      <div class="agent-pipeline" id="agentPipeline">
-        <div class="agent-stage" id="stage_0"><div class="agent-stage-cards" id="stageCards_0"></div></div>
-        <div class="agent-stage"><div class="agent-arrow" id="arrow_0"><svg viewBox="0 0 16 16"><path d="M8 2 L8 11 M4 8 L8 12 L12 8"/></svg></div></div>
-        <div class="agent-stage" id="stage_1"><div class="agent-stage-cards" id="stageCards_1"></div></div>
-        <div class="agent-stage"><div class="agent-arrow" id="arrow_1"><svg viewBox="0 0 16 16"><path d="M8 2 L8 11 M4 8 L8 12 L12 8"/></svg></div></div>
-        <div class="agent-stage" id="stage_2"><div class="agent-stage-cards" id="stageCards_2"></div></div>
-        <div class="agent-stage"><div class="agent-arrow" id="arrow_2"><svg viewBox="0 0 16 16"><path d="M8 2 L8 11 M4 8 L8 12 L12 8"/></svg></div></div>
-        <div class="agent-stage" id="stage_3"><div class="agent-stage-cards" id="stageCards_3"></div></div>
-      </div>
-
-      <!-- Route steps -->
-      <div class="step-list" id="stepList">
-        <div class="step-empty"><p>智能体工作中...</p></div>
-      </div>
-
-      <!-- Dialogue input -->
-      <div class="dlg-box">
-        <input type="text" id="dlgInput" placeholder="调整路线：换一个、太赶了..."
-               onkeydown="if(event.key==='Enter')sendDialogue()">
-        <button id="dlgBtn" onclick="sendDialogue()">发送</button>
-      </div>
-      <div class="dlg-quick">
-        <span class="qb-btn" onclick="quickAdj('换一个')">换</span>
-        <span class="qb-btn" onclick="quickAdj('太赶了')">缓</span>
-        <span class="qb-btn" onclick="quickAdj('多些自然')">野</span>
-        <span class="qb-btn" onclick="quickAdj('预算100内')">省</span>
-      </div>
-      <div class="dlg-reply" id="dlgReply"></div>
-
-      <div class="panel2-actions">
-        <button class="btn-back" onclick="goToPanel1()">&#8592; 重新搜索</button>
+      <div class="emotion-section hidden" id="emotionSection">
+        <h3>Emotion Curve</h3>
+        <canvas id="emotionCanvas"></canvas>
       </div>
     </div>
 
-    <!-- ====== Panel 3: Done ====== -->
-    <div class="panel-layer hidden-right" id="panel3">
-      <div class="panel3-header">
-        <span class="panel3-title">路线规划完成</span>
+    <!-- Center: Input + Chat -->
+    <div class="up-section up-center">
+      <div class="up-input">
+        <div class="input-header">
+          <div class="logo-mark">
+            <svg viewBox="0 0 44 44" fill="none">
+              <circle cx="22" cy="22" r="18" stroke="#d4a853" stroke-width="1.5"/>
+              <path d="M22 8 L22 36 M12 16 L22 8 L32 16" stroke="#d4a853" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+              <circle cx="22" cy="22" r="4" fill="#d4a853" opacity="0.3"/>
+              <circle cx="22" cy="22" r="1.5" fill="#d4a853"/>
+            </svg>
+          </div>
+          <div class="brand-text">
+            <h1>CityFlow</h1>
+            <div class="tagline">Intelligent Route Planning</div>
+          </div>
+          <span class="badge">MoE v3</span>
+        </div>
+        <div class="search-wrap">
+          <input type="text" id="userInput" placeholder="描述你的出行需求..." autocomplete="off">
+          <button class="send-btn" id="sendBtn" onclick="submitPlan()">→</button>
+        </div>
+        <div class="quick-tags">
+          <button class="quick-tag" onclick="fillInput('情侣珠海一日游，预算500元')">💑 情侣游</button>
+          <button class="quick-tag" onclick="fillInput('带孩子去长隆海洋王国，预算1000元')">👨‍👩‍👧 亲子游</button>
+          <button class="quick-tag" onclick="fillInput('珠海美食一日游，想吃海鲜')">🍜 美食</button>
+          <button class="quick-tag" onclick="fillInput('一天打卡珠海所有著名景点')">⚡ 特种兵</button>
+          <button class="quick-tag" onclick="fillInput('珠海两日游，节奏慢，喜欢公园和海边')">🌿 休闲</button>
+        </div>
       </div>
-
-      <div class="done-summary" id="doneSummary"></div>
-
-      <!-- Route steps (read-only) -->
-      <div class="step-list" id="stepList3"></div>
-
-      <!-- Dialogue adjustment -->
-      <div class="dlg-box">
-        <input type="text" id="dlgInput3" placeholder="继续微调..."
-               onkeydown="if(event.key==='Enter')sendDialogue3()">
-        <button id="dlgBtn3" onclick="sendDialogue3()">发送</button>
-      </div>
-      <div class="dlg-quick">
-        <span class="qb-btn" onclick="quickAdj3('换一个')">换</span>
-        <span class="qb-btn" onclick="quickAdj3('太赶了')">缓</span>
-        <span class="qb-btn" onclick="quickAdj3('太贵了')">省</span>
-        <span class="qb-btn" onclick="quickAdj3('重新规划')">重来</span>
-      </div>
-      <div class="dlg-reply" id="dlgReply3"></div>
-
-      <div class="panel2-actions">
-        <button class="btn-back" onclick="goToPanel1()">&#8592; 重新搜索</button>
-        <button class="btn-back" onclick="goToPanel2()" style="background:var(--accent);color:#fff;border-color:var(--accent)">返回路线</button>
+      <div class="up-chat">
+        <div class="chat-messages" id="chatMessages"></div>
       </div>
     </div>
 
+    <!-- Right: Agent Pipeline -->
+    <div class="up-section up-right">
+      <div class="agent-header">
+        <div class="status-dot" id="agentStatusDot"></div>
+        <h2>智能体管线</h2>
+      </div>
+      <div class="agent-body">
+        <div class="arch-diagram" id="archDiagram"></div>
+        <div class="agent-flow" id="agentFlow"></div>
+      </div>
+    </div>
   </div>
 </div>
 
 <script>
-/* ============================================================
-   CityFlow App — iOS风格 + SSE后端对接
-   ============================================================ */
-const $ = id => document.getElementById(id);
+// ═══════════════════════════════════════════════════════════════
+// CityFlow — Atlas Nouveau Edition
+// ═══════════════════════════════════════════════════════════════
 
-// ── State ──────────────────────────────────────────────────
-const S = {
-  routeId: null, steps: [], fullRoute: null,
-  planning: false, done: false, abort: null, t0: 0,
-  agents: {},
-  mapPois: [],   // POI positions for map
-  labelBoxes: [] // label bounding boxes for click detection
+const API_BASE = window.location.origin;
+
+const state = {
+  steps: [], currentDay: 1, totalDays: 1,
+  multiRoutes: [], routeId: null, isPlanning: false,
+  canvas: null,
 };
 
-// ── Chips Data ─────────────────────────────────────────────
-const SCENES = ['🏖️ 海边','🍜 美食','📸 打卡','⛰️ 户外','🎨 文化','🏙️ 城市','🌃 夜景','🛍️ 购物'];
-const STYLES = ['特种兵型','平衡型','闲逛型'];
-const GROUPS = ['独自出行','情侣约会','朋友聚会','亲子家庭','带老人'];
-const SCENE_INPUTS = {
-  '🏖️ 海边': '想去海边走走，吹吹海风',
-  '🍜 美食': '想品尝地道美食',
-  '📸 打卡': '想去拍照打卡的地方',
-  '⛰️ 户外': '想亲近自然户外走走',
-  '🎨 文化': '想感受文艺和文化气息',
-  '🏙️ 城市': '想逛逛城市地标和商圈',
-  '🌃 夜景': '想看夜景晚上逛逛',
-  '🛍️ 购物': '想逛街购物买买买',
-};
-
-// ── Panel Transition ───────────────────────────────────────
-function goToPanel1() {
-  $('panel1').classList.remove('hidden');
-  $('panel2').classList.add('hidden');
-  $('panel3').classList.add('hidden-right');
-  closePoiDetail();
-  $('markerHighlight').style.display = 'none';
-}
-function goToPanel2() {
-  $('panel1').classList.add('hidden');
-  $('panel2').classList.remove('hidden');
-  $('panel3').classList.add('hidden-right');
-  closePoiDetail();
-}
-function goToPanel3() {
-  $('panel1').classList.add('hidden');
-  $('panel2').classList.add('hidden');
-  $('panel3').classList.remove('hidden-right');
-  closePoiDetail();
-  renderPanel3();
+function fillInput(t) {
+  document.getElementById('userInput').value = t;
+  document.getElementById('userInput').focus();
 }
 
-// ── Panel 1 Init ───────────────────────────────────────────
-function renderPanel1() {
-  $('sceneChips').innerHTML = SCENES.map((s,i) =>
-    `<span class="chip${i===0?' selected':''}" onclick="toggleChip(this)">${s}</span>`
-  ).join('');
-  $('styleChips').innerHTML = STYLES.map((s,i) =>
-    `<span class="chip${i===1?' selected':''}" onclick="toggleChipExclusive(this,'styleChips')">${s}</span>`
-  ).join('');
-  $('groupChips').innerHTML = GROUPS.map((s,i) =>
-    `<span class="chip${i===0?' selected':''}" onclick="toggleChip(this)">${s}</span>`
-  ).join('');
-}
-
-function toggleChip(el) { el.classList.toggle('selected'); }
-function toggleChipExclusive(el, containerId) {
-  var siblings = $(containerId).querySelectorAll('.chip');
-  siblings.forEach(function(c) { c.classList.remove('selected'); });
-  el.classList.add('selected');
-}
-
-// ── Helpers ────────────────────────────────────────────────
-const txt = (v, fb='') => (v == null || v === '') ? fb : String(v);
-const num = v => { const n = Number(v || 0); return Number.isFinite(n) ? Math.round(n) : 0; };
-const elapsed = () => {
-  const s = Math.floor((Date.now() - S.t0) / 1000);
-  return `${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`;
-};
-
-// ── Phase Bar ──────────────────────────────────────────────
-function setPhase(msg) {
-  const bar = $('phaseBar');
-  bar.textContent = msg;
-  bar.classList.add('typing');
-}
-function clearPhaseAnim() { $('phaseBar').classList.remove('typing'); }
-
-// ── Agent Pipeline ─────────────────────────────────────────
-const AGENT_STAGE = {
-  'intent_parser': 0, 'rule_guard': 0, 'expert_router': 0,
-  'poi_expert': 1, 'poi': 1, 'food_expert': 1, 'food': 1,
-  'local_expert': 1, 'local_expert_agent': 1,
-  'hotel_expert': 1, 'hotel': 1,
-  'traffic_expert': 1, 'traffic': 1,
-  'weather_expert': 1, 'weather': 1,
-  'destination_expert': 1, 'destination': 1,
-  'insurance': 1, 'negotiation': 1,
-  'review': 2, 'budget_hacker': 2,
-  'synthesizer': 3,
-};
-const ALL_AGENTS = [
-  {agent:'rule_guard',name:'意图解析',icon:'🧠',role:'需求理解',color:'#ff5368'},
-  {agent:'expert_router',name:'路由器',icon:'📡',role:'专家调度',color:'#6a9ec8'},
-  {agent:'poi',name:'POI专家',icon:'🏛',role:'景点筛选',color:'#51aef9'},
-  {agent:'food',name:'美食专家',icon:'🍜',role:'餐饮推荐',color:'#ff9b54'},
-  {agent:'hotel',name:'住宿专家',icon:'🏨',role:'住宿推荐',color:'#4da6ff'},
-  {agent:'traffic',name:'交通专家',icon:'🚗',role:'交通规划',color:'#4dd8e8'},
-  {agent:'weather',name:'天气专家',icon:'🌤',role:'天气分析',color:'#e8c86a'},
-  {agent:'local_expert',name:'本地向导',icon:'🗺',role:'隐藏宝藏',color:'#7edc95'},
-  {agent:'insurance',name:'保险专家',icon:'🛡',role:'风险评估',color:'#9b6dff'},
-  {agent:'negotiation',name:'协商引擎',icon:'⚖️',role:'冲突调解',color:'#ff6b9d'},
-  {agent:'review',name:'审查员',icon:'🔍',role:'质量校验',color:'#c49a6a'},
-  {agent:'budget_hacker',name:'预算师',icon:'💰',role:'预算优化',color:'#e8c86a'},
-  {agent:'synthesizer',name:'综合师',icon:'✨',role:'路线组装',color:'#ff5a88'},
-];
-
-function agentCard(a) {
-  const el = document.createElement('div');
-  el.className = 'ag-card';
-  el.id = 'ag_' + a.agent;
-  el.style.setProperty('--ag-color', a.color || '#6a9ec8');
-  el.innerHTML = `
-    <div class="ag-head">
-      <div class="ag-badge">${a.icon || '🤖'}</div>
-      <div class="ag-info">
-        <div class="ag-name">${a.name || a.agent}</div>
-        <div class="ag-role">${a.role || ''}</div>
-      </div>
-      <div class="ag-status"></div>
-    </div>
-    <div class="ag-thinking"><span class="ag-think-text"></span> <span class="dots"><span>·</span><span>·</span><span>·</span></span></div>
-    <div class="ag-result"></div>`;
-  return el;
-}
-
-function ensureAgentCard(data) {
-  let el = $('ag_' + data.agent);
-  if (!el) {
-    el = agentCard(data);
-    const stageIdx = AGENT_STAGE[data.agent] ?? 0;
-    const container = $('stageCards_' + stageIdx);
-    if (container) {
-      el.classList.add('idle');
-      container.appendChild(el);
-    }
-  }
-  return el;
-}
-
-function activateArrow(stageIdx) {
-  const arrow = $('arrow_' + stageIdx);
-  if (arrow) arrow.classList.add('active');
-}
-function doneArrow(stageIdx) {
-  const arrow = $('arrow_' + stageIdx);
-  if (arrow) { arrow.classList.remove('active'); arrow.classList.add('done'); }
-}
-
-function resetPipeline() {
-  for (let i = 0; i < 4; i++) {
-    const c = $('stageCards_' + i);
-    if (c) c.innerHTML = '';
-    const a = $('arrow_' + i);
-    if (a) a.classList.remove('active', 'done');
-  }
-  // Pre-create ALL agent cards in idle state
-  ALL_AGENTS.forEach(def => {
-    const card = agentCard(def);
-    card.classList.add('idle');
-    const stageIdx = AGENT_STAGE[def.agent] ?? 0;
-    const container = $('stageCards_' + stageIdx);
-    if (container) container.appendChild(card);
-  });
-}
-
-// ── Step Rendering ─────────────────────────────────────────
-function clearStepEmpty() {
-  const e = $('stepList').querySelector('.step-empty');
-  if (e) e.remove();
-}
-
-function renderStep(step) {
-  if (!step?.poi) return;
-  clearStepEmpty();
-  S.steps.push(step);
-
-  const poi = step.poi;
-  const tags = [...(poi.tags || []), ...(step.scene_tags || []), ...(poi._scene_tags || [])].filter(Boolean);
-
-  const card = document.createElement('div');
-  card.className = 'step-card';
-  card.innerHTML = `
-    <div class="step-time">
-      ${txt(step.arrival_time, '--')}
-      <small>${txt(step.departure_time, '')}</small>
-      <div class="step-dot"></div>
-    </div>
-    <div class="step-info">
-      <div class="step-name">${txt(poi.name, '未命名')}</div>
-      <div class="step-meta">
-        ${txt(poi.category, '')} ${poi.avg_price ? '· ¥' + num(poi.avg_price) : '· 免费'}
-        ${poi.rating ? ' · ★' + Number(poi.rating).toFixed(1) : ''}
-      </div>
-      ${step.narrative ? `<div class="step-narr">${step.narrative}</div>` : ''}
-      ${tags.length ? `<div class="step-tags">${tags.slice(0,5).map(t => `<span>${t}</span>`).join('')}</div>` : ''}
-    </div>`;
-  $('stepList').appendChild(card);
-  card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-
-  // Add POI to map
-  if (poi.lat && poi.lng) {
-    S.mapPois.push({ id: poi.id, name: poi.name, lat: poi.lat, lng: poi.lng, step: S.steps.length });
-    drawMap();
-  }
-}
-
-function renderClosing() {
-  clearStepEmpty();
-  const card = document.createElement('div');
-  card.className = 'step-card';
-  card.style.opacity = '0.5';
-  card.style.fontStyle = 'italic';
-  card.innerHTML = `
-    <div class="step-time"><small>☁</small></div>
-    <div class="step-info">
-      <div style="color:var(--text-muted);font-size:0.78rem;">希望这段旅程为你带来片刻宁静。</div>
-    </div>`;
-  $('stepList').appendChild(card);
-}
-
-// ── Panel 3 ────────────────────────────────────────────────
-function renderPanel3() {
-  const tc = S.fullRoute?.total_cost || {};
-  const used = num(tc.budget_used);
-  const limit = tc.budget_limit || 200;
-
-  $('doneSummary').innerHTML = `
-    <div class="sum-row"><span class="sum-label">路线站点</span><span class="sum-value">${S.steps.length} 站</span></div>
-    <div class="sum-row"><span class="sum-label">预算使用</span><span class="sum-value">¥${used} / ¥${limit}</span></div>
-    <div class="sum-row"><span class="sum-label">用时</span><span class="sum-value">${elapsed()}</span></div>
-    <div class="sum-row"><span class="sum-label">路线ID</span><span class="sum-value">${S.routeId || '-'}</span></div>`;
-
-  // Copy steps to panel 3
-  $('stepList3').innerHTML = '';
-  S.steps.forEach(step => {
-    if (!step?.poi) return;
-    const poi = step.poi;
-    const tags = [...(poi.tags || []), ...(step.scene_tags || []), ...(poi._scene_tags || [])].filter(Boolean);
-    const card = document.createElement('div');
-    card.className = 'step-card';
-    card.innerHTML = `
-      <div class="step-time">
-        ${txt(step.arrival_time, '--')}<small>${txt(step.departure_time, '')}</small>
-        <div class="step-dot"></div>
-      </div>
-      <div class="step-info">
-        <div class="step-name">${txt(poi.name, '未命名')}</div>
-        <div class="step-meta">
-          ${txt(poi.category, '')} ${poi.avg_price ? '· ¥' + num(poi.avg_price) : '· 免费'}
-        </div>
-        ${step.narrative ? `<div class="step-narr">${step.narrative}</div>` : ''}
-        ${tags.length ? `<div class="step-tags">${tags.slice(0,5).map(t => `<span>${t}</span>`).join('')}</div>` : ''}
-      </div>`;
-    $('stepList3').appendChild(card);
-  });
-}
-
-// ── SSE Event Handlers ─────────────────────────────────────
-function onPhase(data) {
-  if (data.message) setPhase(data.message);
-}
-
-function onAgentStart(data) {
-  const card = ensureAgentCard(data);
-  // Update visual from SSE data
-  if (data.icon) card.querySelector('.ag-badge').textContent = data.icon;
-  if (data.name) card.querySelector('.ag-name').textContent = data.name;
-  if (data.role) card.querySelector('.ag-role').textContent = data.role;
-  if (data.color) card.style.setProperty('--ag-color', data.color);
-  // idle → active
-  card.classList.remove('idle', 'done');
-  card.classList.add('active');
-  const stageIdx = AGENT_STAGE[data.agent] ?? 0;
-  if (stageIdx > 0) activateArrow(stageIdx - 1);
-}
-
-function onAgentThinking(data) {
-  const card = ensureAgentCard({ agent: data.agent });
-  const t = card.querySelector('.ag-think-text');
-  if (t) t.textContent = data.text;
-}
-
-function onAgentResult(data) {
-  const card = $('ag_' + data.agent);
-  if (!card) return;
-  card.classList.remove('idle', 'active');
-  card.classList.add('done');
-  const resultEl = card.querySelector('.ag-result');
-  if (resultEl) resultEl.textContent = '✓ ' + (data.summary || '完成');
-  const stageIdx = AGENT_STAGE[data.agent] ?? 0;
-  if (stageIdx > 0) doneArrow(stageIdx - 1);
-}
-
-function onStep(data) {
-  renderStep(data);
-}
-
-function onDone(data) {
-  S.routeId = data.route_id;
-  S.fullRoute = data.full_route || {};
-  const route = S.fullRoute.route || [];
-
-  // If no step events received, render from full_route
-  if (route.length && S.steps.length === 0) {
-    route.forEach((rs, i) => {
-      renderStep({
-        index: i + 1, poi: rs.poi,
-        arrival_time: rs.arrival_time, departure_time: rs.departure_time,
-        narrative: rs.narrative || '', emotion_design: rs.emotion_design || '',
-        scene_tags: rs.scene_tags || [],
-      });
-    });
-  }
-  renderClosing();
-
-  clearPhaseAnim();
-  setPhase('规划完成 ✓');
-
-  S.done = true;
-  S.planning = false;
-  $('goBtn').disabled = false;
-  $('goBtn').textContent = '生成路线 →';
-  $('goBtn').classList.remove('planning');
-  stopTimer();
-
-  // Switch to panel 3 after a brief pause
-  setTimeout(() => goToPanel3(), 800);
-}
-
-function onError(data) {
-  setPhase('出错了: ' + (data.error || '规划失败'));
-  clearPhaseAnim();
-  S.done = true;
-  S.planning = false;
-  $('goBtn').disabled = false;
-  $('goBtn').textContent = '生成路线 →';
-  $('goBtn').classList.remove('planning');
-  stopTimer();
-}
-
-function handleEvent(type, data) {
-  if (type === 'phase') return onPhase(data);
-  if (type === 'agent_start') return onAgentStart(data);
-  if (type === 'agent_thinking') return onAgentThinking(data);
-  if (type === 'agent_result') return onAgentResult(data);
-  if (type === 'step') return onStep(data);
-  if (type === 'done') return onDone(data);
-  if (type === 'error') return onError(data);
-  if (type === 'debug_agents') {
-    (data.agents || []).forEach(aid => ensureAgentCard({ agent: aid, name: aid, icon: '🤖', role: '', color: '#6a9ec8' }));
-  }
-}
-
-// ── Timer ──────────────────────────────────────────────────
-let timerInterval = null;
-function startTimer() {
-  S.t0 = Date.now();
-  clearInterval(timerInterval);
-  // We show elapsed in phase bar
-}
-function stopTimer() { clearInterval(timerInterval); }
-
-// ── SSE Stream ─────────────────────────────────────────────
-function waitForFrame() { return new Promise(r => requestAnimationFrame(r)); }
-
-async function parseSSE(chunk, buf) {
-  buf.s += chunk;
-  const msgs = buf.s.split(/\r?\n\r?\n/);
-  buf.s = msgs.pop() || '';
-  for (const msg of msgs) {
-    let type = 'message';
-    const dl = [];
-    for (const line of msg.split(/\r?\n/)) {
-      if (line.startsWith('event:')) type = line.slice(6).trim();
-      if (line.startsWith('data:')) dl.push(line.slice(5).trimStart());
-    }
-    if (!dl.length) continue;
-    try { handleEvent(type, JSON.parse(dl.join('\n'))); }
-    catch (e) { console.error('SSE:', e); }
-    await waitForFrame();
-  }
-}
-
-function buildQueryFromSelections() {
-  const selectedScenes = [...document.querySelectorAll('#sceneChips .chip.selected')].map(c => c.textContent.trim());
-  const selectedStyle = document.querySelector('#styleChips .chip.selected');
-  const selectedGroups = [...document.querySelectorAll('#groupChips .chip.selected')].map(c => c.textContent.trim());
-  const duration = $('durationSelect')?.value || '一整天（8小时）';
-  const budget = $('budgetSelect')?.value || '600';
-
-  const parts = [];
-  if (selectedScenes.length) parts.push(selectedScenes.join('、'));
-  if (selectedStyle) parts.push(selectedStyle.textContent.trim() + '风格');
-  if (selectedGroups.length) parts.push(selectedGroups.join('、'));
-  parts.push(duration);
-  if (budget && Number(budget) < 9999) parts.push('预算¥' + budget + '以内');
-  return parts.join('，') || '珠海一日游';
-}
-
-async function submitPlan() {
-  let input = $('searchInput').value.trim();
-  if (S.planning) return;
-  // If no text, build from chip selections
-  if (!input) input = buildQueryFromSelections();
-
-  // Reset state
-  S.routeId = null; S.steps = []; S.fullRoute = null;
-  S.done = false; S.agents = {}; S.mapPois = [];
-
-  // Switch to panel 2
-  goToPanel2();
-  $('stepList').innerHTML = '<div class="step-empty"><p>智能体工作中...</p></div>';
-  resetPipeline();
-  $('dlgReply').textContent = '';
-  $('dlgReply').className = 'dlg-reply';
-
-  // UI state
-  S.planning = true;
-  $('goBtn').disabled = true;
-  $('goBtn').textContent = '规划中...';
-  $('goBtn').classList.add('planning');
-  setPhase('正在理解你的需求...');
-  startTimer();
-
-  S.abort = new AbortController();
-  const timeout = setTimeout(() => {
-    if (!S.planning) return;
-    S.abort?.abort();
-    S.planning = false;
-    $('goBtn').disabled = false;
-    $('goBtn').textContent = '生成路线 →';
-    $('goBtn').classList.remove('planning');
-    stopTimer();
-    setPhase('请求超时');
-    clearPhaseAnim();
-  }, 120_000);
-
-  try {
-    const res = await fetch('/api/plan', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ user_input: input }),
-      signal: S.abort.signal,
-    });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-
-    const reader = res.body.getReader();
-    const dec = new TextDecoder();
-    const buf = { s: '' };
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      await parseSSE(dec.decode(value, { stream: true }), buf);
-      if (S.done) { await reader.cancel(); break; }
-    }
-  } catch (e) {
-    if (e.name === 'AbortError') return;
-    console.error(e);
-    S.planning = false;
-    $('goBtn').disabled = false;
-    $('goBtn').textContent = '生成路线 →';
-    $('goBtn').classList.remove('planning');
-    stopTimer();
-    setPhase('连接失败，请检查服务器');
-    clearPhaseAnim();
-  } finally {
-    clearTimeout(timeout);
-  }
-}
-
-// ── Dialogue ───────────────────────────────────────────────
-async function sendDialogue() {
-  const inst = $('dlgInput').value.trim();
-  $('dlgInput').value = '';
-  await doDialogue(inst, 'dlgReply');
-}
-
-function quickAdj(inst) {
-  $('dlgInput').value = inst;
-  sendDialogue();
-}
-
-async function sendDialogue3() {
-  const inst = $('dlgInput3').value.trim();
-  $('dlgInput3').value = '';
-  await doDialogue(inst, 'dlgReply3');
-}
-
-function quickAdj3(inst) {
-  $('dlgInput3').value = inst;
-  sendDialogue3();
-}
-
-async function doDialogue(inst, replyId) {
-  if (!inst || !S.routeId) {
-    $(replyId).textContent = '请先完成一次规划';
-    $(replyId).className = 'dlg-reply err';
-    return;
-  }
-  $(replyId).textContent = '调整中...';
-  $(replyId).className = 'dlg-reply';
-  $('dlgBtn').disabled = true;
-  $('dlgBtn3').disabled = true;
-
-  try {
-    const res = await fetch(`/api/dialogue/${encodeURIComponent(S.routeId)}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ instruction: inst }),
-    });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const data = await res.json();
-    $(replyId).textContent = data.reply || '已调整';
-    $(replyId).className = 'dlg-reply ok';
-
-    if (data.route?.route?.length) {
-      S.steps = [];
-      $('stepList').innerHTML = '';
-      S.mapPois = [];
-      data.route.route.forEach((rs, i) => {
-        renderStep({
-          index: i + 1, poi: rs.poi,
-          arrival_time: rs.arrival_time, departure_time: rs.departure_time,
-          narrative: rs.narrative || '',
-        });
-      });
-      renderClosing();
-      S.fullRoute = data.route;
-      drawMap();
-    }
-  } catch (e) {
-    console.error(e);
-    $(replyId).textContent = '调整失败';
-    $(replyId).className = 'dlg-reply err';
-  } finally {
-    $('dlgBtn').disabled = false;
-    $('dlgBtn3').disabled = false;
-  }
-}
-
-// ============================================================
-//   Canvas Map — 简洁渐变风格 + 缩放
-// ============================================================
-var mapOffsetX = 0, mapOffsetY = 0, mapScale = 1;
-var mapTargetX = 0, mapTargetY = 0;
-var MAP_ZOOM_MIN = 0.15, MAP_ZOOM_MAX = 6;
-
+// ── 地图初始化 (Canvas only) ──
 function initMap() {
-  var canvas = $('mapCanvas');
-  function sizeCanvas() {
-    var rect = canvas.getBoundingClientRect();
-    canvas.width = rect.width;
-    canvas.height = rect.height;
-  }
-  sizeCanvas();
-
-  // Center on Zhuhai
-  var cLat = 22.22, cLng = 113.56;
-  mapScale = Math.min(canvas.width / 0.15 / 20000, canvas.height / 0.12 / 20000, 0.9);
-  mapOffsetX = canvas.width * 0.5 - cLng * mapScale * 20000;
-  mapOffsetY = canvas.height / 2 + cLat * mapScale * 20000;
-  mapTargetX = mapOffsetX;
-  mapTargetY = mapOffsetY;
-
-  // ── 以 (cx, cy) 为锚点缩放 ──
-  function zoomAt(cx, cy, factor) {
-    var oldScale = mapScale;
-    mapScale = Math.max(MAP_ZOOM_MIN, Math.min(MAP_ZOOM_MAX, mapScale * factor));
-    var ratio = mapScale / oldScale;
-    mapTargetX = cx - (cx - mapTargetX) * ratio;
-    mapTargetY = cy - (cy - mapTargetY) * ratio;
-    drawMap();
-  }
-
-  // ── 滚轮缩放 ──
-  canvas.addEventListener('wheel', function(e) {
-    e.preventDefault();
-    var rect = canvas.getBoundingClientRect();
-    var cx = e.clientX - rect.left;
-    var cy = e.clientY - rect.top;
-    var factor = e.deltaY < 0 ? 1.12 : 1 / 1.12;
-    zoomAt(cx, cy, factor);
-  }, { passive: false });
-
-  // ── 拖拽 ──
-  var dragging = false, sx = 0, sy = 0, dragDist = 0;
-  canvas.addEventListener('mousedown', function(e) { dragging = true; sx = e.clientX; sy = e.clientY; dragDist = 0; });
-  canvas.addEventListener('mousemove', function(e) {
-    if (!dragging) return;
-    var dx = e.clientX - sx, dy = e.clientY - sy;
-    dragDist += Math.abs(dx) + Math.abs(dy);
-    mapTargetX += dx; mapTargetY += dy;
-    sx = e.clientX; sy = e.clientY;
-    drawMap();
-  });
-  canvas.addEventListener('mouseup', function(e) {
-    if (dragDist < 8 && S.mapPois.length > 0) {
-      var rect = canvas.getBoundingClientRect();
-      checkPoiClick(e.clientX - rect.left, e.clientY - rect.top);
-    }
-    dragging = false;
-  });
-  canvas.addEventListener('mouseleave', function() { dragging = false; });
-
-  // ── 触摸：单指拖拽 + 双指缩放 ──
-  var pinchDist = 0, pinchScale = 1;
-  canvas.addEventListener('touchstart', function(e) {
-    if (e.touches.length === 1) {
-      dragging = true; sx = e.touches[0].clientX; sy = e.touches[0].clientY; dragDist = 0;
-    } else if (e.touches.length === 2) {
-      dragging = false;
-      var dx = e.touches[1].clientX - e.touches[0].clientX;
-      var dy = e.touches[1].clientY - e.touches[0].clientY;
-      pinchDist = Math.sqrt(dx * dx + dy * dy);
-    }
-  });
-  canvas.addEventListener('touchmove', function(e) {
-    e.preventDefault();
-    if (e.touches.length === 1 && dragging) {
-      var dx = e.touches[0].clientX - sx, dy = e.touches[0].clientY - sy;
-      dragDist += Math.abs(dx) + Math.abs(dy);
-      mapTargetX += dx; mapTargetY += dy;
-      sx = e.touches[0].clientX; sy = e.touches[0].clientY;
-      drawMap();
-    } else if (e.touches.length === 2) {
-      var dx = e.touches[1].clientX - e.touches[0].clientX;
-      var dy = e.touches[1].clientY - e.touches[0].clientY;
-      var newDist = Math.sqrt(dx * dx + dy * dy);
-      if (pinchDist > 0) {
-        var rect = canvas.getBoundingClientRect();
-        var cx = (e.touches[0].clientX + e.touches[1].clientX) / 2 - rect.left;
-        var cy = (e.touches[0].clientY + e.touches[1].clientY) / 2 - rect.top;
-        zoomAt(cx, cy, newDist / pinchDist);
-      }
-      pinchDist = newDist;
-    }
-  }, { passive: false });
-  canvas.addEventListener('touchend', function(e) {
-    if (dragDist < 15 && S.mapPois.length > 0) {
-      var rect = canvas.getBoundingClientRect();
-      var t = e.changedTouches[0];
-      checkPoiClick(t.clientX - rect.left, t.clientY - rect.top);
-    }
-    dragging = false;
-  });
-
-  window.addEventListener('resize', function() {
-    sizeCanvas();
-    drawMap();
-  });
+  initCanvasMap();
 }
 
-function checkPoiClick(mx, my) {
-  // 先检测标签卡片区域点击
-  for (var i = 0; i < S.labelBoxes.length; i++) {
-    var lb = S.labelBoxes[i];
-    if (mx >= lb.lx && mx <= lb.lx + lb.tw && my >= lb.ly && my <= lb.ly + lb.th) {
-      var p = S.mapPois[lb.idx];
-      var step = S.steps[p.step - 1];
-      showPoiDetail(p, step);
-      return;
-    }
+// ── Canvas fallback map ──
+function initCanvasMap() {
+  const container = document.getElementById('mapContainer');
+  container.style.background = '#1a2238';
+  const canvas = document.createElement('canvas');
+  canvas.id = 'mapCanvas';
+  canvas.style.cssText = 'width:100%;height:100%;display:block;';
+  container.innerHTML = '';
+  container.appendChild(canvas);
+
+  // Draw grid background
+  const ctx = canvas.getContext('2d');
+  const dpr = window.devicePixelRatio || 1;
+
+  function resize() {
+    canvas.width = container.offsetWidth * dpr;
+    canvas.height = container.offsetHeight * dpr;
+    ctx.scale(dpr, dpr);
+    drawGrid();
   }
-  // 再检测标记圆点
-  for (var i = 0; i < S.mapPois.length; i++) {
-    var p = S.mapPois[i];
-    var pt = latLngToXY(p.lat, p.lng);
-    var dist = Math.sqrt((mx - pt.x) * (mx - pt.x) + (my - pt.y) * (my - pt.y));
-    if (dist < 25) {
-      var step = S.steps[p.step - 1];
-      showPoiDetail(p, step);
-      return;
-    }
+
+  function drawGrid() {
+    const w = container.offsetWidth;
+    const h = container.offsetHeight;
+    ctx.clearRect(0, 0, w, h);
+    // Dark background
+    ctx.fillStyle = '#1a2238';
+    ctx.fillRect(0, 0, w, h);
+    // Grid lines
+    ctx.strokeStyle = 'rgba(212,168,83,0.06)';
+    ctx.lineWidth = 1;
+    const step = 40;
+    for (let x = 0; x < w; x += step) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke(); }
+    for (let y = 0; y < h; y += step) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke(); }
+    // Title
+    ctx.fillStyle = 'rgba(212,168,83,0.15)';
+    ctx.font = 'italic 16px "Playfair Display", serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('Zhuhai · 22.27°N 113.55°E', w / 2, h / 2 - 10);
+    ctx.font = '11px "DM Mono", monospace';
+    ctx.fillText('等待路线数据...', w / 2, h / 2 + 14);
   }
-  closePoiDetail();
+
+  window.addEventListener('resize', resize);
+  resize();
 }
 
-function latLngToXY(lat, lng) {
-  return {
-    x: lng * mapScale * 20000 + mapTargetX,
-    y: -lat * mapScale * 20000 + mapTargetY
-  };
+// ── Route Rendering (Canvas) ──
+function clearRoute() {
+  drawRouteOnCanvas([]);
 }
 
-function drawMap() {
-  var canvas = $('mapCanvas');
-  var ctx = canvas.getContext('2d');
-  var w = canvas.width, h = canvas.height;
+function drawRouteOnCanvas(valid) {
+  const canvas = document.getElementById('mapCanvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const dpr = window.devicePixelRatio || 1;
+  const w = canvas.width / dpr;
+  const h = canvas.height / dpr;
+  const container = document.getElementById('mapContainer');
 
-  // ── 主渐变背景 ──
-  var bgGrad = ctx.createLinearGradient(0, 0, w * 0.3, h);
-  bgGrad.addColorStop(0, '#dbe9f4');
-  bgGrad.addColorStop(0.35, '#e6eef5');
-  bgGrad.addColorStop(0.65, '#f0ece3');
-  bgGrad.addColorStop(1, '#e8dfd0');
-  ctx.fillStyle = bgGrad;
+  // Redraw grid
+  ctx.clearRect(0, 0, w, h);
+  ctx.fillStyle = '#1a2238';
   ctx.fillRect(0, 0, w, h);
+  ctx.strokeStyle = 'rgba(212,168,83,0.04)';
+  ctx.lineWidth = 1;
+  const step = 40;
+  for (let x = 0; x < w; x += step) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke(); }
+  for (let y = 0; y < h; y += step) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke(); }
 
-  // ── 海面渐变（右下角）──
-  var coastGrad = ctx.createRadialGradient(w * 0.8, h * 0.85, 0, w * 0.8, h * 0.85, h * 0.5);
-  coastGrad.addColorStop(0, 'rgba(170,205,230,0.35)');
-  coastGrad.addColorStop(0.6, 'rgba(180,210,230,0.2)');
-  coastGrad.addColorStop(1, 'rgba(180,210,230,0)');
-  ctx.fillStyle = coastGrad;
-  ctx.fillRect(0, 0, w, h);
+  if (!valid.length) return;
 
-  // ── 淡色海岸线（平滑曲线）──
-  var coastPts = [[22.25,113.555],[22.245,113.565],[22.24,113.572],[22.235,113.58],[22.225,113.578],[22.215,113.57],[22.20,113.555],[22.19,113.545],[22.17,113.53],[22.14,113.52],[22.10,113.535]];
-  ctx.strokeStyle = 'rgba(160,195,225,0.35)';
-  ctx.lineWidth = 2; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-  ctx.setLineDash([8, 14]);
-  drawSmoothCurve(ctx, coastPts.map(function(c) { return latLngToXY(c[0], c[1]); }));
+  // Compute bounds
+  const lngs = valid.map(s => s.poi.lng);
+  const lats = valid.map(s => s.poi.lat);
+  const minLng = Math.min(...lngs), maxLng = Math.max(...lngs);
+  const minLat = Math.min(...lats), maxLat = Math.max(...lats);
+  const pad = 80;
+  const rangeLng = maxLng - minLng || 0.01;
+  const rangeLat = maxLat - minLat || 0.01;
+  const scale = Math.min((w - pad * 2) / rangeLng, (h - pad * 2) / rangeLat);
+  const cx = (minLng + maxLng) / 2;
+  const cy = (minLat + maxLat) / 2;
+
+  function toXY(lng, lat) {
+    return [w / 2 + (lng - cx) * scale, h / 2 - (lat - cy) * scale];
+  }
+
+  // Draw dashed line
+  ctx.setLineDash([10, 6]);
+  ctx.strokeStyle = '#d4a853';
+  ctx.lineWidth = 2.5;
+  ctx.beginPath();
+  valid.forEach((s, i) => {
+    const [x, y] = toXY(s.poi.lng, s.poi.lat);
+    if (i === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  });
   ctx.stroke();
   ctx.setLineDash([]);
 
-  // ── 路线连线（平滑曲线）──
-  if (S.mapPois.length >= 2) {
-    var pts = S.mapPois.map(function(p) { return latLngToXY(p.lat, p.lng); });
-
-    // 半透明光晕
-    ctx.strokeStyle = 'rgba(232,136,106,0.18)';
-    ctx.lineWidth = 10; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-    drawSmoothCurve(ctx, pts);
-    ctx.stroke();
-
-    // 实线
-    ctx.strokeStyle = 'rgba(232,136,106,0.6)';
-    ctx.lineWidth = 2.5;
-    drawSmoothCurve(ctx, pts);
-    ctx.stroke();
-  }
-
-  // ── POI 标记 + 自动信息标签 ──
-  ctx.font = '600 11px -apple-system, "PingFang SC", sans-serif';
-  var labels = [];
-  for (var i = 0; i < S.mapPois.length; i++) {
-    var p = S.mapPois[i];
-    var pt = latLngToXY(p.lat, p.lng);
-    var step = S.steps[p.step - 1];
-    var poi = step?.poi || p;
-    var name = p.name || '';
-    var shortName = name.length > 10 ? name.slice(0, 9) + '…' : name;
-    var cat = poi?.category || '';
-    var rating = poi?.rating ? '★' + Number(poi.rating).toFixed(1) : '';
-    var priceStr = poi?.avg_price ? '¥' + poi.avg_price : '免费';
-    var metaStr = [cat, rating, priceStr].filter(Boolean).join(' · ');
-    var timeStr = step?.arrival_time ? (step.arrival_time + ' → ' + (step.departure_time || '')) : '';
-    // 叙事摘要（取前20字）
-    var narrFull = step?.narrative || '';
-    var narrShort = narrFull.length > 20 ? narrFull.slice(0, 19) + '…' : narrFull;
-    // 计算标签宽度（取最长行）
-    ctx.font = '600 11px -apple-system, "PingFang SC", sans-serif';
-    var w1 = ctx.measureText(shortName).width;
-    ctx.font = '500 9px -apple-system, "PingFang SC", sans-serif';
-    var w2 = metaStr ? ctx.measureText(metaStr).width : 0;
-    var w3 = timeStr ? ctx.measureText(timeStr).width : 0;
-    var w4 = narrShort ? ctx.measureText(narrShort).width : 0;
-    var maxW = Math.max(w1, w2, w3, w4);
-    var tw = maxW + 20;
-    var rows = 1; // name always
-    if (metaStr) rows++;
-    if (timeStr) rows++;
-    if (narrShort) rows++;
-    var labelH = rows * 15 + 8;
-    labels.push({ idx: i, pt: pt, name: shortName, meta: metaStr, time: timeStr, narr: narrShort, tw: tw, th: labelH, lx: 0, ly: 0 });
-  }
-
-  // 防重叠铺开：8方向候选偏移
-  var OFFSETS = [
-    {dx: 24, dy: -20}, {dx: 24, dy: 20}, {dx: -1, dy: -40},
-    {dx: -1, dy: 30}, {dx: -24, dy: -20}, {dx: -24, dy: 20},
-    {dx: 28, dy: 0}, {dx: -28, dy: 0}
-  ];
-  var placed = [];
-  for (var li = 0; li < labels.length; li++) {
-    var lb = labels[li];
-    var best = null, bestOverlap = Infinity;
-    for (var oi = 0; oi < OFFSETS.length; oi++) {
-      var off = OFFSETS[oi];
-      var lx = lb.pt.x + off.dx - (off.dx > 0 ? 0 : lb.tw);
-      var ly = lb.pt.y + off.dy;
-      if (lx < 4) lx = 4;
-      if (lx + lb.tw > w - 4) lx = w - 4 - lb.tw;
-      if (ly < 4) ly = 4;
-      if (ly + lb.th > h - 4) ly = h - 4 - lb.th;
-      var overlap = 0;
-      for (var pi = 0; pi < placed.length; pi++) {
-        var pl = placed[pi];
-        var ox = Math.max(0, Math.min(lx + lb.tw, pl.lx + pl.tw) - Math.max(lx, pl.lx));
-        var oy = Math.max(0, Math.min(ly + lb.th, pl.ly + pl.th) - Math.max(ly, pl.ly));
-        overlap += ox * oy;
-      }
-      if (overlap < bestOverlap) { bestOverlap = overlap; best = { lx: lx, ly: ly }; }
-      if (overlap === 0) break;
-    }
-    lb.lx = best ? best.lx : lb.pt.x + 20;
-    lb.ly = best ? best.ly : lb.pt.y - 14;
-    placed.push(lb);
-  }
-
-  // 绘制连线（标签→标记）
-  ctx.strokeStyle = 'rgba(232,136,106,0.22)';
-  ctx.lineWidth = 1;
-  ctx.setLineDash([3, 4]);
-  for (var li = 0; li < labels.length; li++) {
-    var lb = labels[li];
+  // Draw arrows between points
+  for (let i = 0; i < valid.length - 1; i++) {
+    const [x1, y1] = toXY(valid[i].poi.lng, valid[i].poi.lat);
+    const [x2, y2] = toXY(valid[i + 1].poi.lng, valid[i + 1].poi.lat);
+    const mx = (x1 + x2) / 2, my = (y1 + y2) / 2;
+    const angle = Math.atan2(y2 - y1, x2 - x1);
+    ctx.save();
+    ctx.translate(mx, my);
+    ctx.rotate(angle);
+    ctx.fillStyle = '#e8614d';
     ctx.beginPath();
-    ctx.moveTo(lb.pt.x, lb.pt.y);
-    ctx.lineTo(lb.lx + (lb.pt.x < lb.lx + lb.tw * 0.5 ? lb.tw : 0), lb.ly + lb.th * 0.5);
-    ctx.stroke();
-  }
-  ctx.setLineDash([]);
-
-  // 绘制标记圆点
-  for (var i = 0; i < S.mapPois.length; i++) {
-    var p = S.mapPois[i];
-    var pt = latLngToXY(p.lat, p.lng);
-    ctx.beginPath(); ctx.arc(pt.x, pt.y, 18, 0, Math.PI * 2);
-    ctx.fillStyle = 'rgba(232,136,106,0.1)'; ctx.fill();
-    ctx.beginPath(); ctx.arc(pt.x, pt.y, 11, 0, Math.PI * 2);
-    ctx.fillStyle = '#fff'; ctx.fill();
-    ctx.strokeStyle = '#e8886a'; ctx.lineWidth = 2; ctx.stroke();
-    ctx.font = 'bold 9px -apple-system, sans-serif';
-    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillStyle = '#e8886a';
-    ctx.fillText(i + 1, pt.x, pt.y);
-  }
-
-  // 绘制信息标签卡片
-  for (var li = 0; li < labels.length; li++) {
-    var lb = labels[li];
-    var r = 7, x = lb.lx, y = lb.ly, tw = lb.tw, th = lb.th;
-    ctx.beginPath();
-    ctx.moveTo(x + r, y);
-    ctx.lineTo(x + tw - r, y);
-    ctx.quadraticCurveTo(x + tw, y, x + tw, y + r);
-    ctx.lineTo(x + tw, y + th - r);
-    ctx.quadraticCurveTo(x + tw, y + th, x + tw - r, y + th);
-    ctx.lineTo(x + r, y + th);
-    ctx.quadraticCurveTo(x, y + th, x, y + th - r);
-    ctx.lineTo(x, y + r);
-    ctx.quadraticCurveTo(x, y, x + r, y);
+    ctx.moveTo(8, 0);
+    ctx.lineTo(-4, -5);
+    ctx.lineTo(-4, 5);
     ctx.closePath();
-    ctx.fillStyle = 'rgba(252,250,247,0.92)';
     ctx.fill();
-    ctx.strokeStyle = 'rgba(0,0,0,0.05)';
-    ctx.lineWidth = 1;
-    ctx.stroke();
-    // 绘制文字（多行）
-    var ty = y + 7;
-    ctx.textAlign = 'left'; ctx.textBaseline = 'top';
-    // 第1行：名称
-    ctx.font = '600 11px -apple-system, "PingFang SC", sans-serif';
-    ctx.fillStyle = '#3a3530';
-    ctx.fillText(lb.name, x + 8, ty);
-    ty += 15;
-    // 第2行：分类·评分·价格
-    if (lb.meta) {
-      ctx.font = '500 8.5px -apple-system, "PingFang SC", sans-serif';
-      ctx.fillStyle = '#a09888';
-      ctx.fillText(lb.meta, x + 8, ty);
-      ty += 13;
-    }
-    // 第3行：时间
-    if (lb.time) {
-      ctx.font = '600 8.5px -apple-system, "PingFang SC", sans-serif';
-      ctx.fillStyle = '#e8886a';
-      ctx.fillText(lb.time, x + 8, ty);
-      ty += 13;
-    }
-    // 第4行：叙事摘要
-    if (lb.narr) {
-      ctx.font = '400 8px -apple-system, "PingFang SC", sans-serif';
-      ctx.fillStyle = '#6b6258';
-      ctx.fillText(lb.narr, x + 8, ty);
-    }
+    ctx.restore();
   }
-  // 保存标签位置供点击检测
-  S.labelBoxes = labels.map(function(lb) {
-    return { idx: lb.idx, lx: lb.lx, ly: lb.ly, tw: lb.tw, th: lb.th };
+
+  // Draw numbered markers
+  valid.forEach((s, i) => {
+    const [x, y] = toXY(s.poi.lng, s.poi.lat);
+    // Glow
+    const grad = ctx.createRadialGradient(x, y, 0, x, y, 18);
+    grad.addColorStop(0, 'rgba(212,168,83,0.3)');
+    grad.addColorStop(1, 'rgba(212,168,83,0)');
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(x, y, 18, 0, Math.PI * 2);
+    ctx.fill();
+    // Circle
+    ctx.fillStyle = '#1a2238';
+    ctx.strokeStyle = '#d4a853';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(x, y, 14, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    // Number
+    ctx.fillStyle = '#d4a853';
+    ctx.font = 'bold 12px "DM Mono", monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(String(i + 1), x, y);
+    // Name label
+    ctx.fillStyle = 'rgba(245,240,232,0.8)';
+    ctx.font = '11px "DM Sans", sans-serif';
+    ctx.fillText(s.poi.name || '', x, y - 22);
   });
 }
 
-// Catmull-Rom → 贝塞尔平滑曲线
-function drawSmoothCurve(ctx, pts) {
-  if (pts.length < 2) return;
-  ctx.beginPath();
-  ctx.moveTo(pts[0].x, pts[0].y);
-  if (pts.length === 2) {
-    ctx.lineTo(pts[1].x, pts[1].y);
+function renderRouteOnMap(steps) {
+  const valid = steps.filter(s => s.poi && s.poi.lng && s.poi.lat);
+  if (!valid.length) return;
+  drawRouteOnCanvas(valid);
+}
+
+// ── Step Cards ──
+let lastRenderedStep = -1;
+
+function renderSteps(steps) {
+  const c = document.getElementById('routeSteps');
+  if (!steps.length) {
+    c.innerHTML = '<div class="empty-state"><svg class="icon" viewBox="0 0 64 64" fill="none"><circle cx="32" cy="32" r="28" stroke="#d4a853" stroke-width="1"/><path d="M32 12 L32 52 M18 22 L32 12 L46 22" stroke="#d4a853" stroke-width="1" stroke-linecap="round"/></svg><p>暂无路线数据</p></div>';
+    lastRenderedStep = -1;
     return;
   }
-  for (var i = 0; i < pts.length - 1; i++) {
-    var p0 = pts[Math.max(i - 1, 0)];
-    var p1 = pts[i];
-    var p2 = pts[i + 1];
-    var p3 = pts[Math.min(i + 2, pts.length - 1)];
-    var cp1x = p1.x + (p2.x - p0.x) / 6;
-    var cp1y = p1.y + (p2.y - p0.y) / 6;
-    var cp2x = p2.x - (p3.x - p1.x) / 6;
-    var cp2y = p2.y - (p3.y - p1.y) / 6;
-    ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, p2.x, p2.y);
+  // Only append new steps (incremental)
+  if (lastRenderedStep < 0) {
+    // Full render on first call
+    c.innerHTML = '';
+  }
+  for (let i = lastRenderedStep + 1; i < steps.length; i++) {
+    const step = steps[i];
+    const poi = step.poi || {};
+    const card = document.createElement('div');
+    card.className = 'step-card';
+    card.style.animationDelay = '0s';
+    card.onclick = () => focusStep(i);
+    card.innerHTML = `
+      <div class="step-num">${i+1}</div>
+      <div class="step-content">
+        <div class="step-name">${esc(poi.name || `站点 ${i+1}`)}</div>
+        <div class="step-meta">
+          ${step.arrival_time ? `<span class="step-time">${step.arrival_time}</span>` : ''}
+          ${poi.category ? `<span class="step-category">${esc(poi.category)}</span>` : ''}
+        </div>
+        ${step.narrative ? `<div class="step-narrative">${esc(step.narrative)}</div>` : ''}
+      </div>`;
+    if (i > 0) {
+      const conn = document.createElement('div');
+      conn.className = 'step-connector';
+      c.appendChild(conn);
+    }
+    c.appendChild(card);
+  }
+  lastRenderedStep = steps.length - 1;
+  // Scroll to bottom of route steps
+  c.scrollTop = c.scrollHeight;
+}
+
+function focusStep(i) {
+  // Canvas map — redraw with highlighted marker
+  drawRouteOnCanvas(state.steps.filter(s => s.poi && s.poi.lng && s.poi.lat));
+}
+
+// ── Day Switch ──
+function renderDaySwitch(total, cur) {
+  const c = document.getElementById('daySwitch');
+  if (total <= 1) { c.innerHTML = ''; return; }
+  c.innerHTML = Array.from({length: total}, (_, i) =>
+    `<button class="day-btn ${i+1===cur?'active':''}" onclick="switchDay(${i+1})">${i+1}</button>`
+  ).join('');
+}
+
+function switchDay(d) {
+  state.currentDay = d;
+  const r = state.multiRoutes[d-1];
+  if (r) {
+    state.steps = r.route || r.steps || [];
+    renderSteps(state.steps);
+    renderRouteOnMap(state.steps);
+    renderDaySwitch(state.totalDays, d);
   }
 }
 
-// ── POI Detail Overlay ──────────────────────────────────────
-function showPoiDetail(poiInfo, step) {
-  var poi = step?.poi || poiInfo;
-  var stepIdx = (poiInfo.step || 1) - 1;
-  $('detailEmoji').textContent = poi?.emoji || '📍';
-  $('detailName').textContent = poi?.name || poiInfo.name || '未知地点';
-  $('detailMetaLine').textContent = [
-    poi?.category || '', poi?.city || '珠海',
-    poi?.avg_price ? '¥' + num(poi.avg_price) : '免费',
-    poi?.rating ? '★' + Number(poi.rating).toFixed(1) : '',
-  ].filter(Boolean).join(' · ');
-
-  // 时间行
-  var at = step?.arrival_time || '', dt = step?.departure_time || '';
-  $('detailTimes').innerHTML = at || dt
-    ? '<span>到达 <strong>' + txt(at, '--') + '</strong></span><span>离开 <strong>' + txt(dt, '--') + '</strong></span><span>第 <strong>' + (poiInfo.step || 1) + '</strong> 站</span>'
-    : '';
-
-  // 叙事
-  var narr = step?.narrative || poi?.description || '';
-  $('detailNarrative').textContent = narr;
-  $('detailNarrative').style.display = narr ? 'block' : 'none';
-
-  // 标签（去重）
-  var tags = [...(poi?.tags || []), ...(step?.scene_tags || []), ...(poi?._scene_tags || [])].filter(Boolean);
-  var seen = {}; tags = tags.filter(function(t) { if (seen[t]) return false; seen[t] = true; return true; });
-  $('detailTags').innerHTML = tags.slice(0, 8).map(function(t) {
-    return '<span class="detail-tag">' + t + '</span>';
-  }).join('');
-
-  // 交通信息（非第一站）
-  var travel = step?.travel_from_prev;
-  if (travel) {
-    var distKm = (travel.distance_m / 1000).toFixed(1);
-    $('detailTravel').innerHTML = '<div style="display:flex;gap:12px;padding:10px 14px;background:rgba(106,170,106,0.06);border-radius:10px;margin-bottom:14px;font-size:0.8rem;">'
-      + '<span style="color:var(--text-muted);">从上站</span>'
-      + '<span><strong style="color:var(--green);">' + distKm + ' km</strong></span>'
-      + '<span><strong style="color:var(--green);">' + txt(travel.time_min, '-') + ' 分钟</strong></span>'
-      + (travel.method ? '<span style="color:var(--text-muted);">' + travel.method + '</span>' : '')
-      + '</div>';
-  } else {
-    $('detailTravel').innerHTML = '';
+// ── Stats ──
+function renderStats(steps) {
+  const bar = document.getElementById('statsBar');
+  if (!steps.length) { bar.classList.add('hidden'); return; }
+  bar.classList.remove('hidden');
+  document.getElementById('statSteps').textContent = steps.length;
+  const f = steps[0].arrival_time, l = steps[steps.length-1].departure_time;
+  if (f && l) {
+    const [fh,fm] = f.split(':').map(Number), [lh,lm] = l.split(':').map(Number);
+    document.getElementById('statTime').textContent = ((lh*60+lm-fh*60-fm)/60).toFixed(1)+'h';
   }
-
-  // 信息格子 — 6项
-  $('detailInfo').innerHTML = [
-    { l: '营业时间', v: poi?.business_hours || '-' },
-    { l: '建议停留', v: poi?.avg_stay_min ? poi.avg_stay_min + ' 分钟' : '-' },
-    { l: '消费情绪', v: poi?.spend_emotion || '-' },
-    { l: '情绪设计', v: step?.emotion_design || '-' },
-    { l: '排队风险', v: poi?.queue_prone ? '较高 ⚠' : '低 ✓' },
-    { l: '体验杠杆', v: poi?.experience_leverage === 'high' ? '高 ★' : (poi?.experience_leverage || '-') },
-  ].map(function(item) {
-    return '<div class="detail-info-item"><div class="dil">' + item.l + '</div><div class="div">' + item.v + '</div></div>';
-  }).join('');
-
-  $('poiDetailOverlay').classList.add('show');
 }
 
-function closePoiDetail() {
-  $('poiDetailOverlay').classList.remove('show');
-}
-function closeMapPopup() {
-  $('mapPoiPopup').classList.remove('show');
-}
-
-// ============================================================
-//   Init
-// ============================================================
-function init() {
-  renderPanel1();
-  initMap();
-  drawMap();
+// ── Narrative ──
+function renderNarrative(n) {
+  const s = document.getElementById('narrativeSection');
+  if (!n) { s.classList.add('hidden'); return; }
+  s.classList.remove('hidden');
+  document.getElementById('narrativeOpening').textContent = n.opening || '';
+  document.getElementById('narrativeClosing').textContent = n.closing || '';
 }
 
-init();
+// ── Emotion Curve ──
+function renderEmotionCurve(curve) {
+  const s = document.getElementById('emotionSection');
+  if (!curve?.length) { s.classList.add('hidden'); return; }
+  s.classList.remove('hidden');
+  const canvas = document.getElementById('emotionCanvas');
+  const ctx = canvas.getContext('2d');
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width = canvas.offsetWidth * dpr;
+  canvas.height = 60 * dpr;
+  ctx.scale(dpr, dpr);
+  const w = canvas.offsetWidth, h = 60;
+  const pad = {top:8,right:8,bottom:8,left:8};
+  const pw = w-pad.left-pad.right, ph = h-pad.top-pad.bottom;
+  ctx.clearRect(0,0,w,h);
+  [{key:'excitement',color:'#e8614d'},{key:'tranquility',color:'#3a8f8f'},{key:'culture_depth',color:'#7a5c8a'}].forEach(em => {
+    ctx.beginPath(); ctx.strokeStyle = em.color; ctx.lineWidth = 2;
+    let started = false;
+    curve.forEach((pt,i) => {
+      const x = pad.left + (i/(curve.length-1))*pw;
+      const y = pad.top + ph*(1-(pt[em.key]||0));
+      if (!started) { ctx.moveTo(x,y); started=true; } else ctx.lineTo(x,y);
+    });
+    ctx.stroke();
+  });
+}
+
+// ── Chat ──
+function addChatMsg(text, type='system') {
+  const c = document.getElementById('chatMessages');
+  const m = document.createElement('div');
+  m.className = `chat-msg ${type}`;
+  m.innerHTML = `<div class="msg-label">${type==='system'?'CityFlow':'You'}</div>${esc(text)}`;
+  c.appendChild(m);
+  c.scrollTop = c.scrollHeight;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// Agent Pipeline
+// ═══════════════════════════════════════════════════════════════
+const AGENTS = [
+  { id:'rule_guard',    name:'规则守卫',   icon:'🛡', wave:1 },
+  { id:'expert_router', name:'场景路由',   icon:'🧭', wave:1 },
+  { id:'poi',           name:'景点专家',   icon:'🏛', wave:2 },
+  { id:'food',          name:'美食专家',   icon:'🍜', wave:2 },
+  { id:'weather',       name:'天气评估',   icon:'🌤', wave:2 },
+  { id:'destination',   name:'目的地专家', icon:'📍', wave:2 },
+  { id:'traffic',       name:'交通专家',   icon:'🚗', wave:3 },
+  { id:'hotel',         name:'住宿专家',   icon:'🏨', wave:3 },
+  { id:'local_expert',  name:'本地达人',   icon:'🏘', wave:3 },
+  { id:'review',        name:'路线审查',   icon:'🔍', wave:4 },
+  { id:'synthesizer',   name:'路线合成',   icon:'✨', wave:5 },
+];
+
+function initAgentPanel() {
+  const diagram = document.getElementById('archDiagram');
+  const flow = document.getElementById('agentFlow');
+  diagram.innerHTML = '';
+
+  const waves = [
+    { label:'W1', agents:['rule_guard','expert_router'] },
+    { label:'W2', agents:['poi','food','weather','destination'] },
+    { label:'W3', agents:['traffic','hotel','local_expert'] },
+    { label:'W4', agents:['review'] },
+    { label:'W5', agents:['synthesizer'] },
+  ];
+
+  waves.forEach((w, wi) => {
+    // Connector between waves
+    if (wi > 0) {
+      const conn = document.createElement('div');
+      conn.className = 'wave-connector';
+      diagram.appendChild(conn);
+    }
+
+    const row = document.createElement('div');
+    row.className = 'wave-row';
+
+    const lbl = document.createElement('div');
+    lbl.className = 'wave-label';
+    lbl.textContent = w.label;
+    row.appendChild(lbl);
+
+    const nodes = document.createElement('div');
+    nodes.className = 'wave-nodes';
+
+    w.agents.forEach(aid => {
+      const def = AGENTS.find(a=>a.id===aid);
+      const node = document.createElement('div');
+      node.className = 'arch-node';
+      node.id = `arch-${aid}`;
+      node.textContent = def?.icon||'?';
+      node.title = def?.name||aid;
+      nodes.appendChild(node);
+    });
+
+    row.appendChild(nodes);
+    diagram.appendChild(row);
+  });
+
+  flow.innerHTML = AGENTS.map(d => `
+    <div class="agent-step" id="flow-${d.id}">
+      <div class="step-icon">${d.icon}</div>
+      <span class="step-label">${d.name}</span>
+      <span class="step-status">等待中</span>
+    </div>
+  `).join('');
+}
+
+function setAgentState(id, st) {
+  const f = document.getElementById(`flow-${id}`);
+  const a = document.getElementById(`arch-${id}`);
+  if (f) {
+    f.className = `agent-step ${st}`;
+    const s = f.querySelector('.step-status');
+    if (s) s.textContent = {active:'运行中...',done:'✓ 完成',error:'✗ 失败'}[st]||'等待中';
+  }
+  if (a) a.className = `arch-node ${st}`;
+  if (st==='active') document.getElementById('agentStatusDot').classList.add('active');
+}
+
+function resetAgents() {
+  AGENTS.forEach(d => setAgentState(d.id, ''));
+  document.getElementById('agentStatusDot').classList.remove('active');
+  hideCenterAgent();
+}
+
+// ── Agent Card in Chat ──
+const AGENT_DUTIES = {
+  rule_guard:    '意图解析 + POI加载',
+  expert_router: '场景分类 + 专家调度',
+  poi:           '景点筛选与推荐',
+  food:          '餐饮推荐',
+  weather:       '天气评估',
+  destination:   '目的地分析',
+  traffic:       '交通方案规划',
+  hotel:         '住宿推荐',
+  local_expert:  '本地特色挖掘',
+  review:        '路线质量审查',
+  synthesizer:   '路线组装与排序',
+};
+
+const agentCards = new Map(); // agentId → card element
+
+function showCenterAgent(agentId, text) {
+  const def = AGENTS.find(a => a.id === agentId);
+  if (!def) return;
+  const c = document.getElementById('chatMessages');
+  const card = document.createElement('div');
+  card.className = 'chat-agent-card';
+  card.dataset.agent = agentId;
+  card.innerHTML = `
+    <div class="agent-head">
+      <span class="agent-icon">${def.icon}</span>
+      <div>
+        <div class="agent-name">${esc(def.name)}</div>
+        <div class="agent-duty">${esc(AGENT_DUTIES[agentId] || '')}</div>
+      </div>
+    </div>
+    <div class="agent-detail"><span class="lbl">在做</span><span class="val agent-doing">${esc(text || '正在分析中...')}</span></div>
+    <div class="agent-detail"><span class="lbl">结果</span><span class="val agent-result">—</span></div>
+    <div class="agent-badge"><span class="dot"></span>工作中</div>
+  `;
+  c.appendChild(card);
+  c.scrollTop = c.scrollHeight;
+  agentCards.set(agentId, card);
+}
+
+function updateAgentDoing(agentId, text) {
+  const card = agentCards.get(agentId);
+  if (card) {
+    card.querySelector('.agent-doing').textContent = text || '工作中...';
+    const c = document.getElementById('chatMessages');
+    c.scrollTop = c.scrollHeight;
+  }
+}
+
+function hideCenterAgent() {
+  agentCards.clear();
+}
+
+function completeCenterAgent(agentId, summary) {
+  const card = agentCards.get(agentId);
+  if (!card) return;
+  card.classList.add('done');
+  card.querySelector('.agent-result').textContent = summary || '完成';
+  card.querySelector('.agent-badge').innerHTML = '✓ 完成';
+  const c = document.getElementById('chatMessages');
+  c.scrollTop = c.scrollHeight;
+  agentCards.delete(agentId);
+}
+
+// ── Typing Indicator ──
+let typingEl = null;
+
+function showTyping(text) {
+  if (typingEl) typingEl.remove();
+  const c = document.getElementById('chatMessages');
+  typingEl = document.createElement('div');
+  typingEl.className = 'typing-indicator';
+  typingEl.innerHTML = `<div class="dots"><span></span><span></span><span></span></div><span class="typing-text">${text}</span>`;
+  c.appendChild(typingEl);
+  c.scrollTop = c.scrollHeight;
+}
+
+function updateTyping(text) {
+  if (!typingEl) { showTyping(text); return; }
+  const t = typingEl.querySelector('.typing-text');
+  if (t) t.textContent = text;
+}
+
+function hideTyping() {
+  if (typingEl) { typingEl.remove(); typingEl = null; }
+}
+
+// ── SSE Handler ──
+function handleSSE(type, data) {
+  switch(type) {
+    case 'chat': hideTyping(); addChatMsg(data.text, 'system'); break;
+    case 'phase': updateTyping(data.message||'处理中...'); break;
+    case 'agent_start':
+      setAgentState(data.agent, 'active');
+      updateTyping(data.text || `${AGENTS.find(a=>a.id===data.agent)?.name || data.agent} 正在工作...`);
+      showCenterAgent(data.agent, data.text || '正在分析中...');
+      break;
+    case 'agent_result':
+      setAgentState(data.agent, 'done');
+      updateTyping(data.summary || `${AGENTS.find(a=>a.id===data.agent)?.name || data.agent} 完成 ✓`);
+      completeCenterAgent(data.agent, data.summary);
+      break;
+    case 'step':
+      hideTyping();
+      state.steps.push(data);
+      renderSteps(state.steps);
+      if (data.poi?.lng) renderRouteOnMap(state.steps);
+      break;
+    case 'day_start': state.currentDay=data.day; state.steps=[]; lastRenderedStep=-1; break;
+    case 'day_end': break;
+    case 'done':
+      hideTyping();
+      state.routeId = data.route_id;
+      if (data.full_route) {
+        if (data.full_route.days) {
+          state.multiRoutes = data.full_route.days;
+          state.totalDays = data.full_route.days.length;
+          renderDaySwitch(state.totalDays, 1);
+          const fd = state.multiRoutes[0];
+          if (fd) { state.steps = fd.route||fd.steps||[]; renderSteps(state.steps); renderRouteOnMap(state.steps); }
+        } else {
+          state.steps = data.full_route.route||[];
+          renderSteps(state.steps);
+          renderRouteOnMap(state.steps);
+          renderNarrative(data.full_route.narrative);
+          renderEmotionCurve(data.full_route.emotion_curve);
+        }
+      }
+      renderStats(state.steps);
+      state.isPlanning = false;
+      document.getElementById('sendBtn').disabled = false;
+      addChatMsg(`✅ 路线规划完成！共 ${state.steps.length} 站`);
+      break;
+    case 'error':
+      hideTyping();
+      addChatMsg('❌ ' + (data.error||'规划失败'));
+      state.isPlanning = false;
+      document.getElementById('sendBtn').disabled = false;
+      break;
+  }
+}
+
+// ── Submit Plan ──
+async function submitPlan() {
+  const input = document.getElementById('userInput');
+  const text = input.value.trim();
+  if (!text || state.isPlanning) return;
+
+  state.isPlanning = true;
+  document.getElementById('sendBtn').disabled = true;
+  state.steps=[]; state.multiRoutes=[]; state.currentDay=1; state.totalDays=1;
+  lastRenderedStep = -1;
+  resetAgents(); clearRoute();
+  document.getElementById('routeSteps').innerHTML='';
+  document.getElementById('statsBar').classList.add('hidden');
+  document.getElementById('narrativeSection').classList.add('hidden');
+  document.getElementById('emotionSection').classList.add('hidden');
+  document.getElementById('daySwitch').innerHTML='';
+
+  addChatMsg(text, 'user');
+  showTyping('正在连接智能体...');
+
+  let heartbeat = null;
+  try {
+    const resp = await fetch(`${API_BASE}/api/plan`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({user_input:text}),
+    });
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+
+    const reader = resp.body.getReader();
+    const decoder = new TextDecoder();
+    let buf = '';
+    let lastEventTime = Date.now();
+    // Heartbeat: show "still working" if no events for 15s
+    heartbeat = setInterval(() => {
+      if (Date.now() - lastEventTime > 15000 && state.isPlanning) {
+        const msgs = ['智能体还在努力中...', '路线计算比较复杂，请稍候...', '正在深度分析你的需求...'];
+        showTyping(msgs[Math.floor(Math.random() * msgs.length)]);
+        lastEventTime = Date.now();
+      }
+    }, 5000);
+    while(true) {
+      const {done, value} = await reader.read();
+      if (done) break;
+      lastEventTime = Date.now();
+      buf += decoder.decode(value, {stream:true});
+      const lines = buf.split('\n');
+      buf = lines.pop()||'';
+      let evtType = '';
+      for (const line of lines) {
+        if (line.startsWith('event: ')) evtType = line.slice(7).trim();
+        else if (line.startsWith('data: ')) {
+          try { handleSSE(evtType, JSON.parse(line.slice(6))); } catch(e) {}
+        }
+      }
+    }
+  } catch(err) {
+    addChatMsg('❌ 连接失败: '+err.message);
+  } finally {
+    if (heartbeat) clearInterval(heartbeat);
+    hideTyping();
+    state.isPlanning = false;
+    document.getElementById('sendBtn').disabled = false;
+  }
+}
+
+function showLoading(t) { showTyping(t||'正在连接智能体...'); }
+function hideLoading() { hideTyping(); }
+function esc(s) { const e=document.createElement('span'); e.textContent=s||''; return e.innerHTML; }
+
+// ── Init ──
+document.addEventListener('DOMContentLoaded', async () => {
+  initAgentPanel();
+  try {
+    initMap();
+  } catch(e) {
+    console.error('[CityFlow] Map init failed:', e);
+  }
+  document.getElementById('userInput').addEventListener('keydown', e => {
+    if (e.key==='Enter' && !e.shiftKey) { e.preventDefault(); submitPlan(); }
+  });
+});
 </script>
-
 </body>
 </html>

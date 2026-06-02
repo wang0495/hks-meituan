@@ -424,6 +424,65 @@ app.include_router(graphql_router)
 
 
 # ---------------------------------------------------------------------------
+# UX 增强：快速首 token + 周期性进度播报
+# 用讯飞 API 小 prompt（max_tokens=50），单次 ~2s，让用户全程有话看
+# ---------------------------------------------------------------------------
+
+_quick_client = None
+
+async def _quick_llm(prompt: str, max_tokens: int = 50) -> str:
+    """快速调一次 LLM，用于生成用户可见的进度文案。失败返回空字符串。"""
+    global _quick_client
+    try:
+        if _quick_client is None:
+            from openai import AsyncOpenAI
+            _quick_client = AsyncOpenAI(
+                base_url=settings.llm.base_url,
+                api_key=settings.llm.api_key,
+            )
+        resp = await asyncio.wait_for(
+            _quick_client.chat.completions.create(
+                model=settings.llm.model,
+                messages=[{"role": "user", "content": prompt}],
+                max_tokens=max_tokens,
+                temperature=0.7,
+            ),
+            timeout=10.0,
+        )
+        return (resp.choices[0].message.content or "").strip()
+    except Exception:
+        return ""
+
+
+async def _generate_greeting(user_input: str) -> str:
+    """生成个性化开场白（即时，规则匹配），作为用户看到的第一个有意义文字。"""
+    # 规则匹配，0延迟 —— LLM 调用留给后续周期性进度播报
+    keywords = {
+        "海边": "🌊", "散步": "🚶", "美食": "🍜", "咖啡": "☕",
+        "亲子": "👨‍👩‍👧", "约会": "💕", "购物": "🛍", "文化": "🏛",
+        "公园": "🌿", "夜景": "🌃", "登山": "⛰", "海岛": "🏝",
+        "浪漫": "💕", "历史": "🏛", "艺术": "🎨", "自然": "🌿",
+    }
+    emoji = "✈️"
+    for kw, em in keywords.items():
+        if kw in user_input:
+            emoji = em
+            break
+    short = user_input[:20]
+    return f"好的，让我帮你规划一次「{short}」之旅 {emoji} 正在启动智能体..."
+
+
+async def _generate_progress(current_phase: str, agent_summary: str) -> str:
+    """生成进度播报（~2s），告诉用户当前在干嘛。"""
+    text = await _quick_llm(
+        f"你是旅行规划助手。当前正在：{current_phase}。{agent_summary}\n"
+        f"用简短口语（不超过30字）告诉用户你正在做什么，语气活泼。",
+        max_tokens=40,
+    )
+    return text or f"正在{current_phase}..."
+
+
+# ---------------------------------------------------------------------------
 # 超时 / 兜底 / SSE 辅助 — 均从 backend.utils.sse_helpers 导入
 # ---------------------------------------------------------------------------
 
@@ -519,127 +578,19 @@ async def plan_route(request: PlanRequest):
             return
         _plan_concurrent += 1
         try:
-            # Phase 1: 解析意图
+            # ── 首token：立刻生成个性化问候（~2s，用户第一眼就有话看） ──
+            greeting = await _generate_greeting(request.user_input)
+            yield _sse("chat", {"text": greeting})
+
+            # Phase 1: 解析意图（由 rule_guard 内部完成，不再重复调用）
             yield _sse("phase", {"phase": "parsing", "message": "正在理解你的需求..."})
 
-            from backend.services.intent_parser import parse_intent
-
-            user_intent = await _with_timeout(
-                parse_intent(request.user_input),
-                timeout_seconds=35.0,
-            )
-            if user_intent is None:
-                yield _sse("error", {"error": "意图解析超时，请重试"})
-                return
-
-            # Debug: LLM 调用详情（仅开发环境）
-            if settings.debug:
-                llm_used = user_intent.get("_llm_used", False)
-                llm_err = user_intent.get("_llm_error", "")
-                llm_debug = {
-                    "used": llm_used,
-                    "method": "llm" if llm_used else f"rule（{llm_err or '未配置'}）",
-                }
-                if user_intent.get("_llm_raw_response"):
-                    llm_debug["raw_response"] = user_intent["_llm_raw_response"][:300]
-                if user_intent.get("_llm_model"):
-                    llm_debug["model"] = user_intent["_llm_model"]
-                yield _sse("debug_llm", llm_debug)
-
-            # V2: PreferenceManager 偏好融合 + 权重计算
-            dynamic_weights = None
-            demand_vector = user_intent.get("_demand_vector", {})
-            pref_manager = None
-            if request.user_id:
-                yield _sse("phase", {"phase": "identifying", "message": "正在识别用户身份..."})
-                from backend.services.preference_manager import PreferenceManager
-                from backend.services.holiday_utils import build_context
-                from backend.services.perception import PerceptionService
-
-                pref_manager = PreferenceManager.from_user_id(request.user_id)
-
-                # 构建当前上下文
-                if request.current_context:
-                    current_context = request.current_context
-                else:
-                    # 自动采集
-                    perception = PerceptionService()
-                    pctx = await perception.get_context()
-                    current_context = build_context(
-                        weather=pctx.weather,
-                        temperature=pctx.temperature,
-                        hour_of_day=pctx.hour_of_day,
-                        day_of_week=pctx.day_of_week,
-                        season=pctx.season,
-                    )
-
-                # 获取用户状态用于调试（仅开发环境）
-                if settings.debug:
-                    user_status = await pref_manager.get_user_status(current_context)
-                    yield _sse("debug_preference", {
-                        "user_id": request.user_id,
-                        "is_new": user_status.get("is_new", True),
-                        "interaction_count": user_status.get("interaction_count", 0),
-                        "context_info": user_status.get("context_info", ""),
-                        "context_hints": user_status.get("context_hints", []),
-                        "greeting": user_status.get("greeting", ""),
-                    })
-
-                # Phase: LTM 预测
-                yield _sse("phase", {"phase": "ltm_predict", "message": "正在根据历史预测偏好..."})
-
-                # 用 LTM 预测合并偏好
-                prediction = await pref_manager.ltm.predict_preferences(
-                    request.user_id, current_context
-                )
-                if prediction.get("data_points", 0) > 0:
-                    from backend.services.intent_parser import merge_user_preference
-                    user_intent = merge_user_preference(
-                        user_intent,
-                        user_stated_prefs=None,
-                        ltm_prediction=prediction,
-                    )
-
-                if settings.debug:
-                    yield _sse("debug_ltm", {
-                        "data_points": prediction.get("data_points", 0),
-                        "confidence": prediction.get("confidence", 0.0),
-                        "predicted_pace": prediction.get("predicted_pace"),
-                        "predicted_budget": prediction.get("predicted_budget", 0),
-                        "predicted_categories": prediction.get("predicted_categories", []),
-                        "predicted_emotion_need": prediction.get("predicted_emotion_need"),
-                        "context_matched": prediction.get("data_points", 0) > 0,
-                    })
-
-                # Phase: 权重映射
-                yield _sse("phase", {"phase": "weight_mapping", "message": "正在计算求解权重..."})
-
-                # 用 WeightMapper 算动态权重（demand_vector 已在 parse_intent 中提取）
-                demand_vector = user_intent.get("_demand_vector", {})
-                dynamic_weights = pref_manager.compute_solver_weights(demand_vector)
-                if settings.debug:
-                    yield _sse("debug_weight_mapper", {
-                        "demand_vector": demand_vector,
-                        "computed_weights": dynamic_weights,
-                        "user_deltas": pref_manager.mapper._deltas if pref_manager.mapper else {},
-                        "summary": pref_manager.mapper.summary() if pref_manager.mapper else "默认（新用户）",
-                        "confidence": {},
-                    })
-
-            # 在 user_intent 中保存动态权重、需求向量、用户ID和出发位置（供对话阶段使用）
-            user_intent["_dynamic_weights"] = dynamic_weights
-            user_intent["_demand_vector"] = demand_vector
-            if request.user_id:
-                user_intent["_user_id"] = request.user_id
-            if request.start_location:
-                user_intent["start_location"] = request.start_location
-            user_intent["_raw_input"] = request.user_input
-
-            # Phase 2: 搜索候选 + 城市过滤
-            yield _sse("phase", {"phase": "searching", "message": f"正在为你寻找合适的地方..."})
+            # user_intent 将从 graph result 中提取
+            user_intent = None
 
             # ══════════════════════════════════════════════════
             # C版本主路径：分布式智能体网络
+            # （intent 解析、偏好、权重全部在 graph 内 rule_guard 中完成）
             # ══════════════════════════════════════════════════
             try:
                 from backend.agents_v3 import get_graph_c, TravelState
@@ -665,13 +616,32 @@ async def plan_route(request: PlanRequest):
                 graph_task = asyncio.create_task(_run_graph())
 
                 # Drain SSE events from agents while graph runs
+                # 同时每 ~8s 生成一句进度播报（用小模型，~2s），让用户全程有话看
+                _last_chat_time = asyncio.get_event_loop().time()
+                _chat_interval = 8.0  # 每8秒播报一次
+                _agent_summary = ""  # 追踪最近的 agent 状态
                 while not graph_task.done():
                     try:
                         event_type, event_data = await asyncio.wait_for(sse_queue.get(), timeout=0.3)
                         yield _sse(event_type, event_data)
+                        # 追踪 agent 状态用于进度播报
+                        if event_type == "agent_start":
+                            _agent_summary += f"启动{event_data.get('name', event_data.get('agent', ''))}、"
+                        elif event_type == "agent_result":
+                            _agent_summary += f"完成{event_data.get('summary', '')}、"
                         await asyncio.sleep(0)  # yield control → flush to network
                     except asyncio.TimeoutError:
-                        continue
+                        pass
+
+                    # 周期性进度播报
+                    now = asyncio.get_event_loop().time()
+                    if now - _last_chat_time >= _chat_interval and _agent_summary:
+                        _last_chat_time = now
+                        phase_hint = "智能体协作规划中"
+                        # 异步生成播报（不阻塞主循环）
+                        progress = await _generate_progress(phase_hint, _agent_summary[-80:])
+                        yield _sse("chat", {"text": progress})
+                        _agent_summary = ""  # 重置，下轮累积新的
 
                 # Drain remaining events after graph completes
                 while not sse_queue.empty():
@@ -681,14 +651,45 @@ async def plan_route(request: PlanRequest):
 
                 c_result = await graph_task
 
+                # 从 graph result 中提取 user_intent（由 rule_guard 设置）
+                user_intent = c_result.get("user_intent", user_intent or {})
                 c_route = c_result.get("route", {})
                 c_narrative = c_result.get("narrative", {})
                 c_steps = c_route.get("route", []) if c_route else []
+                _steps_streamed = c_result.get("_steps_streamed", False)
 
                 # ── 多日路线支持 ──
                 multi_routes = c_result.get("routes", [])
                 num_days = c_result.get("num_days", 1)
 
+                # 如果 synthesizer 已经流式推送了 step 事件（多日或单日），
+                # 只需要发 done，不用重复发 step
+                if _steps_streamed:
+                    # steps 已由 synthesizer 实时推送，直接发 done
+                    route_id = uuid.uuid4().hex[:8]
+                    if multi_routes and len(multi_routes) > 1:
+                        yield _sse("done", {
+                            "route_id": route_id,
+                            "full_route": {"days": multi_routes},
+                            "num_days": num_days,
+                            "version": "C-分布式智能体",
+                        })
+                        route_cache.set(route_id, {"days": multi_routes, "user_intent": user_intent})
+                    else:
+                        if not c_steps:
+                            logger.warning("C版本返回空路线，降级到原管线")
+                            raise RuntimeError("C版本空路线")
+                        yield _sse("done", {
+                            "route_id": route_id,
+                            "full_route": c_route,
+                            "version": "C-分布式智能体",
+                        })
+                        c_route["narrative"] = c_narrative
+                        c_route["user_intent"] = user_intent
+                        route_cache.set(route_id, c_route)
+                    return
+
+                # ── 兜底：synthesizer 未流式推送时的原有逻辑 ──
                 if multi_routes and len(multi_routes) > 1:
                     # 多日SSE输出
                     for day_info in multi_routes:

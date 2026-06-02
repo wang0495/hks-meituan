@@ -1,0 +1,277 @@
+<mxfile host="Electron" agent="Claude">
+  <diagram name="cityflow_layers" id="cityflow_layers">
+    <mxGraphModel dx="1144" dy="749" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="3200" pageHeight="3800" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="2" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#6c8ebf;verticalAlign=top;fontSize=12;dashed=1;dashPattern=8 4;fontStyle=1;" value="" vertex="1">
+          <mxGeometry height="200" width="1100" x="50" y="40" as="geometry" />
+        </mxCell>
+        <mxCell id="3" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;verticalAlign=middle;fontSize=12;fontStyle=1;" value="Layer 7: 用户交互层" vertex="1">
+          <mxGeometry height="25" width="250" x="60" y="45" as="geometry" />
+        </mxCell>
+        <mxCell id="4" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;verticalAlign=top;fontSize=10;" value="&lt;b&gt;前端界面 (原生JS)&lt;/b&gt;&lt;hr&gt;① L7地图初始化&lt;br&gt;② 注册SSE事件监听&lt;br&gt;③ 接收phase/step/done事件&lt;br&gt;④ 逐步渲染路线站点到地图&lt;br&gt;⑤ 渲染热力图覆盖层&lt;br&gt;⑥ 展示决策溯源面板" vertex="1">
+          <mxGeometry height="140" width="250" x="60" y="80" as="geometry" />
+        </mxCell>
+        <mxCell id="5" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;verticalAlign=top;fontSize=10;" value="&lt;b&gt;聊天交互&lt;/b&gt;&lt;hr&gt;① 用户输入框(自然语言)&lt;br&gt;② 聊天记录展示&lt;br&gt;③ LLM思考过程实时显示&lt;br&gt;④ 路线卡片展示&lt;br&gt;⑤ POI详情卡片(点击查看理由)&lt;br&gt;⑥ 情绪曲线可视化" vertex="1">
+          <mxGeometry height="140" width="250" x="330" y="80" as="geometry" />
+        </mxCell>
+        <mxCell id="6" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;verticalAlign=top;fontSize=10;" value="&lt;b&gt;调整操作面板&lt;/b&gt;&lt;hr&gt;① 替换POI按钮&lt;br&gt;② 节奏滑块(快/慢)&lt;br&gt;③ 预算调整输入&lt;br&gt;④ 时间窗修改&lt;br&gt;⑤ 确认/重新规划按钮&lt;br&gt;⑥ 最多10轮交互" vertex="1">
+          <mxGeometry height="140" width="250" x="600" y="80" as="geometry" />
+        </mxCell>
+        <mxCell id="7" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;verticalAlign=top;fontSize=10;" value="&lt;b&gt;SSE事件处理&lt;/b&gt;&lt;hr&gt;① phase: 更新进度条&lt;br&gt;② step: 逐站添加到地图&lt;br&gt;③ thinking: Agent思考气泡&lt;br&gt;④ done: 完整路线渲染&lt;br&gt;⑤ agent_start/result: 专家状态&lt;br&gt;⑥ 错误处理 + 超时提示" vertex="1">
+          <mxGeometry height="140" width="260" x="870" y="80" as="geometry" />
+        </mxCell>
+        <mxCell id="8" edge="1" parent="1" source="4" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#6c8ebf;" target="5" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="9" edge="1" parent="1" source="5" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#6c8ebf;" target="6" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="10" edge="1" parent="1" source="6" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#6c8ebf;" target="7" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="11" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#d79b00;verticalAlign=top;fontSize=12;dashed=1;dashPattern=8 4;fontStyle=1;" value="" vertex="1">
+          <mxGeometry height="170" width="1100" x="50" y="260" as="geometry" />
+        </mxCell>
+        <mxCell id="12" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;verticalAlign=middle;fontSize=12;fontStyle=1;" value="Layer 6: 动态行程呈现层" vertex="1">
+          <mxGeometry height="25" width="300" x="60" y="265" as="geometry" />
+        </mxCell>
+        <mxCell id="13" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;verticalAlign=top;fontSize=10;" value="&lt;b&gt;热力图构建 (build_heatmap)&lt;/b&gt;&lt;hr&gt;输入: proposals列表 + conflicts列表&lt;br&gt;① 遍历所有proposals，提取lat/lng坐标&lt;br&gt;② 计算每个坐标周围Nkm内的POI密度&lt;br&gt;③ 归一化密度值到0~1热力值&lt;br&gt;④ 识别热点区域(高覆盖)和冷门区域(低覆盖)&lt;br&gt;⑤ 组装热力图geojson数据 → 供前端L7渲染" vertex="1">
+          <mxGeometry height="110" width="520" x="60" y="300" as="geometry" />
+        </mxCell>
+        <mxCell id="14" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;verticalAlign=top;fontSize=10;" value="&lt;b&gt;决策溯源 (build_decision_trace)&lt;/b&gt;&lt;hr&gt;输入: proposals列表&lt;br&gt;① 遍历每个proposal，提取元数据&lt;br&gt;② 记录: 来源专家(agent字段)&lt;br&gt;③ 记录: 置信度分数(confidence字段)&lt;br&gt;④ 记录: LLM推荐理由(reasoning字段)&lt;br&gt;⑤ 组装trace列表 → 供前端POI卡片点击展示" vertex="1">
+          <mxGeometry height="110" width="530" x="600" y="300" as="geometry" />
+        </mxCell>
+        <mxCell id="15" edge="1" parent="1" source="13" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#d79b00;" target="14" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="16" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#9673a6;verticalAlign=top;fontSize=12;dashed=1;dashPattern=8 4;fontStyle=1;" value="" vertex="1">
+          <mxGeometry height="240" width="1100" x="50" y="450" as="geometry" />
+        </mxCell>
+        <mxCell id="17" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;verticalAlign=middle;fontSize=12;fontStyle=1;" value="Layer 5: 路线综合层" vertex="1">
+          <mxGeometry height="25" width="200" x="60" y="455" as="geometry" />
+        </mxCell>
+        <mxCell id="18" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;verticalAlign=top;fontSize=10;" value="&lt;b&gt;竞赛模式选择&lt;/b&gt;&lt;hr&gt;tournament(默认): 多方案竞争评分&lt;br&gt;geo_cluster: 按地理聚类后填充&lt;br&gt;self_refine: 迭代优化路线&lt;br&gt;constraint/pts/best_of_n" vertex="1">
+          <mxGeometry height="80" width="350" x="60" y="490" as="geometry" />
+        </mxCell>
+        <mxCell id="19" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;verticalAlign=top;fontSize=10;" value="&lt;b&gt;运行竞赛算法&lt;/b&gt;&lt;hr&gt;① 多个候选方案并行评估&lt;br&gt;② 评分维度: 地理紧凑性/时间可行/偏好匹配/多样性&lt;br&gt;③ 选出最高分路线组合&lt;br&gt;④ ADR: 防止所有方案趋同" vertex="1">
+          <mxGeometry height="80" width="350" x="430" y="490" as="geometry" />
+        </mxCell>
+        <mxCell id="20" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;verticalAlign=top;fontSize=10;" value="&lt;b&gt;Review ↔ Rework循环&lt;/b&gt;&lt;hr&gt;① Review: 按场景检查提案质量&lt;br&gt;② 不通过 → Rework: LLM重选&lt;br&gt;③ 重新审查(最多2轮)&lt;br&gt;④ 通过 → 进入竞赛算法" vertex="1">
+          <mxGeometry height="80" width="330" x="800" y="490" as="geometry" />
+        </mxCell>
+        <mxCell id="21" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;verticalAlign=top;fontSize=10;" value="① cap_route_stops&lt;br&gt;路线站点数上限控制" vertex="1">
+          <mxGeometry height="80" width="210" x="60" y="585" as="geometry" />
+        </mxCell>
+        <mxCell id="22" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;verticalAlign=top;fontSize=10;" value="② ensure_food&lt;br&gt;确保路线包含餐饮" vertex="1">
+          <mxGeometry height="80" width="210" x="290" y="585" as="geometry" />
+        </mxCell>
+        <mxCell id="23" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;verticalAlign=top;fontSize=10;" value="③ ensure_poi&lt;br&gt;确保路线包含景点" vertex="1">
+          <mxGeometry height="80" width="210" x="520" y="585" as="geometry" />
+        </mxCell>
+        <mxCell id="24" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;verticalAlign=top;fontSize=10;" value="④ time_windows&lt;br&gt;时间窗口约束检查" vertex="1">
+          <mxGeometry height="80" width="210" x="750" y="585" as="geometry" />
+        </mxCell>
+        <mxCell id="25" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;verticalAlign=top;fontSize=10;" value="⑤ dedup&lt;br&gt;站点去重" vertex="1">
+          <mxGeometry height="80" width="150" x="980" y="585" as="geometry" />
+        </mxCell>
+        <mxCell id="26" edge="1" parent="1" source="20" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#9673a6;" target="18" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="27" edge="1" parent="1" source="18" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#9673a6;" target="19" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="28" edge="1" parent="1" source="19" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#9673a6;" target="21" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="29" edge="1" parent="1" source="19" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#9673a6;" target="22" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="30" edge="1" parent="1" source="19" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#9673a6;" target="23" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="31" edge="1" parent="1" source="19" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#9673a6;" target="24" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="32" edge="1" parent="1" source="21" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#9673a6;" target="25" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="33" edge="1" parent="1" source="22" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#9673a6;" target="25" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="34" edge="1" parent="1" source="23" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#9673a6;" target="25" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="35" edge="1" parent="1" source="24" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#9673a6;" target="25" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="36" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#82b366;verticalAlign=top;fontSize=12;dashed=1;dashPattern=8 4;fontStyle=1;" value="" vertex="1">
+          <mxGeometry height="200" width="1100" x="50" y="710" as="geometry" />
+        </mxCell>
+        <mxCell id="37" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;verticalAlign=middle;fontSize=12;fontStyle=1;" value="Layer 4: 专家决策层 (MoE 8专家)" vertex="1">
+          <mxGeometry height="25" width="280" x="60" y="715" as="geometry" />
+        </mxCell>
+        <mxCell id="38" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;verticalAlign=top;fontSize=9;" value="&lt;b&gt;POI专家&lt;/b&gt;&lt;hr&gt;按评分排序→地标优先→类型多样&lt;br&gt;→输出3-5个POI提案" vertex="1">
+          <mxGeometry height="140" width="130" x="60" y="750" as="geometry" />
+        </mxCell>
+        <mxCell id="39" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;verticalAlign=top;fontSize=9;" value="&lt;b&gt;美食专家&lt;/b&gt;&lt;hr&gt;菜系多样→覆盖三餐→综合场所≤1&lt;br&gt;→输出2-4个餐饮提案" vertex="1">
+          <mxGeometry height="140" width="130" x="197" y="750" as="geometry" />
+        </mxCell>
+        <mxCell id="40" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;verticalAlign=top;fontSize=9;" value="&lt;b&gt;住宿专家&lt;/b&gt;&lt;hr&gt;评分排序→位置便利→预算匹配&lt;br&gt;→输出1-2个住宿提案" vertex="1">
+          <mxGeometry height="140" width="130" x="334" y="750" as="geometry" />
+        </mxCell>
+        <mxCell id="41" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;verticalAlign=top;fontSize=9;" value="&lt;b&gt;交通专家&lt;/b&gt;&lt;hr&gt;计算POI间距离→评估跨区&lt;br&gt;→建议交通方式+时间估计" vertex="1">
+          <mxGeometry height="140" width="130" x="471" y="750" as="geometry" />
+        </mxCell>
+        <mxCell id="42" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;verticalAlign=top;fontSize=9;" value="&lt;b&gt;天气专家&lt;/b&gt;&lt;hr&gt;获取天气→标记户外风险&lt;br&gt;→建议室内替代方案" vertex="1">
+          <mxGeometry height="140" width="130" x="608" y="750" as="geometry" />
+        </mxCell>
+        <mxCell id="43" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;verticalAlign=top;fontSize=9;" value="&lt;b&gt;本地通&lt;/b&gt;&lt;hr&gt;筛选高评分小众→偏离常规&lt;br&gt;→输出1-3个秘境提案" vertex="1">
+          <mxGeometry height="140" width="130" x="745" y="750" as="geometry" />
+        </mxCell>
+        <mxCell id="44" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;verticalAlign=top;fontSize=9;" value="&lt;b&gt;景区专家&lt;/b&gt;&lt;hr&gt;匹配指定景区→筛选5km内&lt;br&gt;→规划景区内路线" vertex="1">
+          <mxGeometry height="140" width="130" x="882" y="750" as="geometry" />
+        </mxCell>
+        <mxCell id="45" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;verticalAlign=top;fontSize=9;" value="&lt;b&gt;省钱达人&lt;/b&gt;&lt;hr&gt;筛选免费POI→低价好去处&lt;br&gt;→优先公园/文化/自然类" vertex="1">
+          <mxGeometry height="140" width="130" x="1019" y="750" as="geometry" />
+        </mxCell>
+        <mxCell id="46" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#82b366;verticalAlign=middle;fontSize=9;" value="← 所有专家并行执行，各自从expert_candidates子池中选POI，结果通过Annotated+operator.add合并到proposals →" vertex="1">
+          <mxGeometry height="25" width="1080" x="60" y="810" as="geometry" />
+        </mxCell>
+        <mxCell id="47" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#82b366;verticalAlign=top;fontSize=12;dashed=1;dashPattern=8 4;fontStyle=1;" value="" vertex="1">
+          <mxGeometry height="200" width="1100" x="50" y="930" as="geometry" />
+        </mxCell>
+        <mxCell id="48" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;verticalAlign=middle;fontSize=12;fontStyle=1;" value="Layer 3: 路由与激活层" vertex="1">
+          <mxGeometry height="25" width="250" x="60" y="935" as="geometry" />
+        </mxCell>
+        <mxCell id="49" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;verticalAlign=top;fontSize=10;" value="&lt;b&gt;规则预检 (_rule_precheck)&lt;/b&gt;&lt;hr&gt;无歧义关键词直接分类:&lt;br&gt;长隆→目的地型 / 特种兵→特种兵型&lt;br&gt;美食游→美食型 → 跳过LLM" vertex="1">
+          <mxGeometry height="70" width="260" x="60" y="970" as="geometry" />
+        </mxCell>
+        <mxCell id="50" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;verticalAlign=top;fontSize=10;" value="&lt;b&gt;LLM场景分类&lt;/b&gt;&lt;hr&gt;DeepSeek + 5 few-shot示例&lt;br&gt;5种场景 + 专家权重输出&lt;br&gt;观光/美食/目的地/特种兵/休闲" vertex="1">
+          <mxGeometry height="70" width="260" x="340" y="970" as="geometry" />
+        </mxCell>
+        <mxCell id="51" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;verticalAlign=top;fontSize=10;" value="&lt;b&gt;标准化处理&lt;/b&gt;&lt;hr&gt;_normalize_scene_type: 别名映射&lt;br&gt;poi权重强制≥0.3&lt;br&gt;筛选active_experts(权重≥0.3)" vertex="1">
+          <mxGeometry height="70" width="260" x="620" y="970" as="geometry" />
+        </mxCell>
+        <mxCell id="52" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;verticalAlign=top;fontSize=10;" value="&lt;b&gt;候选池计算 (_compute_pools)&lt;/b&gt;&lt;hr&gt;从candidates切分8个子池: poi(排除餐饮住宿)/food(餐饮类)/hotel/traffic/weather/local_expert/destination/budget_hacker" vertex="1">
+          <mxGeometry height="55" width="540" x="60" y="1055" as="geometry" />
+        </mxCell>
+        <mxCell id="53" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;verticalAlign=middle;fontSize=10;" value="&lt;b&gt;动态扇出 (Send)&lt;/b&gt;&lt;hr&gt;LangGraph Send机制&lt;br&gt;只激活active_experts中的专家&lt;br&gt;每个专家收到各自候选池" vertex="1">
+          <mxGeometry height="55" width="260" x="620" y="1055" as="geometry" />
+        </mxCell>
+        <mxCell id="54" edge="1" parent="1" source="49" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#82b366;" target="50" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="55" edge="1" parent="1" source="50" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#82b366;" target="51" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="56" edge="1" parent="1" source="51" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#82b366;" target="52" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="57" edge="1" parent="1" source="52" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#82b366;" target="53" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="58" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#b85450;verticalAlign=top;fontSize=12;dashed=1;dashPattern=8 4;fontStyle=1;" value="" vertex="1">
+          <mxGeometry height="220" width="1100" x="50" y="1150" as="geometry" />
+        </mxCell>
+        <mxCell id="59" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;verticalAlign=middle;fontSize=12;fontStyle=1;" value="Layer 2: 规则守卫层" vertex="1">
+          <mxGeometry height="25" width="200" x="60" y="1155" as="geometry" />
+        </mxCell>
+        <mxCell id="60" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;verticalAlign=top;fontSize=9;" value="① parse_intent&lt;br&gt;提取时间窗/预算/体力" vertex="1">
+          <mxGeometry height="55" width="170" x="60" y="1190" as="geometry" />
+        </mxCell>
+        <mxCell id="61" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;verticalAlign=top;fontSize=9;" value="② fetch_pois&lt;br&gt;美团API→本地JSON" vertex="1">
+          <mxGeometry height="55" width="170" x="250" y="1190" as="geometry" />
+        </mxCell>
+        <mxCell id="62" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;verticalAlign=top;fontSize=9;" value="③ fix_food_cats&lt;br&gt;补全category字段" vertex="1">
+          <mxGeometry height="55" width="170" x="440" y="1190" as="geometry" />
+        </mxCell>
+        <mxCell id="63" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;verticalAlign=top;fontSize=9;" value="④ filter_candidates&lt;br&gt;时间/预算/评分筛选" vertex="1">
+          <mxGeometry height="55" width="170" x="630" y="1190" as="geometry" />
+        </mxCell>
+        <mxCell id="64" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;verticalAlign=top;fontSize=9;" value="⑤ ensure_key_pois&lt;br&gt;LLM补充关键POI" vertex="1">
+          <mxGeometry height="55" width="170" x="820" y="1190" as="geometry" />
+        </mxCell>
+        <mxCell id="65" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;verticalAlign=top;fontSize=9;" value="&lt;b&gt;⑥ 元规则防火墙&lt;/b&gt;&lt;hr&gt;预算≤300: 标记&gt;1.2倍预算POI&lt;br&gt;&gt;2倍预算: 硬拒绝移除&lt;br&gt;输出: 过滤后的candidates列表" vertex="1">
+          <mxGeometry height="80" width="310" x="820" y="1260" as="geometry" />
+        </mxCell>
+        <mxCell id="66" edge="1" parent="1" source="60" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#b85450;" target="61" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="67" edge="1" parent="1" source="61" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#b85450;" target="62" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="68" edge="1" parent="1" source="62" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#b85450;" target="63" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="69" edge="1" parent="1" source="63" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#b85450;" target="64" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="70" edge="1" parent="1" source="64" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#b85450;" target="65" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="71" edge="1" parent="1" source="62" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#b85450;" target="63" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="72" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#d6b656;verticalAlign=top;fontSize=12;dashed=1;dashPattern=8 4;fontStyle=1;" value="" vertex="1">
+          <mxGeometry height="200" width="1100" x="50" y="1390" as="geometry" />
+        </mxCell>
+        <mxCell id="73" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;verticalAlign=middle;fontSize=12;fontStyle=1;" value="Layer 1: 意图解析层" vertex="1">
+          <mxGeometry height="25" width="200" x="60" y="1395" as="geometry" />
+        </mxCell>
+        <mxCell id="74" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;verticalAlign=top;fontSize=10;" value="&lt;b&gt;parse_intent()&lt;/b&gt;&lt;hr&gt;① 尝试LLM解析自然语言&lt;br&gt;② LLM失败→规则解析&lt;br&gt;输出: 结构化intent dict" vertex="1">
+          <mxGeometry height="70" width="260" x="60" y="1430" as="geometry" />
+        </mxCell>
+        <mxCell id="75" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;verticalAlign=top;fontSize=10;" value="&lt;b&gt;情绪计算 (emotion)&lt;/b&gt;&lt;hr&gt;6维: 兴奋/宁静/社交/文化/惊喜/体力&lt;br&gt;chemical_reaction / sensory_alternation&lt;br&gt;fatigue_penalty → 6维情绪向量" vertex="1">
+          <mxGeometry height="70" width="260" x="340" y="1430" as="geometry" />
+        </mxCell>
+        <mxCell id="76" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;verticalAlign=top;fontSize=10;" value="&lt;b&gt;画像匹配 (_match_profile)&lt;/b&gt;&lt;hr&gt;20组预设画像(P1-P20)&lt;br&gt;按人数/类型/预算匹配&lt;br&gt;合并画像偏好到intent" vertex="1">
+          <mxGeometry height="70" width="260" x="620" y="1430" as="geometry" />
+        </mxCell>
+        <mxCell id="77" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;verticalAlign=top;fontSize=10;" value="&lt;b&gt;偏好融合 (可选)&lt;/b&gt;&lt;hr&gt;LTM预测 + 天气/时间/季节&lt;br&gt;WeightMapper→求解器权重" vertex="1">
+          <mxGeometry height="70" width="240" x="890" y="1430" as="geometry" />
+        </mxCell>
+        <mxCell id="78" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;verticalAlign=middle;fontSize=10;fontStyle=1;" value="输出: TravelState{user_input, user_intent(结构化), emotion_vector(6维), solver_weights, meta_rules}" vertex="1">
+          <mxGeometry height="50" width="1070" x="65" y="1540" as="geometry" />
+        </mxCell>
+        <mxCell id="79" edge="1" parent="1" source="74" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#d6b656;" target="75" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="80" edge="1" parent="1" source="74" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#d6b656;" target="76" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="81" edge="1" parent="1" source="75" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#d79b00;" target="77" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="82" edge="1" parent="1" source="76" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#d6b656;" target="78" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="83" edge="1" parent="1" source="77" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#d79b00;" target="78" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="84" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#6c8ebf;verticalAlign=top;fontSize=12;dashed=1;dashPattern=8 4;fontStyle=1;" value="" vertex="1">
+          <mxGeometry height="140" width="1100" x="50" y="1610" as="geometry" />
+        </mxCell>
+        <mxCell id="85" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;verticalAlign=middle;fontSize=12;fontStyle=1;" value="Layer 0: 基础设施层" vertex="1">
+          <mxGeometry height="25" width="200" x="60" y="1615" as="geometry" />
+        </mxCell>
+        <mxCell id="86" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;verticalAlign=top;fontSize=10;" value="&lt;b&gt;POI数据服务&lt;/b&gt;&lt;hr&gt;本地JSON: 珠海2000+ POI&lt;br&gt;美团API: 实时数据&lt;br&gt;多级缓存: 内存+Redis" vertex="1">
+          <mxGeometry height="80" width="200" x="60" y="1650" as="geometry" />
+        </mxCell>
+        <mxCell id="87" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;verticalAlign=top;fontSize=10;" value="&lt;b&gt;LLM服务&lt;/b&gt;&lt;hr&gt;DeepSeek V4 Pro&lt;br&gt;意图/分类/审查/重选&lt;br&gt;5s超时，规则降级" vertex="1">
+          <mxGeometry height="80" width="200" x="280" y="1650" as="geometry" />
+        </mxCell>
+        <mxCell id="88" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;verticalAlign=top;fontSize=10;" value="&lt;b&gt;缓存层&lt;/b&gt;&lt;hr&gt;L1: 内存缓存(快速)&lt;br&gt;L2: Redis缓存(共享)&lt;br&gt;路线结果缓存" vertex="1">
+          <mxGeometry height="80" width="200" x="500" y="1650" as="geometry" />
+        </mxCell>
+        <mxCell id="89" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;verticalAlign=top;fontSize=10;" value="&lt;b&gt;中间件管道&lt;/b&gt;&lt;hr&gt;CORS/RateLimit/Security&lt;br&gt;Session/APIVersion/Config&lt;br&gt;按顺序从外到内执行" vertex="1">
+          <mxGeometry height="80" width="200" x="720" y="1650" as="geometry" />
+        </mxCell>
+        <mxCell id="90" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;verticalAlign=top;fontSize=10;" value="&lt;b&gt;LangGraph引擎&lt;/b&gt;&lt;hr&gt;StateGraph图编排&lt;br&gt;Send动态扇出&lt;br&gt;条件边(Review分支)&lt;br&gt;120s超时保护" vertex="1">
+          <mxGeometry height="80" width="200" x="940" y="1650" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

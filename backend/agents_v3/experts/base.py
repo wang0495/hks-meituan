@@ -286,14 +286,14 @@ _llm_clients: dict[str, AsyncOpenAI] = {}
 
 
 def _get_llm_client(prefix: str = "EXPERT_LLM") -> AsyncOpenAI:
-    """Return a reused AsyncOpenAI client keyed by env var prefix.
-
-    prefix="EXPERT_LLM" → reads EXPERT_LLM_BASE_URL/API_KEY, fallback LLM_*
-    prefix="LLM"         → reads LLM_BASE_URL/API_KEY
-    """
+    """Return a reused AsyncOpenAI client,优先从 pydantic settings 读取配置。"""
     if prefix not in _llm_clients:
-        base_url = os.getenv(f"{prefix}_BASE_URL") or os.getenv("LLM_BASE_URL", "https://api.deepseek.com")
-        api_key = os.getenv(f"{prefix}_API_KEY") or os.getenv("LLM_API_KEY", os.getenv("OPENAI_API_KEY", ""))
+        from backend.config.settings import get_settings
+        settings = get_settings()
+        # EXPERT_LLM 前缀用 settings.llm（.env 中 LLM_* 变量），
+        # 因为 .env 没有 EXPERT_LLM_* 变量，统一走 LLM_* 配置
+        base_url = settings.llm.base_url
+        api_key = settings.llm.api_key
         _llm_clients[prefix] = AsyncOpenAI(base_url=base_url, api_key=api_key)
     return _llm_clients[prefix]
 
@@ -304,14 +304,16 @@ def clear_llm_cache():
 
 
 def _llm_model(prefix: str = "EXPERT_LLM") -> str:
-    """Return the model name for a given prefix."""
-    return os.getenv(f"{prefix}_MODEL") or os.getenv("LLM_MODEL", "deepseek-chat")
+    """Return the model name, 优先从 pydantic settings 读取。"""
+    from backend.config.settings import get_settings
+    return get_settings().llm.model
 
 
 def _is_deepseek(prefix: str = "EXPERT_LLM") -> bool:
     """Check if current LLM provider is DeepSeek (needs special params)."""
     model = _llm_model(prefix)
-    base_url = os.getenv(f"{prefix}_BASE_URL") or os.getenv("LLM_BASE_URL", "https://api.deepseek.com")
+    from backend.config.settings import get_settings
+    base_url = get_settings().llm.base_url
     return "deepseek" in model.lower() or "deepseek" in base_url
 
 

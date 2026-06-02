@@ -51,7 +51,7 @@ class RedisSettings(BaseSettings):
 class LLMSettings(BaseSettings):
     """LLM 服务配置。"""
 
-    model_config = SettingsConfigDict(env_prefix="LLM_")
+    model_config = SettingsConfigDict(env_prefix="LLM_", env_file=".env", env_file_encoding="utf-8")
 
     api_key: str = ""
     base_url: str = "https://api.openai.com/v1"
@@ -93,7 +93,7 @@ class _LLMDefaults(BaseSettings):
     同时支持 OPENAI_API_KEY 作为 api_key 的最终兜底。
     """
 
-    model_config = SettingsConfigDict(env_prefix="LLM_")
+    model_config = SettingsConfigDict(env_prefix="LLM_", env_file=".env", env_file_encoding="utf-8")
 
     api_key: str = ""
     base_url: str = "https://api.deepseek.com"

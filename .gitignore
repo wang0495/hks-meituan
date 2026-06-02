@@ -55,3 +55,7 @@ ClaudeCode-*.md
 
 # Docker volumes
 data/
+
+# CodeGraph / Understand Anything
+.codegraph/
+.understand-anything/

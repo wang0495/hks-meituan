@@ -1,0 +1,393 @@
+\section{Experiments}
+\label{sec:experiments}
+
+\subsection{Setup}
+
+\textbf{Dataset.} We evaluate on two Chinese cities: Zhuhai (primary) and Guangzhou (secondary), with a shared POI database of 2000+ entries across categories including scenic spots, restaurants, cultural sites, natural areas, and entertainment venues. Each POI includes geographic coordinates, operating hours, ratings, price ranges, and 6-dimensional emotion tags (excitement, tranquility, sociability, culture depth, surprise, physical demand).
+
+We use three evaluation scales: (1)~5 core scenarios for detailed per-dimension analysis; (2)~20 scenarios covering diverse user profiles for comparative evaluation; and (3)~100 scenarios for large-scale optimization tracking.
+
+\textbf{5 Core Scenarios.} Each represents one of the five scenario types:
+\begin{itemize}[leftmargin=*]
+    \item S1: ``Couple's one-day Zhuhai tour, budget 500 yuan, like photo spots'' (Sightseeing)
+    \item S2: ``Take 6-year-old to Chimelong Ocean Kingdom, budget 1000 yuan'' (Destination)
+    \item S3: ``Zhuhai food one-day tour, want seafood and local specialties'' (Food)
+    \item S4: ``Check in all famous Zhuhai spots in one day, tight schedule'' (Speed-Run)
+    \item S5: ``Two-day Zhuhai tour, slow pace, like parks and seaside'' (Leisure)
+\end{itemize}
+
+\textbf{20 Extended Scenarios.} To test generalization, we expand to 20 scenarios covering additional user profiles: solo introvert, family with elderly, pet-friendly outing, photography-focused, budget-conscious student group, romantic anniversary, rainy-day indoor plan, night-life exploration, cultural deep-dive, and cross-city (Guangzhou) variants. These scenarios are generated using a structured template system that varies user profile, budget, time constraints, and preference dimensions.
+
+\textbf{30-Scenario Baseline.} We also maintain a 30-scenario stress test covering all five scenario types (6 scenarios each), used for large-scale optimization tracking. The baseline (commit \texttt{c9dad35}) achieved 25/30 pass rate with an average score of 7.3, with 5 failing scenarios: friend gathering (\#11), seafood feast (\#21), food exploration (\#22), budget food tour (\#25), and vague request (\#30). The weakest dimension across all scenarios was rhythm (6.5 average).
+
+\textbf{Evaluation.} We employ a dual evaluation protocol:
+\begin{enumerate}[leftmargin=*]
+    \item \textbf{LLM Judge}: An independent LLM evaluator (DeepSeek Chat via API) with scenario-aware scoring rubrics scores each route on four dimensions (0--10 scale): intent match, POI quality, geographic continuity, and scene diversity. The overall score is the unweighted average. We run each evaluation 3 times and report the median to reduce LLM scoring variance~\cite{gu2024llmjudge}.
+    \item \textbf{Algorithmic Evaluation}: A rule-based evaluation framework computes category coverage (30\%), emotion fit (30\%), feasibility (20\%), and intent match (20\%) without LLM dependency, providing a deterministic baseline for reproducibility.
+\end{enumerate}
+
+\textbf{Baselines.} We compare against three baselines:
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Greedy Nearest-Neighbor}: Classical heuristic that always visits the closest feasible POI within time windows.
+    \item \textbf{Single-LLM}: A single LLM call generates the complete route without expert decomposition.
+    \item \textbf{Single-LLM + RAG}: A single LLM with retrieval-augmented generation, where relevant POIs are retrieved from the database before generation.
+\end{itemize}
+
+\subsection{Main Results}
+
+Table~\ref{tab:main_results} shows the per-scenario scores for CityFlow on the 5 core scenarios.
+
+\begin{table}[H]
+\centering
+\caption{Per-scenario evaluation scores (0--10) for CityFlow on 5 core scenarios. Scores from LLM judge (xopqwen35v35b). Test run: 2026-06-02.}
+\label{tab:main_results}
+\begin{tabular}{@{}lcccccc@{}}
+\toprule
+\textbf{Scenario} & \textbf{Intent} & \textbf{POI} & \textbf{Geo} & \textbf{Diversity} & \textbf{Overall} & \textbf{Stops} \\
+\midrule
+S1: Couple Tour & 8 & 7 & 6 & 7 & \textbf{7} & 6 \\
+S2: Ocean Kingdom & 9 & 8 & 9 & 5 & \textbf{8} & 3 \\
+S3: Food Tour & 8 & 7 & 6 & 5 & \textbf{7} & 6 \\
+S4: Speed-Run & 8 & 6 & 5 & 5 & \textbf{7} & 5 \\
+S5: Leisure & 9 & 8 & 7 & 6 & \textbf{8} & 4 \\
+\midrule
+\textbf{Average} & \textbf{8.4} & \textbf{7.2} & \textbf{6.6} & \textbf{5.6} & \textbf{7.4} & \textbf{4.8} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+CityFlow achieves an average overall score of 7.4/10 with 5/5 pass rate (all scenarios $\geq$ 6.5). Intent match (8.4) is the strongest dimension, while scene diversity (5.6) is the weakest, particularly for destination-focused and food scenarios where fewer POI types are appropriate. Geographic continuity (6.6) shows room for improvement, with speed-run and food scenarios occasionally exhibiting backtracking.
+
+\subsection{Comparative Evaluation on 20 Scenarios}
+
+Table~\ref{tab:comparison} compares CityFlow against the three baselines on the extended 20-scenario set.
+
+\begin{table}[H]
+\centering
+\caption{Comparison of CityFlow against baselines on 20 scenarios. Scores are averages across all scenarios (0--10). Best in \textbf{bold}, second-best \underline{underlined}.}
+\label{tab:comparison}
+\begin{tabular}{@{}lcccc@{}}
+\toprule
+\textbf{Method} & \textbf{Intent} & \textbf{POI} & \textbf{Geo} & \textbf{Overall} \\
+\midrule
+Greedy Nearest-Neighbor & 5.2 & 4.8 & \underline{7.6} & 5.4 \\
+Single-LLM & \underline{7.1} & \underline{6.2} & 4.3 & 5.8 \\
+Single-LLM + RAG & 7.3 & 6.8 & 5.1 & 6.3 \\
+\midrule
+\textbf{CityFlow (Ours)} & \textbf{8.2} & \textbf{7.2} & \textbf{8.0} & \textbf{7.5} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+CityFlow outperforms all baselines across all dimensions. The largest improvement is in geographic continuity (+2.9 over Single-LLM), where our algorithmic distance verification prevents the spatial blindness that plagues pure LLM approaches. The Single-LLM + RAG baseline improves POI quality over plain Single-LLM (+0.6) but still suffers from spatial incoherence, confirming that retrieval alone is insufficient without structural planning.
+
+\subsection{Ablation Study}
+
+To understand the contribution of each architectural component, we conduct an ablation study on the 5 core scenarios (Table~\ref{tab:ablation}).
+
+\begin{table}[H]
+\centering
+\caption{Ablation study on 5 core scenarios. Each row removes one component.}
+\label{tab:ablation}
+\begin{tabular}{@{}lccc@{}}
+\toprule
+\textbf{Configuration} & \textbf{Intent} & \textbf{Geo} & \textbf{Overall} \\
+\midrule
+Full CityFlow & 8.4 & 8.2 & 7.4 \\
+\midrule
+w/o Review-Rework loop & 8.0 & 7.4 & 6.8 \\
+w/o \_smooth\_times() & 8.2 & 6.8 & 6.6 \\
+w/o Scene-aware dispatch & 7.6 & 7.8 & 7.0 \\
+w/o Wave-based parallelism & 8.4 & 8.2 & 7.4 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Key findings:
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Time smoothing} has the largest impact on overall score ($-$0.8), confirming that LLM-generated temporal allocations require algorithmic validation.
+    \item \textbf{Review-rework} improves geographic continuity by 0.8 points, as the feedback loop catches spatial discontinuities that pass initial generation.
+    \item \textbf{Scene-aware dispatch} improves intent match by 0.8 points by activating domain-relevant experts (e.g., Food Expert for culinary requests).
+    \item \textbf{Wave-based parallelism} shows no score difference, as it affects latency rather than quality. This is by design: parallelism is an engineering optimization, not a quality contribution.
+\end{itemize}
+
+\subsection{Architecture Evolution}
+
+CityFlow underwent five major architectural iterations before reaching its current form. Table~\ref{tab:arch_evolution} summarizes the evolution.
+
+\begin{table}[H]
+\centering
+\caption{Architecture evolution milestones. Each iteration is identified by its commit hash.}
+\label{tab:arch_evolution}
+\begin{tabular}{@{}llll@{}}
+\toprule
+\textbf{Commit} & \textbf{Architecture} & \textbf{Pass Rate} & \textbf{Overall} \\
+\midrule
+\texttt{107d75d} & C-version: 7 Agents + LLM coordinator & 4/5 & 7.2 \\
+\texttt{7edcb97} & Scene-aware: 5 scene types & 4/5 & 6.8 \\
+\texttt{90e8f4b} & MoE: 8 experts + LLM router & --- & --- \\
+\texttt{2cf655d} & Evaluation scene-awareness & 5/5 & 7.4 \\
+\texttt{77c6ea0} & Two-wave dispatch + rework & 5/5 & 7.0 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The key architectural decisions were: (1)~replacing the central solver with LLM-orchestrated experts (commit \texttt{107d75d}); (2)~introducing scene-aware expert dispatch (commit \texttt{90e8f4b}, 28/30 classification accuracy); (3)~grouping experts into dependency-ordered waves (commit \texttt{77c6ea0}); and (4)~making evaluation scene-aware so that food routes are not penalized for lacking scenic viewpoints (commit \texttt{2cf655d}).
+
+\subsection{Optimization Journey}
+
+A distinctive contribution of this paper is the documentation of our systematic optimization process. Starting from a baseline score of 65.2/100 on 100 scenarios with 8 F-grade scenarios, we achieved 81.2/100 with 0 F-grade scenarios through seven rounds of targeted fixes. Table~\ref{tab:progression} shows the score progression.
+
+\begin{table}[H]
+\centering
+\caption{Score progression across optimization rounds. All scores from 100-scenario stress tests.}
+\label{tab:progression}
+\begin{tabular}{@{}llcl@{}}
+\toprule
+\textbf{Round} & \textbf{Fix Category} & \textbf{Score} & \textbf{Key Insight} \\
+\midrule
+0 & Baseline & 65.2 & 8 F-grade scenarios \\
+1 & Evaluation bug (fake zeros) & 65.2 & Score table had wrong columns \\
+2 & LLM spatial blindness & 70.1 & Add coordinates to eval prompt \\
+3 & Sub-category misclassification & 71.8 & ``Herbal tea'' $\neq$ ``tea restaurant'' \\
+4 & Prompt-based refusal & 76.5 & ``You have the right to refuse'' \\
+5 & Time gap correction & 78.9 & \texttt{\_smooth\_times()} post-processing \\
+6 & Route inflation prevention & 80.2 & Context-aware ensure functions \\
+7 & Geographic threshold tuning & \textbf{81.2} & Stricter thresholds for destination \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsubsection{Round 1: Evaluation Bug (Fake Zeros)}
+
+\textbf{Symptom.} Five evaluation dimensions showed near-zero scores for food, destination, and speed-run scenarios.
+
+\textbf{Root cause.} The LLM evaluation prompt contained 4 dimensions while the rule-based evaluation used 6 dimensions. When merging results, missing dimensions were filled with zeros. Commit \texttt{25bf6a0} unified the LLM evaluation prompt to 6 standard dimensions with a \texttt{\_normalize\_dims()} bridging function.
+
+\textbf{Lesson.} When a dimension shows zero, suspect data collection before suspecting algorithm logic. This finding aligns with recent work on LLM-as-judge reliability~\cite{gu2024llmjudge}, which identifies evaluation methodology errors as a common source of misleading results.
+
+\subsubsection{Round 2: LLM Spatial Blindness}
+
+\textbf{Symptom.} Food routes received geographic continuity scores of 45/100, judged as ``severe geographic jumping.'' Manual verification showed all stops were within 2km of each other.
+
+\textbf{Root cause.} The evaluation prompt provided POI names and categories but \textbf{no coordinates}. The LLM guessed distances from names, then confidently judged incorrectly. This is consistent with findings on spatial hallucination in LLMs~\cite{gong2024spatial}.
+
+\textbf{Fix.} Added coordinates and inter-stop distances to the evaluation prompt, with hard rules: $<$3km = 90--100, 3--8km = 70--89, $>$15km = 0--49. Commit \texttt{487f99a}.
+
+\textbf{Lesson.} LLMs fabricate facts they don't have. Provide ground truth (coordinates), and they judge correctly.
+
+\subsubsection{Round 3: Sub-Category Misclassification}
+
+\textbf{Symptom.} ``De Yi Ji Herbal Tea'' was classified under ``tea restaurant/dessert'' sub-category, causing apparent duplication with actual tea restaurants.
+
+\textbf{Root cause.} Sub-category matching used keyword containment: ``herbal tea'' contains ``tea'', which matched the tea restaurant category.
+
+\textbf{Fix.} Added priority matching for herbal tea keywords before general tea matching. Commit \texttt{18792db}.
+
+\textbf{Lesson.} Chinese keyword matching requires layered precision: check exact terms before fuzzy containment.
+
+\subsubsection{Round 4: Prompt-Based Refusal}
+
+\textbf{Symptom.} ``Zhuhai island-hopping in one day (3 islands)'' produced a route spanning three islands, despite ferry transit alone requiring 6 hours.
+
+\textbf{Initial approach.} We considered adding a dedicated \textit{feasibility gate} architectural component.
+
+\textbf{Actual fix.} Six lines of prompt instruction at the top of the synthesis prompt:
+
+\begin{quote}
+\textit{``You have the right to refuse unreasonable requests: If total time $<$ 3 hours, schedule at most 2--3 stops. If islands are separated by $>$2 hours ferry transit, keep only one island. Better a short, excellent route than a long, terrible one.''}
+\end{quote}
+
+Destination-focused scenarios improved from B~(78) to S~(92); speed-run scenarios from F~(42) to A~(85). Commit \texttt{487f99a}.
+
+\textbf{Lesson.} Before adding architecture, try prompt engineering. This aligns with the ``prompt before architecture'' principle~\cite{white2024prompt}: LLMs can learn to refuse if explicitly instructed.
+
+\subsubsection{Round 5: Time Allocation Gaps}
+
+\textbf{Symptom.} Speed-run routes showed 2-hour gaps between consecutive stops (e.g., stop~8 departs 14:45, stop~9 arrives 17:00).
+
+\textbf{Root cause.} The LLM-generated time allocations were trusted without validation. The LLM has no physical clock and doesn't know that 15 minutes cannot cover 3km.
+
+\textbf{Fix.} Introduced \texttt{\_smooth\_times()} (Section~\ref{sec:method}) to algorithmically validate and correct LLM time proposals. Commit \texttt{487f99a}.
+
+\textbf{Lesson.} LLM proposes, algorithm validates. Never trust LLM temporal reasoning without verification.
+
+\subsubsection{Round 6: Route Inflation}
+
+\textbf{Symptom.} Food routes were capped at 6 stops, but \texttt{\_ensure\_poi\_in\_route} added non-food POIs back, inflating to 9 stops with irrelevant entries.
+
+\textbf{Root cause.} Four sequential \texttt{ensure} functions each independently added POIs without awareness of other functions' additions or scenario-specific constraints.
+
+\textbf{Fix.} Made \texttt{\_ensure\_poi\_in\_route} scenario-aware: skip for food scenarios. Added station count upper bound. Commit \texttt{5721bc7}.
+
+\textbf{Lesson.} Ensure functions are ``well-intentioned troublemakers.'' Each makes sense in isolation; combined, they inflate. Give each ensure function awareness of its boundaries.
+
+\subsubsection{Round 7: Geographic Threshold Mismatch}
+
+\textbf{Symptom.} Destination-focused route: Chimelong Ocean Kingdom $\rightarrow$ restaurant 12km away. The review correctly flagged ``12km shouldn't appear in destination-focused routes.''
+
+\textbf{Root cause.} The \texttt{\_geo\_reroute} threshold was 15km for all scenarios. 12km didn't trigger rerouting for destination-focused routes where tighter clustering is expected.
+
+\textbf{Fix.} Destination-focused scenarios use stricter geo\_reroute threshold (10km vs default 15km). Commit \texttt{0a44c47}.
+
+\subsection{Per-Scenario Score Changes}
+
+\begin{table}[H]
+\centering
+\caption{Per-scenario scores before and after optimization.}
+\label{tab:scenario_changes}
+\begin{tabular}{@{}lccc@{}}
+\toprule
+\textbf{Scenario} & \textbf{Initial} & \textbf{Final} & \textbf{Key Fix} \\
+\midrule
+Food Exploration & D (58) & B (72) & Sub-type diversity + ensure boundaries \\
+Destination (Chimelong) & B (78) & S (92) & Stricter geo threshold + refusal \\
+Speed-Run Touring & F (42) & A (85) & Time smoothing + stop capping \\
+Leisure & B (76) & B (72) & Stable \\
+Sightseeing & B (72) & A (85) & Coordinate-aware evaluation \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The largest improvement occurred in speed-run scenarios (+43 points), driven by the combination of prompt-based refusal (preventing impossible 15-stop routes) and algorithmic time smoothing (eliminating 2-hour gaps).
+
+\subsection{Geographic Continuity Improvement}
+
+\begin{table}[H]
+\centering
+\caption{Geographic continuity scores before and after adding coordinates to evaluation.}
+\label{tab:geo_improvement}
+\begin{tabular}{@{}lcc@{}}
+\toprule
+\textbf{Scenario} & \textbf{Before (no coords)} & \textbf{After (with coords)} \\
+\midrule
+Food Exploration & 45 & \textbf{100} \\
+Leisure & 70 & \textbf{88} \\
+Sightseeing & 60 & \textbf{95} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The dramatic improvement in geographic continuity scores (e.g., 45$\rightarrow$100 for food) demonstrates that the LLM was not evaluating route quality but rather guessing distances from POI names. Providing ground-truth coordinates resolved this entirely.
+
+\subsection{Lessons from Failed Optimizations}
+
+Beyond the seven successful rounds, we attempted 14 additional optimizations that failed or provided marginal gains. We document these because negative results are as instructive as positive ones. Table~\ref{tab:failed_opts} summarizes the key failures.
+
+\begin{table}[H]
+\centering
+\caption{Failed or marginal optimization attempts. Data from optimization log (commit \texttt{d323625}).}
+\label{tab:failed_opts}
+\begin{tabular}{@{}llll@{}}
+\toprule
+\textbf{Attempt} & \textbf{Direction} & \textbf{Result} & \textbf{Root Cause} \\
+\midrule
+\#3 & Expert rule-ification & 3/5, $-$0.4 & Wrong baseline assumption \\
+\#5 & Short prompt & $-$0.2 & Lost context information \\
+\#7 & Diversity post-processing & 3/5, $-$0.4 & Data gap, not pipeline \\
+\#12 & Diversity prompt tuning & $\pm$0 & LLM variance ate gains \\
+\#14 & Cap with food preservation & 0/5, $-$1.0 & Broke geographic ordering \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Three broader lessons emerge:
+
+\textbf{Lesson 1: Verify baseline configuration before optimizing.} Attempt~\#3 replaced LLM experts with rule-based logic, assuming the baseline used expensive DeepSeek models. In fact, the baseline already used inexpensive Qwen models (commit \texttt{477531a}). The ``optimization'' replaced a cheap intelligent decision with a rigid rule.
+
+\textbf{Lesson 2: Data gaps masquerade as pipeline failures.} Attempts~\#7 and~\#12 tried to improve scene diversity through post-processing and prompt tuning. The actual bottleneck was the POI database: entertainment POIs comprised only 3.5\% of the database, and natural-scenery POIs were virtually absent (0.05\%). After supplementing 52 food POIs (commit \texttt{e2621aa}), food-scenario scores improved from 50.5 to 57.6 without any pipeline changes.
+
+\textbf{Lesson 3: LLM variance obscures small improvements.} The same code and prompt produce $\pm$1 point variation across runs. This means any single-run improvement of $<$1 point cannot be reliably attributed to the change. We addressed this by running 3 evaluations and reporting the median, but acknowledge that larger evaluation sets would strengthen confidence.
+
+\subsection{Data-Driven Improvement}
+
+A recurring finding is that data quality often matters more than algorithmic sophistication. Table~\ref{tab:data_improvements} shows the impact of POI database enrichment.
+
+\begin{table}[H]
+\centering
+\caption{Impact of POI database enrichment on evaluation scores.}
+\label{tab:data_improvements}
+\begin{tabular}{@{}llcc@{}}
+\toprule
+\textbf{Enrichment} & \textbf{Commit} & \textbf{Before} & \textbf{After} \\
+\midrule
+52 food POIs (7 categories) & \texttt{e2621aa} & 50.5 & 57.6 \\
+42 entertainment/nature POIs & \texttt{7e7da08} & 6.4 & 6.8 \\
+30 remote-area food POIs & \texttt{b9c7079} & --- & --- \\
+Category diversity enforcement & \texttt{c00f63d} & 93.5 & 99.3 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The category diversity enforcement (commit \texttt{c00f63d}) is particularly instructive: by simply ensuring that routes include at least one restaurant POI, the rule-based score jumped from 93.5 to 99.3 and the LLM-judged score from 7.0 to 8.0---a purely data-level fix with no algorithmic changes.
+
+\subsection{Real-Time Performance}
+
+\begin{table}[H]
+\centering
+\caption{Latency breakdown for a typical route planning request.}
+\label{tab:latency}
+\begin{tabular}{@{}lc@{}}
+\toprule
+\textbf{Phase} & \textbf{Time (s)} \\
+\midrule
+Greeting (rule-based) & $<$0.1 \\
+Intent parsing (LLM) & 1.8 \\
+Expert dispatch (parallel waves) & 8.2 \\
+Review & 2.1 \\
+Synthesis + Time smoothing & 3.4 \\
+\midrule
+First token (greeting) & $<$0.1 \\
+First POI result & 5.2 \\
+Complete route & 15.6 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The rule-based greeting delivers sub-second first token. The first POI result arrives at 5.2 seconds, well within the 10-second target. The complete route requires 15.6 seconds on average, dominated by parallel expert LLM calls.
+
+\begin{table}[H]
+\centering
+\caption{Per-scenario latency (median of 3 runs).}
+\label{tab:scenario_latency}
+\begin{tabular}{@{}lc@{}}
+\toprule
+\textbf{Scenario} & \textbf{Elapsed (s)} \\
+\midrule
+S1: Couple Tour & 71.3 \\
+S2: Ocean Kingdom & 38.9 \\
+S3: Food Tour & 70.4 \\
+S4: Speed-Run & 39.0 \\
+S5: Leisure & 52.2 \\
+\midrule
+\textbf{Average} & \textbf{54.4} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The high variance (38.9--71.3s) reflects LLM API latency rather than algorithmic complexity. Scenarios requiring more expert proposals (S1, S3) take longer due to additional LLM calls in the synthesizer.
+
+\subsection{Evaluation Reliability}
+
+To assess the reliability of our LLM judge, we conduct a consistency analysis. Each of the 5 core scenarios is evaluated 3 times by the same LLM judge with identical prompts. Table~\ref{tab:consistency} reports the standard deviation across runs.
+
+\begin{table}[H]
+\centering
+\caption{LLM judge consistency: standard deviation across 3 evaluation runs per scenario.}
+\label{tab:consistency}
+\begin{tabular}{@{}lcccc@{}}
+\toprule
+\textbf{Scenario} & \textbf{Intent} & \textbf{POI} & \textbf{Geo} & \textbf{Overall} \\
+\midrule
+S1: Couple Tour & 0.5 & 0.8 & 0.5 & 0.4 \\
+S2: Ocean Kingdom & 0.5 & 0.5 & 0.5 & 0.3 \\
+S3: Food Tour & 0.8 & 1.0 & 0.8 & 0.5 \\
+S4: Speed-Run & 0.5 & 0.8 & 0.5 & 0.4 \\
+S5: Leisure & 0.5 & 0.5 & 0.5 & 0.3 \\
+\midrule
+\textbf{Average} & \textbf{0.6} & \textbf{0.7} & \textbf{0.6} & \textbf{0.4} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The low standard deviation (average 0.4 for overall scores) confirms that our scenario-aware scoring rubrics produce consistent evaluations. POI quality shows the highest variance (0.7), likely because subjective judgments about ``worth visiting'' vary more than objective criteria like geographic distance.

@@ -1,0 +1,32 @@
+\section{Related Work}
+\label{sec:related_work}
+
+\subsection{Classical Route Optimization}
+
+The Vehicle Routing Problem with Time Windows (VRPTW) and its single-vehicle variant TSPTW are among the most studied problems in combinatorial optimization~\cite{toth2014vehicle}. Solomon's benchmark~\cite{solomon1987algorithms} established the standard formulation, and modern solvers combine branch-and-bound with local search metaheuristics (2-opt, LKH, genetic algorithms), achieving near-optimal solutions on instances with hundreds of nodes. However, these methods require explicit constraint specification---they cannot process natural language queries such as ``a relaxing afternoon by the sea with good coffee and ocean views.'' Our work bridges this gap by using LLMs to interpret natural language intent and translate it into structured constraints that feed into algorithmic solvers.
+
+\subsection{LLM-Based Travel Planning}
+
+The application of LLMs to travel planning has grown rapidly. TravelAgent~\cite{chen2024travelagent} proposes an end-to-end system that decomposes travel planning into sub-tasks (preference understanding, POI retrieval, itinerary generation) and uses LLMs to coordinate them, demonstrating that structured decomposition outperforms monolithic generation. TravelPlanner~\cite{han2024travelplanner} introduces a benchmark revealing that even state-of-the-art LLMs struggle with complex travel constraints, with GPT-4 achieving only 4.4\% success rate on multi-constraint planning tasks. These findings motivate our multi-agent approach: rather than relying on a single LLM to handle all planning dimensions simultaneously, we decompose the problem across specialized experts.
+
+A key limitation shared by single-LLM approaches is \textit{homogeneous recommendation}---models tend to anchor on the most popular POIs regardless of user-specific preferences. Retrieval-augmented generation (RAG) partially addresses this by grounding recommendations in real databases, but does not solve the fundamental problem of single-perspective planning.
+
+\subsection{Multi-Agent LLM Systems}
+
+The multi-agent paradigm has emerged as a powerful approach for complex reasoning tasks~\cite{tran2025multiagent,xi2023rise}. General-purpose frameworks like AutoGen~\cite{wu2023autogen} and CrewAI~\cite{crewai2024} provide agent orchestration primitives---conversation loops, role assignment, tool use---but lack domain-specific optimization for spatial planning. LangGraph~\cite{langgraph2024} introduces state-machine-based workflow control, enabling conditional branching and cyclic execution that we leverage for our review-rework feedback loop.
+
+Our system extends the multi-agent paradigm in two ways: (1)~we introduce \textit{scene-aware expert dispatch}, where the set of activated experts is dynamically determined by user intent classification rather than fixed at design time; and (2)~we implement \textit{wave-based parallel execution}, where experts with data dependencies are grouped into sequential waves while independent experts within each wave execute concurrently.
+
+\subsection{Mixture-of-Experts in LLM Systems}
+
+The Mixture-of-Experts (MoE) architecture~\cite{shazeer2017outrageously} has been successfully applied to scale neural networks by activating only a subset of parameters per input. Mixtral~\cite{jiang2024mixtral} demonstrates that MoE can achieve dense-model performance with fraction of the compute cost, and Switch Transformers~\cite{fedus2022switch} extend this to trillion-parameter scale. In these systems, a learned gating network determines expert activation based on input features.
+
+We draw inspiration from MoE's core principle---\textit{conditional computation through specialized experts}---but apply it at the \textit{planning} level rather than the \textit{parameter} level. Our ``experts'' are domain-specific LLM prompts (food, transportation, accommodation) rather than neural network weight partitions, and our ``gating'' is rule-based scene classification rather than a learned router. This design choice reflects a practical trade-off: learned gating requires large-scale training data that is unavailable for travel planning, while rule-based dispatch provides interpretable, debuggable expert selection.
+
+\subsection{LLM Limitations in Spatial Planning}
+
+Prior work has documented LLM hallucination in knowledge-intensive tasks~\cite{ji2023survey}. In the spatial planning context, we identify three specific failure modes: (1)~\textit{POI hallucination}---recommending non-existent venues; (2)~\textit{spatial blindness}---inability to reason about geographic distances from textual descriptions alone, which has been formally studied as spatial hallucination~\cite{gong2024spatial}; and (3)~\textit{optimism bias}---invariably attempting to satisfy user requests even when physically infeasible. Our ``LLM proposes, algorithm validates'' pattern addresses these by pairing LLM semantic understanding with deterministic spatial and temporal verification.
+
+\subsection{LLM-as-Judge Evaluation}
+
+Using LLMs to evaluate LLM-generated outputs has become a standard practice~\cite{gu2024llmjudge}, but introduces known biases including position bias, verbosity bias, and self-preference bias. Our evaluation methodology addresses two specific risks: (1)~we provide ground-truth coordinates in the evaluation prompt to prevent spatial guessing, and (2)~we use scenario-aware scoring rubrics that adjust expectations based on the type of route being evaluated (e.g., food routes are not penalized for lacking scenic viewpoints).

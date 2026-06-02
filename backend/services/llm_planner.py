@@ -21,10 +21,9 @@ _client: AsyncOpenAI | None = None
 def _get_client() -> AsyncOpenAI:
     global _client
     if _client is None:
-        base_url = os.getenv("LLM_BASE_URL", "https://api.deepseek.com")
-        api_key = os.getenv("LLM_API_KEY", os.getenv("OPENAI_API_KEY", ""))
-        # 不再强制追加 /v1 — 适配讯飞 MaaS 等 base_url 已含路径的 API
-        _client = AsyncOpenAI(base_url=base_url, api_key=api_key)
+        from backend.config.settings import get_settings
+        s = get_settings()
+        _client = AsyncOpenAI(base_url=s.llm.base_url, api_key=s.llm.api_key)
     return _client
 
 

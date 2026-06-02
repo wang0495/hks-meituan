@@ -1,0 +1,152 @@
+\documentclass[11pt]{article}
+
+\usepackage[margin=1in]{geometry}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{multirow}
+% natbib removed: using inline thebibliography
+\usepackage{float}
+\usepackage{caption,subcaption}
+\usepackage{microtype}
+\usepackage{hyperref}
+\usepackage{xcolor}
+\usepackage{enumitem}
+\usepackage{tikz}
+\usetikzlibrary{shapes,arrows,positioning,fit,backgrounds}
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue,
+    citecolor=blue!70!black,
+    urlcolor=blue
+}
+
+\definecolor{accent}{HTML}{4FACFE}
+\definecolor{coral}{HTML}{FF6B6B}
+\definecolor{forest}{HTML}{51CF66}
+
+\title{\textbf{CityFlow}: Expert-Ensemble Multi-Agent Collaboration\\for Personalized Urban Route Planning}
+
+\author{%
+  Qilong Wang\\
+  Beijing Normal University\\
+  \texttt{13623753581@163.com}
+}
+
+\begin{document}
+
+\maketitle
+
+\input{sections/abstract}
+
+\input{sections/introduction}
+
+\input{sections/related_work}
+
+\input{sections/method}
+
+\input{sections/experiments}
+
+\input{sections/discussion}
+
+\input{sections/conclusion}
+
+% ── References (embedded, tectonic doesn't run bibtex) ──
+\begin{thebibliography}{30}
+
+\bibitem{toth2014vehicle}
+Toth, P. and Vigo, D. (2014).
+\newblock Vehicle Routing: Problems, Methods, and Applications.
+\newblock SIAM.
+
+\bibitem{solomon1987algorithms}
+Solomon, M.~M. (1987).
+\newblock Algorithms for the vehicle routing and scheduling problems with time window constraints.
+\newblock \emph{Operations Research}, 35(2):254--265.
+
+\bibitem{wei2022chain}
+Wei, J., Wang, X., Schuurmans, D., et~al. (2022).
+\newblock Chain-of-thought prompting elicits reasoning in large language models.
+\newblock \emph{NeurIPS}, 35:24824--24837.
+
+\bibitem{ji2023survey}
+Ji, Z., Lee, N., Frieske, R., et~al. (2023).
+\newblock Survey of hallucination in natural language generation.
+\newblock \emph{ACM Computing Surveys}, 55(12):1--38.
+
+\bibitem{gu2024llmjudge}
+Gu, J., Jiang, X., Shi, Z., et~al. (2024).
+\newblock A survey on LLM-as-a-Judge.
+\newblock \emph{arXiv:2411.15594}.
+
+\bibitem{shazeer2017outrageously}
+Shazeer, N., Mirhoseini, A., et~al. (2017).
+\newblock Outrageously large neural networks: The sparsely-gated mixture-of-experts layer.
+\newblock \emph{ICLR}.
+
+\bibitem{jiang2024mixtral}
+Jiang, A.~Q., Sablayrolles, A., et~al. (2024).
+\newblock Mixtral of experts.
+\newblock \emph{arXiv:2401.04088}.
+
+\bibitem{fedus2022switch}
+Fedus, W., Zoph, B., and Shazeer, N. (2022).
+\newblock Switch transformers: Scaling to trillion parameter models with simple and efficient sparsity.
+\newblock \emph{JMLR}, 23(120):1--39.
+
+\bibitem{chen2024travelagent}
+Chen, A., Ge, X., Fu, Z., Xiao, Y., and Chen, J. (2024).
+\newblock TravelAgent: An AI assistant for personalized travel planning.
+\newblock \emph{arXiv:2409.08069}.
+
+\bibitem{han2024travelplanner}
+Han, J., Xie, H., Zhu, F., et~al. (2024).
+\newblock TravelPlanner: A benchmark for real-world planning with language agents.
+\newblock \emph{arXiv:2402.01622}.
+
+\bibitem{wu2023autogen}
+Wu, Q., Bansal, G., et~al. (2023).
+\newblock AutoGen: Enabling next-gen LLM applications via multi-agent conversation.
+\newblock \emph{arXiv:2308.08155}.
+
+\bibitem{tran2025multiagent}
+Tran, K.-T., Dao, D., Nguyen, M.-D., et~al. (2025).
+\newblock Multi-agent collaboration mechanisms: A survey of LLMs.
+\newblock \emph{arXiv:2501.06322}.
+
+\bibitem{xi2023rise}
+Xi, Z., Chen, W., Guo, X., et~al. (2023).
+\newblock The rise and potential of large language model based agents: A survey.
+\newblock \emph{arXiv:2309.07864}.
+
+\bibitem{crewai2024}
+CrewAI Inc. (2024).
+\newblock CrewAI: Framework for orchestrating role-playing autonomous AI agents.
+\newblock \url{https://github.com/crewAIInc/crewAI}.
+
+\bibitem{langgraph2024}
+LangChain Inc. (2024).
+\newblock LangGraph: A framework for building stateful, multi-actor applications with LLMs.
+\newblock \url{https://github.com/langchain-ai/langgraph}.
+
+\bibitem{gong2024spatial}
+Zhang, H. et~al. (2025).
+\newblock Mitigating spatial hallucination in large language models for path planning via prompt engineering.
+\newblock \emph{Scientific Reports}, 15:93601.
+
+\bibitem{white2024prompt}
+White, J., Hays, S., Fu, Q., Spencer-Smith, J., and Schmidt, D.~C. (2023).
+\newblock A prompt pattern catalog to enhance prompt engineering with ChatGPT.
+\newblock \emph{arXiv:2302.11382}.
+
+\bibitem{kahneman1993when}
+Kahneman, D., Fredrickson, B.~L., Schreiber, C.~A., and Redelmeier, D.~A. (1993).
+\newblock When more pain is preferred to less: Adding a better end.
+\newblock \emph{Psychological Science}, 4(6):401--405.
+
+\end{thebibliography}
+
+\end{document}

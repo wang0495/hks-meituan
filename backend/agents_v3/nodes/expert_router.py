@@ -306,6 +306,16 @@ async def _detect_destination_center(user_input: str, candidates: list[dict]) ->
     if not top_pois:
         return None, None
 
+    # LLM 检测目的地
+    from backend.agents_v3.experts.base import _llm_decide
+    result = await _llm_decide(
+        "你是旅行目的地检测器。从用户输入中识别想去的具体目的地名称。只输出JSON。",
+        f"用户输入：{user_input}\n候选POI：{[p['name'] for p in top_pois[:20]]}\n输出JSON: {{\"destination\": \"目的地名称或null\"}}",
+        prefix="LLM",
+        temperature=0.05,
+        retries=2,
+    )
+
     if not result or not result.get("destination"):
         return None, None
 

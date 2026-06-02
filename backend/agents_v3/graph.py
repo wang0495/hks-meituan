@@ -90,7 +90,7 @@ def _review_router(state: TravelState) -> str:
     feedback = state.get("review_feedback", [])
     round_num = state.get("review_round", 0)
 
-    if round_num > 2:
+    if round_num > 1:
         return "approved"
 
     if not feedback:

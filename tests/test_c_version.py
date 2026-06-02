@@ -13,10 +13,12 @@ import httpx
 
 from backend.agents_v3 import get_graph_c, TravelState
 
-# ── LLM评分配置 ──
-API_KEY = os.getenv("LLM_API_KEY", "")
-API_URL = "https://api.deepseek.com/chat/completions"
-MODEL = "deepseek-chat"
+# ── LLM评分配置（讯飞 API）──
+from backend.config.settings import get_settings
+_s = get_settings()
+API_KEY = _s.llm.api_key
+API_URL = _s.llm.base_url.rstrip("/") + "/chat/completions"
+MODEL = _s.llm.model
 PASS_THRESHOLD = 6.5
 
 

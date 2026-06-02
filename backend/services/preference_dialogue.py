@@ -132,14 +132,15 @@ _GENERIC_TOOL_CHOICE = {"type": "function", "function": {"name": "submit_result"
 def _get_client() -> AsyncOpenAI:
     global _client
     if _client is None:
-        base_url = os.getenv("LLM_BASE_URL", "https://api.deepseek.com")
-        api_key = os.getenv("LLM_API_KEY", os.getenv("OPENAI_API_KEY", ""))
-        _client = AsyncOpenAI(base_url=base_url, api_key=api_key)
+        from backend.config.settings import get_settings
+        s = get_settings()
+        _client = AsyncOpenAI(base_url=s.llm.base_url, api_key=s.llm.api_key)
     return _client
 
 
 def _is_qwen() -> bool:
-    return "qwen" in os.getenv("LLM_MODEL", "").lower()
+    from backend.config.settings import get_settings
+    return "qwen" in get_settings().llm.model.lower()
 
 
 async def _call_llm(system: str, user: str, max_tokens: int = 300) -> dict | None:

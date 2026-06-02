@@ -1,6 +1,6 @@
 <mxfile host="Electron" agent="Claude Code">
   <diagram name="Agent Orchestration &amp; Clustering" id="agent-orchestration">
-    <mxGraphModel dx="2079" dy="313" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="1800" math="0" shadow="0">
+    <mxGraphModel dx="2336" dy="481" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="1800" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
@@ -345,7 +345,7 @@
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
         <mxCell id="P7_label" parent="1" style="text;html=1;fontSize=14;fontStyle=1;align=left;fillColor=none;strokeColor=none;fontColor=#1a1a2e;" value="Phase 7: 多轮对话调整（DialogueEngine — 不走Agent Graph）" vertex="1">
-          <mxGeometry height="25" width="520" x="950" y="895" as="geometry" />
+          <mxGeometry height="25" width="520" x="880" y="1065" as="geometry" />
         </mxCell>
         <mxCell id="user_feedback" parent="1" style="shape=parallelogram;perimeter=parallelogramPerimeter;whiteSpace=wrap;html=1;fixedSize=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;size=15;" value="&lt;b&gt;用户反馈&lt;/b&gt;&lt;br/&gt;&lt;font style=&quot;font-size:9px;color:#666&quot;&gt;例: &quot;换掉渔女&quot;&quot;太赶了&quot;&quot;重新规划&quot;&lt;/font&gt;" vertex="1">
           <mxGeometry height="50" width="200" x="940" y="990" as="geometry" />
@@ -442,7 +442,7 @@
           <mxGeometry height="100" width="230" x="-190" y="580" as="geometry" />
         </mxCell>
         <mxCell id="issue_synth" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e6ffe6;strokeColor=#00aa00;fontSize=8;fontColor=#00aa00;arcSize=10;" value="&lt;b&gt;已修复: 时间分配&lt;/b&gt;&lt;br&gt;_llm_fix_times() + LLM时间分配&lt;br&gt;目的地型时间节奏约束:&lt;br&gt;• 餐饮安排在景区游览后&lt;br&gt;• 核心景区上午到达" vertex="1">
-          <mxGeometry height="80" width="200" x="850" y="120" as="geometry" />
+          <mxGeometry height="80" width="200" x="860" y="150" as="geometry" />
         </mxCell>
         <mxCell id="issue_food" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6e6;strokeColor=#cc0000;fontSize=8;fontColor=#cc0000;arcSize=10;" value="&lt;b&gt;问题:&lt;/b&gt; 美食型多样性50分&lt;br&gt;选了多个同类餐厅&lt;br&gt;连续同类被惩罚" vertex="1">
           <mxGeometry height="45" width="160" x="170" y="770" as="geometry" />

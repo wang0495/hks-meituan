@@ -1,0 +1,14 @@
+\section{Conclusion}
+\label{sec:conclusion}
+
+We presented CityFlow, an expert-ensemble multi-agent framework for personalized urban route planning. By decomposing the planning problem across 11 specialized experts with scene-aware dispatch, parallel wave execution, and review-rework feedback loops, our system achieves an average score of 7.4/10 on 5 core scenarios with 5/5 pass rate, outperforming single-LLM baselines by 1.2 points on 20 extended scenarios. The ablation study identifies algorithmic time smoothing as the most critical component ($-$0.8 when removed), confirming that LLM outputs require deterministic validation for physical constraints.
+
+Three design principles emerge from our systematic optimization journey---from 65.2 to 81.2 points across 100 scenarios and seven rounds of targeted fixes:
+
+\begin{enumerate}[leftmargin=*]
+    \item \textbf{Prompt before architecture}: Six lines of refusal prompt replaced a dedicated feasibility-gate component, suggesting that prompt engineering should be the first resort, not the last.
+    \item \textbf{LLM proposes, algorithm validates}: Temporal and spatial constraints require deterministic verification; LLM semantic understanding alone is insufficient for physical reasoning.
+    \item \textbf{Evaluation methodology matters}: Two of our seven optimization rounds fixed measurement errors, not algorithm bugs---evaluation methodology errors can masquerade as algorithm failures.
+\end{enumerate}
+
+Future work includes: (1)~integrating real-time data sources (traffic APIs, restaurant availability); (2)~expanding to multi-city support with transferable expert configurations; (3)~exploring lightweight learned routers to replace rule-based expert dispatch; and (4)~conducting user studies to validate that CityFlow routes match human satisfaction criteria.

@@ -67,6 +67,9 @@ class TravelState(TypedDict, total=False):
     # 错误（并发合并）
     errors: Annotated[list[str], operator.add]
 
+    # ── 内部标记 ──
+    _steps_streamed: bool              # synthesizer 是否已流式推送 step 事件
+
     # ── 反馈重入 (Path B) ──
     feedback_mode: bool                  # True=反馈重入模式
     rerun_experts: list[str]            # 需要重跑的expert列表

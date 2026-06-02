@@ -1,0 +1,69 @@
+\section{Discussion}
+\label{sec:discussion}
+
+\subsection{Why Expert-Ensemble Over Single-LLM?}
+
+Single LLMs tend to anchor on the most common interpretation of user input. For food requests, they recommend the same popular restaurants regardless of sub-type diversity. Our expert decomposition forces diverse perspectives: the Food Expert explicitly balances sub-types (seafood, dim sum, street food, dessert, tea houses), while the Local Expert adds hidden gems that a single model would miss. The review loop catches cases where experts produce conflicting proposals. The ablation study (Table~\ref{tab:ablation}) confirms that scene-aware dispatch contributes +0.4 to overall score by activating domain-relevant experts.
+
+This finding is consistent with the broader multi-agent literature~\cite{tran2025multiagent}, which shows that specialized agents outperform generalist agents on complex tasks. However, our system differs from general-purpose multi-agent frameworks~\cite{wu2023autogen,crewai2024} in that expert activation is determined by scene classification rather than free-form agent communication, providing more predictable and debuggable behavior.
+
+\subsection{The Nature of Expert ``Collaboration''}
+
+A potential concern is whether our experts truly ``collaborate'' or merely execute in parallel and concatenate results. We address this directly: the current system implements \textit{data-flow coordination}, not \textit{deliberative collaboration}. Specifically:
+
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Wave~1 experts} execute fully independently with no inter-expert communication. The POI Expert does not know what the Food Expert selected, and vice versa.
+    \item \textbf{Wave~2 experts} read the merged Wave~1 proposals from shared state (data-flow dependency), but do not negotiate with Wave~1 experts.
+    \item \textbf{Conflict resolution} happens exclusively in the review-rework loop, where a centralized reviewer identifies issues and triggers targeted re-expertise.
+\end{itemize}
+
+We also implemented two deliberative collaboration mechanisms, but both were abandoned after empirical testing showed negative results:
+
+\begin{enumerate}[leftmargin=*]
+    \item \textbf{Multi-round feedback} (\texttt{feedback\_entry} node): Experts re-read \texttt{prev\_round\_context} (previous scores, route snapshot, user complaints) and re-generate proposals. Tested on 5 scenarios: average score \textit{dropped} from 71.9 to 70.3 ($-$1.6), with the sightseeing scenario regressing from 81.0 to 64.4 ($-$16.6 points). The mechanism caused over-correction: fixing one dimension broke others. Two architectural bugs were also discovered---core destination POIs were lost when the synthesizer lacked \texttt{must\_keep} constraints, and food coverage broke when selective re-runs failed to activate the Food Expert (commit \texttt{16f2a78}).
+
+    \item \textbf{Tournament mode} (A4): Three strategies (geo-priority, type-priority, experience-priority) run in parallel and a heuristic scorer selects the best. This \textit{does} work (5/5 pass, 7.0 average) and is the current production mode, but it is strategy-level parallelism, not expert-level negotiation.
+\end{enumerate}
+
+The broader lesson: in LLM-based planning, iterative refinement frequently causes regression because LLMs lack stable optimization targets. Each re-generation is a fresh sample from the distribution, not a gradient step toward improvement. The tournament approach avoids this by generating diverse candidates independently and selecting post-hoc, rather than iterating on a single candidate. Future work could explore learned selection mechanisms or constraint-preserving refinement that avoids the over-correction problem.
+
+\subsection{The ``Prompt Before Architecture'' Principle}
+
+Our optimization journey revealed a recurring pattern: problems that seemed to require architectural solutions (feasibility gates, dedicated refusal modules) were often solvable with prompt engineering alone. The prompt-based refusal mechanism (6 lines of text) achieved performance comparable to a hypothetical dedicated feasibility-gate component. This suggests a design principle for LLM-based systems:
+
+\begin{enumerate}[leftmargin=*]
+    \item \textbf{First}, try prompt engineering---it's fast to iterate and doesn't add system complexity.
+    \item \textbf{Second}, add algorithmic post-processing---deterministic code for physical constraints (time, distance, capacity).
+    \item \textbf{Third}, introduce architectural components only when the first two fail.
+\end{enumerate}
+
+This principle aligns with recent work on prompt engineering patterns~\cite{white2024prompt}, which demonstrates that structured prompt instructions can replace complex control flow in many LLM applications.
+
+\subsection{LLM as Proposer, Algorithm as Validator}
+
+A key architectural principle emerges from our work: \textit{LLMs should propose, algorithms should validate}. LLMs excel at semantic understanding (``what does the user want?'') but fail at physical reasoning (``can you walk 3km in 15 minutes?''). Our \texttt{\_smooth\_times()} function embodies this principle: the LLM generates time allocations, and deterministic code validates and corrects them.
+
+This principle extends beyond time allocation. Our geographic continuity checks use haversine distance calculations rather than LLM judgment, and our station count caps are enforced by code rather than prompt instructions. In each case, the LLM provides the semantic layer (``which POIs are relevant?'') while the algorithm provides the physical layer (``is this route feasible?'').
+
+The ablation study quantifies this: removing \texttt{\_smooth\_times()} causes the largest score drop ($-$0.8), larger than removing the review-rework loop ($-$0.6) or scene-aware dispatch ($-$0.4). This confirms that algorithmic validation of LLM outputs is more critical than the sophistication of the multi-agent architecture itself.
+
+\subsection{Evaluation Methodology Matters}
+
+A surprising finding from our optimization journey: the first two rounds of ``improvement'' didn't change the route generation code at all. Round~1 fixed the evaluation scoring table (missing dimensions were filled with zeros), and Round~2 added coordinates to the evaluation prompt (the LLM was guessing distances from names). Both were evaluation bugs, not algorithm bugs.
+
+This has implications for the broader LLM evaluation community: \textit{evaluation methodology errors can masquerade as algorithm failures}. When a dimension shows zero, the first suspect should be the measurement instrument, not the system being measured. Our consistency analysis (Table~\ref{tab:consistency}) further confirms that LLM judges require careful prompt design and scenario-aware rubrics to produce reliable scores, consistent with findings from the LLM-as-judge literature~\cite{gu2024llmjudge}.
+
+\subsection{Limitations}
+
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Static POI database}: The system operates on a pre-loaded dataset of 2000+ POIs. Real-time availability (restaurant wait times, traffic conditions, temporary closures) is not integrated. Future work could incorporate real-time data APIs.
+    \item \textbf{Limited geographic scope}: Currently optimized for Zhuhai (primary) and Guangzhou (secondary). Multi-city extension would require city-specific POI databases and potentially different expert weights. The 20-scenario evaluation includes cross-city variants but at limited scale.
+    \item \textbf{Evaluation LLM dependency}: Scoring relies on an external LLM judge, which introduces its own biases~\cite{gu2024llmjudge}. While our consistency analysis shows low variance (0.4 average), absolute scores may vary across different judge models.
+    \item \textbf{Latency}: The 54.4-second average end-to-end latency is dominated by LLM API calls. Further parallelization or model distillation could reduce this.
+    \item \textbf{Expert-ensemble vs.\ classical MoE}: Our system uses rule-based expert dispatch rather than learned gating, which limits adaptability to novel scenario types. Exploring lightweight learned routers is a direction for future work.
+    \item \textbf{No human evaluation}: All evaluations use LLM judges or algorithmic metrics. A user study comparing CityFlow routes against human-planned routes would strengthen the validity of our findings.
+\end{itemize}
+
+\subsection{Broader Applicability}
+
+The expert-ensemble architecture with scene-aware dispatch generalizes beyond travel planning. Any domain with decomposable expertise---event planning, curriculum design, meal preparation, project management---could benefit from a similar multi-agent approach where domain experts contribute proposals that are reviewed and synthesized. The ``prompt before architecture'' and ``LLM proposes, algorithm validates'' principles also apply broadly: in LLM-based systems, architectural complexity should be a last resort, not a first choice, and physical constraints should always be enforced by deterministic code rather than LLM instructions.

@@ -1,0 +1,110 @@
+<mxfile host="Electron" agent="Claude">
+  <diagram name="Intent Parser 流程" id="intent-parser-flow">
+    <mxGraphModel dx="2440" dy="2220" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="0" pageScale="1" pageWidth="1600" pageHeight="900" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="input" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12;" value="&lt;b&gt;用户输入&lt;/b&gt;&lt;br&gt;&quot;周末想出去走走，&lt;br&gt;不想去人多的地方&quot;" vertex="1">
+          <mxGeometry height="60" width="200" x="80" y="80" as="geometry" />
+        </mxCell>
+        <mxCell id="llm" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=11;align=left;spacingLeft=8;" value="&lt;b&gt;LLM 解析&lt;/b&gt;&lt;br&gt;DeepSeek V4 Pro&lt;br&gt;重试3次 × 30s超时&lt;br&gt;─────────────────&lt;br&gt;输出:&lt;br&gt;• group / preferences / pace&lt;br&gt;• hard_constraints&lt;br&gt;• &lt;b&gt;demand_vector (7维)&lt;/b&gt;&lt;br&gt;• scene_requirements" vertex="1">
+          <mxGeometry height="160" width="220" x="350" y="40" as="geometry" />
+        </mxCell>
+        <mxCell id="rule" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;align=left;spacingLeft=8;" value="&lt;b&gt;_rule_based_parse&lt;/b&gt;&lt;br&gt;&lt;font color=&quot;#999999&quot;&gt;LLM 失败时降级&lt;/font&gt;&lt;br&gt;─────────────────&lt;br&gt;正则 + 关键词提取&lt;br&gt;demand_vector 用默认 0.5" vertex="1">
+          <mxGeometry height="100" width="220" x="350" y="240" as="geometry" />
+        </mxCell>
+        <mxCell id="merge" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;align=left;spacingLeft=8;" value="&lt;b&gt;合并 intent&lt;/b&gt;&lt;br&gt;─────────────────&lt;br&gt;time / budget / group&lt;br&gt;preferences / pace&lt;br&gt;hard_constraints&lt;br&gt;&lt;b&gt;demand_vector (7维)&lt;/b&gt;&lt;br&gt;scene_requirements" vertex="1">
+          <mxGeometry height="140" width="200" x="650" y="100" as="geometry" />
+        </mxCell>
+        <mxCell id="solver_title" parent="1" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];autosize=1;fontSize=13;" value="&lt;b&gt;下游 Solver / Filters 实际使用的字段&lt;/b&gt;" vertex="1">
+          <mxGeometry height="30" width="300" x="580" y="480" as="geometry" />
+        </mxCell>
+        <mxCell id="hc" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;" value="&lt;b&gt;hard_constraints&lt;/b&gt;&lt;br&gt;排队容忍度 / 宠物友好&lt;br&gt;无障碍 / 深夜 / 低人流" vertex="1">
+          <mxGeometry height="70" width="180" x="350" y="520" as="geometry" />
+        </mxCell>
+        <mxCell id="pref" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;" value="&lt;b&gt;preferences&lt;/b&gt;&lt;br&gt;culture / food&lt;br&gt;nature / social" vertex="1">
+          <mxGeometry height="70" width="150" x="550" y="520" as="geometry" />
+        </mxCell>
+        <mxCell id="dv" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=10;" value="&lt;b&gt;demand_vector&lt;/b&gt;&lt;br&gt;7维需求向量&lt;br&gt;efficiency / excitement&lt;br&gt;tranquility / budget..." vertex="1">
+          <mxGeometry height="70" width="160" x="720" y="520" as="geometry" />
+        </mxCell>
+        <mxCell id="pace" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;" value="&lt;b&gt;pace&lt;/b&gt;&lt;br&gt;闲逛型 / 平衡型&lt;br&gt;/ 特种兵型" vertex="1">
+          <mxGeometry height="70" width="130" x="900" y="520" as="geometry" />
+        </mxCell>
+        <mxCell id="budget" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;" value="&lt;b&gt;budget&lt;/b&gt;&lt;br&gt;per_person: 500" vertex="1">
+          <mxGeometry height="70" width="120" x="1050" y="520" as="geometry" />
+        </mxCell>
+        <mxCell id="e1" edge="1" parent="1" source="input" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeWidth=2;strokeColor=#9673a6;" target="llm">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e2" edge="1" parent="1" source="llm" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeWidth=2;strokeColor=#9673a6;" target="merge">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e3" edge="1" parent="1" source="rule" style="edgeStyle=orthogonalEdgeStyle;rounded=1;dashed=1;strokeColor=#d6b656;" target="merge">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="620" y="290" />
+              <mxPoint x="620" y="170" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e3_label" connectable="0" parent="e3" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" value="&lt;font color=&quot;#999999&quot;&gt;降级&lt;/font&gt;" vertex="1">
+          <mxGeometry relative="1" x="-0.2" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e4" edge="1" parent="1" source="merge" style="edgeStyle=orthogonalEdgeStyle;rounded=1;">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="690" y="300" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e7" edge="1" parent="1" source="merge" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeWidth=3;strokeColor=#82b366;" target="hc">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="750" y="460" />
+              <mxPoint x="440" y="460" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e8" edge="1" parent="1" source="merge" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeWidth=3;strokeColor=#82b366;" target="pref">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="750" y="460" />
+              <mxPoint x="625" y="460" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e9" edge="1" parent="1" source="merge" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeWidth=3;strokeColor=#82b366;" target="dv">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="750" y="460" />
+              <mxPoint x="800" y="460" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e10" edge="1" parent="1" source="merge" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeWidth=3;strokeColor=#82b366;" target="pace">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="750" y="460" />
+              <mxPoint x="965" y="460" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e11" edge="1" parent="1" source="merge" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeWidth=3;strokeColor=#82b366;" target="budget">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="750" y="460" />
+              <mxPoint x="1110" y="460" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="note1" parent="1" style="shape=note;whiteSpace=wrap;html=1;backgroundOutline=1;size=15;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;align=left;spacingLeft=8;spacingRight=8;" value="&lt;b&gt;结论：&lt;/b&gt;&lt;br&gt;画像匹配只是装饰，&lt;br&gt;solver 根本不读 matched_profile_id" vertex="1">
+          <mxGeometry height="70" width="200" x="950" y="150" as="geometry" />
+        </mxCell>
+        <mxCell id="note2" parent="1" style="shape=note;whiteSpace=wrap;html=1;backgroundOutline=1;size=15;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=11;align=left;spacingLeft=8;spacingRight=8;" value="&lt;b&gt;LLM 真正在用：&lt;/b&gt;&lt;br&gt;• 解析意图结构&lt;br&gt;• 生成 demand_vector&lt;br&gt;• 提取 scene_requirements" vertex="1">
+          <mxGeometry height="80" width="200" x="950" y="40" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

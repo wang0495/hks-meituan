@@ -1935,6 +1935,7 @@ async def synthesizer(state: TravelState) -> dict:
     pace = intent.get("pace", "平衡型")
     multi_routes: list[dict] = []
     route: dict | None = None
+    _steps_streamed = False
 
     if num_days > 1 and len(poi_proposals) + len(food_proposals) > num_days:
         # ── 多日循环 ──
@@ -1964,9 +1965,26 @@ async def synthesizer(state: TravelState) -> dict:
                 if route is None:
                     route = day_route  # 第1天兼容单日
 
+                # ── 流式推送：每天每步立刻发 ──
+                await sse_emit(state, "day_start", {"day": day_idx + 1, "total_days": num_days})
+                for i, step in enumerate(day_route.get("route", [])):
+                    await sse_emit(state, "step", {
+                        "index": i + 1,
+                        "day": day_idx + 1,
+                        "poi": step.get("poi", {}),
+                        "arrival_time": step.get("arrival_time"),
+                        "departure_time": step.get("departure_time"),
+                        "narrative": "",
+                        "emotion_design": "",
+                        "scene_tags": step.get("poi", {}).get("_scene_tags", []),
+                    })
+                await sse_emit(state, "day_end", {"day": day_idx + 1})
+                _steps_streamed = True
+
+        total_steps = sum(len(dr.get("route", {}).get("route", [])) for dr in multi_routes)
         await sse_emit(state, "agent_result", {
             "agent": "synthesizer",
-            "summary": f"多日组装完成: {len(multi_routes)}天路线",
+            "summary": f"多日组装完成: {len(multi_routes)}天 {total_steps}站",
         })
 
     else:
@@ -2030,7 +2048,23 @@ async def synthesizer(state: TravelState) -> dict:
             route = _ensure_food_scene_food_count(route, food_proposals, scene_type)
 
         steps_count = len(route.get("route", [])) if route else 0
-        await sse_emit(state, "agent_result", {"agent": "synthesizer", "summary": f"组装完成: {steps_count}站路线"})
+
+        # ── 流式推送：每一步立刻发给用户 ──
+        if route and route.get("route"):
+            await sse_emit(state, "agent_result", {"agent": "synthesizer", "summary": f"正在推送 {steps_count} 站路线..."})
+            for i, step in enumerate(route["route"]):
+                await sse_emit(state, "step", {
+                    "index": i + 1,
+                    "poi": step.get("poi", {}),
+                    "arrival_time": step.get("arrival_time"),
+                    "departure_time": step.get("departure_time"),
+                    "narrative": "",
+                    "emotion_design": "",
+                    "scene_tags": step.get("poi", {}).get("_scene_tags", []),
+                })
+        else:
+            await sse_emit(state, "agent_result", {"agent": "synthesizer", "summary": f"组装完成: {steps_count}站路线"})
+        _steps_streamed = True  # 单日路线：synthesizer 已流式推送
 
     # 文案（单日取第1天route，多日取第1天）
     narrative = None
@@ -2044,6 +2078,8 @@ async def synthesizer(state: TravelState) -> dict:
             narrative = _build_fallback_narrative(route)
 
     ret: dict = {"route": route, "narrative": narrative, "errors": errors}
+    if _steps_streamed:
+        ret["_steps_streamed"] = True
     if multi_routes:
         ret["routes"] = multi_routes
         ret["num_days"] = num_days
