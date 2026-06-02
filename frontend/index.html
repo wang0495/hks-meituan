@@ -1479,6 +1479,7 @@ function initAgentPanel() {
 }
 
 function setAgentState(id, st) {
+  console.log('[CityFlow] setAgentState:', id, st);
   const f = document.getElementById(`flow-${id}`);
   const a = document.getElementById(`arch-${id}`);
   if (f) {
