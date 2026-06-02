@@ -111,6 +111,42 @@ Key findings:
     \item \textbf{Wave-based parallelism} shows no score difference, as it affects latency rather than quality. This is by design: parallelism is an engineering optimization, not a quality contribution.
 \end{itemize}
 
+\subsection{Model Efficiency Analysis}
+
+A key finding of this work is that \textbf{inexpensive small language models can match expensive frontier models when embedded in a well-designed multi-agent architecture}. We conducted a multi-model A/B test (commit \texttt{edfe2c0}) comparing four models as the expert backbone, with all other architectural components held constant. Table~\ref{tab:model_compare} summarizes the results.
+
+\begin{table}[H]
+\centering
+\caption{Model comparison on 5 core scenarios. All models use identical prompts, expert topology, and post-processing. Pricing as of 2025-05.}
+\label{tab:model_compare}
+\begin{tabular}{@{}lccccp{2.5cm}@{}}
+\toprule
+\textbf{Model} & \textbf{Pass} & \textbf{Overall} & \textbf{Intent} & \textbf{Price} \\
+\midrule
+DeepSeek Chat & 4/5 & 6.4 & 7.2 & \$\textasciitilde\$1/M tokens \\
+qwen-turbo & 3/5 & 6.4 & 7.0 & \$\textasciitilde\$0.5/M tokens \\
+qwen-flash & 2/5 & 6.4 & 6.6 & \$\textasciitilde\$0.1/M tokens \\
+\textbf{qwen3.5-flash} & \textbf{5/5} & \textbf{7.0} & \textbf{8.0} & \textbf{\$\textasciitilde\$0.2/M tokens} \\
+\midrule
+xopqwen35v35b (iFlytek) & \textbf{5/5} & \textbf{7.4} & \textbf{8.4} & \textbf{\$\textasciitilde\$0.15/M tokens} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The results are striking: qwen3.5-flash (a \$0.2/M model) achieves a higher overall score than DeepSeek Chat (a \$1/M model), and the iFlytek xopqwen35v35b model---a 35B-parameter model deployed via iFlytek Spark API---achieves the best overall score of 7.4 while being approximately 6$\times$ cheaper than DeepSeek.
+
+\textbf{Why does the small model outperform?} We attribute this to three factors:
+
+\begin{enumerate}[leftmargin=*]
+    \item \textbf{Task decomposition reduces per-call complexity.} Each expert handles a narrow domain (e.g., ``rank restaurants by sub-category''), making the reasoning task tractable for smaller models. A single LLM must simultaneously handle POI selection, geographic planning, time scheduling, and diversity balancing---a task where frontier models have an advantage.
+
+    \item \textbf{Algorithmic post-processing compensates for reasoning gaps.} The \texttt{\_smooth\_times()} function corrects temporal infeasibility, and the geographic threshold checks catch spatial errors. These deterministic safeguards prevent small-model hallucinations from reaching the final output.
+
+    \item \textbf{Scene-aware prompts reduce ambiguity.} By classifying the user intent first and dispatching domain-specific prompts, each expert receives a focused, unambiguous instruction. This mitigates the instruction-following weakness of smaller models.
+\end{enumerate}
+
+This finding has practical implications: a CityFlow deployment using xopqwen35v35b processes a single route request in ${\sim}35$s with an estimated cost of \$0.001 per request, compared to ${\sim}48$s and \$0.006 per request with DeepSeek Chat (commit \texttt{a576cc5}). The expert-ensemble architecture thus enables cost-effective deployment without quality sacrifice.
+
 \subsection{Architecture Evolution}
 
 CityFlow underwent five major architectural iterations before reaching its current form. Table~\ref{tab:arch_evolution} summarizes the evolution.

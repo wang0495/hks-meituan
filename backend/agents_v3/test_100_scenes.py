@@ -135,7 +135,7 @@ TEST_CASES: list[tuple[str, str]] = [
     ("观光型", "珠海沿海公路自驾观光"),
 ]
 
-NUM_WORKERS = 10
+NUM_WORKERS = 4
 SCENE_TIMEOUT = 180
 
 
@@ -145,30 +145,39 @@ SCENE_TIMEOUT = 180
 
 def _init_worker():
     """子进程初始化：加载 .env + 预热graph。"""
-    _env_file = Path(_project_root) / ".env"
-    if _env_file.exists():
-        for line in _env_file.read_text(encoding="utf-8").splitlines():
-            line = line.strip()
-            if not line or line.startswith("#") or "=" not in line:
-                continue
-            k, _, v = line.partition("=")
-            os.environ.setdefault(k.strip(), v.strip())
-
-    import urllib.request
+    import traceback
     try:
-        urllib.request.urlopen("http://localhost:8001/api/poi/search?limit=1", timeout=2)
-    except Exception:
-        try:
-            urllib.request.urlopen("http://localhost:8002/api/poi/search?limit=1", timeout=2)
-            import backend.agents_v3.meituan_client as _mc
-            _mc.BASE = "http://localhost:8002/api"
-        except Exception:
-            pass
+        print(f"[worker {os.getpid()}] _init_worker start", flush=True)
+        _env_file = Path(_project_root) / ".env"
+        if _env_file.exists():
+            for line in _env_file.read_text(encoding="utf-8").splitlines():
+                line = line.strip()
+                if not line or line.startswith("#") or "=" not in line:
+                    continue
+                k, _, v = line.partition("=")
+                os.environ.setdefault(k.strip(), v.strip())
 
-    from backend.agents_v3 import get_graph_c
-    from backend.agents_v3.meituan_client import clear_cache
-    get_graph_c()
-    clear_cache()
+        print(f"[worker {os.getpid()}] loading meituan_client", flush=True)
+        import urllib.request
+        try:
+            urllib.request.urlopen("http://localhost:8001/api/poi/search?limit=1", timeout=2)
+        except Exception:
+            try:
+                urllib.request.urlopen("http://localhost:8002/api/poi/search?limit=1", timeout=2)
+                import backend.agents_v3.meituan_client as _mc
+                _mc.BASE = "http://localhost:8002/api"
+            except Exception:
+                pass
+
+        print(f"[worker {os.getpid()}] calling get_graph_c()", flush=True)
+        from backend.agents_v3 import get_graph_c
+        from backend.agents_v3.meituan_client import clear_cache
+        get_graph_c()
+        clear_cache()
+        print(f"[worker {os.getpid()}] _init_worker done", flush=True)
+    except Exception as e:
+        print(f"[worker {os.getpid()}] _init_worker ERROR: {e}\n{traceback.format_exc()}", flush=True)
+        raise
 
 
 def _run_batch(batch: list[tuple[int, str, str]]) -> list[dict]:

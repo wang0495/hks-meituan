@@ -335,6 +335,17 @@ body::before {
 .route-steps::-webkit-scrollbar { width: 3px; }
 .route-steps::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
 
+/* Day Header */
+.day-header {
+  font-family: var(--font-display);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--gold);
+  padding: 8px 14px 4px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
 /* Step Card */
 .step-card {
   display: flex;
@@ -1222,8 +1233,12 @@ function renderRouteOnMap(steps) {
 
 // ── Step Cards ──
 let lastRenderedStep = -1;
+let currentPlanVersion = 0;
 
-function renderSteps(steps) {
+function renderSteps(steps, planVersion) {
+  // Ignore events from stale plans
+  if (planVersion !== undefined && planVersion !== currentPlanVersion) return;
+
   const c = document.getElementById('routeSteps');
   if (!steps.length) {
     c.innerHTML = '<div class="empty-state"><svg class="icon" viewBox="0 0 64 64" fill="none"><circle cx="32" cy="32" r="28" stroke="#d4a853" stroke-width="1"/><path d="M32 12 L32 52 M18 22 L32 12 L46 22" stroke="#d4a853" stroke-width="1" stroke-linecap="round"/></svg><p>暂无路线数据</p></div>';
@@ -1264,6 +1279,47 @@ function renderSteps(steps) {
   c.scrollTop = c.scrollHeight;
 }
 
+// Force-render all steps from scratch (used by done handler)
+function renderAllSteps(steps, dayFilter) {
+  const c = document.getElementById('routeSteps');
+  if (!steps.length) { c.innerHTML = ''; return; }
+  if (dayFilter !== undefined) {
+    const daySteps = steps.filter(s => (s.day || 1) === dayFilter);
+    c.innerHTML = daySteps.map((step, i) => {
+      const poi = step.poi || {};
+      return '<div class="step-card"><div class="step-num">' + (i+1) + '</div><div class="step-content"><div class="step-name">' + esc(poi.name || '站点 ' + (i+1)) + '</div><div class="step-meta">' +
+        (step.arrival_time ? '<span class="step-time">' + step.arrival_time + '</span>' : '') +
+        (poi.category ? '<span class="step-category">' + esc(poi.category) + '</span>' : '') +
+        '</div>' +
+        (step.narrative ? '<div class="step-narrative">' + esc(step.narrative) + '</div>' : '') +
+        '</div></div>';
+    }).join('');
+    lastRenderedStep = daySteps.length - 1;
+    c.scrollTop = c.scrollTop;
+    return;
+  }
+  const days = [...new Set(steps.map(s => s.day || 1))].sort((a,b) => a-b);
+  let html = '';
+  for (const day of days) {
+    const daySteps = steps.filter(s => (s.day || 1) === day);
+    if (days.length > 1) {
+      html += '<div class="day-header">Day ' + day + '</div>';
+    }
+    daySteps.forEach((step, i) => {
+      const poi = step.poi || {};
+      html += '<div class="step-card"><div class="step-num">' + (i+1) + '</div><div class="step-content"><div class="step-name">' + esc(poi.name || '站点 ' + (i+1)) + '</div><div class="step-meta">' +
+        (step.arrival_time ? '<span class="step-time">' + step.arrival_time + '</span>' : '') +
+        (poi.category ? '<span class="step-category">' + esc(poi.category) + '</span>' : '') +
+        '</div>' +
+        (step.narrative ? '<div class="step-narrative">' + esc(step.narrative) + '</div>' : '') +
+        '</div></div>';
+    });
+  }
+  c.innerHTML = html;
+  lastRenderedStep = steps.length - 1;
+  c.scrollTop = c.scrollTop;
+}
+
 function focusStep(i) {
   // Canvas map — redraw with highlighted marker
   drawRouteOnCanvas(state.steps.filter(s => s.poi && s.poi.lng && s.poi.lat));
@@ -1282,9 +1338,11 @@ function switchDay(d) {
   state.currentDay = d;
   const r = state.multiRoutes[d-1];
   if (r) {
-    state.steps = r.route || r.steps || [];
-    renderSteps(state.steps);
-    renderRouteOnMap(state.steps);
+    const route = r.route || r;
+    const steps = route.route || route.steps || [];
+    state.steps = steps;
+    renderAllSteps(steps, d);
+    renderRouteOnMap(steps);
     renderDaySwitch(state.totalDays, d);
   }
 }
@@ -1541,27 +1599,58 @@ function handleSSE(type, data) {
       updateTyping(data.summary || `${AGENTS.find(a=>a.id===data.agent)?.name || data.agent} 完成 ✓`);
       completeCenterAgent(data.agent, data.summary);
       break;
-    case 'step':
+case 'step':
       hideTyping();
       state.steps.push(data);
-      renderSteps(state.steps);
+      renderSteps(state.steps, currentPlanVersion);
       if (data.poi?.lng) renderRouteOnMap(state.steps);
+      if (state.steps.length === 1) console.log('[CityFlow] first step received, day:', data.day);
       break;
-    case 'day_start': state.currentDay=data.day; state.steps=[]; lastRenderedStep=-1; break;
-    case 'day_end': break;
+    case 'day_start':
+      console.log('[CityFlow] day_start:', data, 'current steps:', state.steps.length);
+      // Save current day's steps into multiRoutes before resetting
+      if (state.steps.length > 0) {
+        while (state.multiRoutes.length < state.currentDay) {
+          state.multiRoutes.push({day: state.multiRoutes.length + 1, route: {route: []}});
+        }
+        state.multiRoutes[state.currentDay - 1] = {day: state.currentDay, route: {route: [...state.steps]}};
+      }
+      state.currentDay = data.day;
+      state.steps = [];
+      lastRenderedStep = -1;
+      state.totalDays = data.total_days || state.totalDays;
+      break;
+    case 'day_end':
+      // Save current day's steps into multiRoutes
+      if (state.steps.length > 0) {
+        while (state.multiRoutes.length < state.currentDay) {
+          state.multiRoutes.push({day: state.multiRoutes.length + 1, route: {route: []}});
+        }
+        state.multiRoutes[state.currentDay - 1] = {day: state.currentDay, route: {route: [...state.steps]}};
+      }
+      break;
     case 'done':
       hideTyping();
       state.routeId = data.route_id;
+      console.log('[CityFlow] done event:', data);
       if (data.full_route) {
-        if (data.full_route.days) {
+        if (data.full_route.days && data.full_route.days.length > 0) {
+          // Multi-day
           state.multiRoutes = data.full_route.days;
           state.totalDays = data.full_route.days.length;
           renderDaySwitch(state.totalDays, 1);
           const fd = state.multiRoutes[0];
-          if (fd) { state.steps = fd.route||fd.steps||[]; renderSteps(state.steps); renderRouteOnMap(state.steps); }
+          if (fd) {
+            const route = fd.route || fd;
+            state.steps = route.route || route.steps || [];
+            console.log('[CityFlow] day 1 steps:', state.steps.length);
+            renderAllSteps(state.steps, 1);
+            renderRouteOnMap(state.steps);
+          }
         } else {
-          state.steps = data.full_route.route||[];
-          renderSteps(state.steps);
+          // Single day
+          state.steps = data.full_route.route || [];
+          renderAllSteps(state.steps);
           renderRouteOnMap(state.steps);
           renderNarrative(data.full_route.narrative);
           renderEmotionCurve(data.full_route.emotion_curve);
@@ -1591,6 +1680,7 @@ async function submitPlan() {
   document.getElementById('sendBtn').disabled = true;
   state.steps=[]; state.multiRoutes=[]; state.currentDay=1; state.totalDays=1;
   lastRenderedStep = -1;
+  currentPlanVersion++;
   resetAgents(); clearRoute();
   document.getElementById('routeSteps').innerHTML='';
   document.getElementById('statsBar').classList.add('hidden');

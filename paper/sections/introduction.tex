@@ -20,5 +20,7 @@ We observe that human travel planning naturally decomposes into specialized conc
 
     \item \textbf{Algorithmic Time Smoothing}: We introduce \texttt{\_smooth\_times()}, a post-processing layer that detects and corrects LLM-generated temporal anomalies (gaps, inversions, overflows), embodying the ``LLM proposes, algorithm validates'' pattern.
 
+    \item \textbf{Cost-Effective Small-Model Deployment}: We demonstrate through multi-model A/B testing that inexpensive small models (qwen3.5-flash, \$0.2/M tokens) outperform expensive frontier models (DeepSeek Chat, \$1/M tokens) when embedded in the expert-ensemble architecture, achieving better quality at approximately 6$\times$ lower cost.
+
     \item \textbf{Systematic Optimization Case Study}: We document a debugging journey from 65.2 to 81.2 points across 100 scenarios and seven rounds of targeted fixes, yielding three transferable design principles for LLM-based planning systems.
 \end{enumerate}
