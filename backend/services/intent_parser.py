@@ -686,22 +686,8 @@ _DEFAULT_DEMAND_VECTOR = {
 }
 
 
-def _apply_post_processing(intent: dict, user_input: str) -> None:
-    """对解析结果进行后处理。"""
-    # 需求向量
-    dv = intent.pop("demand_vector", None) if isinstance(intent, dict) else None
-    if dv and all(k in dv for k in ("efficiency_seeking", "excitement_seeking", "tranquility_seeking")):
-        intent["_demand_vector"] = dv
-    else:
-        intent["_demand_vector"] = dict(_DEFAULT_DEMAND_VECTOR)
-
-    # emotion_need
-    if not intent.get("emotion_need"):
-        need = detect_emotion_need(user_input)
-        if need:
-            intent["emotion_need"] = need
-
-    # 预算边界校验
+def _validate_budget(intent: dict) -> None:
+    """预算边界校验。"""
     pp = intent.get("budget", {}).get("per_person", 500)
     if isinstance(pp, (int, float)):
         if pp < 50:
@@ -711,26 +697,36 @@ def _apply_post_processing(intent: dict, user_input: str) -> None:
             logger.warning("预算异常高(%s), 修正为5000", pp)
             intent["budget"]["per_person"] = 5000
 
-    # constraints去重+白名单
+
+def _apply_post_processing(intent: dict, user_input: str) -> None:
+    """对解析结果进行后处理。"""
+    dv = intent.pop("demand_vector", None) if isinstance(intent, dict) else None
+    if dv and all(k in dv for k in ("efficiency_seeking", "excitement_seeking", "tranquility_seeking")):
+        intent["_demand_vector"] = dv
+    else:
+        intent["_demand_vector"] = dict(_DEFAULT_DEMAND_VECTOR)
+
+    if not intent.get("emotion_need"):
+        need = detect_emotion_need(user_input)
+        if need:
+            intent["emotion_need"] = need
+
+    _validate_budget(intent)
     intent["hard_constraints"] = list(set(c for c in intent.get("hard_constraints", []) if c in _VALID_CONSTRAINTS))
 
-    # categories上限
     cats = intent.get("preferred_categories", [])
     if len(cats) > 8:
         intent["preferred_categories"] = cats[:8]
 
-    # time格式校验
     time_info = intent.get("time", {})
     for key in ("start", "end"):
         t = time_info.get(key, "")
         if t and not isinstance(t, str):
             time_info[key] = "09:00" if key == "start" else "21:00"
 
-    # scene_requirements默认值
     if not intent.get("scene_requirements"):
         intent["scene_requirements"] = []
 
-    # num_days校验
     nd = intent.get("num_days", 1)
     intent["num_days"] = max(1, min(5, int(nd) if isinstance(nd, (int, float)) else 1))
 
