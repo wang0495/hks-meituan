@@ -674,99 +674,47 @@ def _is_late_night_time(time_str: str) -> bool:
 # ---------------------------------------------------------------------------
 
 
-async def parse_intent(user_input: str) -> dict:
-    """
-    将用户自然语言输入解析为结构化出行需求。
+_VALID_CONSTRAINTS = {
+    "queue_intolerant", "accessible", "pet_friendly", "indoor_only",
+    "outdoor_preferred", "late_night", "needs_entertainment", "free",
+    "低人流", "儿童友好", "排队容忍度<10min",
+}
 
-    参数:
-        user_input: 用户的自然语言出行需求
+_DEFAULT_DEMAND_VECTOR = {
+    "efficiency_seeking": 0.5, "excitement_seeking": 0.5, "tranquility_seeking": 0.5,
+    "budget_sensitivity": 0.5, "novelty_seeking": 0.5, "social_desire": 0.5, "physical_energy": 0.5,
+}
 
-    返回:
-        结构化意图字典，包含 time/budget/group/preferences/pace/hard_constraints/demand_vector
-    """
-    logger.info("收到用户输入: %s", user_input)
 
-    # 尝试 LLM 解析（重试3次，每次30秒超时）
-    intent: dict | None = None
-    llm_used = False
-    llm_error = ""
-    for attempt in range(3):
-        try:
-            intent = await asyncio.wait_for(_call_llm(user_input), timeout=30.0)
-            if intent:
-                llm_used = True
-                logger.info("LLM 解析成功")
-                break
-            else:
-                llm_error = "LLM 返回空结果"
-        except TimeoutError:
-            llm_error = f"LLM 超时（30s）第{attempt + 1}次"
-            logger.warning("%s", llm_error)
-        except Exception as e:
-            llm_error = f"LLM 异常: {e}"
-            logger.warning("%s", llm_error)
-        if attempt < 2:
-            await asyncio.sleep(1)
-
-    # 降级方案
-    if intent is None:
-        intent = _rule_based_parse(user_input)
-        logger.info("使用规则匹配结果")
-
-    # 提取需求向量（来自LLM，或为规则匹配创建默认值）
+def _apply_post_processing(intent: dict, user_input: str) -> None:
+    """对解析结果进行后处理。"""
+    # 需求向量
     dv = intent.pop("demand_vector", None) if isinstance(intent, dict) else None
-    if dv and all(
-        k in dv for k in ("efficiency_seeking", "excitement_seeking", "tranquility_seeking")
-    ):
+    if dv and all(k in dv for k in ("efficiency_seeking", "excitement_seeking", "tranquility_seeking")):
         intent["_demand_vector"] = dv
     else:
-        intent["_demand_vector"] = {
-            "efficiency_seeking": 0.5,
-            "excitement_seeking": 0.5,
-            "tranquility_seeking": 0.5,
-            "budget_sensitivity": 0.5,
-            "novelty_seeking": 0.5,
-            "social_desire": 0.5,
-            "physical_energy": 0.5,
-        }
+        intent["_demand_vector"] = dict(_DEFAULT_DEMAND_VECTOR)
 
-    # 后处理: 确保 emotion_need 存在
+    # emotion_need
     if not intent.get("emotion_need"):
         need = detect_emotion_need(user_input)
         if need:
             intent["emotion_need"] = need
 
-    # 后处理: 安全边界校验
-    budget = intent.get("budget", {})
-    pp = budget.get("per_person", 500)
+    # 预算边界校验
+    pp = intent.get("budget", {}).get("per_person", 500)
     if isinstance(pp, (int, float)):
-        # 预算下限: 至少50元(公交+水)
         if pp < 50:
             logger.warning("预算异常低(%s), 修正为50", pp)
             intent["budget"]["per_person"] = 50
-        # 预算上限: 单人单日不超过10000
         if pp > 10000:
             logger.warning("预算异常高(%s), 修正为5000", pp)
             intent["budget"]["per_person"] = 5000
 
-    # hard_constraints去重+白名单校验
-    valid_constraints = {
-        "queue_intolerant",
-        "accessible",
-        "pet_friendly",
-        "indoor_only",
-        "outdoor_preferred",
-        "late_night",
-        "needs_entertainment",
-        "free",
-        "低人流",
-        "儿童友好",
-        "排队容忍度<10min",
-    }
-    hc = intent.get("hard_constraints", [])
-    intent["hard_constraints"] = list(set(c for c in hc if c in valid_constraints))
+    # constraints去重+白名单
+    intent["hard_constraints"] = list(set(c for c in intent.get("hard_constraints", []) if c in _VALID_CONSTRAINTS))
 
-    # preferred_categories数量上限
+    # categories上限
     cats = intent.get("preferred_categories", [])
     if len(cats) > 8:
         intent["preferred_categories"] = cats[:8]
@@ -778,52 +726,78 @@ async def parse_intent(user_input: str) -> dict:
         if t and not isinstance(t, str):
             time_info[key] = "09:00" if key == "start" else "21:00"
 
-    # 后处理: 确保 scene_requirements 存在
+    # scene_requirements默认值
     if not intent.get("scene_requirements"):
         intent["scene_requirements"] = []
 
-    # 后处理: num_days 校验
+    # num_days校验
     nd = intent.get("num_days", 1)
-    if not isinstance(nd, (int, float)):
-        nd = 1
-    else:
-        nd = int(nd)
-    intent["num_days"] = max(1, min(5, nd))
+    intent["num_days"] = max(1, min(5, int(nd) if isinstance(nd, (int, float)) else 1))
 
-    # 后处理: 如果用户提到深夜关键词但LLM没加late_night约束，补上
+
+def _apply_late_night_fix(intent: dict, user_input: str) -> None:
+    """深夜场景时间修正。"""
     _late_night_keywords = {"凌晨", "深夜", "通宵", "宵夜", "夜宵", "半夜"}
-    if any(kw in user_input for kw in _late_night_keywords):  # noqa: SIM102
-        if "late_night" not in intent.get("hard_constraints", []):
-            intent.setdefault("hard_constraints", []).append("late_night")
-            logger.debug("补充late_night约束（检测到深夜关键词）")
+    has_explicit_late = any(kw in user_input for kw in _late_night_keywords)
 
-    # 后处理: 深夜场景确保时间正确
-    # 只在用户明确提到"凌晨/深夜/通宵/宵夜"时才强制设为深夜时段
-    # "晚上/夜间/别太早回家"等不算深夜
-    if "late_night" in intent.get("hard_constraints", []):
-        time_info = intent.get("time", {})
-        start = time_info.get("start", "")
-        # 检查用户是否明确提到深夜关键词
-        has_explicit_late = any(kw in user_input for kw in _late_night_keywords)
-        if has_explicit_late:
-            if start and not _is_late_night_time(start):
-                intent["time"] = {"period": "深夜", "start": "22:00", "end": "06:00"}
-                logger.debug("深夜时间修正: %s → 22:00-06:00", start)
-            elif not start:
-                intent["time"] = {"period": "深夜", "start": "22:00", "end": "06:00"}
-        else:
-            # 没有明确深夜关键词 → 移除late_night约束，保留LLM返回的时间
-            intent["hard_constraints"] = [
-                c for c in intent.get("hard_constraints", []) if c != "late_night"
-            ]
-            logger.debug("移除late_night约束（无明确深夜关键词）")
+    if has_explicit_late and "late_night" not in intent.get("hard_constraints", []):
+        intent.setdefault("hard_constraints", []).append("late_night")
+        logger.debug("补充late_night约束（检测到深夜关键词）")
+
+    if "late_night" not in intent.get("hard_constraints", []):
+        return
+
+    if has_explicit_late:
+        start = intent.get("time", {}).get("start", "")
+        if not start or not _is_late_night_time(start):
+            intent["time"] = {"period": "深夜", "start": "22:00", "end": "06:00"}
+            logger.debug("深夜时间修正: %s → 22:00-06:00", start)
+    else:
+        intent["hard_constraints"] = [c for c in intent.get("hard_constraints", []) if c != "late_night"]
+        logger.debug("移除late_night约束（无明确深夜关键词）")
+
+
+async def parse_intent(user_input: str) -> dict:
+    """将用户自然语言输入解析为结构化出行需求。"""
+    logger.info("收到用户输入: %s", user_input)
+
+    intent, llm_used, llm_error = await _try_llm_parse(user_input)
+    if intent is None:
+        intent = _rule_based_parse(user_input)
+        logger.info("使用规则匹配结果")
+
+    _apply_post_processing(intent, user_input)
+    _apply_late_night_fix(intent, user_input)
 
     intent["_llm_used"] = llm_used
     intent["_llm_error"] = llm_error
 
     logger.info("解析结果: %s", json.dumps(intent, ensure_ascii=False))
-
     return intent
+
+
+async def _try_llm_parse(user_input: str) -> tuple[dict | None, bool, str]:
+    """尝试LLM解析，返回 (intent, llm_used, llm_error)。"""
+    llm_used = False
+    llm_error = ""
+
+    for attempt in range(3):
+        try:
+            intent = await asyncio.wait_for(_call_llm(user_input), timeout=30.0)
+            if intent:
+                logger.info("LLM 解析成功")
+                return intent, True, ""
+            llm_error = "LLM 返回空结果"
+        except TimeoutError:
+            llm_error = f"LLM 超时（30s）第{attempt + 1}次"
+            logger.warning("%s", llm_error)
+        except Exception as e:
+            llm_error = f"LLM 异常: {e}"
+            logger.warning("%s", llm_error)
+        if attempt < 2:
+            await asyncio.sleep(1)
+
+    return None, False, llm_error
 
 
 # ---------------------------------------------------------------------------
