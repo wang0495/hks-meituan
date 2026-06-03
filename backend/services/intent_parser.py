@@ -534,6 +534,17 @@ _CATEGORY_MAP: dict[str, list[str]] = {
 }
 
 
+_KEYWORD_CONSTRAINT_MAP: list[tuple[list[str], str]] = [
+    (["宠物", "狗", "猫", "狗子", "毛孩子"], "pet_friendly"),
+    (["婴儿车", "轮椅", "无障碍"], "accessible"),
+    (["排队", "不要排队"], "排队容忍度<10min"),
+    (["孩子", "小孩", "儿童", "娃", "宝宝"], "儿童友好"),
+    (["室内", "空调", "下雨", "雨天", "别中暑", "别淋", "别晒"], "indoor_only"),
+    (["海边", "户外", "露天", "草地", "沙滩"], "outdoor_preferred"),
+    (["凌晨", "深夜", "宵夜", "夜宵", "通宵", "半夜"], "late_night"),
+]
+
+
 def _parse_hard_constraints(text: str) -> list[str]:
     """从文本提取硬约束。"""
     constraints: list[str] = []
@@ -541,20 +552,10 @@ def _parse_hard_constraints(text: str) -> list[str]:
 
     if neg_crowd or any(w in text for w in ["社恐", "不想人多", "不要人多", "不想去人多"]):
         constraints.append("低人流")
-    if any(w in text for w in ["宠物", "狗", "猫", "狗子", "毛孩子"]):
-        constraints.append("pet_friendly")
-    if any(w in text for w in ["婴儿车", "轮椅", "无障碍"]):
-        constraints.append("accessible")
-    if any(w in text for w in ["排队", "不要排队"]):
-        constraints.append("排队容忍度<10min")
-    if any(w in text for w in ["孩子", "小孩", "儿童", "娃", "宝宝"]):
-        constraints.append("儿童友好")
-    if any(w in text for w in ["室内", "空调", "下雨", "雨天", "别中暑", "别淋", "别晒"]):
-        constraints.append("indoor_only")
-    if any(w in text for w in ["海边", "户外", "露天", "草地", "沙滩"]):
-        constraints.append("outdoor_preferred")
-    if any(w in text for w in ["凌晨", "深夜", "宵夜", "夜宵", "通宵", "半夜"]):
-        constraints.append("late_night")
+
+    for keywords, constraint in _KEYWORD_CONSTRAINT_MAP:
+        if any(w in text for w in keywords):
+            constraints.append(constraint)
 
     for kw, constraint in _ACTIVITY_CONSTRAINT_MAP.items():
         if kw in text and constraint not in constraints:
