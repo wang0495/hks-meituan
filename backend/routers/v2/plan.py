@@ -190,94 +190,96 @@ def _build_metadata(route_result: dict, request: PlanRequestV2) -> dict:
     ),
     tags=["v2-plan"],
 )
+def _merge_v2_request_params(user_intent: dict, request: PlanRequestV2) -> None:
+    """合并V2请求参数到user_intent。"""
+    if request.constraints:
+        user_intent.setdefault("constraints", []).extend(request.constraints)
+    if request.pace:
+        user_intent["pace"] = request.pace
+    if request.preferences:
+        user_intent.setdefault("preferences", {}).update(request.preferences)
+    if request.city:
+        user_intent["city"] = request.city
+    if request.start_point:
+        user_intent["start_point"] = request.start_point
+    if request.end_point:
+        user_intent["end_point"] = request.end_point
+
+
+async def _v2_event_stream(request: PlanRequestV2):
+    """V2路线规划SSE事件流。"""
+    try:
+        yield _sse("phase", {"phase": "parsing", "message": "正在理解你的需求..."})
+
+        from backend.services.intent_parser import parse_intent
+
+        user_intent = await _with_timeout(parse_intent(request.user_input), timeout_seconds=8.0)
+        if user_intent is None:
+            yield _sse("error", {"error": "意图解析超时，请重试"})
+            return
+
+        _merge_v2_request_params(user_intent, request)
+
+        yield _sse("phase", {"phase": "searching", "message": "正在为你寻找合适的地方..."})
+
+        from backend.services.filters import filter_candidates
+
+        city = request.city or user_intent.get("city", "珠海")
+        candidates = filter_candidates(get_data("city_poi_db", city=city), user_intent)
+        if not candidates:
+            yield _sse("error", {"error": "没有找到符合条件的地点，请放宽条件重试"})
+            return
+
+        yield _sse("phase", {"phase": "solving", "message": "正在编排最佳路线..."})
+
+        from backend.services.solver import solve_route
+
+        route_result = await _with_timeout(
+            asyncio.to_thread(solve_route, candidates, user_intent, user_intent.get("time", {}).get("start", "09:00"), start_point=request.start_point, end_point=request.end_point),
+            timeout_seconds=10.0,
+        )
+        if route_result is None or not route_result.get("route"):
+            logger.warning("路线求解失败/超时，使用简化路线")
+            route_result = _generate_simplified_route(candidates)
+
+        yield _sse("phase", {"phase": "narrating", "message": "正在为你写一段行程说明..."})
+
+        from backend.services.narrator import generate_narrative
+
+        narrative = await _with_timeout(
+            generate_narrative(route_result, user_intent),
+            timeout_seconds=5.0,
+            fallback={"opening": "", "steps": [""] * len(route_result.get("route", [])), "closing": "", "emotion_highlights": []},
+        )
+
+        for i, step in enumerate(route_result.get("route", [])):
+            yield _sse("step", {
+                "index": i + 1, "poi": step["poi"],
+                "arrival_time": step.get("arrival_time"), "departure_time": step.get("departure_time"),
+                "narrative": narrative.get("steps", [])[i] if i < len(narrative.get("steps", [])) else "",
+            })
+            await asyncio.sleep(0.05)
+
+        route_id = uuid.uuid4().hex[:8]
+        route_result["narrative"] = narrative
+        route_result["user_intent"] = user_intent
+        route_cache.set(route_id, route_result)
+
+        yield _sse("done", {
+            "route_id": route_id, "full_route": route_result,
+            "emotion_curve": _build_emotion_curve(route_result),
+            "metadata": _build_metadata(route_result, request),
+        })
+
+    except Exception:
+        logger.exception("V2 规划路线时出错")
+        yield _sse("error", {"error": "服务器内部错误，请稍后重试"})
+
+
 async def plan_route_v2(request: PlanRequestV2) -> StreamingResponse:
     """V2版本的路线规划（SSE流式响应，增强版）。"""
-
-    def _merge_request_params(user_intent: dict) -> None:
-        """合并V2请求参数到user_intent。"""
-        if request.constraints:
-            user_intent.setdefault("constraints", []).extend(request.constraints)
-        if request.pace:
-            user_intent["pace"] = request.pace
-        if request.preferences:
-            user_intent.setdefault("preferences", {}).update(request.preferences)
-        if request.city:
-            user_intent["city"] = request.city
-        if request.start_point:
-            user_intent["start_point"] = request.start_point
-        if request.end_point:
-            user_intent["end_point"] = request.end_point
-
-    async def event_stream():
-        try:
-            yield _sse("phase", {"phase": "parsing", "message": "正在理解你的需求..."})
-
-            from backend.services.intent_parser import parse_intent
-
-            user_intent = await _with_timeout(parse_intent(request.user_input), timeout_seconds=8.0)
-            if user_intent is None:
-                yield _sse("error", {"error": "意图解析超时，请重试"})
-                return
-
-            _merge_request_params(user_intent)
-
-            yield _sse("phase", {"phase": "searching", "message": "正在为你寻找合适的地方..."})
-
-            from backend.services.filters import filter_candidates
-
-            city = request.city or user_intent.get("city", "珠海")
-            candidates = filter_candidates(get_data("city_poi_db", city=city), user_intent)
-            if not candidates:
-                yield _sse("error", {"error": "没有找到符合条件的地点，请放宽条件重试"})
-                return
-
-            yield _sse("phase", {"phase": "solving", "message": "正在编排最佳路线..."})
-
-            from backend.services.solver import solve_route
-
-            route_result = await _with_timeout(
-                asyncio.to_thread(solve_route, candidates, user_intent, user_intent.get("time", {}).get("start", "09:00"), start_point=request.start_point, end_point=request.end_point),
-                timeout_seconds=10.0,
-            )
-            if route_result is None or not route_result.get("route"):
-                logger.warning("路线求解失败/超时，使用简化路线")
-                route_result = _generate_simplified_route(candidates)
-
-            yield _sse("phase", {"phase": "narrating", "message": "正在为你写一段行程说明..."})
-
-            from backend.services.narrator import generate_narrative
-
-            narrative = await _with_timeout(
-                generate_narrative(route_result, user_intent),
-                timeout_seconds=5.0,
-                fallback={"opening": "", "steps": [""] * len(route_result.get("route", [])), "closing": "", "emotion_highlights": []},
-            )
-
-            for i, step in enumerate(route_result.get("route", [])):
-                yield _sse("step", {
-                    "index": i + 1, "poi": step["poi"],
-                    "arrival_time": step.get("arrival_time"), "departure_time": step.get("departure_time"),
-                    "narrative": narrative.get("steps", [])[i] if i < len(narrative.get("steps", [])) else "",
-                })
-                await asyncio.sleep(0.05)
-
-            route_id = uuid.uuid4().hex[:8]
-            route_result["narrative"] = narrative
-            route_result["user_intent"] = user_intent
-            route_cache.set(route_id, route_result)
-
-            yield _sse("done", {
-                "route_id": route_id, "full_route": route_result,
-                "emotion_curve": _build_emotion_curve(route_result),
-                "metadata": _build_metadata(route_result, request),
-            })
-
-        except Exception:
-            logger.exception("V2 规划路线时出错")
-            yield _sse("error", {"error": "服务器内部错误，请稍后重试"})
-
     return StreamingResponse(
-        event_stream(),
+        _v2_event_stream(request),
         media_type="text/event-stream",
         headers={
             "Cache-Control": "no-cache",
