@@ -322,6 +322,16 @@ class LongTermMemory:
 
         return history[:limit]
 
+    def _group_by_context(
+        self, history: list[dict], key_func: Callable[[dict], str]
+    ) -> dict[str, list[dict]]:
+        """按上下文维度分组。"""
+        groups: dict[str, list[dict]] = {}
+        for trip in history:
+            key = key_func(trip)
+            groups.setdefault(key, []).append(trip)
+        return groups
+
     async def get_contextual_patterns(self, user_id: str) -> dict[str, Any]:
         """全面分析用户在不同上下文下的行为模式。
 
@@ -334,112 +344,34 @@ class LongTermMemory:
         if not history:
             return {}
 
-        def _most_common(items: list) -> Any:
-            if not items:
-                return None
-            return Counter(items).most_common(1)[0][0]
-
-        def _distribution(items: list) -> dict:
-            if not items:
-                return {}
-            c = Counter(items)
-            total = len(items)
-            return {k: round(v / total, 2) for k, v in c.most_common()}
-
-        def _analyze_group(trips: list[dict]) -> dict:
-            if not trips:
-                return {"n": 0}
-            paces = []
-            budgets = []
-            categories = []
-            constraints = []
-            emotion_needs = []
-            for t in trips:
-                intent = t.get("intent", {})
-                paces.append(intent.get("pace", "unknown"))
-                budgets.append(intent.get("budget", {}).get("per_person", 0))
-                summary = t.get("route_summary", {})
-                categories.extend(summary.get("categories", []))
-                constraints.extend(intent.get("constraints", []))
-                need = intent.get("emotion_need")
-                if need:
-                    emotion_needs.append(need)
-
-            return {
-                "n": len(trips),
-                "common_pace": _most_common(paces),
-                "avg_budget": (round(sum(budgets) / len(budgets)) if budgets else 0),
-                "top_categories": [c for c, _ in Counter(categories).most_common(3)],
-                "pace_distribution": _distribution(paces),
-                "common_constraints": list(
-                    dict.fromkeys(c for c, _ in Counter(constraints).most_common(3))
-                ),
-                "emotion_need_distribution": (
-                    _distribution(emotion_needs) if emotion_needs else {}
-                ),
-            }
-
         patterns: dict[str, Any] = {}
 
-        # weather
-        weather_groups: dict[str, list] = {}
-        for trip in history:
-            ctx = trip.get("context", {})
-            key = ctx.get("weather", "unknown")
-            weather_groups.setdefault(key, []).append(trip)
-        patterns["weather_patterns"] = {k: _analyze_group(v) for k, v in weather_groups.items()}
+        # 按各维度分组分析
+        dimensions = [
+            ("weather_patterns", lambda t: t.get("context", {}).get("weather", "unknown")),
+            ("season_patterns", lambda t: t.get("context", {}).get("season", "unknown")),
+            ("day_type_patterns", lambda t: t.get("context", {}).get("holiday", {}).get("day_type", "workday")),
+            ("temperature_patterns", lambda t: t.get("context", {}).get("temperature_level", "comfortable")),
+            ("period_patterns", lambda t: t.get("context", {}).get("period", "morning")),
+        ]
 
-        # season
-        season_groups: dict[str, list] = {}
-        for trip in history:
-            ctx = trip.get("context", {})
-            key = ctx.get("season", "unknown")
-            season_groups.setdefault(key, []).append(trip)
-        patterns["season_patterns"] = {k: _analyze_group(v) for k, v in season_groups.items()}
-
-        # day_type (holiday / weekend / workday)
-        day_groups: dict[str, list] = {}
-        for trip in history:
-            ctx = trip.get("context", {})
-            holiday = ctx.get("holiday", {})
-            key = holiday.get("day_type", "workday")
-            day_groups.setdefault(key, []).append(trip)
-        patterns["day_type_patterns"] = {k: _analyze_group(v) for k, v in day_groups.items()}
+        for pattern_name, key_func in dimensions:
+            groups = self._group_by_context(history, key_func)
+            patterns[pattern_name] = {k: _analyze_group(v) for k, v in groups.items()}
 
         # holiday vs non-holiday
         holiday_groups: dict[str, list] = {"holiday": [], "non_holiday": []}
         for trip in history:
             ctx = trip.get("context", {})
-            if ctx.get("holiday", {}).get("is_holiday"):
-                holiday_groups["holiday"].append(trip)
-            else:
-                holiday_groups["non_holiday"].append(trip)
+            key = "holiday" if ctx.get("holiday", {}).get("is_holiday") else "non_holiday"
+            holiday_groups[key].append(trip)
         patterns["holiday_patterns"] = {k: _analyze_group(v) for k, v in holiday_groups.items()}
-
-        # temperature_level
-        temp_groups: dict[str, list] = {}
-        for trip in history:
-            ctx = trip.get("context", {})
-            key = ctx.get("temperature_level", "comfortable")
-            temp_groups.setdefault(key, []).append(trip)
-        patterns["temperature_patterns"] = {k: _analyze_group(v) for k, v in temp_groups.items()}
-
-        # period
-        period_groups: dict[str, list] = {}
-        for trip in history:
-            ctx = trip.get("context", {})
-            key = ctx.get("period", "morning")
-            period_groups.setdefault(key, []).append(trip)
-        patterns["period_patterns"] = {k: _analyze_group(v) for k, v in period_groups.items()}
 
         # is_weekend
         weekend_groups: dict[str, list] = {"weekend": [], "workday": []}
         for trip in history:
-            ctx = trip.get("context", {})
-            if ctx.get("is_weekend"):
-                weekend_groups["weekend"].append(trip)
-            else:
-                weekend_groups["workday"].append(trip)
+            key = "weekend" if trip.get("context", {}).get("is_weekend") else "workday"
+            weekend_groups[key].append(trip)
         patterns["weekday_patterns"] = {k: _analyze_group(v) for k, v in weekend_groups.items()}
 
         patterns["overall"] = _analyze_group(history)
