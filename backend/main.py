@@ -578,13 +578,12 @@ async def plan_route(request: PlanRequest):
             return
         _plan_concurrent += 1
         try:
-            # ── 首token：立即返回（0延迟） ──
-            # 个性化问候（规则匹配，0延迟）
+            # ── 首token：立刻生成个性化问候（~2s，用户第一眼就有话看） ──
             greeting = await _generate_greeting(request.user_input)
             yield _sse("chat", {"text": greeting})
 
-            # 立即进入C版本主路径
-            yield _sse("phase", {"phase": "agents", "message": "智能体正在并行规划..."})
+            # Phase 1: 解析意图（由 rule_guard 内部完成，不再重复调用）
+            yield _sse("phase", {"phase": "parsing", "message": "正在理解你的需求..."})
 
             # user_intent 将从 graph result 中提取
             user_intent = None
@@ -595,6 +594,8 @@ async def plan_route(request: PlanRequest):
             # ══════════════════════════════════════════════════
             try:
                 from backend.agents_v3 import get_graph_c, TravelState
+
+                yield _sse("phase", {"phase": "agents", "message": "7个智能体正在并行规划..."})
 
                 c_graph = get_graph_c()
 
@@ -615,32 +616,46 @@ async def plan_route(request: PlanRequest):
                 graph_task = asyncio.create_task(_run_graph())
 
                 # Drain SSE events from agents while graph runs
-                # 同时每 ~8s 生成一句进度播报（用小模型，~2s），让用户全程有话看
-                _last_chat_time = asyncio.get_event_loop().time()
-                _chat_interval = 8.0  # 每8秒播报一次
-                _agent_summary = ""  # 追踪最近的 agent 状态
+                # 进度播报改为后台任务，不阻塞SSE drain循环（ADR-PERF）
+                _agent_summary_ref = [""]  # mutable ref for background task
+
+                async def _progress_broadcaster():
+                    """后台进度播报：每8s生成一句，不阻塞主SSE drain。"""
+                    while not graph_task.done():
+                        await asyncio.sleep(8.0)
+                        if graph_task.done():
+                            break
+                        summary = _agent_summary_ref[0]
+                        if summary:
+                            _agent_summary_ref[0] = ""
+                            try:
+                                progress = await _generate_progress("智能体协作规划中", summary[-80:])
+                                if progress:
+                                    await sse_queue.put(("chat", {"text": progress}))
+                            except Exception:
+                                pass  # 进度播报失败不影响主流程
+
+                progress_task = asyncio.create_task(_progress_broadcaster())
+
                 while not graph_task.done():
                     try:
                         event_type, event_data = await asyncio.wait_for(sse_queue.get(), timeout=0.3)
                         yield _sse(event_type, event_data)
                         # 追踪 agent 状态用于进度播报
                         if event_type == "agent_start":
-                            _agent_summary += f"启动{event_data.get('name', event_data.get('agent', ''))}、"
+                            _agent_summary_ref[0] += f"启动{event_data.get('name', event_data.get('agent', ''))}、"
                         elif event_type == "agent_result":
-                            _agent_summary += f"完成{event_data.get('summary', '')}、"
+                            _agent_summary_ref[0] += f"完成{event_data.get('summary', '')}、"
                         await asyncio.sleep(0)  # yield control → flush to network
                     except asyncio.TimeoutError:
                         pass
 
-                    # 周期性进度播报
-                    now = asyncio.get_event_loop().time()
-                    if now - _last_chat_time >= _chat_interval and _agent_summary:
-                        _last_chat_time = now
-                        phase_hint = "智能体协作规划中"
-                        # 异步生成播报（不阻塞主循环）
-                        progress = await _generate_progress(phase_hint, _agent_summary[-80:])
-                        yield _sse("chat", {"text": progress})
-                        _agent_summary = ""  # 重置，下轮累积新的
+                # 取消进度播报任务
+                progress_task.cancel()
+                try:
+                    await progress_task
+                except asyncio.CancelledError:
+                    pass
 
                 # Drain remaining events after graph completes
                 while not sse_queue.empty():
