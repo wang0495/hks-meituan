@@ -67,63 +67,46 @@ class InputValidationMiddleware(BaseHTTPMiddleware):
 
     # ------------------------------------------------------------------
 
+    async def _check_body(self, request: Request) -> JSONResponse | None:
+        """检查请求体安全性，返回错误响应或None。"""
+        if request.method not in ("POST", "PUT", "PATCH"):
+            return None
+
+        content_type = request.headers.get("content-type", "")
+        if any(ct in content_type for ct in self.SKIP_CONTENT_TYPES):
+            return None
+
+        try:
+            body = await request.body()
+            if len(body) > self.max_body_size:
+                return JSONResponse(status_code=413, content={"detail": "请求体过大"})
+            if body:
+                body_str = body.decode("utf-8", errors="ignore")
+                if self._contains_dangerous(body_str):
+                    logger.warning("请求体包含危险内容, ip=%s, path=%s", request.client.host if request.client else "unknown", request.url.path)
+                    return JSONResponse(status_code=400, content={"detail": "请求体包含无效内容"})
+        except Exception as e:
+            logger.warning("input validation parse error: %s", e)
+
+        return None
+
     async def dispatch(self, request: Request, call_next):
-        # 跳过不需要检查的路径
         if request.url.path in self.SKIP_PATHS:
             return await call_next(request)
 
-        # 检查请求体大小
         content_length = request.headers.get("content-length")
         if content_length and int(content_length) > self.max_body_size:
-            logger.warning(
-                "请求体过大: %s bytes from %s",
-                content_length,
-                request.client.host if request.client else "unknown",
-            )
-            return JSONResponse(
-                status_code=413,
-                content={"detail": "请求体过大"},
-            )
+            logger.warning("请求体过大: %s bytes from %s", content_length, request.client.host if request.client else "unknown")
+            return JSONResponse(status_code=413, content={"detail": "请求体过大"})
 
-        # 检查查询参数
         for key, value in request.query_params.items():
             if self._contains_dangerous(value):
-                logger.warning(
-                    "查询参数包含危险内容: key=%s, ip=%s",
-                    key,
-                    request.client.host if request.client else "unknown",
-                )
-                return JSONResponse(
-                    status_code=400,
-                    content={"detail": f"无效的查询参数: {key}"},
-                )
+                logger.warning("查询参数包含危险内容: key=%s, ip=%s", key, request.client.host if request.client else "unknown")
+                return JSONResponse(status_code=400, content={"detail": f"无效的查询参数: {key}"})
 
-        # 检查请求体（仅对 JSON 类型）
-        if request.method in ("POST", "PUT", "PATCH"):
-            content_type = request.headers.get("content-type", "")
-            if not any(ct in content_type for ct in self.SKIP_CONTENT_TYPES):
-                try:
-                    body = await request.body()
-                    if len(body) > self.max_body_size:
-                        return JSONResponse(
-                            status_code=413,
-                            content={"detail": "请求体过大"},
-                        )
-                    if body:
-                        body_str = body.decode("utf-8", errors="ignore")
-                        if self._contains_dangerous(body_str):
-                            logger.warning(
-                                "请求体包含危险内容, ip=%s, path=%s",
-                                request.client.host if request.client else "unknown",
-                                request.url.path,
-                            )
-                            return JSONResponse(
-                                status_code=400,
-                                content={"detail": "请求体包含无效内容"},
-                            )
-                except Exception as e:
-                    # 解析失败不阻断请求，交给路由层处理
-                    logger.warning("input validation parse error: %s", e)
+        body_error = await self._check_body(request)
+        if body_error:
+            return body_error
 
         return await call_next(request)
 
