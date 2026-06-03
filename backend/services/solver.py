@@ -965,13 +965,56 @@ def _select_diverse_filter_hard_constraints(
     return quality_pois
 
 
+def _matches_scene_requirement(poi: dict, scene_reqs: list[str]) -> bool:
+    """检查POI是否匹配任意一个scene_requirement (ANY-match)。"""
+    text = (
+        poi.get("name", "")
+        + " "
+        + " ".join(poi.get("tags", []))
+        + " "
+        + " ".join(poi.get("_scene_tags", []))
+    )
+    for sr in scene_reqs:
+        if sr in text:
+            return True
+        for syn in _SCENE_SYNONYMS.get(sr, []):
+            if syn in text:
+                return True
+    return False
+
+
+def _is_poi_open_in_window(poi: dict, start_min: int, end_min: int) -> bool:
+    """检查POI在用户时间窗口内是否可用。"""
+    cat = poi.get("category", "")
+    hours = poi.get("business_hours", "")
+
+    if cat in _OUTDOOR_CATS:
+        if not hours or hours == "00:00-23:59" or "24小时" in str(poi.get("tags", [])):
+            return True
+    if "00:00" in hours and ("23:59" in hours or hours.endswith("00:00")):
+        return True
+
+    try:
+        parts = hours.split("-")
+        oh, om = parts[0].strip().split(":")
+        ch, cm = parts[1].strip().split(":")
+        open_min_val = int(oh) * 60 + int(om)
+        close_min_val = int(ch) * 60 + int(cm)
+    except (ValueError, AttributeError, IndexError):
+        tags = " ".join(poi.get("tags", []) + poi.get("_scene_tags", []))
+        return bool(any(kw in tags for kw in ["24小时", "通宵", "深夜", "夜市"]))
+
+    if open_min_val <= close_min_val:
+        return open_min_val < end_min and close_min_val > start_min
+    return open_min_val < end_min or start_min < close_min_val
+
+
 def _select_diverse_filter_scene_requirements(
     quality_pois: list[dict[str, Any]],
     user_intent: dict[str, Any],
     hard_constraints: list[str],
 ) -> list[dict[str, Any]]:
     """scene_requirements预过滤（ANY-match）+ 场景感知过滤（美食/深夜/late_night）。"""
-    # scene_requirements预过滤（在所有硬约束之后）
     _scene_reqs = user_intent.get("scene_requirements", [])
     _is_late_night_active = "late_night" in hard_constraints
     if (
@@ -979,131 +1022,73 @@ def _select_diverse_filter_scene_requirements(
         and _scene_reqs
         and all(sr in _VAGUE_LATE_NIGHT_SCENE_REQS for sr in _scene_reqs)
     ):
-        _scene_reqs = []  # 跳过预过滤，让late_night filter处理
+        _scene_reqs = []
+
     if _scene_reqs:
-
-        def _matches_sr(p: dict) -> bool:
-            """ANY-match: 匹配任意一个scene_requirement即可。"""
-            text = (
-                p.get("name", "")
-                + " "
-                + " ".join(p.get("tags", []))
-                + " "
-                + " ".join(p.get("_scene_tags", []))
-            )
-            for sr in _scene_reqs:
-                if sr in text:
-                    return True
-                for syn in _SCENE_SYNONYMS.get(sr, []):
-                    if syn in text:
-                        return True
-            return False
-
-        sr_matched = [p for p in quality_pois if _matches_sr(p)]
+        sr_matched = [p for p in quality_pois if _matches_scene_requirement(p, _scene_reqs)]
         if len(sr_matched) >= 3:
             quality_pois = sr_matched
             logger.debug("scene_requirements Phase0预过滤(ANY-match): %d 个匹配", len(sr_matched))
 
-    # ── 场景感知过滤 ──
-    # 1. 便利店/快餐不适合美食/宵夜场景
-    _is_food_req = bool(set(user_intent.get("scene_requirements", [])) & _FOOD_SCENE_REQS)
-    if _is_food_req:
+    # 美食场景过滤便利店
+    if bool(set(user_intent.get("scene_requirements", [])) & _FOOD_SCENE_REQS):
         before = len(quality_pois)
         quality_pois = [
-            p
-            for p in quality_pois
+            p for p in quality_pois
             if not any(kw in p.get("name", "") for kw in _CONVENIENCE_KEYWORDS)
         ]
         if len(quality_pois) < before:
-            logger.debug(
-                "美食场景过滤: 移除便利店%d个, 剩余%d",
-                before - len(quality_pois),
-                len(quality_pois),
-            )
+            logger.debug("美食场景过滤: 移除便利店%d个, 剩余%d", before - len(quality_pois), len(quality_pois))
 
-    # 2. 深夜场景过滤白天专属景点
+    # 深夜场景过滤白天专属景点
     _night_scene = any(
-        kw
-        in str(user_intent.get("scene_requirements", [])) + str(user_intent.get("_raw_input", ""))
+        kw in str(user_intent.get("scene_requirements", [])) + str(user_intent.get("_raw_input", ""))
         for kw in ["深夜", "凌晨", "宵夜", "夜景", "夜晚"]
     )
     if _night_scene:
         before = len(quality_pois)
-        quality_pois = [
-            p for p in quality_pois if not any(kw in p.get("name", "") for kw in _DAY_ONLY_KEYWORDS)
-        ]
+        quality_pois = [p for p in quality_pois if not any(kw in p.get("name", "") for kw in _DAY_ONLY_KEYWORDS)]
         if len(quality_pois) < before:
             logger.debug("深夜场景过滤: 移除白天专属景点%d个", before - len(quality_pois))
 
-    # late_night: 深夜/凌晨营业过滤
-    logger.debug("hard_constraints: %s, type=%s", hard_constraints, type(hard_constraints))
+    # late_night营业时间过滤
     if "late_night" in hard_constraints:
-        logger.debug("late_night filter ACTIVATED")
-        time_info = user_intent.get("time", {})
-        start_str = time_info.get("start", "22:00")
-        end_str = time_info.get("end", "06:00")
-        try:
-            sh, sm = start_str.split(":")
-            start_min = int(sh) * 60 + int(sm)
-        except (ValueError, AttributeError):
-            start_min = 22 * 60
-        try:
-            eh, em = end_str.split(":")
-            end_min = int(eh) * 60 + int(em)
-        except (ValueError, AttributeError):
-            end_min = 6 * 60
-
-        # 只在深夜时段才做严格过滤
-        _crosses_midnight = end_min < start_min or start_min >= 22 * 60 or start_min <= 6 * 60
-
-        def _is_open_in_window(p: dict) -> bool:
-            """检查POI在用户时间窗口内是否可用。"""
-            cat = p.get("category", "")
-            hours = p.get("business_hours", "")
-
-            # 户外/运动/景点类：24小时开放的算夜间可访问
-            if cat in _OUTDOOR_CATS:  # noqa: SIM102
-                if not hours or hours == "00:00-23:59" or "24小时" in str(p.get("tags", [])):
-                    return True
-            # 24h营业
-            if "00:00" in hours and ("23:59" in hours or hours.endswith("00:00")):
-                return True
-            try:
-                parts = hours.split("-")
-                oh, om = parts[0].strip().split(":")
-                ch, cm = parts[1].strip().split(":")
-                open_min_val = int(oh) * 60 + int(om)
-                close_min_val = int(ch) * 60 + int(cm)
-            except (ValueError, AttributeError, IndexError):
-                tags = " ".join(p.get("tags", []) + p.get("_scene_tags", []))
-                return bool(any(kw in tags for kw in ["24小时", "通宵", "深夜", "夜市"]))
-
-            # 检查POI营业时段是否覆盖用户时段
-            if open_min_val <= close_min_val:
-                if open_min_val < end_min and close_min_val > start_min:
-                    return True
-            else:
-                if open_min_val < end_min or start_min < close_min_val:
-                    return True
-            return False
-
-        # 只在跨午夜时做严格过滤，正常晚上时段（18:00-22:00）跳过
-        if _crosses_midnight:
-            late_pois = [p for p in quality_pois if _is_open_in_window(p)]
-        else:
-            late_pois = quality_pois  # 不过滤，让正常时间窗检查处理
-        logger.debug(
-            "late_night filter: %d → %d POIs (window=%s-%s, crosses_midnight=%s)",
-            len(quality_pois),
-            len(late_pois),
-            start_str,
-            end_str,
-            _crosses_midnight,
-        )
-        if late_pois:
-            quality_pois = late_pois
+        quality_pois = _filter_late_night_pois(quality_pois, user_intent)
 
     return quality_pois
+
+
+def _filter_late_night_pois(
+    quality_pois: list[dict[str, Any]], user_intent: dict[str, Any]
+) -> list[dict[str, Any]]:
+    """过滤late_night场景下不可用的POI。"""
+    time_info = user_intent.get("time", {})
+    start_str = time_info.get("start", "22:00")
+    end_str = time_info.get("end", "06:00")
+
+    try:
+        sh, sm = start_str.split(":")
+        start_min = int(sh) * 60 + int(sm)
+    except (ValueError, AttributeError):
+        start_min = 22 * 60
+    try:
+        eh, em = end_str.split(":")
+        end_min = int(eh) * 60 + int(em)
+    except (ValueError, AttributeError):
+        end_min = 6 * 60
+
+    _crosses_midnight = end_min < start_min or start_min >= 22 * 60 or start_min <= 6 * 60
+
+    if _crosses_midnight:
+        late_pois = [p for p in quality_pois if _is_poi_open_in_window(p, start_min, end_min)]
+    else:
+        late_pois = quality_pois
+
+    logger.debug(
+        "late_night filter: %d → %d POIs (window=%s-%s, crosses_midnight=%s)",
+        len(quality_pois), len(late_pois), start_str, end_str, _crosses_midnight,
+    )
+    return late_pois if late_pois else quality_pois
 
 
 def _select_diverse_build_mixed_scorer(
