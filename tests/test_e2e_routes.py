@@ -102,7 +102,7 @@ def analyze_result(scenario: dict, result: dict, elapsed: float) -> dict:
     """分析规划结果质量。"""
     issues = []
     route = result.get("route", [])
-    intent = result.get("user_intent", {})
+    result.get("user_intent", {})
     audit = result.get("audit_issues", []) or result.get("_audit_issues", [])
 
     if not route:

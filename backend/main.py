@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import uuid
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, suppress
 from pathlib import Path
 
 from fastapi import FastAPI
@@ -273,10 +273,8 @@ async def lifespan(app: FastAPI):
     refresh_task = getattr(app.state, "cache_refresh_task", None)
     if refresh_task is not None:
         refresh_task.cancel()
-        try:
+        with suppress(asyncio.CancelledError):
             await refresh_task
-        except asyncio.CancelledError:
-            pass
 
     # 通过停机管理器执行三阶段停机（排空请求 -> 清理资源）
     shutdown_mgr = _get_sd()
@@ -695,10 +693,8 @@ async def plan_route(request: PlanRequest):
 
                 # 取消进度播报任务
                 progress_task.cancel()
-                try:
+                with suppress(asyncio.CancelledError):
                     await progress_task
-                except asyncio.CancelledError:
-                    pass
 
                 # Drain remaining events after graph completes
                 while not sse_queue.empty():

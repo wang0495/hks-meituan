@@ -73,21 +73,21 @@ async def shutdown_mq() -> None:
 
 
 __all__ = [
+    # 处理器
+    "HANDLER_REGISTRY",
     # 队列核心
     "Message",
     "MessageHandler",
     "MessageQueue",
-    "get_message_queue",
     "close_message_queue",
-    # 处理器
-    "HANDLER_REGISTRY",
     "get_handler",
-    "handle_route_planning",
-    "handle_notification",
+    "get_message_queue",
     "handle_analytics",
-    "start_default_consumers",
+    "handle_notification",
+    "handle_route_planning",
+    "publish",
     # 生命周期
     "setup_mq",
     "shutdown_mq",
-    "publish",
+    "start_default_consumers",
 ]

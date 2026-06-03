@@ -7,11 +7,14 @@
 from __future__ import annotations
 
 import logging
+from typing import TYPE_CHECKING
 
-from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
 from backend.errors import CityFlowException, ErrorCode
+
+if TYPE_CHECKING:
+    from fastapi import FastAPI, Request
 
 logger = logging.getLogger(__name__)
 

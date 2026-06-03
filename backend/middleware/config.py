@@ -6,10 +6,14 @@
 
 from __future__ import annotations
 
-from fastapi import Request
+from typing import TYPE_CHECKING
+
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from backend.config import get_settings
+
+if TYPE_CHECKING:
+    from fastapi import Request
 
 
 class ConfigMiddleware(BaseHTTPMiddleware):

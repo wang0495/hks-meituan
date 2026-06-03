@@ -12,9 +12,8 @@
 from __future__ import annotations
 
 import logging
-from collections.abc import AsyncGenerator
 from dataclasses import dataclass, field
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import (
@@ -23,10 +22,14 @@ from sqlalchemy.ext.asyncio import (
     async_sessionmaker,
     create_async_engine,
 )
-from sqlalchemy.pool import Pool
 
 from backend.config import settings
 from backend.config.pool_config import pool_settings
+
+if TYPE_CHECKING:
+    from collections.abc import AsyncGenerator
+
+    from sqlalchemy.pool import Pool
 
 logger = logging.getLogger(__name__)
 

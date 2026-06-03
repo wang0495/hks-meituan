@@ -29,12 +29,14 @@ import copy
 import json
 import logging
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import yaml
 
-from backend.config.hot_reload import ConfigHotReloader
 from backend.errors import CityFlowException, ErrorCode
+
+if TYPE_CHECKING:
+    from backend.config.hot_reload import ConfigHotReloader
 
 logger = logging.getLogger(__name__)
 

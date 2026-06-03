@@ -47,7 +47,7 @@ class PerceptionContext:
     is_holiday: bool = False  # 当天是否是节假日
 
 
-class AnomalyType(str, enum.Enum):
+class AnomalyType(enum.StrEnum):
     """异常类型枚举。"""
 
     WEATHER_CHANGE = "weather_change"
@@ -74,7 +74,7 @@ class Anomaly:
         }
 
 
-class AdjustmentAction(str, enum.Enum):
+class AdjustmentAction(enum.StrEnum):
     """调整策略动作类型。"""
 
     INDOOR_REPLACEMENT = "indoor_replacement"
@@ -161,7 +161,7 @@ class ScenePresets:
         photo_frequency=1.0,
     )
 
-    _ALL = {
+    _ALL = {  # noqa: RUF012
         "sunny": SUNNY_LEISURE,
         "rainy": RAINY_INDOOR,
         "fatigue": FATIGUE_WARNING,
@@ -352,9 +352,7 @@ class PerceptionService:
         if self._last_weather == ctx.weather:
             return False
         # 从晴天变雨天才是"突变"
-        if self._last_weather == "sunny" and ctx.weather in ("rainy", "cold"):
-            return True
-        return False
+        return bool(self._last_weather == "sunny" and ctx.weather in ("rainy", "cold"))
 
     # ---- 动态调整 ----------------------------------------------------------
 

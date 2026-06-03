@@ -12,11 +12,14 @@ from __future__ import annotations
 import logging
 import os
 import uuid
+from typing import TYPE_CHECKING
 
-from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from backend.services.session import get_session_manager
+
+if TYPE_CHECKING:
+    from fastapi import Request, Response
 
 logger = logging.getLogger(__name__)
 

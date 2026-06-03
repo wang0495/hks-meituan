@@ -71,7 +71,7 @@ _STATUS_MAP: dict[ErrorCode, int] = {
 }
 
 
-class CityFlowException(Exception):
+class CityFlowException(Exception):  # noqa: N818
     """CityFlow 基础异常。
 
     所有业务异常的基类，携带错误码、消息、可选详情和 HTTP 状态码。
@@ -91,7 +91,13 @@ class CityFlowException(Exception):
         super().__init__(message)
 
     # 不应暴露给客户端的 details key
-    _SENSITIVE_KEYS = {"original_error", "stack_trace", "traceback", "api_key", "secret"}
+    _SENSITIVE_KEYS = {
+        "original_error",
+        "stack_trace",
+        "traceback",
+        "api_key",
+        "secret",
+    }  # noqa: RUF012
 
     def to_dict(self) -> dict[str, Any]:
         """转换为 API 响应字典。自动过滤敏感字段。"""

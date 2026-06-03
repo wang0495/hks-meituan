@@ -118,9 +118,8 @@ def tag_poi(poi: dict) -> list[str]:
 
     # 1. 名称匹配
     for kw, tag in _NAME_TAGS:
-        if kw in name_lower or kw in name:
-            if tag not in scenes:
-                scenes.append(tag)
+        if (kw in name_lower or kw in name) and tag not in scenes:
+            scenes.append(tag)
 
     # 2. tag 匹配
     for t in tags:

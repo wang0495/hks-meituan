@@ -5,12 +5,14 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
-from numpy.typing import NDArray
 
 from backend.services.geo import _AVG_SPEED_KMH, _EARTH_RADIUS_M, _ROAD_FACTOR
+
+if TYPE_CHECKING:
+    from numpy.typing import NDArray
 
 # 实际道路系数
 

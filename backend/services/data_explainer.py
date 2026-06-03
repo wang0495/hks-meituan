@@ -189,7 +189,7 @@ def explain_user_deltas(user_deltas: dict[str, dict[str, float]], mode: str = "n
 
     # 分析趋势
     trends = []
-    for weight_name, dim, delta in significant:
+    for _weight_name, dim, delta in significant:
         if dim not in _DEMAND_LABELS:
             continue
         label = _DEMAND_LABELS[dim][0]

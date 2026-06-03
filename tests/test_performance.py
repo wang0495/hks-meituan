@@ -512,7 +512,7 @@ async def test_search_scalability(client: AsyncClient) -> None:
         times = []
         total = 0
         for _ in range(10):
-            elapsed, status = await _measure(client, "post", "/api/poi/search", json=payload)
+            elapsed, _status = await _measure(client, "post", "/api/poi/search", json=payload)
             times.append(elapsed)
             if not total:
                 resp = await client.post("/api/poi/search", json=payload)

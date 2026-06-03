@@ -1,12 +1,15 @@
 from __future__ import annotations
 
 import logging
-from collections.abc import AsyncIterator
+from typing import TYPE_CHECKING
 
 from openai import AsyncOpenAI
 
 from backend.config import settings
 from backend.errors import LLMServiceError
+
+if TYPE_CHECKING:
+    from collections.abc import AsyncIterator
 
 logger = logging.getLogger(__name__)
 
@@ -46,10 +49,10 @@ async def chat_stream(
                 yield chunk.choices[0].delta.content
     except TimeoutError:
         logger.warning("LLM stream timeout")
-        raise LLMServiceError(message="LLM服务超时", details={"timeout": True})
+        raise LLMServiceError(message="LLM服务超时", details={"timeout": True}) from None
     except Exception as e:
         logger.exception("LLM stream error: %s", e)
-        raise LLMServiceError(message="LLM服务异常", details={"original_error": str(e)})
+        raise LLMServiceError(message="LLM服务异常", details={"original_error": str(e)}) from e
 
 
 async def chat(message: str, model: str = "") -> str:
@@ -64,7 +67,7 @@ async def chat(message: str, model: str = "") -> str:
         return resp.choices[0].message.content or ""
     except TimeoutError:
         logger.warning("LLM chat timeout")
-        raise LLMServiceError(message="LLM服务超时", details={"timeout": True})
+        raise LLMServiceError(message="LLM服务超时", details={"timeout": True}) from None
     except Exception as e:
         logger.exception("LLM chat error: %s", e)
-        raise LLMServiceError(message="LLM服务异常", details={"original_error": str(e)})
+        raise LLMServiceError(message="LLM服务异常", details={"original_error": str(e)}) from e

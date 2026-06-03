@@ -4,10 +4,12 @@ from __future__ import annotations
 
 import asyncio
 import json
-from collections.abc import AsyncGenerator
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from fastapi.responses import StreamingResponse
+
+if TYPE_CHECKING:
+    from collections.abc import AsyncGenerator
 
 
 class SSEStream:

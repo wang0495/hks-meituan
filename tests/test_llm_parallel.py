@@ -245,7 +245,7 @@ class TestSSEParallelFlow:
 
         # 后台执行（设置超时）
         try:
-            result = await asyncio.wait_for(timeout_polish(), timeout=0.1)
+            await asyncio.wait_for(timeout_polish(), timeout=0.1)
         except TimeoutError:
             # 超时是预期行为，保留模板文案
             pass

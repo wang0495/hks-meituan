@@ -9,10 +9,11 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import logging
 import time
 from dataclasses import dataclass, field
-from enum import Enum
+from enum import StrEnum
 from typing import TYPE_CHECKING, Any
 
 from prometheus_client import Gauge
@@ -55,7 +56,7 @@ POOL_ALERT_COUNT = Gauge(
 # ---------------------------------------------------------------------------
 
 
-class AlertSeverity(str, Enum):
+class AlertSeverity(StrEnum):
     """告警级别。"""
 
     WARNING = "warning"
@@ -503,10 +504,8 @@ class PoolMonitor:
         self._running = False
         if self._task is not None:
             self._task.cancel()
-            try:
+            with contextlib.suppress(asyncio.CancelledError):
                 await self._task
-            except asyncio.CancelledError:
-                pass
             self._task = None
         logger.info("连接池监控已停止")
 

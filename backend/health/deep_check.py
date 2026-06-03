@@ -21,10 +21,9 @@ from __future__ import annotations
 
 import logging
 import time
-from collections.abc import Callable, Coroutine
 from datetime import UTC, datetime
-from enum import Enum
-from typing import Any
+from enum import StrEnum
+from typing import TYPE_CHECKING, Any
 
 from backend.services.health_checker import (
     CheckResult,
@@ -36,6 +35,9 @@ from backend.services.health_checker import (
     check_redis,
 )
 
+if TYPE_CHECKING:
+    from collections.abc import Callable, Coroutine
+
 __all__ = ["AggregatedStatus", "DeepHealthCheck"]
 
 logger = logging.getLogger(__name__)
@@ -46,7 +48,7 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 
 
-class AggregatedStatus(str, Enum):
+class AggregatedStatus(StrEnum):
     """深度检查的聚合状态。"""
 
     HEALTHY = "healthy"

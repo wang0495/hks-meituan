@@ -15,8 +15,7 @@ from __future__ import annotations
 import asyncio
 import json
 import time
-from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import pytest
 import yaml
@@ -28,6 +27,9 @@ from backend.config.hot_reload import (
     ConfigSnapshot,
 )
 from backend.config.manager import ConfigManager, ConfigManagerError
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 # ---------------------------------------------------------------------------
 # Fixtures

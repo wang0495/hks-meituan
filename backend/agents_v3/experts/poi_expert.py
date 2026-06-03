@@ -10,6 +10,7 @@ Extracted from agents.py poi_agent.  Handles:
 from __future__ import annotations
 
 import json
+from typing import TYPE_CHECKING
 
 from backend.agents_v3.experts.base import (
     _FOOD_NAME_KWS,
@@ -22,7 +23,9 @@ from backend.agents_v3.experts.base import (
     _tag_similarity,
     sse_expert,
 )
-from backend.agents_v3.state import TravelState
+
+if TYPE_CHECKING:
+    from backend.agents_v3.state import TravelState
 
 # ---------------------------------------------------------------------------
 # Prompt builder
@@ -304,9 +307,8 @@ def _smart_poi_selection(candidates: list[dict], intent: dict, user_input: str) 
             score += 0.15
         if group_type == "情侣" and suitability.get("情侣友好"):
             score += 0.15
-        if "退休" in group_type or "养老" in group_type:
-            if suitability.get("老年友好"):
-                score += 0.15
+        if ("退休" in group_type or "养老" in group_type) and suitability.get("老年友好"):
+            score += 0.15
 
         scored.append((c, score))
 
@@ -427,7 +429,7 @@ async def poi_expert(state: TravelState) -> dict:
     # 每个category按rating排序后取前N个，总共控制在~200个
     sampled: list[dict] = []
     per_cat = max(3, 200 // max(len(cat_groups), 1))
-    for cat, items in cat_groups.items():
+    for _cat, items in cat_groups.items():
         items.sort(key=lambda x: x.get("rating", 0), reverse=True)
         sampled.extend(items[:per_cat])
 

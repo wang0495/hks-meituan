@@ -4,11 +4,13 @@ from __future__ import annotations
 
 import logging
 import time
-from collections.abc import Callable
 from functools import wraps
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from backend.monitoring.metrics import REQUEST_LATENCY
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 logger = logging.getLogger(__name__)
 

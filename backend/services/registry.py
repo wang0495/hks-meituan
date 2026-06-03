@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import logging
 import random
 from datetime import datetime, timedelta
@@ -152,7 +153,9 @@ class ServiceRegistry:
         while self._running:
             now = datetime.now()
             for service_id, service in list(self._services.items()):
-                if now - service.last_heartbeat > timedelta(seconds=self._heartbeat_timeout):
+                if now - service.last_heartbeat > timedelta(
+                    seconds=self._heartbeat_timeout
+                ):  # noqa: SIM102
                     if service.status != "unhealthy":
                         service.status = "unhealthy"
                         logger.warning(
@@ -191,10 +194,8 @@ class ServiceRegistry:
         self._running = False
         if self._health_task is not None:
             self._health_task.cancel()
-            try:
+            with contextlib.suppress(asyncio.CancelledError):
                 await self._health_task
-            except asyncio.CancelledError:
-                pass
             self._health_task = None
         logger.info("服务注册中心已停止")
 

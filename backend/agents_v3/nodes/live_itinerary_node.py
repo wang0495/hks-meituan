@@ -5,11 +5,15 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from backend.agents_v3.live_itinerary.builder import (
     build_decision_trace,
     build_heatmap,
 )
-from backend.agents_v3.state import TravelState
+
+if TYPE_CHECKING:
+    from backend.agents_v3.state import TravelState
 
 
 async def live_itinerary(state: TravelState) -> dict:

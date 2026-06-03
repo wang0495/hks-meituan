@@ -387,7 +387,7 @@ class IPRateLimiter:
 
         # 第 2 层：全局限流
         gl_key = f"gl:{ip}"
-        gl_allowed, gl_remaining, gl_reset = await self._backend.check(
+        gl_allowed, _gl_remaining, gl_reset = await self._backend.check(
             gl_key, gl_limit, self._global_window
         )
 

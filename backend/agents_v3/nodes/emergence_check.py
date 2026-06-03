@@ -6,12 +6,16 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from backend.agents_v3.emergence.conflict_detector import (
     detect_conflicts,
     resolve_conflicts,
     should_escalate,
 )
-from backend.agents_v3.state import TravelState
+
+if TYPE_CHECKING:
+    from backend.agents_v3.state import TravelState
 
 
 async def emergence_check(state: TravelState) -> dict:
@@ -23,7 +27,7 @@ async def emergence_check(state: TravelState) -> dict:
     conflicts = detect_conflicts(proposals, intent)
 
     # 自动解决
-    resolved = resolve_conflicts(proposals, conflicts)
+    resolve_conflicts(proposals, conflicts)
 
     # 是否需要升级
     user_decision_needed = should_escalate(conflicts)

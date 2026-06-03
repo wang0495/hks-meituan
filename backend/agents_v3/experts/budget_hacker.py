@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from typing import TYPE_CHECKING
 
 from backend.agents_v3.experts.base import (
     _is_likely_macau,
@@ -10,7 +11,9 @@ from backend.agents_v3.experts.base import (
     _proposal,
     sse_expert,
 )
-from backend.agents_v3.state import TravelState
+
+if TYPE_CHECKING:
+    from backend.agents_v3.state import TravelState
 
 # Categories that are inherently free or cheap
 _BUDGET_CATEGORIES = {"公园", "自然", "文化", "历史", "广场", "海滩", "海滨"}

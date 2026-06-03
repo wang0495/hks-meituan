@@ -11,14 +11,17 @@ from __future__ import annotations
 
 import asyncio
 import time
+from typing import TYPE_CHECKING
 
 import pytest
-from httpx import AsyncClient
 
 from backend.services.intent_parser import _rule_based_parse
 from backend.services.narrator import generate_narrative
 from backend.services.solver import solve_route
 from tests.factories import IntentFactory, POIFactory, RouteFactory
+
+if TYPE_CHECKING:
+    from httpx import AsyncClient
 
 # ---------------------------------------------------------------------------
 # 规则匹配性能

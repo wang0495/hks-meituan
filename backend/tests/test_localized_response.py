@@ -6,7 +6,7 @@ import pytest
 
 import backend.i18n as _i18n_mod
 from backend.i18n import set_locale
-from backend.utils.localized_response import LocalizedResponse as LR
+from backend.utils.localized_response import LocalizedResponse as LocalizedResp
 
 
 @pytest.fixture(autouse=True)
@@ -22,16 +22,16 @@ def _reset_locale() -> None:
 
 class TestSuccess:
     def test_default_message(self) -> None:
-        result = LR.success()
+        result = LocalizedResp.success()
         assert result == {"success": True, "message": "成功"}
 
     def test_custom_key(self) -> None:
-        result = LR.success("auth.login_success")
+        result = LocalizedResp.success("auth.login_success")
         assert result == {"success": True, "message": "登录成功"}
 
     def test_en_locale(self) -> None:
         set_locale("en_US")
-        result = LR.success()
+        result = LocalizedResp.success()
         assert result == {"success": True, "message": "Success"}
 
 
@@ -42,17 +42,17 @@ class TestSuccess:
 
 class TestError:
     def test_default_message(self) -> None:
-        result = LR.error()
+        result = LocalizedResp.error()
         assert result == {"success": False, "message": "错误"}
 
     def test_custom_key(self) -> None:
-        result = LR.error("common.rate_limited")
+        result = LocalizedResp.error("common.rate_limited")
         assert result["success"] is False
         assert "频繁" in result["message"]
 
     def test_en_locale(self) -> None:
         set_locale("en_US")
-        result = LR.error()
+        result = LocalizedResp.error()
         assert result == {"success": False, "message": "Error"}
 
 
@@ -63,7 +63,7 @@ class TestError:
 
 class TestData:
     def test_basic_data(self) -> None:
-        result = LR.data({"id": 1})
+        result = LocalizedResp.data({"id": 1})
         assert result == {
             "success": True,
             "message": "成功",
@@ -71,16 +71,16 @@ class TestData:
         }
 
     def test_list_data(self) -> None:
-        result = LR.data([1, 2, 3])
+        result = LocalizedResp.data([1, 2, 3])
         assert result["data"] == [1, 2, 3]
 
     def test_none_data(self) -> None:
-        result = LR.data(None)
+        result = LocalizedResp.data(None)
         assert result["data"] is None
 
     def test_en_locale(self) -> None:
         set_locale("en_US")
-        result = LR.data("test")
+        result = LocalizedResp.data("test")
         assert result["message"] == "Success"
 
 
@@ -91,7 +91,7 @@ class TestData:
 
 class TestPaginated:
     def test_basic_paginated(self) -> None:
-        result = LR.paginated(data=[1, 2, 3], total=10, page=1, page_size=3)
+        result = LocalizedResp.paginated(data=[1, 2, 3], total=10, page=1, page_size=3)
         assert result["success"] is True
         assert result["data"] == [1, 2, 3]
         assert result["pagination"] == {
@@ -102,18 +102,18 @@ class TestPaginated:
         }
 
     def test_exact_page_count(self) -> None:
-        result = LR.paginated(data=[], total=20, page=1, page_size=10)
+        result = LocalizedResp.paginated(data=[], total=20, page=1, page_size=10)
         assert result["pagination"]["total_pages"] == 2
 
     def test_single_page(self) -> None:
-        result = LR.paginated(data=[1], total=1, page=1, page_size=10)
+        result = LocalizedResp.paginated(data=[1], total=1, page=1, page_size=10)
         assert result["pagination"]["total_pages"] == 1
 
     def test_zero_total(self) -> None:
-        result = LR.paginated(data=[], total=0, page=1, page_size=10)
+        result = LocalizedResp.paginated(data=[], total=0, page=1, page_size=10)
         assert result["pagination"]["total_pages"] == 0
 
     def test_en_locale(self) -> None:
         set_locale("en_US")
-        result = LR.paginated(data=[], total=0)
+        result = LocalizedResp.paginated(data=[], total=0)
         assert result["message"] == "Success"

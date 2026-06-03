@@ -191,7 +191,7 @@ async def list_tasks(
                 code=ErrorCode.INVALID_REQUEST,
                 message=f"无效的状态值: {status}",
                 details={"valid_values": [s.value for s in TaskStatus]},
-            )
+            ) from None
 
     tasks = await queue.list_tasks(status=filter_status)
     return {"total": len(tasks), "tasks": tasks}

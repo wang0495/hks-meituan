@@ -11,11 +11,13 @@ from __future__ import annotations
 import logging
 import time
 from collections import deque
-from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Any, Protocol
+from typing import TYPE_CHECKING, Any, Protocol
 
-from fastapi import Request, Response
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    from fastapi import Request, Response
 
 logger = logging.getLogger(__name__)
 

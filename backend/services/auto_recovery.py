@@ -26,7 +26,7 @@ import time
 from collections import deque
 from collections.abc import Callable, Coroutine
 from datetime import UTC, datetime
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 __all__ = [
@@ -47,7 +47,7 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 
 
-class RecoveryStatus(str, Enum):
+class RecoveryStatus(StrEnum):
     """恢复尝试结果状态。"""
 
     SUCCESS = "success"

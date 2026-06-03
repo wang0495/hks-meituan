@@ -218,7 +218,7 @@ class TestAutoRecovery:
 
         # 模拟 HealthReport
         class FakeReport:
-            unhealthy_names = ["database", "redis"]
+            unhealthy_names = ["database", "redis"]  # noqa: RUF012
 
         result = await recovery.handle_unhealthy(FakeReport())
         assert called is True
@@ -230,7 +230,7 @@ class TestAutoRecovery:
         recovery = AutoRecovery()
 
         class FakeReport:
-            unhealthy_names = ["unknown"]
+            unhealthy_names = ["unknown"]  # noqa: RUF012
 
         result = await recovery.handle_unhealthy(FakeReport())
         assert result.attempts == []

@@ -21,10 +21,11 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import logging
 import time
 from dataclasses import dataclass, field
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -42,7 +43,7 @@ __all__ = [
 # ---------------------------------------------------------------------------
 
 
-class LoadLevel(str, Enum):
+class LoadLevel(StrEnum):
     """系统负载等级。"""
 
     LOW = "low"  # 负载 < 40%
@@ -289,10 +290,8 @@ class AdaptiveRateLimiter:
         """停止后台指标监控。"""
         if self._monitor_task is not None:
             self._monitor_task.cancel()
-            try:
+            with contextlib.suppress(asyncio.CancelledError):
                 await self._monitor_task
-            except asyncio.CancelledError:
-                pass
             self._monitor_task = None
         logger.info("自适应限流监控已停止")
 

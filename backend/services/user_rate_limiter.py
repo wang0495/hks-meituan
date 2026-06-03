@@ -19,7 +19,7 @@ from __future__ import annotations
 import logging
 import time
 from dataclasses import dataclass, field
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 from urllib.parse import quote_plus
 
@@ -43,7 +43,7 @@ __all__ = [
 # ---------------------------------------------------------------------------
 
 
-class EndpointTier(str, Enum):
+class EndpointTier(StrEnum):
     """端点配额等级，用于统一管理不同端点的限流策略。"""
 
     DEFAULT = "default"

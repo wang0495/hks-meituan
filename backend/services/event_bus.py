@@ -160,7 +160,7 @@ class EventBus:
             *(_invoke(h) for h in handlers),
             return_exceptions=True,
         )
-        for handler, result in zip(handlers, results):
+        for handler, result in zip(handlers, results, strict=False):
             if isinstance(result, Exception):
                 logger.exception(
                     "异步事件处理异常: %s -> %s",

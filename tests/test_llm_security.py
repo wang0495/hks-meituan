@@ -84,7 +84,7 @@ def _check_response(result: dict, payload: dict) -> dict:
     # 获取所有输出文本
     route = result.get("route", {})
     steps = route.get("route", []) if route else []
-    narrative = result.get("narrative", {})
+    result.get("narrative", {})
     errors = result.get("errors", [])
 
     all_text = json.dumps(result, ensure_ascii=False).lower()

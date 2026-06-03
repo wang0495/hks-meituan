@@ -15,8 +15,10 @@ from __future__ import annotations
 import json
 import logging
 import math
+from typing import TYPE_CHECKING
 
-from backend.agents_v3.state import TravelState
+if TYPE_CHECKING:
+    from backend.agents_v3.state import TravelState
 
 logger = logging.getLogger(__name__)
 

@@ -9,7 +9,7 @@ import gzip
 import json
 import logging
 import time
-from pathlib import Path
+from typing import TYPE_CHECKING
 
 import pytest
 from backend.logging.config import get_rotation, setup_logging
@@ -21,6 +21,9 @@ from backend.logging.rotation import (
     _compress_file,
 )
 from backend.logging.structured import JSONFormatter, RequestLogger, get_logger
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -116,7 +119,7 @@ class TestCompressedRotatingFileHandler:
         logger.setLevel(logging.INFO)
 
         # 写入超过 maxBytes 的数据
-        for i in range(50):
+        for _i in range(50):
             logger.info("x" * 10)
         handler.close()
 
@@ -142,7 +145,7 @@ class TestCompressedRotatingFileHandler:
         logger.setLevel(logging.INFO)
 
         # 大量写入触发多次轮转
-        for i in range(200):
+        for _i in range(200):
             logger.info("y" * 10)
         handler.close()
 
@@ -304,7 +307,7 @@ class TestLogRotation:
 
 
 # 需要导入这些用于 isinstance 检查
-from logging.handlers import RotatingFileHandler, TimedRotatingFileHandler
+from logging.handlers import RotatingFileHandler, TimedRotatingFileHandler  # noqa: E402
 
 # ---------------------------------------------------------------------------
 # config.py

@@ -10,12 +10,15 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from typing import TYPE_CHECKING
 
 from fastapi import APIRouter, Request
-from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 from backend.sse.stream import SSEStream, create_sse_response
+
+if TYPE_CHECKING:
+    from fastapi.responses import StreamingResponse
 
 logger = logging.getLogger(__name__)
 
@@ -134,13 +137,13 @@ async def plan_route_stream(request: Request) -> StreamingResponse:
                 except Exception:
                     logger.exception("[SSE] LLM 润色异常，保留模板文案")
 
-            asyncio.create_task(_polish_narrative())
+            asyncio.create_task(_polish_narrative())  # noqa: RUF006
             # ----------------------------------------------------------------
 
         except Exception:
             logger.exception("SSE 流式规划出错")
             await stream.send("error", {"error": "路线规划失败，请重试"})
 
-    asyncio.create_task(process())
+    asyncio.create_task(process())  # noqa: RUF006
 
     return create_sse_response(stream)

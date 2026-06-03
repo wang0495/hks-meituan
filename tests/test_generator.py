@@ -463,6 +463,6 @@ class TestCaseGenerator:
             example = media.get("example")
             if example is not None:
                 return example
-            schema = media.get("schema", {})
+            media.get("schema", {})
             # $ref 的情况下无法解析，跳过
         return None

@@ -506,14 +506,13 @@ def _rule_based_parse(user_input: str) -> dict:
         "出片": ["出片", "拍照打卡"],
         "游乐园": ["游乐园", "儿童游乐"],
         "海洋馆": ["海洋馆", "水族馆"],
-        "蹦迪": ["酒吧", "夜店"],
         "喝酒": ["酒吧", "清吧"],
         "烧烤": ["烧烤", "聚餐"],
         "火锅": ["火锅"],
         "书店": ["书店", "阅读空间"],
         "咖啡馆": ["咖啡馆"],
         "书法": ["书法", "传统文化"],
-        "画画": ["艺术", "写生"],
+        "画画": ["安静画画", "艺术", "写生"],
         "日出": ["日出观景", "海边观景"],
         "日落": ["日落观景"],
         "夜景": ["夜景观景", "城市夜景"],
@@ -521,7 +520,6 @@ def _rule_based_parse(user_input: str) -> dict:
         "攀岩": ["攀岩"],
         "密室": ["密室逃脱", "剧本杀"],
         "长隆": ["长隆", "海洋王国", "游乐园"],
-        "画画": ["安静画画", "艺术", "写生"],
         "安静画画": ["安静画画", "艺术"],
         "蹦迪": ["蹦迪", "酒吧", "夜店"],
     }
@@ -641,7 +639,7 @@ def _extract_num_days(text: str) -> int:
 def _is_late_night_time(time_str: str) -> bool:
     """判断时间字符串是否在深夜时段（22:00-06:00）。"""
     try:
-        h, m = time_str.split(":")
+        h, _m = time_str.split(":")
         hour = int(h)
         return hour >= 22 or hour < 6
     except (ValueError, TypeError):
@@ -772,7 +770,7 @@ async def parse_intent(user_input: str) -> dict:
     # 后处理: 如果用户提到深夜关键词但LLM没加late_night约束，补上
     _raw = user_input  # user_input是parse_intent的参数，此时_raw_input还未设置
     _LATE_NIGHT_KW = ["凌晨", "深夜", "通宵", "宵夜", "夜宵", "半夜"]
-    if any(kw in _raw for kw in _LATE_NIGHT_KW):
+    if any(kw in _raw for kw in _LATE_NIGHT_KW):  # noqa: SIM102
         if "late_night" not in intent.get("hard_constraints", []):
             intent.setdefault("hard_constraints", []).append("late_night")
             logger.debug("补充late_night约束（检测到深夜关键词）")
@@ -784,7 +782,7 @@ async def parse_intent(user_input: str) -> dict:
     if "late_night" in intent.get("hard_constraints", []):
         time_info = intent.get("time", {})
         start = time_info.get("start", "")
-        end = time_info.get("end", "")
+        time_info.get("end", "")
         # 检查用户是否明确提到深夜关键词
         has_explicit_late = any(kw in _raw for kw in _LATE_NIGHT_KEYWORDS)
         if has_explicit_late:

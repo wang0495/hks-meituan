@@ -68,7 +68,6 @@ def _rule_geo_check(proposals: list[dict], scene_type: str) -> list[dict]:
 
     # 最大站间距
     max_dist = 0
-    pair = None
     for i in range(len(pois_with_coord)):
         for j in range(i + 1, len(pois_with_coord)):
             d = _haversine_km(
@@ -79,7 +78,7 @@ def _rule_geo_check(proposals: list[dict], scene_type: str) -> list[dict]:
             )
             if d > max_dist:
                 max_dist = d
-                pair = (pois_with_coord[i], pois_with_coord[j])
+                (pois_with_coord[i], pois_with_coord[j])
 
     threshold = {
         "目的地型": 8.0,

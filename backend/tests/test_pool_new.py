@@ -87,7 +87,7 @@ class TestDatabasePoolNew:
         mock_session = AsyncMock()
         mock_factory = MagicMock(return_value=mock_session)
 
-        with patch.object(pool, "_session_factory", mock_factory):
+        with patch.object(pool, "_session_factory", mock_factory):  # noqa: SIM117
             with pytest.raises(RuntimeError):
                 async with pool.session_scope():
                     raise RuntimeError("boom")
@@ -196,7 +196,7 @@ class TestHTTPPoolNew:
         async def mock_request(method, url, **kwargs):
             raise httpx.ConnectError("connection refused")
 
-        with patch.object(client, "request", side_effect=mock_request):
+        with patch.object(client, "request", side_effect=mock_request):  # noqa: SIM117
             with pytest.raises(httpx.ConnectError):
                 await pool.request("GET", "http://example.com")
 

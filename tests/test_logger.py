@@ -5,11 +5,14 @@ from __future__ import annotations
 import json
 import logging
 import os
-from pathlib import Path
+from typing import TYPE_CHECKING
 from unittest.mock import patch
 
 from backend.services.log_rotation import setup_log_rotation
 from backend.services.logger import JSONFormatter, RequestLogger, get_logger, setup_logging
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 class TestJSONFormatter:

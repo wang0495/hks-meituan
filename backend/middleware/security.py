@@ -6,9 +6,12 @@
 from __future__ import annotations
 
 import os
+from typing import TYPE_CHECKING
 
-from fastapi import Request
 from starlette.middleware.base import BaseHTTPMiddleware
+
+if TYPE_CHECKING:
+    from fastapi import Request
 
 
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):

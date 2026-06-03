@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import TYPE_CHECKING
 
 from backend.agents_v3.experts.base import (
     _llm_decide,
@@ -10,7 +11,9 @@ from backend.agents_v3.experts.base import (
     _sanitize_for_prompt,
     sse_expert,
 )
-from backend.agents_v3.state import TravelState
+
+if TYPE_CHECKING:
+    from backend.agents_v3.state import TravelState
 
 
 @sse_expert("weather")
@@ -21,9 +24,8 @@ async def weather_expert(state: TravelState) -> dict:
         return {"proposals": []}
 
     candidates = state.get("expert_candidates", {}).get("weather", [])
-    intent = state.get("user_intent", {})
+    state.get("user_intent", {})
     user_input = str(state.get("user_input", ""))
-    errors: list[str] = []
 
     # Classify POIs as outdoor / indoor
     outdoor_pois: list[str] = []

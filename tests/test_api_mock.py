@@ -11,12 +11,15 @@
 from __future__ import annotations
 
 import json
+from typing import TYPE_CHECKING
 from unittest.mock import patch
 
 import pytest
-from httpx import AsyncClient
 
 from tests.factories import RouteFactory
+
+if TYPE_CHECKING:
+    from httpx import AsyncClient
 
 # ---------------------------------------------------------------------------
 # 健康检查
@@ -248,7 +251,7 @@ class TestPlanRouteMock:
 
         assert response.status_code == 200
         events = _parse_sse_events(response.text)
-        event_types = [e["event"] for e in events]
+        [e["event"] for e in events]
 
         # 至少应该有 phase 事件
         assert len(events) > 0

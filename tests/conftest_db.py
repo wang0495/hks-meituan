@@ -5,13 +5,12 @@
 
 from __future__ import annotations
 
-from collections.abc import AsyncGenerator
+from typing import TYPE_CHECKING
 
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from backend.database.base import Base
-from backend.database.models import Route, User
 from backend.database.poi_repository import POIRepository
 from backend.database.repository import (
     DialogueRepository,
@@ -20,6 +19,11 @@ from backend.database.repository import (
     UserPreferenceRepository,
     UserRepository,
 )
+
+if TYPE_CHECKING:
+    from collections.abc import AsyncGenerator
+
+    from backend.database.models import Route, User
 
 
 @pytest.fixture

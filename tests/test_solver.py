@@ -727,7 +727,7 @@ class TestPhase3Breathing:
             )
 
         intent = {"pace": "闲逛型"}
-        new_route, spots = _phase3_breathing(route, poi_pool, intent)
+        _new_route, spots = _phase3_breathing(route, poi_pool, intent)
         assert len(spots) >= 1
 
     def test_breathing_rest_poi_has_high_tranquility(self, poi_pool: list[dict]) -> None:

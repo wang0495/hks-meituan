@@ -788,7 +788,7 @@ def _ensure_food_scene_food_count(
             route_names.add(cn)
 
     # 从 food_proposals 中找未占用的、不同子类型的候选
-    needed_subcats = [s for s in _FOOD_SUBCATS_LOCAL if s not in food_subcats]
+    [s for s in _FOOD_SUBCATS_LOCAL if s not in food_subcats]
     extra = []
     for fp in food_proposals:
         if len(extra) >= 3 or len(steps) + len(extra) >= 8:
@@ -1088,8 +1088,8 @@ async def _llm_assemble_route(
    - 中间最多穿插1个散步点，不需要为了"多样性"硬塞景点/购物/文化"""
     elif scene_type == "目的地型":
         # 目的地中心坐标（从 expert_router 传入）
-        dest_center = state.get("destination_center")
-        dest_name = state.get("destination_name", "")
+        dest_center = intent.get("destination_center")
+        dest_name = intent.get("destination_name", "")
         geo_rule = ""
         if dest_center:
             geo_rule = f"\n   - 所有站点必须在目的地坐标({dest_center[0]:.2f},{dest_center[1]:.2f})10km范围内，超出范围的POI直接排除"
@@ -1667,7 +1667,7 @@ def _score_route_heuristic(
     if food_subcats:
         subcat_counts = _Counter(food_subcats)
         # 每个重复的子类扣2分
-        for sub, cnt in subcat_counts.items():
+        for _sub, cnt in subcat_counts.items():
             if cnt > 1:
                 diversity_score -= (cnt - 1) * 2
 
@@ -1999,7 +1999,7 @@ def _split_pois_by_area(
         )
         food_clusters[best].append(p)
 
-    return list(zip(poi_clusters, food_clusters))
+    return list(zip(poi_clusters, food_clusters, strict=False))
 
 
 async def _build_single_day_route(
@@ -2078,6 +2078,11 @@ async def synthesizer(state: TravelState) -> dict:
 
     proposals = list(state.get("reworked_proposals") or state.get("proposals", []))
     intent = dict(state.get("user_intent", {}))
+    # 注入目的地信息（从 expert_router 传入 state）
+    if state.get("destination_center"):
+        intent["destination_center"] = state["destination_center"]
+    if state.get("destination_name"):
+        intent["destination_name"] = state["destination_name"]
     scene_type = state.get("scene_type", "观光型")
     expert_weights = state.get("expert_weights", {})
     errors = []

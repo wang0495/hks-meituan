@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import json
 from collections import Counter
+from typing import TYPE_CHECKING
 
 from backend.agents_v3.experts.base import (
     _food_intent_hint,
@@ -25,7 +26,9 @@ from backend.agents_v3.experts.base import (
     _tag_similarity,
     sse_expert,
 )
-from backend.agents_v3.state import TravelState
+
+if TYPE_CHECKING:
+    from backend.agents_v3.state import TravelState
 
 # ---------------------------------------------------------------------------
 # Food subcategory definitions
@@ -299,7 +302,7 @@ async def food_expert(state: TravelState) -> dict:
         state_candidates = state.get("candidates", [])
         existing_names = {f.get("name", "") for f in foods}
         for c in state_candidates:
-            if any(kw in c.get("name", "") for kw in _FOOD_NAMES):
+            if any(kw in c.get("name", "") for kw in _FOOD_NAMES):  # noqa: SIM102
                 if c.get("name", "") not in existing_names:
                     foods.append(c)
                     existing_names.add(c.get("name", ""))

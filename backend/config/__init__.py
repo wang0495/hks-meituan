@@ -31,29 +31,29 @@ from backend.config.settings import (
 from backend.config.validator import ConfigValidationError, ConfigValidator, ValidationResult
 
 __all__ = [
+    # hot_reload
+    "ConfigHotReloader",
+    # manager
+    "ConfigManager",
+    "ConfigManagerError",
+    "ConfigReloadError",
+    "ConfigRollbackError",
+    "ConfigSnapshot",
+    # validator
+    "ConfigValidationError",
+    "ConfigValidator",
     # 原 config.py 导出
     "DatabaseSettings",
     "Environment",
     "IntentLLMSettings",
     "LLMSettings",
+    # pool_config
+    "PoolSettings",
     "RedisSettings",
     "SecuritySettings",
     "Settings",
-    "get_settings",
-    "settings",
-    # pool_config
-    "PoolSettings",
-    "pool_settings",
-    # hot_reload
-    "ConfigHotReloader",
-    "ConfigReloadError",
-    "ConfigRollbackError",
-    "ConfigSnapshot",
-    # manager
-    "ConfigManager",
-    "ConfigManagerError",
-    # validator
-    "ConfigValidationError",
-    "ConfigValidator",
     "ValidationResult",
+    "get_settings",
+    "pool_settings",
+    "settings",
 ]

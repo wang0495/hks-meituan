@@ -8,10 +8,13 @@ from __future__ import annotations
 
 import gzip
 import zlib
-from collections.abc import Callable
+from typing import TYPE_CHECKING
 
 from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 # 不压缩的最小字节数（小于此值压缩反而增大体积）
 _MIN_COMPRESS_SIZE = 500

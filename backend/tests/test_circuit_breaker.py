@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import contextlib
+
 import pytest
 
 from backend.services.circuit_breaker import CircuitBreaker, CircuitBreakerOpenError, CircuitState
@@ -190,9 +192,7 @@ class TestCircuitBreakerMetrics:
         cb = CircuitBreaker(failure_threshold=1, name="test")
         cb.record_failure()
         # OPEN 状态
-        try:
+        with contextlib.suppress(CircuitBreakerOpenError):
             cb.reject_if_open()
-        except CircuitBreakerOpenError:
-            pass
 
         assert cb.metrics.rejected_count == 1

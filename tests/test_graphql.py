@@ -262,7 +262,7 @@ class TestPOIQueriesViaSchema:
         poi_id = pois[0]["id"]
 
         result = await schema.execute(
-            '{ poi(id: "%s") { id name category rating emotionTags { excitement } } }' % poi_id
+            f'{{ poi(id: "{poi_id}") {{ id name category rating emotionTags {{ excitement }} }} }}'
         )
         assert result.errors is None
         assert result.data["poi"] is not None

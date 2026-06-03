@@ -19,7 +19,7 @@ from __future__ import annotations
 import logging
 import time
 from dataclasses import dataclass
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 from urllib.parse import quote_plus
 
@@ -56,7 +56,7 @@ QUOTA_LIMITS: dict[str, dict[str, int]] = {
 # ---------------------------------------------------------------------------
 
 
-class QuotaPeriod(str, Enum):
+class QuotaPeriod(StrEnum):
     """配额统计周期。"""
 
     HOURLY = "hourly"
@@ -262,7 +262,7 @@ class QuotaManager:
             return result
 
         # 所有周期都有余量，逐个递增
-        for period_str, limit in type_limits.items():
+        for period_str, _limit in type_limits.items():
             period = QuotaPeriod(period_str)
             await self._increment(user_id, quota_type, period, amount)
 

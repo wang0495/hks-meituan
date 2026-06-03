@@ -392,7 +392,7 @@ class TestSolverBudgetRhythm:
 
         # 开场 POI（第一个）应为低价（avg_price < 50）或价格合理
         first_price = route[0]["poi"].get("avg_price", 999)
-        max_pois = _MAX_POIS_BY_PACE.get(intent["pace"], 6)
+        _MAX_POIS_BY_PACE.get(intent["pace"], 6)
 
         if len(route) >= 2:
             # 至少第一个 POI 应相对便宜（开场阶段倾向于低价）

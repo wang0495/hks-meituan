@@ -26,7 +26,7 @@ import time
 from collections import deque
 from collections.abc import Callable, Coroutine
 from datetime import UTC, datetime
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 __all__ = [
@@ -47,7 +47,7 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 
 
-class CheckStatus(str, Enum):
+class CheckStatus(StrEnum):
     """单次检查结果状态。"""
 
     HEALTHY = "healthy"

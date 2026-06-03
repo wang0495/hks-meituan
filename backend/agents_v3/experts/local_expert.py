@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from typing import TYPE_CHECKING
 
 from backend.agents_v3.experts.base import (
     _llm_decide,
@@ -10,7 +11,9 @@ from backend.agents_v3.experts.base import (
     _sanitize_for_prompt,
     sse_expert,
 )
-from backend.agents_v3.state import TravelState
+
+if TYPE_CHECKING:
+    from backend.agents_v3.state import TravelState
 
 
 @sse_expert("local_expert")
@@ -23,7 +26,6 @@ async def local_expert(state: TravelState) -> dict:
     candidates = state.get("expert_candidates", {}).get("local_expert", [])
     intent = state.get("user_intent", {})
     user_input = str(state.get("user_input", ""))
-    errors: list[str] = []
 
     # Hidden gems: high rating + niche tags or LLM quality score
     hidden_gems: list[dict] = []

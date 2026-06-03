@@ -215,7 +215,7 @@ def filter_candidates(
 
     # 解析用户时间窗口（凌晨00:00的hour=0，不是None）
     user_start_h = user_start // 60
-    user_end_h = user_end // 60 if user_end > 0 else None
+    user_end // 60 if user_end > 0 else None
 
     # 判断是否跨午夜时段（如00:00-06:00）
     _crosses_midnight = user_end < user_start or user_start_h >= 22 or user_start_h <= 6
@@ -274,7 +274,7 @@ def filter_candidates(
                     # 非跨午夜POI：营业时段 [poi_open, poi_close]
                     # 对于凌晨时段(如00:00-06:00)，白天营业的POI(09:00-22:00)不覆盖
                     # 检查是否有交集
-                    if poi_open_min <= poi_close_min:
+                    if poi_open_min <= poi_close_min:  # noqa: SIM102
                         # 非跨午夜POI：只有当营业时段与用户时段有重叠才可用
                         if poi_close_min <= user_start or poi_open_min >= user_end:
                             continue  # POI营业时段不覆盖用户时段

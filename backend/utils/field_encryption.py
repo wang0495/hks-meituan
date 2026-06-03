@@ -9,10 +9,12 @@ from __future__ import annotations
 import functools
 import inspect
 import logging
-from collections.abc import Callable
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from backend.utils.encryption import EncryptionError, get_encryptor
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 logger = logging.getLogger(__name__)
 

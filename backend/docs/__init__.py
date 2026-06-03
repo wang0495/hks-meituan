@@ -12,11 +12,15 @@
 
 from __future__ import annotations
 
-from fastapi import FastAPI
+from typing import TYPE_CHECKING
+
 from fastapi.openapi.utils import get_openapi
 
 from backend.docs.config import get_openapi_examples, get_swagger_css_content
 from backend.docs.custom_swagger import register_docs_endpoints
+
+if TYPE_CHECKING:
+    from fastapi import FastAPI
 
 __all__ = [
     "custom_openapi",

@@ -7,17 +7,19 @@
 from __future__ import annotations
 
 import uuid
+from typing import TYPE_CHECKING
 
 import pytest
 
-from backend.database.models import Route, User
-from backend.database.repository import (
-    DialogueRepository,
-    RouteRepository,
-    RouteStepRepository,
-    UserPreferenceRepository,
-    UserRepository,
-)
+if TYPE_CHECKING:
+    from backend.database.models import Route, User
+    from backend.database.repository import (
+        DialogueRepository,
+        RouteRepository,
+        RouteStepRepository,
+        UserPreferenceRepository,
+        UserRepository,
+    )
 
 # ---------------------------------------------------------------------------
 # UserRepository

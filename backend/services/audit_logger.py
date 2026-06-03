@@ -10,15 +10,17 @@ import csv
 import io
 import json
 import logging
-from datetime import datetime
-from enum import Enum
+from enum import StrEnum
 from functools import wraps
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import and_, func, select
 
 from backend.database.base import async_session_factory
 from backend.database.models import AuditLog
+
+if TYPE_CHECKING:
+    from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
@@ -35,7 +37,7 @@ __all__ = [
 # ---------------------------------------------------------------------------
 
 
-class AuditAction(str, Enum):
+class AuditAction(StrEnum):
     """审计动作类型。"""
 
     CREATE = "create"

@@ -18,37 +18,39 @@ from __future__ import annotations
 
 import logging
 import threading
-from collections.abc import Callable
 from datetime import timedelta
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from backend.services.cache import distance_cache
 
 logger = logging.getLogger(__name__)
 
-from backend.services.economy import enrich_poi_economics
-from backend.services.emotion import (
+from backend.services.economy import enrich_poi_economics  # noqa: E402
+from backend.services.emotion import (  # noqa: E402
     calculate_emotion_curve,
     chemical_reaction,
     emotion_compatibility,
     fatigue_penalty,
     sensory_alternation,
 )
-from backend.services.filters import filter_candidates
-from backend.services.geo import (
+from backend.services.filters import filter_candidates  # noqa: E402
+from backend.services.geo import (  # noqa: E402
     cache_key_distance,
     cache_key_travel_time,
     poi_distance,
     poi_travel_time,
 )
-from backend.services.memory.psychology import PsychologyRules
-from backend.services.poi_scenes import audit_route, tag_poi
-from backend.services.time_utils import (
+from backend.services.memory.psychology import PsychologyRules  # noqa: E402
+from backend.services.poi_scenes import audit_route, tag_poi  # noqa: E402
+from backend.services.time_utils import (  # noqa: E402
     format_time,
     get_poi_opening_hours,
     parse_hours_to_minutes,
     parse_time,
 )
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 # ---------------------------------------------------------------------------
 # 非标体验加载（by 王启龙 2026-05-09: 集成城市特色体验到求解流程）
@@ -677,7 +679,7 @@ def _get_dynamic_phases(user_intent: dict[str, Any]) -> list[dict]:
     """
     raw = user_intent.get("_raw_input", "")
     pref_cats = user_intent.get("preferred_categories", [])
-    scene_reqs = user_intent.get("scene_requirements", [])
+    user_intent.get("scene_requirements", [])
     group = user_intent.get("group", {}).get("type", "")
 
     # 确保preferred_categories在所有阶段的cats中
@@ -1179,7 +1181,7 @@ def _select_diverse_filter_scene_requirements(
             hours = p.get("business_hours", "")
 
             # 户外/运动/景点类：24小时开放的算夜间可访问
-            if cat in _OUTDOOR_CATS:
+            if cat in _OUTDOOR_CATS:  # noqa: SIM102
                 if not hours or hours == "00:00-23:59" or "24小时" in str(p.get("tags", [])):
                     return True
             # 24h营业
@@ -1193,9 +1195,7 @@ def _select_diverse_filter_scene_requirements(
                 close_min_val = int(ch) * 60 + int(cm)
             except (ValueError, AttributeError, IndexError):
                 tags = " ".join(p.get("tags", []) + p.get("_scene_tags", []))
-                if any(kw in tags for kw in ["24小时", "通宵", "深夜", "夜市"]):
-                    return True
-                return False
+                return bool(any(kw in tags for kw in ["24小时", "通宵", "深夜", "夜市"]))
 
             # 检查POI营业时段是否覆盖用户时段
             if open_min_val <= close_min_val:
@@ -1266,7 +1266,7 @@ def _select_diverse_build_mixed_scorer(
             + " ".join(p.get("_scene_tags", []))
         )
         for constraint, keywords in _ACTIVITY_KEYWORDS.items():
-            if constraint in hard_constraints:
+            if constraint in hard_constraints:  # noqa: SIM102
                 if any(kw in poi_text for kw in keywords):
                     score += _ACTIVITY_MATCH_BONUS
                     break
@@ -2074,7 +2074,7 @@ def _enforce_category_diversity(
         return route
 
     used_ids = {s["poi"]["id"] for s in route}
-    preferred_cats = _get_preferred_categories(user_intent)
+    _get_preferred_categories(user_intent)
 
     # 检查路线中是否包含餐饮类
     has_food = any(s["poi"].get("category") == "餐饮" for s in route)
@@ -2679,14 +2679,13 @@ def solve_route(
     user_intent["_is_late_night"] = _is_late_night
 
     # 感知上下文 → 动态调整疲劳惩罚权重
-    gamma = _GAMMA
     if perception_ctx is not None:
         fatigue = getattr(perception_ctx, "fatigue_level", 0.0)
         if fatigue > 0.7:
-            gamma = _GAMMA * 3.0  # 重度疲劳：权重 3 倍
+            _GAMMA * 3.0  # 重度疲劳：权重 3 倍
             tl.gamma_multiplier = 3.0
         elif fatigue > 0.5:
-            gamma = _GAMMA * 2.0  # 中度疲劳：权重 2 倍
+            _GAMMA * 2.0  # 中度疲劳：权重 2 倍
             tl.gamma_multiplier = 2.0
         else:
             tl.gamma_multiplier = 1.0

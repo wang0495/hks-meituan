@@ -222,7 +222,7 @@ class WeightMapper:
         ]
 
         for kw, weight_name, dim, delta in rule_map:
-            if kw in hint:
+            if kw in hint:  # noqa: SIM102
                 if weight_name in self._deltas and dim in self._deltas[weight_name]:
                     self._deltas[weight_name][dim] += delta
 

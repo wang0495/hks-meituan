@@ -15,7 +15,7 @@ from __future__ import annotations
 import logging
 import time
 from collections.abc import Callable
-from enum import Enum
+from enum import StrEnum
 from functools import wraps
 from typing import Any, TypeVar
 
@@ -58,7 +58,7 @@ class CircuitBreakerOpenError(CityFlowException):
 # ---------------------------------------------------------------------------
 
 
-class CircuitState(str, Enum):
+class CircuitState(StrEnum):
     """熔断器三态。"""
 
     CLOSED = "closed"  # 正常放行
@@ -166,7 +166,7 @@ class CircuitBreaker:
     @property
     def state(self) -> CircuitState:
         """获取当前状态，OPEN 超时后自动转 HALF_OPEN。"""
-        if self._state == CircuitState.OPEN:
+        if self._state == CircuitState.OPEN:  # noqa: SIM102
             if time.monotonic() - self._last_failure_time >= self.recovery_timeout:
                 self._transition(CircuitState.HALF_OPEN)
         return self._state
@@ -209,7 +209,7 @@ class CircuitBreaker:
         self._last_failure_time = time.monotonic()
         self._metrics.record_failure()
 
-        if self._failure_count >= self.failure_threshold:
+        if self._failure_count >= self.failure_threshold:  # noqa: SIM102
             if self._state != CircuitState.OPEN:
                 self._transition(CircuitState.OPEN)
                 logger.warning(

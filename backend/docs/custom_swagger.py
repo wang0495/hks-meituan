@@ -5,7 +5,8 @@
 
 from __future__ import annotations
 
-from fastapi import FastAPI
+from typing import TYPE_CHECKING
+
 from fastapi.openapi.docs import get_redoc_html, get_swagger_ui_html
 from fastapi.responses import HTMLResponse
 
@@ -16,6 +17,9 @@ from backend.docs.config import (
     _SWAGGER_JS_URL,
     get_swagger_css_content,
 )
+
+if TYPE_CHECKING:
+    from fastapi import FastAPI
 
 
 def register_docs_endpoints(app: FastAPI) -> None:

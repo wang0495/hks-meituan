@@ -6,13 +6,16 @@
 
 from __future__ import annotations
 
-from collections.abc import AsyncGenerator
+from typing import TYPE_CHECKING
 
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from backend.database.base import Base
 from backend.database.poi_repository import POIRepository
+
+if TYPE_CHECKING:
+    from collections.abc import AsyncGenerator
 
 # ---------------------------------------------------------------------------
 # 数据库 fixtures（使用 aiosqlite 内存数据库，非 PostgreSQL）

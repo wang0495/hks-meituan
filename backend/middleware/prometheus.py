@@ -6,13 +6,17 @@
 
 from __future__ import annotations
 
+import contextlib
 import time
+from typing import TYPE_CHECKING
 
-from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from backend.monitoring.metrics import REQUEST_COUNT, REQUEST_LATENCY
 from backend.monitoring.prometheus import REQUEST_SIZE, RESPONSE_SIZE
+
+if TYPE_CHECKING:
+    from fastapi import Request, Response
 
 # 不采集指标的路径前缀和精确路径
 _EXCLUDED_PATHS: frozenset[str] = frozenset(
@@ -44,10 +48,8 @@ class PrometheusMiddleware(BaseHTTPMiddleware):
         # 估算请求体大小（Content-Length 头）
         content_length = request.headers.get("content-length")
         if content_length is not None:
-            try:
+            with contextlib.suppress(ValueError, TypeError):
                 REQUEST_SIZE.labels(method=method, endpoint=path).observe(int(content_length))
-            except (ValueError, TypeError):
-                pass
 
         response = await call_next(request)
 
@@ -60,11 +62,9 @@ class PrometheusMiddleware(BaseHTTPMiddleware):
         # 估算响应体大小（Content-Length 头）
         resp_length = response.headers.get("content-length")
         if resp_length is not None:
-            try:
+            with contextlib.suppress(ValueError, TypeError):
                 RESPONSE_SIZE.labels(method=method, endpoint=path, status=status).observe(
                     int(resp_length)
                 )
-            except (ValueError, TypeError):
-                pass
 
         return response

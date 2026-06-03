@@ -3,10 +3,13 @@
 from __future__ import annotations
 
 import logging
+from typing import TYPE_CHECKING
 
-from fastapi import Request
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import JSONResponse
+
+if TYPE_CHECKING:
+    from fastapi import Request
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +24,7 @@ class APIVersionMiddleware(BaseHTTPMiddleware):
     优先级：URL路径 > 请求头 > 默认版本
     """
 
-    SUPPORTED_VERSIONS = ["v1", "v2"]
+    SUPPORTED_VERSIONS = ["v1", "v2"]  # noqa: RUF012
     DEFAULT_VERSION = "v1"
 
     async def dispatch(self, request: Request, call_next):

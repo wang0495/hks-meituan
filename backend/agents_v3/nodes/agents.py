@@ -135,7 +135,7 @@ async def _load_all_pois() -> list[dict]:
 
 
 # LLM调用统一委托给experts/base.py
-from backend.agents_v3.experts.base import _get_llm_client, _llm_decide  # noqa: F401
+from backend.agents_v3.experts.base import _get_llm_client, _llm_decide  # noqa: F401, E402
 
 
 def _haversine_km(lat1: float, lng1: float, lat2: float, lng2: float) -> float:
@@ -206,9 +206,7 @@ def _is_likely_macau(name: str) -> bool:
     # 检测是否含大量葡萄牙语/英语（澳门POI通常中英双语）
     chinese_chars = sum(1 for c in name if "\u4e00" <= c <= "\u9fff")
     latin_chars = sum(1 for c in name if ("a" <= c <= "z") or ("A" <= c <= "Z"))
-    if latin_chars > chinese_chars and latin_chars > 5:
-        return True
-    return False
+    return bool(latin_chars > chinese_chars and latin_chars > 5)
 
 
 # 珠海知名地标（用于评分boost）
@@ -402,7 +400,7 @@ async def poi_agent(state: TravelState) -> dict:
     # 每个category按rating排序后取前N个，总共控制在~200个
     sampled = []
     per_cat = max(3, 200 // max(len(cat_groups), 1))
-    for cat, items in cat_groups.items():
+    for _cat, items in cat_groups.items():
         items.sort(key=lambda x: x.get("rating", 0), reverse=True)
         sampled.extend(items[:per_cat])
 
@@ -660,9 +658,8 @@ def _smart_poi_selection(candidates: list[dict], intent: dict, user_input: str) 
             score += 0.15
         if group_type == "情侣" and suitability.get("情侣友好"):
             score += 0.15
-        if "退休" in group_type or "养老" in group_type:
-            if suitability.get("老年友好"):
-                score += 0.15
+        if ("退休" in group_type or "养老" in group_type) and suitability.get("老年友好"):
+            score += 0.15
 
         scored.append((c, score))
 
@@ -759,9 +756,8 @@ async def food_agent(state: TravelState) -> dict:
     # 如果太少，也从candidates里找
     if len(foods) < 3:
         for c in candidates:
-            if any(kw in c.get("name", "") for kw in food_names):
-                if c not in foods:
-                    foods.append(c)
+            if any(kw in c.get("name", "") for kw in food_names) and c not in foods:
+                foods.append(c)
 
     # 提取主要景点位置（供LLM判断餐厅与景点的地理关系）
     poi_locations = []
@@ -874,7 +870,6 @@ async def food_agent(state: TravelState) -> dict:
 {intent_hint}
 输出JSON: {{"picks":[{{"name":"店名","reason":"推荐理由","confidence":0.8,"meal_time":"午餐/下午茶/晚餐"}}]}}
 选4-5个。只输出JSON。"""
-        max_food = 5
     else:
         # 观光/目的地/特种兵/休闲：餐饮是配角，选2-3家
         _GROUP_HINT = "亲子：选环境好、有儿童餐的；" if group_type == "亲子" else ""
@@ -885,7 +880,6 @@ async def food_agent(state: TravelState) -> dict:
 
 输出JSON: {{"picks":[{{"name":"店名","reason":"推荐理由（含与哪个景点就近）","confidence":0.8,"meal_time":"午餐/晚餐"}}]}}
 最多选3个。只输出JSON。"""
-        max_food = 3
 
     user = f"""用户需求: {user_input}
 场景类型: {scene_type}
@@ -1358,7 +1352,7 @@ async def weather_agent(state: TravelState) -> dict:
     await sse_emit(state, "agent_start", {"agent": "weather", **meta})
     await sse_emit(state, "agent_thinking", {"agent": "weather", "text": "评估天气对行程影响..."})
     # ── 感知 ──
-    intent = state.get("user_intent", {})
+    state.get("user_intent", {})
     user_input = state.get("user_input", "")
     candidates = state.get("candidates", [])
 

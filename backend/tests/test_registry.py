@@ -5,6 +5,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta
 
 import pytest
+from pydantic import ValidationError
 
 from backend.services.discovery import ServiceDiscovery, ServiceNotFoundError
 from backend.services.registry import ServiceInfo, ServiceRegistry
@@ -42,7 +43,7 @@ class TestServiceInfo:
         assert "last_heartbeat" in d
 
     def test_port_validation(self) -> None:
-        with pytest.raises(Exception):
+        with pytest.raises(ValidationError):
             ServiceInfo(
                 service_id="s1",
                 service_name="test-svc",

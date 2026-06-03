@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from typing import TYPE_CHECKING
 
 from backend.agents_v3.experts.base import (
     _llm_decide,
@@ -11,7 +12,9 @@ from backend.agents_v3.experts.base import (
     _sanitize_for_prompt,
     sse_expert,
 )
-from backend.agents_v3.state import TravelState
+
+if TYPE_CHECKING:
+    from backend.agents_v3.state import TravelState
 
 
 @sse_expert("hotel")

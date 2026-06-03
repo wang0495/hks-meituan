@@ -8,10 +8,12 @@ from __future__ import annotations
 
 import functools
 import logging
-from collections.abc import Callable
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from backend.errors import CityFlowException, ErrorCode, LLMServiceError
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 logger = logging.getLogger(__name__)
 
@@ -71,7 +73,7 @@ def handle_llm_errors(func: Callable) -> Callable:
             raise LLMServiceError(
                 message="LLM服务超时",
                 details={"timeout": True},
-            )
+            ) from None
         except CityFlowException:
             raise
         except Exception as e:

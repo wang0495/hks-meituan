@@ -31,7 +31,7 @@ def _get_client() -> AsyncOpenAI:
 def _build_poi_summary(pois: list[dict], max_count: int = 50) -> str:
     """将候选POI列表压缩为LLM友好的摘要格式。"""
     lines = []
-    for i, p in enumerate(pois[:max_count]):
+    for _i, p in enumerate(pois[:max_count]):
         name = p.get("name", "?")
         cat = p.get("category", "?")
         price = p.get("avg_price", 0)

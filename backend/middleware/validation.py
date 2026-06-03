@@ -8,10 +8,13 @@ from __future__ import annotations
 
 import logging
 import re
+from typing import TYPE_CHECKING
 
-from fastapi import Request
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import JSONResponse
+
+if TYPE_CHECKING:
+    from fastapi import Request
 
 logger = logging.getLogger(__name__)
 
@@ -28,7 +31,7 @@ class InputValidationMiddleware(BaseHTTPMiddleware):
     """
 
     # 需要拦截的危险模式（不区分大小写）
-    DANGEROUS_PATTERNS: list[re.Pattern] = [
+    DANGEROUS_PATTERNS: list[re.Pattern] = [  # noqa: RUF012
         re.compile(r"<script[^>]*>", re.IGNORECASE),
         re.compile(r"javascript\s*:", re.IGNORECASE),
         re.compile(r"on\w+\s*=\s*[\"']", re.IGNORECASE),
@@ -39,7 +42,7 @@ class InputValidationMiddleware(BaseHTTPMiddleware):
     ]
 
     # LLM prompt injection 模式（警告但不禁断 — 业务需要处理）
-    LLM_INJECTION_PATTERNS: list[re.Pattern] = [
+    LLM_INJECTION_PATTERNS: list[re.Pattern] = [  # noqa: RUF012
         re.compile(
             r"ignore\s+(previous|above|all)\s+(instructions?|rules?|prompts?)", re.IGNORECASE
         ),
@@ -50,10 +53,10 @@ class InputValidationMiddleware(BaseHTTPMiddleware):
     ]
 
     # 不需要检查的路径（静态文件、健康检查等）
-    SKIP_PATHS: set[str] = {"/api/health", "/docs", "/redoc", "/openapi.json"}
+    SKIP_PATHS: set[str] = {"/api/health", "/docs", "/redoc", "/openapi.json"}  # noqa: RUF012
 
     # 不需要检查 body 的 Content-Type
-    SKIP_CONTENT_TYPES: set[str] = {
+    SKIP_CONTENT_TYPES: set[str] = {  # noqa: RUF012
         "multipart/form-data",
         "application/octet-stream",
     }

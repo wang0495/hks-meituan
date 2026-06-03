@@ -158,7 +158,7 @@ class GracefulShutdown:
             # 使用 signal.signal 作为备选
             def _on_sigint(signum: int, frame: Any) -> None:
                 logger.info("收到 SIGINT 信号，触发优雅停机")
-                asyncio.ensure_future(self.shutdown())
+                asyncio.ensure_future(self.shutdown())  # noqa: RUF006
 
             signal.signal(signal.SIGINT, _on_sigint)
             logger.info("已注册 SIGINT 信号处理器（Windows）")

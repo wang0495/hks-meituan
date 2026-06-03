@@ -85,7 +85,7 @@ def _llm_cache_set(key: str, result: dict) -> None:
             del _llm_cache[k]
 
 
-from backend.agents_v3.state import AGENT_META, sse_emit
+from backend.agents_v3.state import AGENT_META, sse_emit  # noqa: E402
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -165,11 +165,11 @@ def _get_ml_scanner():
     _ML_SCANNER_LOADED = True
     try:
         # Quick local-cache check — skip if model not already downloaded
-        from pathlib import Path as _P
+        from pathlib import Path as _Path
 
         from llm_guard.input_scanners import PromptInjection
 
-        _hf_cache = _P.home() / ".cache" / "huggingface" / "hub"
+        _hf_cache = _Path.home() / ".cache" / "huggingface" / "hub"
         _cached = (
             any("prompt-injection" in p.name for p in _hf_cache.glob("models--*"))
             if _hf_cache.exists()
@@ -555,9 +555,7 @@ def _is_likely_macau(name: str) -> bool:
     # Check for heavy Latin content (Macau POIs are often bilingual)
     chinese_chars = sum(1 for c in name if "\u4e00" <= c <= "\u9fff")
     latin_chars = sum(1 for c in name if ("a" <= c <= "z") or ("A" <= c <= "Z"))
-    if latin_chars > chinese_chars and latin_chars > 5:
-        return True
-    return False
+    return bool(latin_chars > chinese_chars and latin_chars > 5)
 
 
 # ---------------------------------------------------------------------------

@@ -7,8 +7,10 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from collections.abc import Callable, Coroutine
-from typing import Any, TypeVar
+from typing import TYPE_CHECKING, Any, TypeVar
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Coroutine
 
 logger = logging.getLogger(__name__)
 
@@ -20,7 +22,7 @@ T = TypeVar("T")
 # ---------------------------------------------------------------------------
 
 
-async def parallel_filter(
+async def parallel_filter[T](
     items: list[T],
     filter_func: Callable[[T], Coroutine[Any, Any, bool]],
     max_workers: int = 4,
@@ -83,7 +85,7 @@ async def parallel_solve(
 # ---------------------------------------------------------------------------
 
 
-async def parallel_map(
+async def parallel_map[T](
     items: list[T],
     func: Callable[[T], Coroutine[Any, Any, Any]],
     max_workers: int = 4,
@@ -112,7 +114,7 @@ async def parallel_map(
 # ---------------------------------------------------------------------------
 
 
-async def with_timeout(
+async def with_timeout[T](
     coro: Coroutine[Any, Any, T],
     timeout_seconds: float = 10.0,
     fallback: T | None = None,
