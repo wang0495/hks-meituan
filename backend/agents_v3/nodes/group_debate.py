@@ -165,24 +165,10 @@ async def _llm_debate_round(
     return []
 
 
-async def group_debate(state: TravelState) -> dict:
-    """三阶段群聊 — Phase 2: 结构化约束反驳。
-
-    接收Phase 1各Agent并行提案 → 检测冲突 → 反驳/修正 → 输出清洁提案。
-    """
-    proposals = list(state.get("proposals", []))
-    intent = state.get("user_intent", {})
-    user_input = state.get("user_input", "")
-
-    if not proposals:
-        return {"proposals": [], "negotiation_msgs": [], "conflicts": []}
-
-    # ── Step 1: 规则层冲突检测（纯规则，不调LLM） ──
-    rule_conflicts = _detect_rule_conflicts(proposals, intent)
-
-    # ── Step 2: 执行规则层决议 ──
-    remove_names = set()
-    negotiation_msgs = []
+def _execute_rule_conflicts(proposals: list[dict], rule_conflicts: list[dict]) -> tuple[set[str], list[dict]]:
+    """执行规则层决议，返回 (remove_names, negotiation_msgs)。"""
+    remove_names: set[str] = set()
+    msgs: list[dict] = []
 
     for c in rule_conflicts:
         resolution = c.get("resolution", "")
@@ -190,90 +176,58 @@ async def group_debate(state: TravelState) -> dict:
 
         if resolution in ("remove", "remove_food"):
             remove_names.add(target)
-            negotiation_msgs.append(
-                {
-                    "type": c["type"],
-                    "from": c.get("challenger", "rule"),
-                    "message": f"[规则驳回] {c['issue']} → 移除 {target}",
-                    "severity": c.get("severity", "medium"),
-                }
-            )
+            msgs.append({"type": c["type"], "from": c.get("challenger", "rule"), "message": f"[规则驳回] {c['issue']} → 移除 {target}", "severity": c.get("severity", "medium")})
         elif resolution == "suggest_cheaper":
-            # 降级而非移除（标记低置信度）
             for p in proposals:
                 if p.get("content", {}).get("name", "") == target:
                     p["confidence"] = min(p.get("confidence", 0.5), 0.3)
                     p["reasoning"] = f"[预算警告] {p.get('reasoning', '')}"
-            negotiation_msgs.append(
-                {
-                    "type": "budget",
-                    "from": "rule_guard",
-                    "message": f"[预算警告] {c['issue']} → 降低 {target} 优先级",
-                    "severity": "medium",
-                }
-            )
+            msgs.append({"type": "budget", "from": "rule_guard", "message": f"[预算警告] {c['issue']} → 降低 {target} 优先级", "severity": "medium"})
 
-    # 应用移除
-    cleaned = [p for p in proposals if p.get("content", {}).get("name", "") not in remove_names]
+    return remove_names, msgs
 
-    # ── Step 3: LLM结构化反驳（1轮） ──
-    debate_results = []
-    try:
-        debate_results = await _llm_debate_round(cleaned, rule_conflicts, intent, user_input)
-    except Exception:
-        logger.debug("LLM debate round failed, using rule-layer results only", exc_info=True)
 
-    # 执行LLM反驳决议
+def _execute_debate_results(cleaned: list[dict], debate_results: list[dict], negotiation_msgs: list[dict]) -> list[dict]:
+    """执行LLM反驳决议。"""
     for d in debate_results:
         resolution = d.get("resolution", "keep")
         target = d.get("target_name", "")
 
         if resolution == "remove" and target:
             cleaned = [p for p in cleaned if p.get("content", {}).get("name", "") != target]
-            negotiation_msgs.append(
-                {
-                    "type": d.get("conflict_type", ""),
-                    "from": d.get("challenger", "debate"),
-                    "message": f"[反驳移除] {d.get('reason', '')} → 移除 {target}",
-                    "severity": "medium",
-                }
-            )
+            negotiation_msgs.append({"type": d.get("conflict_type", ""), "from": d.get("challenger", "debate"), "message": f"[反驳移除] {d.get('reason', '')} → 移除 {target}", "severity": "medium"})
         elif resolution == "swap" and target:
-            # 标记为需替换（coordinator从candidates中找替代）
             for p in cleaned:
                 if p.get("content", {}).get("name", "") == target:
-                    p["confidence"] = min(p.get("confidence", 0.5), 0.2)
-                    p["_swap_hint"] = d.get("swap_hint", "")
-                    p["reasoning"] = f"[待替换] {d.get('reason', '')}"
-            negotiation_msgs.append(
-                {
-                    "type": d.get("conflict_type", ""),
-                    "from": d.get("challenger", "debate"),
-                    "message": f"[反驳替换] {d.get('reason', '')} → 建议替换 {target}",
-                    "severity": "medium",
-                }
-            )
-        elif resolution == "keep":
-            negotiation_msgs.append(
-                {
-                    "type": d.get("conflict_type", ""),
-                    "from": d.get("challenger", "debate"),
-                    "message": f"[标记保留] {d.get('reason', '')} → {target}",
-                    "severity": "low",
-                }
-            )
+                    p["_needs_swap"] = True
+                    negotiation_msgs.append({"type": d.get("conflict_type", ""), "from": d.get("challenger", "debate"), "message": f"[反驳替换] {d.get('reason', '')} → 替换 {target}", "severity": "medium"})
+                    break
+    return cleaned
+
+
+async def group_debate(state: TravelState) -> dict:
+    """三阶段群聊 — Phase 2: 结构化约束反驳。"""
+    proposals = list(state.get("proposals", []))
+    intent = state.get("user_intent", {})
+    user_input = state.get("user_input", "")
+
+    if not proposals:
+        return {"proposals": [], "negotiation_msgs": [], "conflicts": []}
+
+    rule_conflicts = _detect_rule_conflicts(proposals, intent)
+    remove_names, negotiation_msgs = _execute_rule_conflicts(proposals, rule_conflicts)
+    cleaned = [p for p in proposals if p.get("content", {}).get("name", "") not in remove_names]
+
+    debate_results = []
+    try:
+        debate_results = await _llm_debate_round(cleaned, rule_conflicts, intent, user_input)
+    except Exception:
+        logger.debug("LLM debate round failed, using rule-layer results only", exc_info=True)
+
+    cleaned = _execute_debate_results(cleaned, debate_results, negotiation_msgs)
 
     return {
+        "proposals": cleaned,
         "negotiation_msgs": negotiation_msgs,
-        "conflicts": rule_conflicts
-        + [
-            {
-                "type": d.get("conflict_type", ""),
-                "target_name": d.get("target_name", ""),
-                "resolution": d.get("resolution", "keep"),
-                "severity": "medium",
-            }
-            for d in debate_results
-            if d.get("resolution") in ("remove", "swap")
-        ],
+        "conflicts": rule_conflicts + [{"type": d.get("conflict_type", ""), "target_name": d.get("target_name", ""), "resolution": d.get("resolution", "keep"), "severity": "medium"} for d in debate_results if d.get("resolution") in ("remove", "swap")],
     }
