@@ -333,80 +333,59 @@ def _is_food_poi(p: dict) -> bool:
     return cat in _FOOD_CATS or any(kw in name for kw in _FOOD_NAME_PARTS)
 
 
-async def _detect_destination_center(
-    user_input: str, candidates: list[dict]
-) -> tuple[str | None, tuple[float, float] | None]:
-    """LLM 从候选 POI 中识别用户的目的地，返回 (名称, 坐标) 或 (None, None)。"""
-    # Level 1: 硬编码关键词（常见目的地零延迟）
-    for name_kw, coords in _DEST_COORDS.items():
-        if name_kw in user_input:
-            return name_kw, coords
+_SCENIC_WORDS = {"温泉", "乐园", "沙滩", "大桥", "公园", "景区", "海洋", "王国", "岛屿", "古镇", "博物馆", "水城", "创新方", "海泉湾"}
 
-    # Level 2: 从全量 POI 中模糊匹配
-    _SCENIC_WORDS = {
-        "温泉",
-        "乐园",
-        "沙滩",
-        "大桥",
-        "公园",
-        "景区",
-        "海洋",
-        "王国",
-        "岛屿",
-        "古镇",
-        "博物馆",
-        "水城",
-        "创新方",
-        "海泉湾",
-    }
+
+def _fuzzy_match_destination(user_input: str, candidates: list[dict]) -> tuple[str | None, tuple[float, float] | None]:
+    """从候选POI中模糊匹配目的地。"""
     best_match = None
     best_score = 0
+
     for p in candidates:
         name = p.get("name", "")
         lat, lng = p.get("lat"), p.get("lng")
         if not lat or not lng or len(name) < 2:
             continue
-        # POI 名完全出现在 user_input 里（最强匹配）
+
         if name in user_input:
             score = len(name) * 20 + 200
             if score > best_score:
                 best_match = (name, (float(lat), float(lng)))
                 best_score = score
             continue
-        # user_input 的2-5字片段出现在 POI 名里
+
         for flen in range(min(5, len(user_input)), 1, -1):
             for si in range(len(user_input) - flen + 1):
                 frag = user_input[si : si + flen]
                 if frag in name and len(frag) >= 2:
-                    # 景点名匹配大幅加分，普通词匹配低分
                     is_scenic = any(w in frag for w in _SCENIC_WORDS)
                     score = len(frag) * 10 + (200 if is_scenic else 10 if len(frag) >= 3 else 0)
                     if score > best_score:
                         best_match = (name, (float(lat), float(lng)))
                         best_score = score
                     break
-    if best_match:
-        return best_match
 
-    # Level 3: LLM 检测（兜底）
-    top_pois = [
-        {"name": p.get("name", ""), "category": p.get("category", ""), "rating": p.get("rating", 0)}
-        for p in candidates[:80]
-        if p.get("lat") and p.get("lng") and p.get("rating", 0) >= 3.5
-    ]
+    return best_match
+
+
+async def _detect_destination_center(
+    user_input: str, candidates: list[dict]
+) -> tuple[str | None, tuple[float, float] | None]:
+    """LLM 从候选 POI 中识别用户的目的地，返回 (名称, 坐标) 或 (None, None)。"""
+    for name_kw, coords in _DEST_COORDS.items():
+        if name_kw in user_input:
+            return name_kw, coords
+
+    match = _fuzzy_match_destination(user_input, candidates)
+    if match:
+        return match
+
+    top_pois = [{"name": p.get("name", ""), "category": p.get("category", ""), "rating": p.get("rating", 0)} for p in candidates[:80] if p.get("lat") and p.get("lng") and p.get("rating", 0) >= 3.5]
     if not top_pois:
         return None, None
 
-    # LLM 检测目的地
     from backend.agents_v3.experts.base import _llm_decide
-
-    result = await _llm_decide(
-        "你是旅行目的地检测器。从用户输入中识别想去的具体目的地名称。只输出JSON。",
-        f"用户输入：{user_input}\n候选POI：{[p['name'] for p in top_pois[:20]]}\n输出JSON: {{\"destination\": \"目的地名称或null\"}}",
-        prefix="LLM",
-        temperature=0.05,
-        retries=2,
-    )
+    result = await _llm_decide("你是旅行目的地检测器。从用户输入中识别想去的具体目的地名称。只输出JSON。", f"用户输入：{user_input}\n候选POI：{[p['name'] for p in top_pois[:20]]}\n输出JSON: {{\"destination\": \"目的地名称或null\"}}", prefix="LLM", temperature=0.05, retries=2)
 
     if not result or not result.get("destination"):
         return None, None
