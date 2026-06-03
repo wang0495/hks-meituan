@@ -262,6 +262,30 @@ body::before {
   transform: none;
 }
 
+/* Stop Button */
+.search-wrap .stop-btn {
+  position: absolute;
+  right: 6px; top: 50%;
+  transform: translateY(-50%);
+  width: 38px; height: 38px;
+  border-radius: 10px;
+  border: none;
+  background: var(--coral);
+  color: #fff;
+  font-size: 16px;
+  cursor: pointer;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.25s var(--ease);
+}
+
+.search-wrap .stop-btn:hover {
+  background: #c94a3a;
+  transform: translateY(-50%) scale(1.05);
+  box-shadow: 0 4px 12px rgba(232,97,77,0.4);
+}
+
 /* Quick Tags */
 .quick-tags { display: flex; flex-wrap: wrap; gap: 6px; }
 
@@ -1021,6 +1045,7 @@ body::before {
         <div class="search-wrap">
           <input type="text" id="userInput" placeholder="描述你的出行需求..." autocomplete="off">
           <button class="send-btn" id="sendBtn" onclick="submitPlan()">→</button>
+          <button class="stop-btn" id="stopBtn" onclick="stopPlan()">■</button>
         </div>
         <div class="quick-tags">
           <button class="quick-tag" onclick="fillInput('情侣珠海一日游，预算500元')">💑 情侣游</button>
@@ -1059,7 +1084,7 @@ const API_BASE = window.location.origin;
 const state = {
   steps: [], currentDay: 1, totalDays: 1,
   multiRoutes: [], routeId: null, isPlanning: false,
-  canvas: null,
+  canvas: null, abortController: null,
 };
 
 function fillInput(t) {
@@ -1174,14 +1199,16 @@ function drawRouteOnCanvas(valid) {
   ctx.stroke();
   ctx.setLineDash([]);
 
-  // Draw arrows between points
+  // Draw arrows between points (near destination end)
   for (let i = 0; i < valid.length - 1; i++) {
     const [x1, y1] = toXY(valid[i].poi.lng, valid[i].poi.lat);
     const [x2, y2] = toXY(valid[i + 1].poi.lng, valid[i + 1].poi.lat);
-    const mx = (x1 + x2) / 2, my = (y1 + y2) / 2;
     const angle = Math.atan2(y2 - y1, x2 - x1);
+    const arrowDist = 22;
+    const ax = x2 - arrowDist * Math.cos(angle);
+    const ay = y2 - arrowDist * Math.sin(angle);
     ctx.save();
-    ctx.translate(mx, my);
+    ctx.translate(ax, ay);
     ctx.rotate(angle);
     ctx.fillStyle = '#e8614d';
     ctx.beginPath();
@@ -1590,6 +1617,15 @@ function handleSSE(type, data) {
   switch(type) {
     case 'chat': hideTyping(); addChatMsg(data.text, 'system'); break;
     case 'phase': updateTyping(data.message||'处理中...'); break;
+    case 'searching':
+      hideTyping();
+      if (data.preview && data.preview.length > 0) {
+        const names = data.preview.map(p => `${p.name}(${p.category})`).join('、');
+        addChatMsg(`🔍 ${data.message}，热门候选：${names}`, 'system');
+      } else {
+        addChatMsg(`🔍 ${data.message}`, 'system');
+      }
+      break;
     case 'agent_start':
       setAgentState(data.agent, 'active');
       updateTyping(data.text || `${AGENTS.find(a=>a.id===data.agent)?.name || data.agent} 正在工作...`);
@@ -1645,7 +1681,7 @@ case 'step':
             const route = fd.route || fd;
             state.steps = route.route || route.steps || [];
             console.log('[CityFlow] day 1 steps:', state.steps.length);
-            renderAllSteps(state.steps, 1);
+            renderAllSteps(state.steps);
             renderRouteOnMap(state.steps);
           }
         } else {
@@ -1659,16 +1695,34 @@ case 'step':
       }
       renderStats(state.steps);
       state.isPlanning = false;
+      document.getElementById('sendBtn').style.display = 'flex';
       document.getElementById('sendBtn').disabled = false;
+      document.getElementById('stopBtn').style.display = 'none';
       addChatMsg(`✅ 路线规划完成！共 ${state.steps.length} 站`);
       break;
     case 'error':
       hideTyping();
       addChatMsg('❌ ' + (data.error||'规划失败'));
       state.isPlanning = false;
+      document.getElementById('sendBtn').style.display = 'flex';
       document.getElementById('sendBtn').disabled = false;
+      document.getElementById('stopBtn').style.display = 'none';
       break;
   }
+}
+
+// ── Stop Plan ──
+function stopPlan() {
+  if (state.abortController) {
+    state.abortController.abort();
+  }
+  if (heartbeat) clearInterval(heartbeat);
+  hideTyping();
+  state.isPlanning = false;
+  document.getElementById('sendBtn').style.display = 'flex';
+  document.getElementById('sendBtn').disabled = false;
+  document.getElementById('stopBtn').style.display = 'none';
+  addChatMsg('⏹ 已停止规划');
 }
 
 // ── Submit Plan ──
@@ -1678,7 +1732,8 @@ async function submitPlan() {
   if (!text || state.isPlanning) return;
 
   state.isPlanning = true;
-  document.getElementById('sendBtn').disabled = true;
+  document.getElementById('sendBtn').style.display = 'none';
+  document.getElementById('stopBtn').style.display = 'flex';
   state.steps=[]; state.multiRoutes=[]; state.currentDay=1; state.totalDays=1;
   lastRenderedStep = -1;
   currentPlanVersion++;
@@ -1694,9 +1749,11 @@ async function submitPlan() {
 
   let heartbeat = null;
   try {
+    state.abortController = new AbortController();
     const resp = await fetch(`${API_BASE}/api/plan`, {
       method:'POST', headers:{'Content-Type':'application/json'},
       body: JSON.stringify({user_input:text}),
+      signal: state.abortController.signal,
     });
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
 
@@ -1733,7 +1790,9 @@ async function submitPlan() {
     if (heartbeat) clearInterval(heartbeat);
     hideTyping();
     state.isPlanning = false;
+    document.getElementById('sendBtn').style.display = 'flex';
     document.getElementById('sendBtn').disabled = false;
+    document.getElementById('stopBtn').style.display = 'none';
   }
 }
 

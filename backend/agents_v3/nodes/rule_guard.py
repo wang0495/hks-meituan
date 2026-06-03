@@ -62,6 +62,23 @@ async def rule_guard(state: TravelState) -> dict:
 
     await sse_emit(state, "agent_result", {"agent": "rule_guard", "summary": f"意图已解析，{len(candidates)}个候选POI"})
 
+    # ── 提前推送候选POI预览（ADR-PERF：用户3-5秒内看到真实POI名称） ──
+    if candidates:
+        top_preview = sorted(candidates, key=lambda p: float(p.get("rating", 0)), reverse=True)[:6]
+        await sse_emit(state, "searching", {
+            "message": f"已找到 {len(candidates)} 个候选地点",
+            "preview": [
+                {"name": p.get("name", ""), "category": p.get("category", ""), "rating": p.get("rating", 0)}
+                for p in top_preview
+            ],
+            "intent_summary": {
+                "city": user_intent.get("city", "珠海"),
+                "period": user_intent.get("time", {}).get("period", "全天"),
+                "pace": user_intent.get("pace", "平衡型"),
+                "group": user_intent.get("group", {}).get("type", "独居"),
+            },
+        })
+
     return {
         "user_intent": user_intent,
         "candidates": candidates,
