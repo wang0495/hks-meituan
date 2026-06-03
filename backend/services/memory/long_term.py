@@ -18,8 +18,12 @@ from __future__ import annotations
 import json
 import logging
 from collections import Counter
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 from datetime import datetime
-from typing import Any, Callable
+from typing import TYPE_CHECKING, Any, ClassVar
 
 logger = logging.getLogger(__name__)
 
@@ -389,8 +393,14 @@ class LongTermMemory:
         dimensions = [
             ("weather_patterns", lambda t: t.get("context", {}).get("weather", "unknown")),
             ("season_patterns", lambda t: t.get("context", {}).get("season", "unknown")),
-            ("day_type_patterns", lambda t: t.get("context", {}).get("holiday", {}).get("day_type", "workday")),
-            ("temperature_patterns", lambda t: t.get("context", {}).get("temperature_level", "comfortable")),
+            (
+                "day_type_patterns",
+                lambda t: t.get("context", {}).get("holiday", {}).get("day_type", "workday"),
+            ),
+            (
+                "temperature_patterns",
+                lambda t: t.get("context", {}).get("temperature_level", "comfortable"),
+            ),
             ("period_patterns", lambda t: t.get("context", {}).get("period", "morning")),
         ]
 
@@ -400,7 +410,11 @@ class LongTermMemory:
 
         holiday_groups: dict[str, list] = {"holiday": [], "non_holiday": []}
         for trip in history:
-            key = "holiday" if trip.get("context", {}).get("holiday", {}).get("is_holiday") else "non_holiday"
+            key = (
+                "holiday"
+                if trip.get("context", {}).get("holiday", {}).get("is_holiday")
+                else "non_holiday"
+            )
             holiday_groups[key].append(trip)
         patterns["holiday_patterns"] = {k: analyze(v) for k, v in holiday_groups.items()}
 
@@ -414,7 +428,7 @@ class LongTermMemory:
 
         return patterns
 
-    _CATEGORY_TO_DIM: dict[str, str] = {
+    _CATEGORY_TO_DIM: ClassVar[dict[str, str]] = {
         "文化": "culture",
         "景点": "culture",
         "餐饮": "food",

@@ -1200,9 +1200,7 @@ def _get_scene_match_count(poi_text: str, scene_requirements: list[str]) -> int:
     """计算POI文本匹配的场景需求数量。"""
     matched = 0
     for sr in scene_requirements:
-        if sr in poi_text:
-            matched += 1
-        elif any(syn in poi_text for syn in _SCENE_SYNONYMS.get(sr, [])):
+        if sr in poi_text or any(syn in poi_text for syn in _SCENE_SYNONYMS.get(sr, [])):
             matched += 1
     return matched
 
