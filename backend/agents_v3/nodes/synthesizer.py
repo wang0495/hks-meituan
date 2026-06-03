@@ -399,86 +399,63 @@ def _build_category_vector(cat: str) -> float:
     return _GROUPS.get(cat, 0.5)
 
 
-def _dpp_rerank_route(route: dict, scene_type: str) -> dict:
-    """用DPP对路线步骤做多样性重排。
+def _recalc_route_times(steps: list[dict]) -> list[dict]:
+    """重新计算路线中各步骤的到达/离开时间。"""
+    if not steps:
+        return steps
 
-    核心思路：构建核矩阵L，对角线=POI质量分，非对角线=类型相似度。
-    DPP贪心选择最大化det(L_S)的子集 → 天然平衡质量和多样性。
-    """
-    steps = route.get("route", [])
-    if len(steps) <= 3:
-        return route  # 太少不重排
-
-    n = len(steps)
-
-    # 构建核矩阵
-    kernel = np.zeros((n, n))
-    for i in range(n):
-        poi_i = steps[i].get("poi", {})
-        # 对角线：质量分（rating或固定值）
-        rating = poi_i.get("rating", 4.0)
-        price = poi_i.get("avg_price", 0)
-        # 价格>0说明是消费场所，权重稍低
-        quality = rating / 5.0
-        if price == 0:
-            quality = min(quality * 1.1, 1.0)  # 免费景点加分
-        kernel[i, i] = quality
-
-    for i in range(n):
-        cat_i = steps[i].get("poi", {}).get("_display_category") or steps[i].get("poi", {}).get(
-            "category", ""
-        )
-        val_i = _build_category_vector(cat_i)
-        for j in range(i + 1, n):
-            cat_j = steps[j].get("poi", {}).get("_display_category") or steps[j].get("poi", {}).get(
-                "category", ""
-            )
-            val_j = _build_category_vector(cat_j)
-            # 同类型→相似度高→DPP倾向于只选一个
-            # 不同类型→相似度低→DPP倾向于都选
-            similarity = max(0, 1.0 - abs(val_i - val_j) * 2)  # 0~1
-            # 同category额外惩罚
-            if cat_i == cat_j:
-                similarity = 0.9
-            quality_avg = (kernel[i, i] + kernel[j, j]) / 2
-            kernel[i, j] = similarity * quality_avg
-            kernel[j, i] = kernel[i, j]
-
-    # DPP选择（保留全部步骤，只是重排序）
-    selected = _dpp_select(kernel, n)
-
-    # 按DPP选择顺序重排
-    reordered = [steps[i] for i in selected]
-
-    # 重新计算到达/离开时间
-    start_time_str = reordered[0].get("arrival_time", "09:00") if reordered else "09:00"
+    start_time_str = steps[0].get("arrival_time", "09:00")
     try:
         t = datetime.strptime(start_time_str, "%H:%M")
     except ValueError:
         t = datetime.strptime("09:00", "%H:%M")
 
     prev_lat, prev_lng = 0.0, 0.0
-    for step in reordered:
+    for step in steps:
         poi = step.get("poi", {})
         lat, lng = poi.get("lat", 0), poi.get("lng", 0)
-        # 旅行时间
-        if prev_lat and lat:
-            dist = _haversine_km(prev_lat, prev_lng, lat, lng)
-            travel = max(5, min(60, int(dist * 8)))
-        else:
-            travel = 15
+        travel = max(5, min(60, int(_haversine_km(prev_lat, prev_lng, lat, lng) * 8))) if prev_lat and lat else 15
 
         t = t + timedelta(minutes=travel)
-        stay = int(poi.get("avg_stay_min", 90))
-        # 餐饮停留50分钟
-        if step.get("_type") in ("lunch", "dinner"):
-            stay = 50
+        stay = 50 if step.get("_type") in ("lunch", "dinner") else int(poi.get("avg_stay_min", 90))
         step["arrival_time"] = t.strftime("%H:%M")
         step["departure_time"] = (t + timedelta(minutes=stay)).strftime("%H:%M")
         step["travel_from_prev"] = {"distance_m": travel * 120, "time_min": travel}
         t = t + timedelta(minutes=stay)
         prev_lat, prev_lng = lat, lng
 
+    return steps
+
+
+def _dpp_rerank_route(route: dict, scene_type: str) -> dict:
+    """用DPP对路线步骤做多样性重排。"""
+    steps = route.get("route", [])
+    if len(steps) <= 3:
+        return route
+
+    n = len(steps)
+    kernel = np.zeros((n, n))
+
+    for i in range(n):
+        poi_i = steps[i].get("poi", {})
+        quality = poi_i.get("rating", 4.0) / 5.0
+        if poi_i.get("avg_price", 0) == 0:
+            quality = min(quality * 1.1, 1.0)
+        kernel[i, i] = quality
+
+    for i in range(n):
+        cat_i = steps[i].get("poi", {}).get("_display_category") or steps[i].get("poi", {}).get("category", "")
+        val_i = _build_category_vector(cat_i)
+        for j in range(i + 1, n):
+            cat_j = steps[j].get("poi", {}).get("_display_category") or steps[j].get("poi", {}).get("category", "")
+            val_j = _build_category_vector(cat_j)
+            similarity = 0.9 if cat_i == cat_j else max(0, 1.0 - abs(val_i - val_j) * 2)
+            quality_avg = (kernel[i, i] + kernel[j, j]) / 2
+            kernel[i, j] = similarity * quality_avg
+            kernel[j, i] = kernel[i, j]
+
+    selected = _dpp_select(kernel, n)
+    reordered = _recalc_route_times([steps[i] for i in selected])
     reordered = _dedup_route(reordered)
     reordered = _enforce_time_windows(reordered)
 
