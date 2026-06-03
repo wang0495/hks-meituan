@@ -1261,6 +1261,28 @@ def _select_diverse_build_mixed_scorer(
     return _mixed_score
 
 
+def _select_from_categories(
+    by_category: dict[str, list[dict]],
+    cats: list[str],
+    excluded_cats: set[str],
+    per_cat_max: int,
+    max_candidates: int,
+    mixed_score: Callable[[dict], float],
+    selected: list[dict],
+    used_ids: set[str],
+) -> None:
+    """从指定category列表中选择POI。"""
+    for cat in cats:
+        if cat in excluded_cats or cat not in by_category:
+            continue
+        pois_in_cat = by_category[cat]
+        pois_in_cat.sort(key=mixed_score, reverse=True)
+        for p in pois_in_cat[:per_cat_max]:
+            if p["id"] not in used_ids and len(selected) < max_candidates:
+                selected.append(p)
+                used_ids.add(p["id"])
+
+
 def _select_diverse_select_by_category(
     quality_pois: list[dict[str, Any]],
     preferred_cats: list[str],
@@ -1273,7 +1295,6 @@ def _select_diverse_select_by_category(
 
     确保至少包含餐饮类POI（提升类别多样性）。
     """
-    # 按category分组
     by_category: dict[str, list[dict]] = {}
     for poi in quality_pois:
         cat = poi.get("category", "其他")
@@ -1281,47 +1302,24 @@ def _select_diverse_select_by_category(
             continue
         by_category.setdefault(cat, []).append(poi)
 
-    # 每个category上限
-    _scene_reqs_for_diversity = user_intent.get("scene_requirements", [])
-    if _scene_reqs_for_diversity:
-        max_cat_ratio = _MAX_CAT_RATIO_WITH_SCENE
-    else:
-        max_cat_ratio = _MAX_CAT_RATIO_DEFAULT
+    _scene_reqs = user_intent.get("scene_requirements", [])
+    max_cat_ratio = _MAX_CAT_RATIO_WITH_SCENE if _scene_reqs else _MAX_CAT_RATIO_DEFAULT
     per_cat_max = max(2, int(max_candidates * max_cat_ratio))
 
     selected: list[dict] = []
     used_ids: set[str] = set()
 
-    # 先从最匹配的category中选
-    for cat in preferred_cats:
-        if cat in excluded_cats or cat not in by_category:
-            continue
-        pois_in_cat = by_category[cat]
-        pois_in_cat.sort(key=mixed_score, reverse=True)
-        for p in pois_in_cat[:per_cat_max]:
-            if p["id"] not in used_ids:
-                selected.append(p)
-                used_ids.add(p["id"])
+    # 从preferred cats中选择
+    _select_from_categories(by_category, preferred_cats, excluded_cats, per_cat_max, max_candidates, mixed_score, selected, used_ids)
 
-    # 如果不够，从其他category补充
+    # 从other cats中补充
     if len(selected) < max_candidates:
-        for cat, pois_in_cat in by_category.items():
-            if cat in excluded_cats or cat in preferred_cats:
-                continue
-            already = sum(1 for s in selected if s.get("category", "") == cat)
-            remaining_quota = max(0, per_cat_max - already)
-            pois_in_cat.sort(key=mixed_score, reverse=True)
-            for p in pois_in_cat[: min(2, remaining_quota)]:
-                if p["id"] not in used_ids and len(selected) < max_candidates:
-                    selected.append(p)
-                    used_ids.add(p["id"])
+        other_cats = [cat for cat in by_category if cat not in excluded_cats and cat not in preferred_cats]
+        _select_from_categories(by_category, other_cats, excluded_cats, 2, max_candidates, mixed_score, selected, used_ids)
 
-    # 确保包含餐饮类POI（提升类别多样性）
-    has_food = any(s.get("category") == "餐饮" for s in selected)
-    if not has_food and "餐饮" in by_category:
-        food_pois = by_category["餐饮"]
-        food_pois.sort(key=mixed_score, reverse=True)
-        # 添加1-2个餐饮POI
+    # 确保包含餐饮类POI
+    if not any(s.get("category") == "餐饮" for s in selected) and "餐饮" in by_category:
+        food_pois = sorted(by_category["餐饮"], key=mixed_score, reverse=True)
         for p in food_pois[:2]:
             if p["id"] not in used_ids and len(selected) < max_candidates:
                 selected.append(p)
