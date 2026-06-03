@@ -554,30 +554,29 @@ def _must_keep_core_pois(
     return route
 
 
-def _ensure_poi_in_route(route: dict, poi_proposals: list[dict], intent: dict) -> dict:
-    if not route or not route.get("route") or not poi_proposals:
-        return route
-
-    steps = route["route"]
-
-    # 美食型不需要强制补景点POI（路线以餐饮为主）
-    scene_type = intent.get("scene_type", "")
-    if scene_type == "美食型":
-        return route
-
-    steps = route["route"]
-    route_names = set()
+def _get_route_name_set(steps: list[dict]) -> set[str]:
+    """获取路线中所有POI名称集合（含canonical名）。"""
+    names: set[str] = set()
     for s in steps:
         n = s.get("poi", {}).get("name", "")
-        route_names.add(n)
-        route_names.add(_canonical_name(n))
+        names.add(n)
+        c = _canonical_name(n)
+        if c != n:
+            names.add(c)
+    return names
 
-    missing = []
-    for pp in poi_proposals:
-        name = pp.get("content", {}).get("name", "")
-        if not any(name in rn or rn in name for rn in route_names):
-            missing.append(pp)
 
+def _ensure_poi_in_route(route: dict, poi_proposals: list[dict], intent: dict) -> dict:
+    """确保路线中包含指定POI。"""
+    if not route or not route.get("route") or not poi_proposals:
+        return route
+    if intent.get("scene_type", "") == "美食型":
+        return route
+
+    steps = route["route"]
+    route_names = _get_route_name_set(steps)
+
+    missing = [pp for pp in poi_proposals if not any(pp.get("content", {}).get("name", "") in rn or rn in pp.get("content", {}).get("name", "") for rn in route_names)]
     if not missing:
         return route
 
@@ -586,40 +585,23 @@ def _ensure_poi_in_route(route: dict, poi_proposals: list[dict], intent: dict) -
     except ValueError:
         t = datetime.strptime("17:00", "%H:%M")
 
-    end_time_str = intent.get("time", {}).get("end", "21:00")
     try:
-        end_dt = datetime.strptime(end_time_str, "%H:%M")
+        end_dt = datetime.strptime(intent.get("time", {}).get("end", "21:00"), "%H:%M")
     except ValueError:
         end_dt = datetime.strptime("21:00", "%H:%M")
 
     for pp in missing:
         content = pp.get("content", {})
         stay_min = int(content.get("avg_stay_min", 60))
-        arrival = t
         departure = t + timedelta(minutes=stay_min)
-        if departure > end_dt:
+        if departure > end_dt or len(steps) >= 10:
             break
-        if len(steps) >= 10:
-            break
-
-        steps.append(
-            {
-                "poi": content,
-                "arrival_time": arrival.strftime("%H:%M"),
-                "departure_time": departure.strftime("%H:%M"),
-                "travel_from_prev": {"distance_m": 3000, "time_min": 20},
-                "_type": "",
-            }
-        )
+        steps.append({"poi": content, "arrival_time": t.strftime("%H:%M"), "departure_time": departure.strftime("%H:%M"), "travel_from_prev": {"distance_m": 3000, "time_min": 20}, "_type": ""})
         t = departure + timedelta(minutes=20)
 
-    steps = _dedup_route(steps)
-    steps = _enforce_time_windows(steps)
+    steps = _enforce_time_windows(_dedup_route(steps))
     route["route"] = steps
-    route["total_cost"] = {
-        "time_min": route.get("total_cost", {}).get("time_min", 0),
-        "budget_used": sum(s.get("poi", {}).get("avg_price", 0) for s in steps),
-    }
+    route["total_cost"] = {"time_min": route.get("total_cost", {}).get("time_min", 0), "budget_used": sum(s.get("poi", {}).get("avg_price", 0) for s in steps)}
     return route
 
 
