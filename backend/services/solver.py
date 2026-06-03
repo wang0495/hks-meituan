@@ -685,10 +685,8 @@ def _get_dynamic_phases(user_intent: dict[str, Any]) -> list[dict]:
     """
     raw = user_intent.get("_raw_input", "")
     pref_cats = user_intent.get("preferred_categories", [])
-    user_intent.get("scene_requirements", [])
     group = user_intent.get("group", {}).get("type", "")
 
-    # 确保preferred_categories在所有阶段的cats中
     def _ensure_cats(cats: list[str]) -> list[str]:
         result = list(cats)
         for c in pref_cats:
@@ -696,181 +694,72 @@ def _get_dynamic_phases(user_intent: dict[str, Any]) -> list[dict]:
                 result.append(c)
         return result
 
-    # 社交聚会型
-    _social_kw = ["朋友", "聚会", "轰趴", "聚餐", "party", "轰趴"]
-    if group == "朋友" or any(kw in raw for kw in _social_kw):
-        return [
-            {
-                "name": "社交热身",
-                "ratio": 0.3,
-                "target": {"sociability": (0.5, 1.0), "excitement": (0.3, 0.7)},
-                "cats": _ensure_cats(["餐饮", "购物"]),
-            },
-            {
-                "name": "兴奋高潮",
-                "ratio": 0.4,
-                "target": {"excitement": (0.6, 1.0), "sociability": (0.4, 1.0)},
-                "cats": _ensure_cats(["娱乐", "运动", "购物"]),
-            },
-            {
-                "name": "美食收尾",
-                "ratio": 0.3,
-                "target": {"excitement": (0.3, 0.6), "sociability": (0.4, 1.0)},
-                "cats": _ensure_cats(["餐饮", "购物"]),
-            },
-        ]
+    # 场景类型 → (匹配条件, 阶段模板)
+    _phase_templates = [
+        (
+            lambda g, r: g == "朋友" or any(kw in r for kw in ["朋友", "聚会", "轰趴", "聚餐", "party"]),
+            [
+                {"name": "社交热身", "ratio": 0.3, "target": {"sociability": (0.5, 1.0), "excitement": (0.3, 0.7)}, "cats": ["餐饮", "购物"]},
+                {"name": "兴奋高潮", "ratio": 0.4, "target": {"excitement": (0.6, 1.0), "sociability": (0.4, 1.0)}, "cats": ["娱乐", "运动", "购物"]},
+                {"name": "美食收尾", "ratio": 0.3, "target": {"excitement": (0.3, 0.6), "sociability": (0.4, 1.0)}, "cats": ["餐饮", "购物"]},
+            ],
+        ),
+        (
+            lambda g, r: g == "情侣" or any(kw in r for kw in ["浪漫", "约会", "情侣", "二人"]),
+            [
+                {"name": "浪漫铺垫", "ratio": 0.3, "target": {"tranquility": (0.5, 0.8), "excitement": (0.2, 0.5)}, "cats": ["景点", "海景咖啡馆", "文化"]},
+                {"name": "探索升温", "ratio": 0.4, "target": {"surprise": (0.3, 0.8), "excitement": (0.4, 0.7)}, "cats": ["景点", "餐饮", "购物"]},
+                {"name": "甜蜜收尾", "ratio": 0.3, "target": {"excitement": (0.3, 0.6), "sociability": (0.3, 0.7)}, "cats": ["餐饮", "景点", "海景咖啡馆"]},
+            ],
+        ),
+        (
+            lambda g, r: any(kw in r for kw in ["安静", "独处", "看书", "一个人", "小众", "文艺"]),
+            [
+                {"name": "宁静铺垫", "ratio": 0.25, "target": {"tranquility": (0.6, 1.0)}, "cats": ["文化", "咖啡馆", "书店"]},
+                {"name": "文化探索", "ratio": 0.25, "target": {"culture_depth": (0.5, 1.0), "tranquility": (0.3, 0.7)}, "cats": ["文化", "书店", "景点"]},
+                {"name": "文艺体验", "ratio": 0.25, "target": {"surprise": (0.3, 0.7), "culture_depth": (0.3, 0.7)}, "cats": ["咖啡馆", "购物", "景点"]},
+                {"name": "安静收尾", "ratio": 0.25, "target": {"tranquility": (0.5, 0.9), "culture_depth": (0.4, 0.8)}, "cats": ["文化", "咖啡馆", "餐饮"]},
+            ],
+        ),
+        (
+            lambda g, r: g == "亲子" or any(kw in r for kw in ["带娃", "孩子", "儿童", "亲子", "小孩"]),
+            [
+                {"name": "兴奋开场", "ratio": 0.3, "target": {"excitement": (0.6, 1.0), "surprise": (0.3, 0.7)}, "cats": ["运动", "娱乐", "景点"]},
+                {"name": "探索中段", "ratio": 0.4, "target": {"surprise": (0.4, 0.8), "excitement": (0.3, 0.6)}, "cats": ["景点", "文化", "运动"]},
+                {"name": "轻松收尾", "ratio": 0.3, "target": {"tranquility": (0.4, 0.7), "excitement": (0.2, 0.5)}, "cats": ["餐饮", "景点"]},
+            ],
+        ),
+        (
+            lambda g, r: any(kw in r for kw in ["凌晨", "深夜", "宵夜", "夜宵", "通宵", "半夜"]),
+            [
+                {"name": "觅食探索", "ratio": 0.5, "target": {"excitement": (0.4, 0.8), "surprise": (0.3, 0.7)}, "cats": ["餐饮", "夜市", "夜市小吃", "景点"]},
+                {"name": "深夜延续", "ratio": 0.5, "target": {"excitement": (0.3, 0.6), "sociability": (0.3, 0.7)}, "cats": ["餐饮", "夜市", "景点"]},
+            ],
+        ),
+        (
+            lambda g, r: any(kw in r for kw in ["极速", "快速", "赶时间", "打卡", "2小时"]),
+            [
+                {"name": "高效打卡", "ratio": 0.4, "target": {"excitement": (0.5, 0.8), "surprise": (0.3, 0.7)}, "cats": ["景点", "文化", "购物"]},
+                {"name": "核心体验", "ratio": 0.3, "target": {"excitement": (0.4, 0.7)}, "cats": ["景点", "餐饮"]},
+                {"name": "收尾打卡", "ratio": 0.3, "target": {"excitement": (0.3, 0.6)}, "cats": ["餐饮", "购物"]},
+            ],
+        ),
+        (
+            lambda g, r: g == "退休" or any(kw in r for kw in ["退休", "老两口", "慢慢逛", "喝茶"]),
+            [
+                {"name": "悠闲漫步", "ratio": 0.4, "target": {"tranquility": (0.6, 1.0)}, "cats": ["景点", "文化", "运动"]},
+                {"name": "品茗休憩", "ratio": 0.3, "target": {"tranquility": (0.5, 0.8), "culture_depth": (0.3, 0.6)}, "cats": ["餐饮", "文化"]},
+                {"name": "文化收尾", "ratio": 0.3, "target": {"culture_depth": (0.5, 0.8)}, "cats": ["文化", "景点"]},
+            ],
+        ),
+    ]
 
-    # 浪漫约会型
-    _romantic_kw = ["浪漫", "约会", "情侣", "二人"]
-    if group == "情侣" or any(kw in raw for kw in _romantic_kw):
-        return [
-            {
-                "name": "浪漫铺垫",
-                "ratio": 0.3,
-                "target": {"tranquility": (0.5, 0.8), "excitement": (0.2, 0.5)},
-                "cats": _ensure_cats(["景点", "海景咖啡馆", "文化"]),
-            },
-            {
-                "name": "探索升温",
-                "ratio": 0.4,
-                "target": {"surprise": (0.3, 0.8), "excitement": (0.4, 0.7)},
-                "cats": _ensure_cats(["景点", "餐饮", "购物"]),
-            },
-            {
-                "name": "甜蜜收尾",
-                "ratio": 0.3,
-                "target": {"excitement": (0.3, 0.6), "sociability": (0.3, 0.7)},
-                "cats": _ensure_cats(["餐饮", "景点", "海景咖啡馆"]),
-            },
-        ]
+    for matcher, phases in _phase_templates:
+        if matcher(group, raw):
+            return [{**p, "cats": _ensure_cats(p["cats"])} for p in phases]
 
-    # 文艺独处型（4阶段，确保路线长度足够）
-    _solo_kw = ["安静", "独处", "看书", "一个人", "小众", "文艺"]
-    if any(kw in raw for kw in _solo_kw):
-        return [
-            {
-                "name": "宁静铺垫",
-                "ratio": 0.25,
-                "target": {"tranquility": (0.6, 1.0)},
-                "cats": _ensure_cats(["文化", "咖啡馆", "书店"]),
-            },
-            {
-                "name": "文化探索",
-                "ratio": 0.25,
-                "target": {"culture_depth": (0.5, 1.0), "tranquility": (0.3, 0.7)},
-                "cats": _ensure_cats(["文化", "书店", "景点"]),
-            },
-            {
-                "name": "文艺体验",
-                "ratio": 0.25,
-                "target": {"surprise": (0.3, 0.7), "culture_depth": (0.3, 0.7)},
-                "cats": _ensure_cats(["咖啡馆", "购物", "景点"]),
-            },
-            {
-                "name": "安静收尾",
-                "ratio": 0.25,
-                "target": {"tranquility": (0.5, 0.9), "culture_depth": (0.4, 0.8)},
-                "cats": _ensure_cats(["文化", "咖啡馆", "餐饮"]),
-            },
-        ]
-
-    # 亲子刺激型
-    _kid_kw = ["带娃", "孩子", "儿童", "亲子", "小孩"]
-    if group == "亲子" or any(kw in raw for kw in _kid_kw):
-        return [
-            {
-                "name": "兴奋开场",
-                "ratio": 0.3,
-                "target": {"excitement": (0.6, 1.0), "surprise": (0.3, 0.7)},
-                "cats": _ensure_cats(["运动", "娱乐", "景点"]),
-            },
-            {
-                "name": "探索中段",
-                "ratio": 0.4,
-                "target": {"surprise": (0.4, 0.8), "excitement": (0.3, 0.6)},
-                "cats": _ensure_cats(["景点", "文化", "运动"]),
-            },
-            {
-                "name": "轻松收尾",
-                "ratio": 0.3,
-                "target": {"tranquility": (0.4, 0.7), "excitement": (0.2, 0.5)},
-                "cats": _ensure_cats(["餐饮", "景点"]),
-            },
-        ]
-
-    # 深夜觅食型
-    _night_kw = ["凌晨", "深夜", "宵夜", "夜宵", "通宵", "半夜"]
-    if any(kw in raw for kw in _night_kw):
-        return [
-            {
-                "name": "觅食探索",
-                "ratio": 0.5,
-                "target": {"excitement": (0.4, 0.8), "surprise": (0.3, 0.7)},
-                "cats": _ensure_cats(["餐饮", "夜市", "夜市小吃", "景点"]),
-            },
-            {
-                "name": "深夜延续",
-                "ratio": 0.5,
-                "target": {"excitement": (0.3, 0.6), "sociability": (0.3, 0.7)},
-                "cats": _ensure_cats(["餐饮", "夜市", "景点"]),
-            },
-        ]
-
-    # 极速打卡型（3阶段，保证最少3个POI）
-    _fast_kw = ["极速", "快速", "赶时间", "打卡", "2小时"]
-    if any(kw in raw for kw in _fast_kw):
-        return [
-            {
-                "name": "高效打卡",
-                "ratio": 0.4,
-                "target": {"excitement": (0.5, 0.8), "surprise": (0.3, 0.7)},
-                "cats": _ensure_cats(["景点", "文化", "购物"]),
-            },
-            {
-                "name": "核心体验",
-                "ratio": 0.3,
-                "target": {"excitement": (0.4, 0.7)},
-                "cats": _ensure_cats(["景点", "餐饮"]),
-            },
-            {
-                "name": "收尾打卡",
-                "ratio": 0.3,
-                "target": {"excitement": (0.3, 0.6)},
-                "cats": _ensure_cats(["餐饮", "购物"]),
-            },
-        ]
-
-    # 退休悠闲型
-    _retire_kw = ["退休", "老两口", "慢慢逛", "喝茶"]
-    if group == "退休" or any(kw in raw for kw in _retire_kw):
-        return [
-            {
-                "name": "悠闲漫步",
-                "ratio": 0.4,
-                "target": {"tranquility": (0.6, 1.0)},
-                "cats": _ensure_cats(["景点", "文化", "运动"]),
-            },
-            {
-                "name": "品茗休憩",
-                "ratio": 0.3,
-                "target": {"tranquility": (0.5, 0.8), "culture_depth": (0.3, 0.6)},
-                "cats": _ensure_cats(["餐饮", "文化"]),
-            },
-            {
-                "name": "文化收尾",
-                "ratio": 0.3,
-                "target": {"culture_depth": (0.5, 0.8)},
-                "cats": _ensure_cats(["文化", "景点"]),
-            },
-        ]
-
-    # 默认：使用原始7阶段，但确保preferred_categories在cats中
-    result = []
-    for phase in _EMOTION_PHASES:
-        p = dict(phase)
-        p["cats"] = _ensure_cats(p["cats"])
-        result.append(p)
-    return result
+    # 默认：使用原始7阶段
+    return [{**p, "cats": _ensure_cats(p["cats"])} for p in _EMOTION_PHASES]
 
 
 def _score_poi_for_phase(poi: dict, phase: dict) -> float:
