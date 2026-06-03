@@ -477,47 +477,47 @@ async def _compute_pools(candidates: list[dict], state: TravelState) -> dict[str
 # ---------------------------------------------------------------------------
 # Main exported function
 # ---------------------------------------------------------------------------
+_NO_FOOD_KEYWORDS = ["不要餐饮", "不要吃", "不需要吃", "只玩不吃", "不用吃饭", "无餐饮"]
+
+
+def _normalize_weights(result: dict, user_input: str) -> tuple[dict[str, float], list[str]]:
+    """标准化专家权重和激活列表。"""
+    weights = result.get("expert_weights", {})
+    weights["poi"] = max(float(weights.get("poi", 0)), 0.3)
+    active = result.get("active_experts") or sorted([k for k, v in weights.items() if float(v) >= 0.3], key=lambda k: float(weights[k]), reverse=True)
+
+    if "poi" not in active:
+        active.append("poi")
+
+    if not any(kw in user_input.lower() for kw in _NO_FOOD_KEYWORDS):
+        weights["food"] = max(float(weights.get("food", 0)), 0.3)
+        if "food" not in active:
+            active.append("food")
+
+    return weights, active
+
+
 async def expert_router(state: TravelState) -> dict:
     """LLM-based expert router: classify scene, activate experts, compute pools."""
     meta = AGENT_META.get("expert_router", {})
     await sse_emit(state, "agent_start", {"agent": "expert_router", **meta})
-    await sse_emit(
-        state,
-        "agent_thinking",
-        {"agent": "expert_router", "text": "LLM 分析场景类型，决定激活哪些专家..."},
-    )
+    await sse_emit(state, "agent_thinking", {"agent": "expert_router", "text": "LLM 分析场景类型，决定激活哪些专家..."})
 
     user_input = state.get("user_input", "")
     user_intent = state.get("user_intent", {})
     candidates = state.get("candidates", [])
-    pre_scene_type = state.get("pre_scene_type")  # rule_guard预计算的场景类型
+    pre_scene_type = state.get("pre_scene_type")
 
-    # --- LLM classification + pool computation in parallel (ADR-PERF) ---
-    # _compute_pools only needs candidates + state, not the classification result.
-    # Run both concurrently to save 1-3s (destination LLM detection overlaps with classification).
     from backend.agents_v3.experts.base import _llm_decide
 
     async def _classify():
-        # 如果rule_guard已预计算场景类型（无歧义场景），跳过LLM调用
         if pre_scene_type:
             logger.info("Using pre-computed scene type from rule_guard: %s", pre_scene_type)
             weights = _FALLBACK_WEIGHTS.get(pre_scene_type, _FALLBACK_WEIGHTS["观光型"]).copy()
             weights["poi"] = max(weights.get("poi", 0), 0.3)
-            active = sorted(
-                [k for k, v in weights.items() if v > 0], key=lambda k: weights[k], reverse=True
-            )
-            return {
-                "scene_type": pre_scene_type,
-                "expert_weights": weights,
-                "active_experts": active,
-            }
+            return {"scene_type": pre_scene_type, "expert_weights": weights, "active_experts": sorted([k for k, v in weights.items() if v > 0], key=lambda k: weights[k], reverse=True)}
         try:
-            return await _llm_decide(
-                _SYSTEM_PROMPT,
-                f"用户输入：{user_input}",
-                prefix="LLM",
-                temperature=0.05,
-            )
+            return await _llm_decide(_SYSTEM_PROMPT, f"用户输入：{user_input}", prefix="LLM", temperature=0.05)
         except Exception:
             logger.warning("LLM intent enrichment failed, falling back to rules", exc_info=True)
             return None
@@ -529,27 +529,10 @@ async def expert_router(state: TravelState) -> dict:
     if result is None:
         result = _fallback_result(user_input, user_intent)
 
-    # Normalize LLM-returned scene_type to a valid type
     result["scene_type"] = _normalize_scene_type(result.get("scene_type", ""))
-
-    # --- Normalize weights ---
-    weights = result.get("expert_weights", {})
-    weights["poi"] = max(float(weights.get("poi", 0)), 0.3)
-    active = result.get("active_experts") or sorted(
-        [k for k, v in weights.items() if float(v) >= 0.3],
-        key=lambda k: float(weights[k]),
-        reverse=True,
-    )
-    # Ensure "poi" is always in active_experts
-    if "poi" not in active:
-        active.append("poi")
-    # Ensure "food" has floor >= 0.3 unless user explicitly excludes food
-    _no_food_keywords = ["不要餐饮", "不要吃", "不需要吃", "只玩不吃", "不用吃饭", "无餐饮"]
-    user_text = user_input.lower()
-    if not any(kw in user_text for kw in _no_food_keywords):
-        weights["food"] = max(float(weights.get("food", 0)), 0.3)
-        if "food" not in active:
-            active.append("food")
+    weights, active = _normalize_weights(result, user_input)
+    result["expert_weights"] = weights
+    result["active_experts"] = active
 
     pools = await pools_task
 
