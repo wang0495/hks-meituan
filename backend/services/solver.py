@@ -1196,6 +1196,17 @@ def _filter_late_night_pois(
     return late_pois if late_pois else quality_pois
 
 
+def _get_scene_match_count(poi_text: str, scene_requirements: list[str]) -> int:
+    """计算POI文本匹配的场景需求数量。"""
+    matched = 0
+    for sr in scene_requirements:
+        if sr in poi_text:
+            matched += 1
+        elif any(syn in poi_text for syn in _SCENE_SYNONYMS.get(sr, [])):
+            matched += 1
+    return matched
+
+
 def _select_diverse_build_mixed_scorer(
     user_intent: dict[str, Any],
     hard_constraints: list[str],
@@ -1210,11 +1221,8 @@ def _select_diverse_build_mixed_scorer(
         if kw in _raw_input_text:
             _input_scene_tags.update(tags)
 
-    # LLM Planner推荐的POI ID集合
     _llm_plan = user_intent.get("_llm_plan", {})
     _preferred_ids = set(_llm_plan.get("recommended_pois", []))
-
-    # 场景需求关键词
     _scene_requirements = user_intent.get("scene_requirements", [])
 
     def _mixed_score(p: dict) -> float:
@@ -1223,39 +1231,25 @@ def _select_diverse_build_mixed_scorer(
             + (p.get("rating", 0) / 5.0) * _MIXED_SCORE_RATING_WEIGHT
             + _randmod.uniform(-0.01, 0.01)
         )
-        # 输入意图匹配加分
-        if _input_scene_tags:
-            poi_tags = set(p.get("_scene_tags", []))
-            if poi_tags & _input_scene_tags:
-                score += _INPUT_SCENE_MATCH_BONUS
-        # 特定活动需求加分
-        poi_text = (
-            p.get("name", "")
-            + " "
-            + " ".join(p.get("tags", []))
-            + " "
-            + " ".join(p.get("_scene_tags", []))
-        )
+
+        if _input_scene_tags and set(p.get("_scene_tags", [])) & _input_scene_tags:
+            score += _INPUT_SCENE_MATCH_BONUS
+
+        poi_text = p.get("name", "") + " " + " ".join(p.get("tags", [])) + " " + " ".join(p.get("_scene_tags", []))
+
         for constraint, keywords in _ACTIVITY_KEYWORDS.items():
-            if constraint in hard_constraints:  # noqa: SIM102
-                if any(kw in poi_text for kw in keywords):
-                    score += _ACTIVITY_MATCH_BONUS
-                    break
-        # 场景需求语义匹配（scene_requirements，含同义词扩展）
+            if constraint in hard_constraints and any(kw in poi_text for kw in keywords):
+                score += _ACTIVITY_MATCH_BONUS
+                break
+
         if _scene_requirements:
-            matched_scenes = 0
-            for sr in _scene_requirements:
-                if sr in poi_text:
-                    matched_scenes += 1
-                else:
-                    synonyms = _SCENE_SYNONYMS.get(sr, [])
-                    if any(syn in poi_text for syn in synonyms):
-                        matched_scenes += 1
-            if matched_scenes > 0:
-                score += matched_scenes * _SCENE_MATCH_BONUS
-        # LLM Planner推荐加分
+            matched = _get_scene_match_count(poi_text, _scene_requirements)
+            if matched > 0:
+                score += matched * _SCENE_MATCH_BONUS
+
         if _preferred_ids and p.get("id") in _preferred_ids:
             score += _LLM_PREFERRED_BONUS
+
         return score
 
     return _mixed_score
