@@ -476,6 +476,27 @@ async def _rework_poi(
     return proposals
 
 
+_AGENT_POOL_FILTERS: dict[str, tuple[str, callable]] = {
+    "hotel": ("住宿", lambda c, old: c.get("category") in ("住宿", "酒店", "民宿") and c.get("name") not in old and c.get("rating") is not None),
+    "hotel_expert": ("住宿", lambda c, old: c.get("category") in ("住宿", "酒店", "民宿") and c.get("name") not in old and c.get("rating") is not None),
+    "traffic": ("交通", lambda c, old: c.get("rating") is not None and c.get("name") not in old),
+    "traffic_expert": ("交通", lambda c, old: c.get("rating") is not None and c.get("name") not in old),
+    "local_expert": ("本地特色", lambda c, old: c.get("rating", 4.0) >= 4.0 and c.get("name") not in old and c.get("category") not in ("住宿", "酒店", "民宿")),
+    "destination": ("目的地", lambda c, old: c.get("category") not in ("住宿", "酒店", "民宿", "餐饮") and c.get("name") not in old and c.get("rating") is not None),
+    "destination_expert": ("目的地", lambda c, old: c.get("category") not in ("住宿", "酒店", "民宿", "餐饮") and c.get("name") not in old and c.get("rating") is not None),
+}
+_DEFAULT_POOL_FILTER = ("省钱", lambda c, old: (c.get("avg_price", 9999) <= 50 or c.get("avg_price") == 0) and c.get("name") not in old and c.get("rating") is not None)
+
+
+def _get_rework_pool(agent_name: str, candidates: list[dict], old_names: set[str]) -> tuple[list[dict], str]:
+    """根据agent类型筛选候选池。"""
+    label, filter_fn = _AGENT_POOL_FILTERS.get(agent_name, _DEFAULT_POOL_FILTER)
+    pool = [c for c in candidates if filter_fn(c, old_names)]
+    if agent_name in ("traffic", "traffic_expert"):
+        pool = pool[:15]
+    return pool, label
+
+
 async def _rework_generic(
     agent_name: str,
     candidates: list[dict],
@@ -487,49 +508,7 @@ async def _rework_generic(
     """通用 rework: 适用于 hotel/traffic/local_expert/destination/budget_hacker。"""
     import uuid
 
-    if agent_name in ("hotel", "hotel_expert"):
-        pool = [
-            c
-            for c in candidates
-            if c.get("category", "") in ("住宿", "酒店", "民宿")
-            and c.get("name", "") not in old_names
-            and c.get("rating") is not None
-        ]
-        expert_label = "住宿"
-    elif agent_name == "traffic" or agent_name == "traffic_expert":
-        pool = [
-            c
-            for c in candidates
-            if c.get("rating") is not None and c.get("name", "") not in old_names
-        ][:15]
-        expert_label = "交通"
-    elif agent_name == "local_expert":
-        pool = [
-            c
-            for c in candidates
-            if c.get("rating", 4.0) >= 4.0
-            and c.get("name", "") not in old_names
-            and c.get("category", "") not in ("住宿", "酒店", "民宿")
-        ]
-        expert_label = "本地特色"
-    elif agent_name in ("destination", "destination_expert"):
-        pool = [
-            c
-            for c in candidates
-            if c.get("category", "") not in ("住宿", "酒店", "民宿", "餐饮")
-            and c.get("name", "") not in old_names
-            and c.get("rating") is not None
-        ]
-        expert_label = "目的地"
-    else:
-        pool = [
-            c
-            for c in candidates
-            if (c.get("avg_price", 9999) <= 50 or c.get("avg_price") == 0)
-            and c.get("name", "") not in old_names
-            and c.get("rating") is not None
-        ]
-        expert_label = "省钱"
+    pool, expert_label = _get_rework_pool(agent_name, candidates, set(old_names))
 
     summaries = [
         {
