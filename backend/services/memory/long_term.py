@@ -378,6 +378,52 @@ class LongTermMemory:
 
         return patterns
 
+_CATEGORY_TO_DIM: dict[str, str] = {
+    "文化": "culture",
+    "景点": "culture",
+    "餐饮": "food",
+    "运动": "nature",
+    "自然": "nature",
+    "购物": "social",
+}
+
+
+def _context_match_score(trip: dict, ctx: dict[str, Any]) -> float:
+    """计算trip上下文与目标上下文的匹配分数。"""
+    score = 0.0
+    tctx = trip.get("context", {})
+
+    if tctx.get("weather") == ctx.get("weather"):
+        score += 3.0
+    if tctx.get("season") == ctx.get("season"):
+        score += 2.0
+    if tctx.get("holiday", {}).get("day_type") == ctx.get("holiday", {}).get("day_type"):
+        score += 2.0
+    if tctx.get("is_weekend") == ctx.get("is_weekend"):
+        score += 1.0
+    if tctx.get("temperature_level") == ctx.get("temperature_level"):
+        score += 1.0
+    if tctx.get("period") == ctx.get("period"):
+        score += 1.0
+    return score
+
+
+def _calc_dimension_scores(top: list[tuple[float, dict]]) -> dict[str, float]:
+    """计算偏好维度分数。"""
+    dim_scores: dict[str, float] = {"culture": 0.0, "food": 0.0, "nature": 0.0, "social": 0.0}
+    total_weighted = 0.0
+    for weight, trip in top:
+        for cat in trip.get("route_summary", {}).get("categories", []):
+            dim = _CATEGORY_TO_DIM.get(cat)
+            if dim:
+                dim_scores[dim] += weight
+        total_weighted += weight
+    if total_weighted > 0:
+        for dim in dim_scores:
+            dim_scores[dim] = round(min(1.0, dim_scores[dim] / total_weighted), 2)
+    return dim_scores
+
+
     async def predict_preferences(
         self,
         user_id: str,
@@ -406,26 +452,6 @@ class LongTermMemory:
         if not history:
             return {"data_points": 0, "confidence": 0.0}
 
-        def _context_match_score(trip: dict, ctx: dict[str, Any]) -> float:
-            score = 0.0
-            tctx = trip.get("context", {})
-
-            if tctx.get("weather") == ctx.get("weather"):
-                score += 3.0
-            if tctx.get("season") == ctx.get("season"):
-                score += 2.0
-            th = tctx.get("holiday", {})
-            ch = ctx.get("holiday", {})
-            if th.get("day_type") == ch.get("day_type"):
-                score += 2.0
-            if tctx.get("is_weekend") == ctx.get("is_weekend"):
-                score += 1.0
-            if tctx.get("temperature_level") == ctx.get("temperature_level"):
-                score += 1.0
-            if tctx.get("period") == ctx.get("period"):
-                score += 1.0
-            return score
-
         scored: list[tuple[float, dict]] = []
         for trip in history:
             score = _context_match_score(trip, current_context)
@@ -448,34 +474,12 @@ class LongTermMemory:
             intent = trip.get("intent", {})
             paces.extend([intent.get("pace", "unknown")] * int(weight))
             budgets.append(intent.get("budget", {}).get("per_person", 0) * weight)
-            summary = trip.get("route_summary", {})
-            categories.extend(summary.get("categories", []))
+            categories.extend(trip.get("route_summary", {}).get("categories", []))
             need = intent.get("emotion_need")
             if need:
                 emotion_needs.extend([need] * int(weight))
 
-        # 计算偏好维度分：category → preference_dim 映射
-        _CATEGORY_TO_DIM: dict[str, str] = {
-            "文化": "culture",
-            "景点": "culture",
-            "餐饮": "food",
-            "运动": "nature",
-            "自然": "nature",
-            "购物": "social",
-        }
-        dim_scores: dict[str, float] = {"culture": 0.0, "food": 0.0, "nature": 0.0, "social": 0.0}
-        total_weighted = 0.0
-        for weight, trip in top:
-            summary = trip.get("route_summary", {})
-            trip_cats = summary.get("categories", [])
-            for cat in trip_cats:
-                dim = _CATEGORY_TO_DIM.get(cat)
-                if dim:
-                    dim_scores[dim] += weight
-            total_weighted += weight
-        if total_weighted > 0:
-            for dim in dim_scores:
-                dim_scores[dim] = round(min(1.0, dim_scores[dim] / total_weighted), 2)
+        dim_scores = _calc_dimension_scores(top)
 
         return {
             "predicted_pace": (Counter(paces).most_common(1)[0][0] if paces else None),
