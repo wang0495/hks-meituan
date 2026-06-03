@@ -34,96 +34,70 @@ def _haversine_km(lat1, lng1, lat2, lng2) -> float:
     return R * 2 * math.asin(math.sqrt(a))
 
 
+_NIGHTLIFE_KEYWORDS = ["酒吧", "夜店", "club", "夜总会"]
+
+
+def _check_theme_conflicts(proposals: list[dict], group_type: str) -> list[dict]:
+    """检查主题矛盾。"""
+    if group_type != "亲子":
+        return []
+    conflicts = []
+    for p in proposals:
+        name = p.get("content", {}).get("name", "")
+        tags = str(p.get("content", {}).get("tags", []))
+        if any(kw in name + tags for kw in _NIGHTLIFE_KEYWORDS):
+            conflicts.append({"type": "theme", "severity": "high", "challenger": "rule_guard", "defendant": p.get("agent", ""), "target_name": name, "issue": f"亲子行程包含不适合儿童的活动: {name}", "resolution": "remove"})
+    return conflicts
+
+
+def _check_budget_conflicts(proposals: list[dict], budget: float) -> list[dict]:
+    """检查预算超支。"""
+    if budget <= 0:
+        return []
+    total = sum(p.get("content", {}).get("avg_price", 0) for p in proposals if p.get("agent") in ("poi", "food", "hotel"))
+    if total <= budget * 1.5:
+        return []
+    expensive = sorted([p for p in proposals if p.get("agent") in ("food", "hotel") and p.get("content", {}).get("avg_price", 0) > 0], key=lambda p: p.get("content", {}).get("avg_price", 0), reverse=True)
+    if not expensive:
+        return []
+    target = expensive[0]
+    return [{"type": "budget", "severity": "high" if total > budget * 2 else "medium", "challenger": "rule_guard", "defendant": target.get("agent", ""), "target_name": target.get("content", {}).get("name", ""), "issue": f"总花费{total}元超预算{budget}元{(total/budget-1)*100:.0f}%", "resolution": "suggest_cheaper"}]
+
+
+def _check_geo_conflicts(proposals: list[dict]) -> list[dict]:
+    """检查地理矛盾。"""
+    poi_coords = [(p.get("content", {}).get("lat", 0), p.get("content", {}).get("lng", 0)) for p in proposals if p.get("agent") == "poi" and p.get("content", {}).get("lat") and p.get("content", {}).get("lng")]
+    if not poi_coords:
+        return []
+
+    center_lat = sum(la for la, _ in poi_coords) / len(poi_coords)
+    center_lng = sum(lg for _, lg in poi_coords) / len(poi_coords)
+    max_poi_dist = max(_haversine_km(la, lg, center_lat, center_lng) for la, lg in poi_coords)
+    allowed = max(max_poi_dist + 5, 10)
+
+    conflicts = []
+    for p in proposals:
+        if p.get("agent") != "food":
+            continue
+        content = p.get("content", {})
+        lat, lng = content.get("lat", 0), content.get("lng", 0)
+        if not lat or not lng:
+            continue
+        dist = _haversine_km(lat, lng, center_lat, center_lng)
+        if dist > allowed:
+            conflicts.append({"type": "geo_food", "severity": "medium", "challenger": "poi_agent", "defendant": "food_agent", "target_name": content.get("name", ""), "issue": f"餐厅{content.get('name', '')}距景点中心{dist:.0f}km（允许{allowed:.0f}km）", "resolution": "remove_food"})
+    return conflicts
+
+
 def _detect_rule_conflicts(proposals: list[dict], intent: dict) -> list[dict]:
     """规则层冲突检测（不调LLM，纯规则判断）。"""
     conflicts = []
     group_type = intent.get("group", {}).get("type", "")
     budget = intent.get("budget", {}).get("per_person", 0)
 
-    # ── 1. 主题矛盾：亲子+夜生活 ──
-    if group_type == "亲子":
-        for p in proposals:
-            name = p.get("content", {}).get("name", "")
-            tags = str(p.get("content", {}).get("tags", []))
-            if any(kw in name + tags for kw in ["酒吧", "夜店", "club", "夜总会"]):
-                conflicts.append(
-                    {
-                        "type": "theme",
-                        "severity": "high",
-                        "challenger": "rule_guard",
-                        "defendant": p.get("agent", ""),
-                        "target_name": name,
-                        "issue": f"亲子行程包含不适合儿童的活动: {name}",
-                        "resolution": "remove",
-                    }
-                )
-
-    # ── 2. 预算超支 ──
-    if budget > 0:
-        total = sum(
-            p.get("content", {}).get("avg_price", 0)
-            for p in proposals
-            if p.get("agent") in ("poi", "food", "hotel")
-        )
-        if total > budget * 1.5:
-            # 找最贵的非核心提案
-            expensive = sorted(
-                [
-                    p
-                    for p in proposals
-                    if p.get("agent") in ("food", "hotel")
-                    and p.get("content", {}).get("avg_price", 0) > 0
-                ],
-                key=lambda p: p.get("content", {}).get("avg_price", 0),
-                reverse=True,
-            )
-            if expensive:
-                target = expensive[0]
-                conflicts.append(
-                    {
-                        "type": "budget",
-                        "severity": "high" if total > budget * 2 else "medium",
-                        "challenger": "rule_guard",
-                        "defendant": target.get("agent", ""),
-                        "target_name": target.get("content", {}).get("name", ""),
-                        "issue": f"总花费{total}元超预算{budget}元{(total/budget-1)*100:.0f}%",
-                        "resolution": "suggest_cheaper",
-                    }
-                )
-
-    # ── 3. 地理矛盾：餐饮距景点簇太远 ──
-    poi_coords = []
-    for p in proposals:
-        if p.get("agent") == "poi":
-            lat = p.get("content", {}).get("lat", 0)
-            lng = p.get("content", {}).get("lng", 0)
-            if lat and lng:
-                poi_coords.append((lat, lng))
-
-    if poi_coords:
-        center_lat = sum(la for la, _ in poi_coords) / len(poi_coords)
-        center_lng = sum(lg for _, lg in poi_coords) / len(poi_coords)
-        max_poi_dist = max(_haversine_km(la, lg, center_lat, center_lng) for la, lg in poi_coords)
-        allowed = max(max_poi_dist + 5, 10)
-
-        for p in proposals:
-            if p.get("agent") == "food":
-                content = p.get("content", {})
-                lat, lng = content.get("lat", 0), content.get("lng", 0)
-                if lat and lng:
-                    dist = _haversine_km(lat, lng, center_lat, center_lng)
-                    if dist > allowed:
-                        conflicts.append(
-                            {
-                                "type": "geo_food",
-                                "severity": "medium",
-                                "challenger": "poi_agent",
-                                "defendant": "food_agent",
-                                "target_name": content.get("name", ""),
-                                "issue": f"餐厅{content.get('name', '')}距景点中心{dist:.0f}km（允许{allowed:.0f}km）",
-                                "resolution": "remove_food",
-                            }
-                        )
+    conflicts.extend(_check_theme_conflicts(proposals, group_type))
+    conflicts.extend(_check_budget_conflicts(proposals, budget))
+    conflicts.extend(_check_geo_conflicts(proposals))
 
     return conflicts
 
