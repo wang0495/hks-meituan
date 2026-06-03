@@ -235,7 +235,14 @@ async def _v2_event_stream(request: PlanRequestV2):
         from backend.services.solver import solve_route
 
         route_result = await _with_timeout(
-            asyncio.to_thread(solve_route, candidates, user_intent, user_intent.get("time", {}).get("start", "09:00"), start_point=request.start_point, end_point=request.end_point),
+            asyncio.to_thread(
+                solve_route,
+                candidates,
+                user_intent,
+                user_intent.get("time", {}).get("start", "09:00"),
+                start_point=request.start_point,
+                end_point=request.end_point,
+            ),
             timeout_seconds=10.0,
         )
         if route_result is None or not route_result.get("route"):
@@ -249,15 +256,27 @@ async def _v2_event_stream(request: PlanRequestV2):
         narrative = await _with_timeout(
             generate_narrative(route_result, user_intent),
             timeout_seconds=5.0,
-            fallback={"opening": "", "steps": [""] * len(route_result.get("route", [])), "closing": "", "emotion_highlights": []},
+            fallback={
+                "opening": "",
+                "steps": [""] * len(route_result.get("route", [])),
+                "closing": "",
+                "emotion_highlights": [],
+            },
         )
 
         for i, step in enumerate(route_result.get("route", [])):
-            yield _sse("step", {
-                "index": i + 1, "poi": step["poi"],
-                "arrival_time": step.get("arrival_time"), "departure_time": step.get("departure_time"),
-                "narrative": narrative.get("steps", [])[i] if i < len(narrative.get("steps", [])) else "",
-            })
+            yield _sse(
+                "step",
+                {
+                    "index": i + 1,
+                    "poi": step["poi"],
+                    "arrival_time": step.get("arrival_time"),
+                    "departure_time": step.get("departure_time"),
+                    "narrative": (
+                        narrative.get("steps", [])[i] if i < len(narrative.get("steps", [])) else ""
+                    ),
+                },
+            )
             await asyncio.sleep(0.05)
 
         route_id = uuid.uuid4().hex[:8]
@@ -265,11 +284,15 @@ async def _v2_event_stream(request: PlanRequestV2):
         route_result["user_intent"] = user_intent
         route_cache.set(route_id, route_result)
 
-        yield _sse("done", {
-            "route_id": route_id, "full_route": route_result,
-            "emotion_curve": _build_emotion_curve(route_result),
-            "metadata": _build_metadata(route_result, request),
-        })
+        yield _sse(
+            "done",
+            {
+                "route_id": route_id,
+                "full_route": route_result,
+                "emotion_curve": _build_emotion_curve(route_result),
+                "metadata": _build_metadata(route_result, request),
+            },
+        )
 
     except Exception:
         logger.exception("V2 规划路线时出错")

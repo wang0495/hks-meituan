@@ -108,7 +108,11 @@ def poi_search(
 
     if keyword:
         kw = keyword.lower()
-        results = [p for p in results if kw in p.get("name", "").lower() or any(kw in t for t in p.get("tags", []))]
+        results = [
+            p
+            for p in results
+            if kw in p.get("name", "").lower() or any(kw in t for t in p.get("tags", []))
+        ]
     if category:
         results = [p for p in results if p.get("category") == category]
     if price_min is not None:

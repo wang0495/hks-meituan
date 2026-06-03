@@ -203,7 +203,9 @@ def _check_business_hours_overlap(
 ) -> bool:
     """检查POI营业时间是否与用户时段重叠。返回True表示可用。"""
     if is_late_night and crosses_midnight:
-        is_24h = (poi_open_min == 0 and poi_close_min >= 1439) or "24小时" in " ".join(poi.get("tags", []))
+        is_24h = (poi_open_min == 0 and poi_close_min >= 1439) or "24小时" in " ".join(
+            poi.get("tags", [])
+        )
         is_cross_midnight_poi = poi_close_min < poi_open_min
 
         if is_24h:
@@ -252,7 +254,15 @@ def filter_candidates(
     for poi in pois:
         if user_start >= 0 and user_end > 0:
             poi_open_min, poi_close_min = _parse_poi_business_hours(poi)
-            if not _check_business_hours_overlap(poi, poi_open_min, poi_close_min, user_start, user_end, is_late_night, crosses_midnight):
+            if not _check_business_hours_overlap(
+                poi,
+                poi_open_min,
+                poi_close_min,
+                user_start,
+                user_end,
+                is_late_night,
+                crosses_midnight,
+            ):
                 continue
 
         q_time = poi.get("constraints", {}).get("queue_time_min", 0)

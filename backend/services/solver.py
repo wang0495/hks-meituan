@@ -360,16 +360,49 @@ _PREF_TO_SCENE_TAGS: dict[str, set[str]] = {
 
 
 _MEANINGFUL_TAGS = {
-    "海滨", "山景", "公园", "夜景", "文化历史", "自然风光",
-    "拍照出片", "打卡热点", "品质体验", "运动健身", "休闲放松",
-    "亲子", "情侣", "网红店", "老字号",
+    "海滨",
+    "山景",
+    "公园",
+    "夜景",
+    "文化历史",
+    "自然风光",
+    "拍照出片",
+    "打卡热点",
+    "品质体验",
+    "运动健身",
+    "休闲放松",
+    "亲子",
+    "情侣",
+    "网红店",
+    "老字号",
 }
 
 _WEAK_TAGS = {
-    "餐饮", "购物", "美食", "住宿", "运动", "文化", "市区", "经济", "经典",
-    "出片", "休闲", "其他", "经济实惠", "适合聚餐", "交通便利", "环境好",
-    "性价比高", "品牌齐全", "打折", "味道正宗", "停车方便", "服务好",
-    "排队", "免费", "分量足",
+    "餐饮",
+    "购物",
+    "美食",
+    "住宿",
+    "运动",
+    "文化",
+    "市区",
+    "经济",
+    "经典",
+    "出片",
+    "休闲",
+    "其他",
+    "经济实惠",
+    "适合聚餐",
+    "交通便利",
+    "环境好",
+    "性价比高",
+    "品牌齐全",
+    "打折",
+    "味道正宗",
+    "停车方便",
+    "服务好",
+    "排队",
+    "免费",
+    "分量足",
 }
 
 
@@ -649,59 +682,166 @@ def _get_dynamic_phases(user_intent: dict[str, Any]) -> list[dict]:
     # 场景类型 → (匹配条件, 阶段模板)
     _phase_templates = [
         (
-            lambda g, r: g == "朋友" or any(kw in r for kw in ["朋友", "聚会", "轰趴", "聚餐", "party"]),
+            lambda g, r: g == "朋友"
+            or any(kw in r for kw in ["朋友", "聚会", "轰趴", "聚餐", "party"]),
             [
-                {"name": "社交热身", "ratio": 0.3, "target": {"sociability": (0.5, 1.0), "excitement": (0.3, 0.7)}, "cats": ["餐饮", "购物"]},
-                {"name": "兴奋高潮", "ratio": 0.4, "target": {"excitement": (0.6, 1.0), "sociability": (0.4, 1.0)}, "cats": ["娱乐", "运动", "购物"]},
-                {"name": "美食收尾", "ratio": 0.3, "target": {"excitement": (0.3, 0.6), "sociability": (0.4, 1.0)}, "cats": ["餐饮", "购物"]},
+                {
+                    "name": "社交热身",
+                    "ratio": 0.3,
+                    "target": {"sociability": (0.5, 1.0), "excitement": (0.3, 0.7)},
+                    "cats": ["餐饮", "购物"],
+                },
+                {
+                    "name": "兴奋高潮",
+                    "ratio": 0.4,
+                    "target": {"excitement": (0.6, 1.0), "sociability": (0.4, 1.0)},
+                    "cats": ["娱乐", "运动", "购物"],
+                },
+                {
+                    "name": "美食收尾",
+                    "ratio": 0.3,
+                    "target": {"excitement": (0.3, 0.6), "sociability": (0.4, 1.0)},
+                    "cats": ["餐饮", "购物"],
+                },
             ],
         ),
         (
             lambda g, r: g == "情侣" or any(kw in r for kw in ["浪漫", "约会", "情侣", "二人"]),
             [
-                {"name": "浪漫铺垫", "ratio": 0.3, "target": {"tranquility": (0.5, 0.8), "excitement": (0.2, 0.5)}, "cats": ["景点", "海景咖啡馆", "文化"]},
-                {"name": "探索升温", "ratio": 0.4, "target": {"surprise": (0.3, 0.8), "excitement": (0.4, 0.7)}, "cats": ["景点", "餐饮", "购物"]},
-                {"name": "甜蜜收尾", "ratio": 0.3, "target": {"excitement": (0.3, 0.6), "sociability": (0.3, 0.7)}, "cats": ["餐饮", "景点", "海景咖啡馆"]},
+                {
+                    "name": "浪漫铺垫",
+                    "ratio": 0.3,
+                    "target": {"tranquility": (0.5, 0.8), "excitement": (0.2, 0.5)},
+                    "cats": ["景点", "海景咖啡馆", "文化"],
+                },
+                {
+                    "name": "探索升温",
+                    "ratio": 0.4,
+                    "target": {"surprise": (0.3, 0.8), "excitement": (0.4, 0.7)},
+                    "cats": ["景点", "餐饮", "购物"],
+                },
+                {
+                    "name": "甜蜜收尾",
+                    "ratio": 0.3,
+                    "target": {"excitement": (0.3, 0.6), "sociability": (0.3, 0.7)},
+                    "cats": ["餐饮", "景点", "海景咖啡馆"],
+                },
             ],
         ),
         (
             lambda g, r: any(kw in r for kw in ["安静", "独处", "看书", "一个人", "小众", "文艺"]),
             [
-                {"name": "宁静铺垫", "ratio": 0.25, "target": {"tranquility": (0.6, 1.0)}, "cats": ["文化", "咖啡馆", "书店"]},
-                {"name": "文化探索", "ratio": 0.25, "target": {"culture_depth": (0.5, 1.0), "tranquility": (0.3, 0.7)}, "cats": ["文化", "书店", "景点"]},
-                {"name": "文艺体验", "ratio": 0.25, "target": {"surprise": (0.3, 0.7), "culture_depth": (0.3, 0.7)}, "cats": ["咖啡馆", "购物", "景点"]},
-                {"name": "安静收尾", "ratio": 0.25, "target": {"tranquility": (0.5, 0.9), "culture_depth": (0.4, 0.8)}, "cats": ["文化", "咖啡馆", "餐饮"]},
+                {
+                    "name": "宁静铺垫",
+                    "ratio": 0.25,
+                    "target": {"tranquility": (0.6, 1.0)},
+                    "cats": ["文化", "咖啡馆", "书店"],
+                },
+                {
+                    "name": "文化探索",
+                    "ratio": 0.25,
+                    "target": {"culture_depth": (0.5, 1.0), "tranquility": (0.3, 0.7)},
+                    "cats": ["文化", "书店", "景点"],
+                },
+                {
+                    "name": "文艺体验",
+                    "ratio": 0.25,
+                    "target": {"surprise": (0.3, 0.7), "culture_depth": (0.3, 0.7)},
+                    "cats": ["咖啡馆", "购物", "景点"],
+                },
+                {
+                    "name": "安静收尾",
+                    "ratio": 0.25,
+                    "target": {"tranquility": (0.5, 0.9), "culture_depth": (0.4, 0.8)},
+                    "cats": ["文化", "咖啡馆", "餐饮"],
+                },
             ],
         ),
         (
-            lambda g, r: g == "亲子" or any(kw in r for kw in ["带娃", "孩子", "儿童", "亲子", "小孩"]),
+            lambda g, r: g == "亲子"
+            or any(kw in r for kw in ["带娃", "孩子", "儿童", "亲子", "小孩"]),
             [
-                {"name": "兴奋开场", "ratio": 0.3, "target": {"excitement": (0.6, 1.0), "surprise": (0.3, 0.7)}, "cats": ["运动", "娱乐", "景点"]},
-                {"name": "探索中段", "ratio": 0.4, "target": {"surprise": (0.4, 0.8), "excitement": (0.3, 0.6)}, "cats": ["景点", "文化", "运动"]},
-                {"name": "轻松收尾", "ratio": 0.3, "target": {"tranquility": (0.4, 0.7), "excitement": (0.2, 0.5)}, "cats": ["餐饮", "景点"]},
+                {
+                    "name": "兴奋开场",
+                    "ratio": 0.3,
+                    "target": {"excitement": (0.6, 1.0), "surprise": (0.3, 0.7)},
+                    "cats": ["运动", "娱乐", "景点"],
+                },
+                {
+                    "name": "探索中段",
+                    "ratio": 0.4,
+                    "target": {"surprise": (0.4, 0.8), "excitement": (0.3, 0.6)},
+                    "cats": ["景点", "文化", "运动"],
+                },
+                {
+                    "name": "轻松收尾",
+                    "ratio": 0.3,
+                    "target": {"tranquility": (0.4, 0.7), "excitement": (0.2, 0.5)},
+                    "cats": ["餐饮", "景点"],
+                },
             ],
         ),
         (
             lambda g, r: any(kw in r for kw in ["凌晨", "深夜", "宵夜", "夜宵", "通宵", "半夜"]),
             [
-                {"name": "觅食探索", "ratio": 0.5, "target": {"excitement": (0.4, 0.8), "surprise": (0.3, 0.7)}, "cats": ["餐饮", "夜市", "夜市小吃", "景点"]},
-                {"name": "深夜延续", "ratio": 0.5, "target": {"excitement": (0.3, 0.6), "sociability": (0.3, 0.7)}, "cats": ["餐饮", "夜市", "景点"]},
+                {
+                    "name": "觅食探索",
+                    "ratio": 0.5,
+                    "target": {"excitement": (0.4, 0.8), "surprise": (0.3, 0.7)},
+                    "cats": ["餐饮", "夜市", "夜市小吃", "景点"],
+                },
+                {
+                    "name": "深夜延续",
+                    "ratio": 0.5,
+                    "target": {"excitement": (0.3, 0.6), "sociability": (0.3, 0.7)},
+                    "cats": ["餐饮", "夜市", "景点"],
+                },
             ],
         ),
         (
             lambda g, r: any(kw in r for kw in ["极速", "快速", "赶时间", "打卡", "2小时"]),
             [
-                {"name": "高效打卡", "ratio": 0.4, "target": {"excitement": (0.5, 0.8), "surprise": (0.3, 0.7)}, "cats": ["景点", "文化", "购物"]},
-                {"name": "核心体验", "ratio": 0.3, "target": {"excitement": (0.4, 0.7)}, "cats": ["景点", "餐饮"]},
-                {"name": "收尾打卡", "ratio": 0.3, "target": {"excitement": (0.3, 0.6)}, "cats": ["餐饮", "购物"]},
+                {
+                    "name": "高效打卡",
+                    "ratio": 0.4,
+                    "target": {"excitement": (0.5, 0.8), "surprise": (0.3, 0.7)},
+                    "cats": ["景点", "文化", "购物"],
+                },
+                {
+                    "name": "核心体验",
+                    "ratio": 0.3,
+                    "target": {"excitement": (0.4, 0.7)},
+                    "cats": ["景点", "餐饮"],
+                },
+                {
+                    "name": "收尾打卡",
+                    "ratio": 0.3,
+                    "target": {"excitement": (0.3, 0.6)},
+                    "cats": ["餐饮", "购物"],
+                },
             ],
         ),
         (
             lambda g, r: g == "退休" or any(kw in r for kw in ["退休", "老两口", "慢慢逛", "喝茶"]),
             [
-                {"name": "悠闲漫步", "ratio": 0.4, "target": {"tranquility": (0.6, 1.0)}, "cats": ["景点", "文化", "运动"]},
-                {"name": "品茗休憩", "ratio": 0.3, "target": {"tranquility": (0.5, 0.8), "culture_depth": (0.3, 0.6)}, "cats": ["餐饮", "文化"]},
-                {"name": "文化收尾", "ratio": 0.3, "target": {"culture_depth": (0.5, 0.8)}, "cats": ["文化", "景点"]},
+                {
+                    "name": "悠闲漫步",
+                    "ratio": 0.4,
+                    "target": {"tranquility": (0.6, 1.0)},
+                    "cats": ["景点", "文化", "运动"],
+                },
+                {
+                    "name": "品茗休憩",
+                    "ratio": 0.3,
+                    "target": {"tranquility": (0.5, 0.8), "culture_depth": (0.3, 0.6)},
+                    "cats": ["餐饮", "文化"],
+                },
+                {
+                    "name": "文化收尾",
+                    "ratio": 0.3,
+                    "target": {"culture_depth": (0.5, 0.8)},
+                    "cats": ["文化", "景点"],
+                },
             ],
         ),
     ]
@@ -986,20 +1126,28 @@ def _select_diverse_filter_scene_requirements(
     if bool(set(user_intent.get("scene_requirements", [])) & _FOOD_SCENE_REQS):
         before = len(quality_pois)
         quality_pois = [
-            p for p in quality_pois
+            p
+            for p in quality_pois
             if not any(kw in p.get("name", "") for kw in _CONVENIENCE_KEYWORDS)
         ]
         if len(quality_pois) < before:
-            logger.debug("美食场景过滤: 移除便利店%d个, 剩余%d", before - len(quality_pois), len(quality_pois))
+            logger.debug(
+                "美食场景过滤: 移除便利店%d个, 剩余%d",
+                before - len(quality_pois),
+                len(quality_pois),
+            )
 
     # 深夜场景过滤白天专属景点
     _night_scene = any(
-        kw in str(user_intent.get("scene_requirements", [])) + str(user_intent.get("_raw_input", ""))
+        kw
+        in str(user_intent.get("scene_requirements", [])) + str(user_intent.get("_raw_input", ""))
         for kw in ["深夜", "凌晨", "宵夜", "夜景", "夜晚"]
     )
     if _night_scene:
         before = len(quality_pois)
-        quality_pois = [p for p in quality_pois if not any(kw in p.get("name", "") for kw in _DAY_ONLY_KEYWORDS)]
+        quality_pois = [
+            p for p in quality_pois if not any(kw in p.get("name", "") for kw in _DAY_ONLY_KEYWORDS)
+        ]
         if len(quality_pois) < before:
             logger.debug("深夜场景过滤: 移除白天专属景点%d个", before - len(quality_pois))
 
@@ -1038,7 +1186,11 @@ def _filter_late_night_pois(
 
     logger.debug(
         "late_night filter: %d → %d POIs (window=%s-%s, crosses_midnight=%s)",
-        len(quality_pois), len(late_pois), start_str, end_str, _crosses_midnight,
+        len(quality_pois),
+        len(late_pois),
+        start_str,
+        end_str,
+        _crosses_midnight,
     )
     return late_pois if late_pois else quality_pois
 
@@ -1627,9 +1779,7 @@ def _calc_same_type_penalty(poi: dict, route: list[dict[str, Any]]) -> float:
     return penalty
 
 
-def _calc_scene_semantic_bonus(
-    poi: dict[str, Any], scene_requirements: list[str]
-) -> float:
+def _calc_scene_semantic_bonus(poi: dict[str, Any], scene_requirements: list[str]) -> float:
     """计算场景需求语义匹配加分。"""
     if not scene_requirements:
         return 0.0

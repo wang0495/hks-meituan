@@ -83,7 +83,11 @@ class InputValidationMiddleware(BaseHTTPMiddleware):
             if body:
                 body_str = body.decode("utf-8", errors="ignore")
                 if self._contains_dangerous(body_str):
-                    logger.warning("请求体包含危险内容, ip=%s, path=%s", request.client.host if request.client else "unknown", request.url.path)
+                    logger.warning(
+                        "请求体包含危险内容, ip=%s, path=%s",
+                        request.client.host if request.client else "unknown",
+                        request.url.path,
+                    )
                     return JSONResponse(status_code=400, content={"detail": "请求体包含无效内容"})
         except Exception as e:
             logger.warning("input validation parse error: %s", e)
@@ -96,12 +100,20 @@ class InputValidationMiddleware(BaseHTTPMiddleware):
 
         content_length = request.headers.get("content-length")
         if content_length and int(content_length) > self.max_body_size:
-            logger.warning("请求体过大: %s bytes from %s", content_length, request.client.host if request.client else "unknown")
+            logger.warning(
+                "请求体过大: %s bytes from %s",
+                content_length,
+                request.client.host if request.client else "unknown",
+            )
             return JSONResponse(status_code=413, content={"detail": "请求体过大"})
 
         for key, value in request.query_params.items():
             if self._contains_dangerous(value):
-                logger.warning("查询参数包含危险内容: key=%s, ip=%s", key, request.client.host if request.client else "unknown")
+                logger.warning(
+                    "查询参数包含危险内容: key=%s, ip=%s",
+                    key,
+                    request.client.host if request.client else "unknown",
+                )
                 return JSONResponse(status_code=400, content={"detail": f"无效的查询参数: {key}"})
 
         body_error = await self._check_body(request)

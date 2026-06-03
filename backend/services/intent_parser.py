@@ -217,7 +217,11 @@ async def _call_llm(user_input: str) -> dict | None:
         try:
             resp = await client.chat.completions.create(**kwargs)
             msg = resp.choices[0].message
-            raw = (msg.tool_calls[0].function.arguments if use_tools and msg.tool_calls else msg.content) or ""
+            raw = (
+                msg.tool_calls[0].function.arguments
+                if use_tools and msg.tool_calls
+                else msg.content
+            ) or ""
             json_match = re.search(r"\{[\s\S]*\}", raw)
             if json_match:
                 result = json.loads(json_match.group())
@@ -417,9 +421,17 @@ def _parse_group(text: str) -> tuple[int, str]:
 
 def _parse_preferences(text: str) -> dict[str, float]:
     """从文本提取偏好分数。"""
-    culture = 0.8 if any(w in text for w in ["文化", "历史", "博物馆", "艺术", "展览", "看展"]) else 0.3
-    food = 0.8 if any(w in text for w in ["美食", "吃", "餐厅", "小吃", "探店", "好吃", "咖啡"]) else 0.4
-    nature = 0.8 if any(w in text for w in ["自然", "公园", "爬山", "户外", "山", "湖", "散步"]) else 0.3
+    culture = (
+        0.8 if any(w in text for w in ["文化", "历史", "博物馆", "艺术", "展览", "看展"]) else 0.3
+    )
+    food = (
+        0.8
+        if any(w in text for w in ["美食", "吃", "餐厅", "小吃", "探店", "好吃", "咖啡"])
+        else 0.4
+    )
+    nature = (
+        0.8 if any(w in text for w in ["自然", "公园", "爬山", "户外", "山", "湖", "散步"]) else 0.3
+    )
 
     neg_crowd = re.search(r"(不想|不要|不去|不愿|害怕|怕).{0,4}(人多|热闹|拥挤|排队)", text)
     if neg_crowd or any(w in text for w in ["社恐", "安静", "独处", "一个人"]):

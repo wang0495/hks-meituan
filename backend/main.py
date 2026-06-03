@@ -608,14 +608,18 @@ async def plan_route(request: PlanRequest):
     `/api/dialogue/{session_id}` 对话调整。
     """
 
-    async def _drain_sse_queue(sse_queue: asyncio.Queue, graph_task: asyncio.Task, agent_summary_ref: list[str]):
+    async def _drain_sse_queue(
+        sse_queue: asyncio.Queue, graph_task: asyncio.Task, agent_summary_ref: list[str]
+    ):
         """从SSE队列中读取事件并yield。"""
         while not graph_task.done():
             try:
                 event_type, event_data = await asyncio.wait_for(sse_queue.get(), timeout=0.3)
                 yield _sse(event_type, event_data)
                 if event_type == "agent_start":
-                    agent_summary_ref[0] += f"启动{event_data.get('name', event_data.get('agent', ''))}、"
+                    agent_summary_ref[
+                        0
+                    ] += f"启动{event_data.get('name', event_data.get('agent', ''))}、"
                 elif event_type == "agent_result":
                     agent_summary_ref[0] += f"完成{event_data.get('summary', '')}、"
                 await asyncio.sleep(0)
@@ -630,51 +634,71 @@ async def plan_route(request: PlanRequest):
             day_steps = day_route.get("route", []) if day_route else []
             yield _sse("day_start", {"day": day_num, "total_days": len(multi_routes)})
             for i, step in enumerate(day_steps):
-                yield _sse("step", {
-                    "index": i + 1, "day": day_num,
-                    "poi": step.get("poi", {}),
-                    "arrival_time": step.get("arrival_time"),
-                    "departure_time": step.get("departure_time"),
-                    "narrative": "", "emotion_design": "",
-                })
+                yield _sse(
+                    "step",
+                    {
+                        "index": i + 1,
+                        "day": day_num,
+                        "poi": step.get("poi", {}),
+                        "arrival_time": step.get("arrival_time"),
+                        "departure_time": step.get("departure_time"),
+                        "narrative": "",
+                        "emotion_design": "",
+                    },
+                )
                 await asyncio.sleep(0.05)
             yield _sse("day_end", {"day": day_num})
 
         route_id = uuid.uuid4().hex[:8]
-        yield _sse("done", {
-            "route_id": route_id,
-            "full_route": {"days": multi_routes},
-            "num_days": num_days,
-            "version": "C-分布式智能体",
-        })
+        yield _sse(
+            "done",
+            {
+                "route_id": route_id,
+                "full_route": {"days": multi_routes},
+                "num_days": num_days,
+                "version": "C-分布式智能体",
+            },
+        )
         route_cache.set(route_id, {"days": multi_routes, "user_intent": user_intent})
 
-    async def _stream_single_day_route(c_route: dict, c_narrative: dict, c_steps: list, user_intent: dict, c_result: dict):
+    async def _stream_single_day_route(
+        c_route: dict, c_narrative: dict, c_steps: list, user_intent: dict, c_result: dict
+    ):
         """流式输出单日路线。"""
         if settings.debug:
             proposals = c_result.get("proposals", [])
             agent_types = list(set(p.get("agent", "?") for p in proposals))
-            yield _sse("debug_agents", {
-                "version": "C", "agent_count": len(proposals),
-                "agents": agent_types, "conflicts": len(c_result.get("conflicts", [])),
-            })
+            yield _sse(
+                "debug_agents",
+                {
+                    "version": "C",
+                    "agent_count": len(proposals),
+                    "agents": agent_types,
+                    "conflicts": len(c_result.get("conflicts", [])),
+                },
+            )
 
         n_steps = c_narrative.get("steps", []) if c_narrative else []
         for i, step in enumerate(c_steps):
             ns = n_steps[i] if i < len(n_steps) else {}
-            yield _sse("step", {
-                "index": i + 1,
-                "poi": step.get("poi", {}),
-                "arrival_time": step.get("arrival_time"),
-                "departure_time": step.get("departure_time"),
-                "narrative": ns.get("description", "") if isinstance(ns, dict) else str(ns),
-                "emotion_design": ns.get("emotion_design", "") if isinstance(ns, dict) else "",
-                "scene_tags": step.get("poi", {}).get("_scene_tags", []),
-            })
+            yield _sse(
+                "step",
+                {
+                    "index": i + 1,
+                    "poi": step.get("poi", {}),
+                    "arrival_time": step.get("arrival_time"),
+                    "departure_time": step.get("departure_time"),
+                    "narrative": ns.get("description", "") if isinstance(ns, dict) else str(ns),
+                    "emotion_design": ns.get("emotion_design", "") if isinstance(ns, dict) else "",
+                    "scene_tags": step.get("poi", {}).get("_scene_tags", []),
+                },
+            )
             await asyncio.sleep(0.05)
 
         route_id = uuid.uuid4().hex[:8]
-        yield _sse("done", {"route_id": route_id, "full_route": c_route, "version": "C-分布式智能体"})
+        yield _sse(
+            "done", {"route_id": route_id, "full_route": c_route, "version": "C-分布式智能体"}
+        )
         c_route["narrative"] = c_narrative
         c_route["user_intent"] = user_intent
         route_cache.set(route_id, c_route)
@@ -686,7 +710,9 @@ async def plan_route(request: PlanRequest):
         c_graph = get_graph_c()
         c_state: TravelState = {
             "user_input": user_input,
-            "proposals": [], "negotiation_msgs": [], "errors": [],
+            "proposals": [],
+            "negotiation_msgs": [],
+            "errors": [],
             "sse_queue": sse_queue,
         }
         return await asyncio.wait_for(c_graph.ainvoke(c_state), timeout=120)
@@ -718,7 +744,9 @@ async def plan_route(request: PlanRequest):
                         if summary:
                             _agent_summary_ref[0] = ""
                             try:
-                                progress = await _generate_progress("智能体协作规划中", summary[-80:])
+                                progress = await _generate_progress(
+                                    "智能体协作规划中", summary[-80:]
+                                )
                                 if progress:
                                     await sse_queue.put(("chat", {"text": progress}))
                             except Exception:
@@ -749,26 +777,47 @@ async def plan_route(request: PlanRequest):
                 if c_result.get("_steps_streamed"):
                     route_id = uuid.uuid4().hex[:8]
                     if multi_routes and len(multi_routes) > 1:
-                        yield _sse("done", {"route_id": route_id, "full_route": {"days": multi_routes}, "num_days": num_days, "version": "C-分布式智能体"})
-                        route_cache.set(route_id, {"days": multi_routes, "user_intent": user_intent})
+                        yield _sse(
+                            "done",
+                            {
+                                "route_id": route_id,
+                                "full_route": {"days": multi_routes},
+                                "num_days": num_days,
+                                "version": "C-分布式智能体",
+                            },
+                        )
+                        route_cache.set(
+                            route_id, {"days": multi_routes, "user_intent": user_intent}
+                        )
                     else:
                         if not c_steps:
                             raise RuntimeError("C版本空路线")
-                        yield _sse("done", {"route_id": route_id, "full_route": c_route, "version": "C-分布式智能体"})
+                        yield _sse(
+                            "done",
+                            {
+                                "route_id": route_id,
+                                "full_route": c_route,
+                                "version": "C-分布式智能体",
+                            },
+                        )
                         c_route["narrative"] = c_narrative
                         c_route["user_intent"] = user_intent
                         route_cache.set(route_id, c_route)
                     return
 
                 if multi_routes and len(multi_routes) > 1:
-                    async for event in _stream_multi_day_routes(multi_routes, user_intent, num_days):
+                    async for event in _stream_multi_day_routes(
+                        multi_routes, user_intent, num_days
+                    ):
                         yield event
                     return
 
                 if not c_steps:
                     raise RuntimeError("C版本空路线")
 
-                async for event in _stream_single_day_route(c_route, c_narrative, c_steps, user_intent, c_result):
+                async for event in _stream_single_day_route(
+                    c_route, c_narrative, c_steps, user_intent, c_result
+                ):
                     yield event
                 return
 
@@ -786,7 +835,11 @@ async def plan_route(request: PlanRequest):
     return StreamingResponse(
         event_stream(),
         media_type="text/event-stream",
-        headers={"Cache-Control": "no-cache", "Connection": "keep-alive", "X-Accel-Buffering": "no"},
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
     )
 
 

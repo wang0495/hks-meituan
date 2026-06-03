@@ -52,20 +52,34 @@ async def _execute_plan_stream(stream: SSEStream, user_input: str) -> None:
         await stream.send("phase", {"phase": "solving", "message": "正在编排最佳路线..."})
         route = solve_route(pois[:20], intent, perception_ctx=perception_ctx)
 
-        anomalies = await perception_service.detect_anomaly(perception_ctx, route.get("emotion_curve", []))
+        anomalies = await perception_service.detect_anomaly(
+            perception_ctx, route.get("emotion_curve", [])
+        )
         for anomaly in anomalies or []:
             await stream.send("anomaly", anomaly.to_dict())
 
-        city = route.get("route", [{}])[0].get("poi", {}).get("city", "") if route.get("route") else ""
-        template_narrative = await generate_narrative(route, intent, enable_llm_polish=False, city=city)
+        city = (
+            route.get("route", [{}])[0].get("poi", {}).get("city", "") if route.get("route") else ""
+        )
+        template_narrative = await generate_narrative(
+            route, intent, enable_llm_polish=False, city=city
+        )
 
         await stream.send("phase", {"phase": "narrating", "message": "正在为你写一段行程说明..."})
         for i, step in enumerate(route.get("route", [])):
-            await stream.send("step", {
-                "index": i + 1, "poi": step["poi"],
-                "arrival_time": step.get("arrival_time"),
-                "narrative": template_narrative.get("steps", [])[i] if i < len(template_narrative.get("steps", [])) else "",
-            })
+            await stream.send(
+                "step",
+                {
+                    "index": i + 1,
+                    "poi": step["poi"],
+                    "arrival_time": step.get("arrival_time"),
+                    "narrative": (
+                        template_narrative.get("steps", [])[i]
+                        if i < len(template_narrative.get("steps", []))
+                        else ""
+                    ),
+                },
+            )
             await asyncio.sleep(0.05)
 
         await stream.send("done", {"route_id": "test_route", "full_route": route})
@@ -77,11 +91,14 @@ async def _execute_plan_stream(stream: SSEStream, user_input: str) -> None:
                     timeout=_LLM_POLISH_TIMEOUT,
                 )
                 for i, step_data in enumerate(polished.get("steps", [])):
-                    await stream.send("step_update", {
-                        "index": i + 1,
-                        "description": step_data.get("description", ""),
-                        "emotion_design": step_data.get("emotion_design", ""),
-                    })
+                    await stream.send(
+                        "step_update",
+                        {
+                            "index": i + 1,
+                            "description": step_data.get("description", ""),
+                            "emotion_design": step_data.get("emotion_design", ""),
+                        },
+                    )
                 await stream.send("polish_done", {})
             except TimeoutError:
                 logger.warning("[SSE] LLM 润色超时，保留模板文案")

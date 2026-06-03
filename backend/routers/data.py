@@ -226,16 +226,18 @@ async def get_road_traffic(
         h_idx = hour if hour is not None and 0 <= hour < 24 else -1
         tti = road_tti_list[_day_idx][h_idx] if h_idx >= 0 else None
 
-        results.append({
-            "road_id": road["road_id"],
-            "name": road["name"],
-            "city": road["city"],
-            "road_type": road["road_type"],
-            "lng": road["lng"],
-            "lat": road["lat"],
-            "tti": tti,
-            "congestion_level": _get_congestion_level(tti),
-        })
+        results.append(
+            {
+                "road_id": road["road_id"],
+                "name": road["name"],
+                "city": road["city"],
+                "road_type": road["road_type"],
+                "lng": road["lng"],
+                "lat": road["lat"],
+                "tti": tti,
+                "congestion_level": _get_congestion_level(tti),
+            }
+        )
 
     return {
         "date": _date.isoformat(),

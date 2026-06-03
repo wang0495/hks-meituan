@@ -229,9 +229,27 @@ class PoolMonitor:
 
             utilization = db_stats["checkedout"] / total
             if utilization >= self._thresholds.db_utilization_critical:
-                return [PoolAlert(pool_type="database", message=f"数据库连接池使用率严重过高: {utilization:.1%}", severity=AlertSeverity.CRITICAL, metric_name="utilization", metric_value=utilization, threshold=self._thresholds.db_utilization_critical)]
+                return [
+                    PoolAlert(
+                        pool_type="database",
+                        message=f"数据库连接池使用率严重过高: {utilization:.1%}",
+                        severity=AlertSeverity.CRITICAL,
+                        metric_name="utilization",
+                        metric_value=utilization,
+                        threshold=self._thresholds.db_utilization_critical,
+                    )
+                ]
             if utilization >= self._thresholds.db_utilization_warn:
-                return [PoolAlert(pool_type="database", message=f"数据库连接池使用率偏高: {utilization:.1%}", severity=AlertSeverity.WARNING, metric_name="utilization", metric_value=utilization, threshold=self._thresholds.db_utilization_warn)]
+                return [
+                    PoolAlert(
+                        pool_type="database",
+                        message=f"数据库连接池使用率偏高: {utilization:.1%}",
+                        severity=AlertSeverity.WARNING,
+                        metric_name="utilization",
+                        metric_value=utilization,
+                        threshold=self._thresholds.db_utilization_warn,
+                    )
+                ]
             return []
         except Exception:
             logger.exception("数据库告警检查失败")
@@ -250,9 +268,27 @@ class PoolMonitor:
 
             utilization = http_stats.get("active", 0) / max_conn
             if utilization >= self._thresholds.http_active_critical:
-                return [PoolAlert(pool_type="http", message=f"HTTP 连接池使用率严重过高: {utilization:.1%}", severity=AlertSeverity.CRITICAL, metric_name="utilization", metric_value=utilization, threshold=self._thresholds.http_active_critical)]
+                return [
+                    PoolAlert(
+                        pool_type="http",
+                        message=f"HTTP 连接池使用率严重过高: {utilization:.1%}",
+                        severity=AlertSeverity.CRITICAL,
+                        metric_name="utilization",
+                        metric_value=utilization,
+                        threshold=self._thresholds.http_active_critical,
+                    )
+                ]
             if utilization >= self._thresholds.http_active_warn:
-                return [PoolAlert(pool_type="http", message=f"HTTP 连接池使用率偏高: {utilization:.1%}", severity=AlertSeverity.WARNING, metric_name="utilization", metric_value=utilization, threshold=self._thresholds.http_active_warn)]
+                return [
+                    PoolAlert(
+                        pool_type="http",
+                        message=f"HTTP 连接池使用率偏高: {utilization:.1%}",
+                        severity=AlertSeverity.WARNING,
+                        metric_name="utilization",
+                        metric_value=utilization,
+                        threshold=self._thresholds.http_active_warn,
+                    )
+                ]
             return []
         except Exception:
             logger.exception("HTTP 告警检查失败")
@@ -262,8 +298,12 @@ class PoolMonitor:
         """检查所有连接池是否有指标超过告警阈值。"""
         alerts = self._check_db_alerts() + self._check_http_alerts()
 
-        POOL_ALERT_COUNT.labels(severity="warning").set(sum(1 for a in alerts if a.severity == AlertSeverity.WARNING))
-        POOL_ALERT_COUNT.labels(severity="critical").set(sum(1 for a in alerts if a.severity == AlertSeverity.CRITICAL))
+        POOL_ALERT_COUNT.labels(severity="warning").set(
+            sum(1 for a in alerts if a.severity == AlertSeverity.WARNING)
+        )
+        POOL_ALERT_COUNT.labels(severity="critical").set(
+            sum(1 for a in alerts if a.severity == AlertSeverity.CRITICAL)
+        )
 
         for alert in alerts:
             if alert.severity == AlertSeverity.CRITICAL:
