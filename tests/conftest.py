@@ -5,7 +5,6 @@
 
 from __future__ import annotations
 
-import asyncio
 import json
 import sys
 from pathlib import Path
@@ -16,7 +15,7 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 
 if TYPE_CHECKING:
-    from collections.abc import AsyncIterator, Iterator
+    from collections.abc import AsyncIterator
 
 # 将项目根目录加入 sys.path
 ROOT = Path(__file__).resolve().parent.parent
@@ -27,18 +26,6 @@ FIXTURES_DIR = Path(__file__).parent / "fixtures"
 
 
 # ---------------------------------------------------------------------------
-# 事件循环（session 级别，避免每个测试创建新循环）
-# ---------------------------------------------------------------------------
-
-
-@pytest.fixture(scope="session")
-def event_loop() -> Iterator[asyncio.AbstractEventLoop]:
-    """创建 session 级别的事件循环，提升异步测试性能。"""
-    loop = asyncio.get_event_loop_policy().new_event_loop()
-    yield loop
-    loop.close()
-
-
 # ---------------------------------------------------------------------------
 # 测试客户端（复用连接）
 # ---------------------------------------------------------------------------

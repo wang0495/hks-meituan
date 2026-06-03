@@ -79,8 +79,8 @@ services:
     container_name: cityflow-backend1
     environment:
       - INSTANCE_ID=1
-      - OPENAI_API_KEY=${OPENAI_API_KEY}
-      - OPENAI_BASE_URL=${OPENAI_BASE_URL:-https://api.openai.com/v1}
+      - LLM_API_KEY=${LLM_API_KEY}
+      - LLM_BASE_URL=${LLM_BASE_URL:-https://api.openai.com/v1}
       - REDIS_HOST=redis
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
       - SECURITY_ENCRYPTION_KEY=${SECURITY_ENCRYPTION_KEY:-}
@@ -94,8 +94,8 @@ services:
     container_name: cityflow-backend2
     environment:
       - INSTANCE_ID=2
-      - OPENAI_API_KEY=${OPENAI_API_KEY}
-      - OPENAI_BASE_URL=${OPENAI_BASE_URL:-https://api.openai.com/v1}
+      - LLM_API_KEY=${LLM_API_KEY}
+      - LLM_BASE_URL=${LLM_BASE_URL:-https://api.openai.com/v1}
       - REDIS_HOST=redis
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
       - SECURITY_ENCRYPTION_KEY=${SECURITY_ENCRYPTION_KEY:-}
@@ -109,8 +109,8 @@ services:
     container_name: cityflow-backend3
     environment:
       - INSTANCE_ID=3
-      - OPENAI_API_KEY=${OPENAI_API_KEY}
-      - OPENAI_BASE_URL=${OPENAI_BASE_URL:-https://api.openai.com/v1}
+      - LLM_API_KEY=${LLM_API_KEY}
+      - LLM_BASE_URL=${LLM_BASE_URL:-https://api.openai.com/v1}
       - REDIS_HOST=redis
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
       - SECURITY_ENCRYPTION_KEY=${SECURITY_ENCRYPTION_KEY:-}

@@ -14,8 +14,8 @@
 
 ### 环境要求
 
-- Python >= 3.10
-- OpenAI API Key（可选，有规则降级）
+- Python >= 3.12
+- LLM API Key（可选，有规则降级）
 
 ### 安装运行
 
@@ -26,11 +26,10 @@ cd cityflow
 
 # 配置环境变量
 cp .env.example .env
-# 编辑 .env，填入你的 OPENAI_API_KEY
+# 编辑 .env，填入你的 LLM_API_KEY
 
 # 一键启动
-chmod +x run.sh
-./run.sh
+python -m uvicorn backend.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
 访问 http://localhost:8000 打开Web界面
@@ -63,9 +62,10 @@ cityflow/
 ├── frontend/
 │   └── index.html             # Web界面
 ├── tests/                     # 测试用例
+├── scripts/                   # 工具脚本
 ├── docs/                      # 项目文档
+├── ops/                       # 运维配置
 ├── docker-compose.yml         # Docker配置
-├── run.sh                     # 启动脚本
 └── README.md
 ```
 
@@ -148,11 +148,7 @@ pytest --cov=backend --cov-report=html
 
 ## 🤝 贡献
 
-欢迎贡献！请查看 [CONTRIBUTING.md](CONTRIBUTING.md)
-
-## 📄 License
-
-MIT License - 详见 [LICENSE](LICENSE)
+欢迎提 Issue 和 PR。
 
 ---
 

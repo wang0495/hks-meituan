@@ -6,13 +6,15 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from rich.text import Text
 from textual import work
-from textual.app import ComposeResult
 from textual.containers import Horizontal, Vertical
 from textual.widgets import Button, Input, RichLog, Static
+
+if TYPE_CHECKING:
+    from textual.app import ComposeResult
 
 
 class PreferenceChat(Static):
@@ -198,9 +200,7 @@ class PreferenceChat(Static):
 
         # A/B: 使用推荐对应的 intent_hint
         if self.pm:
-            rec_result = await self.pm.generate_recommendations(
-                "", self._current_context
-            )
+            rec_result = await self.pm.generate_recommendations("", self._current_context)
             for r in rec_result.get("recommendations", []):
                 if r.get("id") == c:
                     hint = r.get("intent_hint", {})
@@ -254,9 +254,7 @@ class PreferenceChat(Static):
                     self._on_preference_done()
                     return
 
-                q_result = await ask_preference_question(
-                    self.collected_intent, missing[:1], ""
-                )
+                q_result = await ask_preference_question(self.collected_intent, missing[:1], "")
                 if q_result and q_result.get("question"):
                     self._asked_dims.append(q_result["dimension"])
                     self._write_chat("ai", q_result["question"])
@@ -311,7 +309,10 @@ class PreferenceChat(Static):
                 val = result.get("value", 0.5)
                 # 映射到 collected_intent
                 dim_map = {
-                    "pace": ("pace", lambda v: "悠闲型" if v < 0.4 else "平衡型" if v < 0.7 else "紧凑型"),
+                    "pace": (
+                        "pace",
+                        lambda v: "悠闲型" if v < 0.4 else "平衡型" if v < 0.7 else "紧凑型",
+                    ),
                     "budget_sensitivity": ("budget", lambda v: {}),
                     "tranquility_seeking": ("pace", lambda v: "闲逛型" if v > 0.6 else "平衡型"),
                     "physical_energy": ("pace", lambda v: "闲逛型" if v < 0.4 else "平衡型"),
@@ -332,6 +333,7 @@ class PreferenceChat(Static):
                 stated["pace"] = "平衡型"
 
             import re
+
             budget_match = re.search(r"(\d+)\s*[元块]", text)
             if budget_match:
                 stated["budget"] = {

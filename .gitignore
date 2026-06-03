@@ -54,7 +54,7 @@ optuna_result.json
 ClaudeCode-*.md
 
 # Docker volumes
-data/
+/data/
 
 # CodeGraph / Understand Anything
 .codegraph/

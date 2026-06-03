@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import copy
 import logging
 import uuid
 from contextlib import asynccontextmanager, suppress
@@ -919,6 +920,40 @@ async def get_route(route_id: str):
 # ---------------------------------------------------------------------------
 
 
+def _deep_copy_route(route: dict) -> dict:
+    """深拷贝路线数据（用于保存调整前快照）。"""
+    return copy.deepcopy(route)
+
+
+def _generate_changes_summary(previous_route: dict, new_route: dict, changes_made: list) -> str:
+    """生成变更摘要。"""
+    summaries = []
+    for change in changes_made:
+        change_type = change.get("type", "")
+        if change_type == "replace":
+            old_name = change.get("original", change.get("old_poi", {}).get("name", "未知"))
+            new_name = change.get("replacement", change.get("new_poi", {}).get("name", "未知"))
+            summaries.append(f"已将 {old_name} 替换为 {new_name}")
+        elif change_type == "pace":
+            new_pace = change.get("new_pace", "")
+            summaries.append(f"节奏已调整为 {new_pace}")
+        elif change_type == "budget":
+            new_budget = change.get("new_budget", 0)
+            summaries.append(f"预算已调整为每人{new_budget}元")
+        elif change_type == "time":
+            new_start = change.get("new_start", "")
+            summaries.append(f"出发时间已调整为 {new_start}")
+        elif change_type == "mood_adjust":
+            emotion_need = change.get("emotion_need", "")
+            summaries.append(f"已调整为{emotion_need}型路线")
+        elif change_type == "emotion_weight":
+            summaries.append("已调整路线强度")
+        elif change_type == "retry":
+            summaries.append("路线已重新规划")
+
+    return "；".join(summaries) if summaries else "路线已调整"
+
+
 @app.get(
     "/api/route/{route_id}/adjust",
     summary="通过指令调整路线（快捷方式）",
@@ -953,42 +988,6 @@ async def get_route(route_id: str):
     },
     tags=["对话"],
 )
-def _deep_copy_route(route: dict) -> dict:
-    """深拷贝路线数据（用于保存调整前快照）。"""
-    import copy
-
-    return copy.deepcopy(route)
-
-
-def _generate_changes_summary(previous_route: dict, new_route: dict, changes_made: list) -> str:
-    """生成变更摘要。"""
-    summaries = []
-    for change in changes_made:
-        change_type = change.get("type", "")
-        if change_type == "replace":
-            old_name = change.get("original", change.get("old_poi", {}).get("name", "未知"))
-            new_name = change.get("replacement", change.get("new_poi", {}).get("name", "未知"))
-            summaries.append(f"已将 {old_name} 替换为 {new_name}")
-        elif change_type == "pace":
-            new_pace = change.get("new_pace", "")
-            summaries.append(f"节奏已调整为 {new_pace}")
-        elif change_type == "budget":
-            new_budget = change.get("new_budget", 0)
-            summaries.append(f"预算已调整为每人{new_budget}元")
-        elif change_type == "time":
-            new_start = change.get("new_start", "")
-            summaries.append(f"出发时间已调整为 {new_start}")
-        elif change_type == "mood_adjust":
-            emotion_need = change.get("emotion_need", "")
-            summaries.append(f"已调整为{emotion_need}型路线")
-        elif change_type == "emotion_weight":
-            summaries.append("已调整路线强度")
-        elif change_type == "retry":
-            summaries.append("路线已重新规划")
-
-    return "；".join(summaries) if summaries else "路线已调整"
-
-
 async def adjust_route(route_id: str, instruction: str):
     """
     通过对话指令调整路线（GET快捷方式）。
