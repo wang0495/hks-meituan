@@ -1537,27 +1537,25 @@ def _build_route_from_llm_order(
 # ═══════════════════════════════════════════════════════════
 
 
-def _score_route_heuristic(
-    route: dict,
-    poi_proposals: list[dict],
-    food_proposals: list[dict],
-    intent: dict,
-) -> float:
-    """启发式评分路线质量(0-100)，越高越好。不调LLM，纯规则。
+_FOOD_SUBCATS: dict[str, list[str]] = {
+    "海鲜": ["海鲜", "蚝", "鱼排", "渔港"],
+    "正餐": ["餐厅", "烧", "煲", "火锅", "烧烤"],
+    "小吃": ["粉", "面", "粥", "小吃", "排档"],
+    "茶餐厅/甜品": ["茶餐厅", "甜品", "奶茶", "冰", "柠檬"],
+    "综合美食街": ["夜市", "美食街", "海鲜街", "老街"],
+    "饮品/凉茶": ["凉茶", "草本", "龟苓膏"],
+}
+_LIANGCHA_KEYWORDS = {"凉茶", "草本", "龟苓膏"}
+_FOOD_KEYWORDS = ["餐厅", "海鲜", "粉", "面", "粥", "甜品", "茶餐厅", "烧烤", "火锅", "夜市"]
+_FOOD_CATEGORIES = {"餐饮", "美食", "小吃", "夜市"}
 
-    评分维度（与evaluator对齐）:
-    - geo_continuity (权重40): 总距离越短越好
-    - diversity (权重25): 唯一类别越多越好
-    - coverage (权重20): 覆盖了多少expert提案
-    - time_fit (权重15): 时间利用率
-    """
-    steps = route.get("route", [])
-    if not steps:
-        return -1.0
 
-    # ── 1. 地理连续性 (0-25) ──
+def _calc_geo_score(steps: list[dict]) -> float:
+    """计算地理连续性分数 (0-25)。"""
     total_dist = 0.0
     max_segment = 0.0
+    long_segments = 0
+
     for i in range(1, len(steps)):
         prev = steps[i - 1].get("poi", {})
         cur = steps[i].get("poi", {})
@@ -1567,129 +1565,105 @@ def _score_route_heuristic(
             d = _haversine_km(lat1, lng1, lat2, lng2)
             total_dist += d
             max_segment = max(max_segment, d)
-    # 0km总距离=25分, 每增加1km扣0.5分; 单段超过15km额外扣分
-    geo_score = max(0, 25 - total_dist * 0.5)
+            if d > 15:
+                long_segments += 1
+
+    score = max(0, 25 - total_dist * 0.5)
     if max_segment > 15:
-        geo_score -= (max_segment - 15) * 3  # 跨区大惩罚（加重）
-    # 连续跨区惩罚：>1段超15km的每多一段扣5分
-    long_segments = sum(
-        1
-        for i in range(1, len(steps))
-        if _haversine_km(
-            steps[i - 1].get("poi", {}).get("lat", 0),
-            steps[i - 1].get("poi", {}).get("lng", 0),
-            steps[i].get("poi", {}).get("lat", 0),
-            steps[i].get("poi", {}).get("lng", 0),
-        )
-        > 15
-    )
+        score -= (max_segment - 15) * 3
     if long_segments > 1:
-        geo_score -= (long_segments - 1) * 5
+        score -= (long_segments - 1) * 5
+    return score
 
-    # ── 2. 类别多样性 (0-25) ──
-    categories = set()
-    for s in steps:
-        cat = s.get("poi", {}).get("category", "")
-        if cat:
-            categories.add(cat)
-    # 还检查_type: lunch/dinner也算不同类型
+
+def _calc_diversity_score(steps: list[dict]) -> float:
+    """计算类别多样性分数 (0-25)。"""
+    categories = {s.get("poi", {}).get("category", "") for s in steps if s.get("poi", {}).get("category")}
     meal_types = {s.get("_type", "") for s in steps if s.get("_type")}
-    unique_types = len(categories) + len(meal_types)
-    diversity_score = min(25, unique_types * 5)  # 5种类型=满分
+    score = min(25, (len(categories) + len(meal_types)) * 5)
 
-    # 额外惩罚：美食子类重复（同一子类餐厅>1个扣分）
+    # 美食子类重复惩罚
     from collections import Counter as _Counter
-
-    _FOOD_SUBCATS_LOCAL = {
-        "海鲜": ["海鲜", "蚝", "鱼排", "渔港"],
-        "正餐": ["餐厅", "烧", "煲", "火锅", "烧烤"],
-        "小吃": ["粉", "面", "粥", "小吃", "排档"],
-        "茶餐厅/甜品": ["茶餐厅", "甜品", "奶茶", "冰", "柠檬"],
-        "综合美食街": ["夜市", "美食街", "海鲜街", "老街"],
-        "饮品/凉茶": ["凉茶", "草本", "龟苓膏"],
-    }
-    _LIANGCHA_KWS_LOCAL = {"凉茶", "草本", "龟苓膏"}
     food_subcats = []
     for s in steps:
         name = s.get("poi", {}).get("name", "")
         cat = s.get("poi", {}).get("category", "")
-        is_food = cat in {"餐饮", "美食", "小吃", "夜市"} or any(
-            kw in name
-            for kw in ["餐厅", "海鲜", "粉", "面", "粥", "甜品", "茶餐厅", "烧烤", "火锅", "夜市"]
-        )
-        if is_food:
-            # 凉茶优先检测
-            if any(kw in name for kw in _LIANGCHA_KWS_LOCAL):
+        if cat in _FOOD_CATEGORIES or any(kw in name for kw in _FOOD_KEYWORDS):
+            if any(kw in name for kw in _LIANGCHA_KEYWORDS):
                 food_subcats.append("饮品/凉茶")
                 continue
-            for sub, kws in _FOOD_SUBCATS_LOCAL.items():
+            for sub, kws in _FOOD_SUBCATS.items():
                 if any(kw in name for kw in kws):
                     food_subcats.append(sub)
                     break
             else:
                 food_subcats.append("其他餐饮")
-    if food_subcats:
-        subcat_counts = _Counter(food_subcats)
-        # 每个重复的子类扣2分
-        for _sub, cnt in subcat_counts.items():
-            if cnt > 1:
-                diversity_score -= (cnt - 1) * 2
 
-    # ── 3. 覆盖率 (0-20) ──
-    route_names = set()
-    for s in steps:
-        n = s.get("poi", {}).get("name", "")
-        route_names.add(n)
-        route_names.add(_canonical_name(n))
-    covered = 0
-    for p in poi_proposals + food_proposals:
-        pn = p.get("content", {}).get("name", "")
-        if any(pn in rn or rn in pn for rn in route_names):
-            covered += 1
-    total_proposals = len(poi_proposals) + len(food_proposals)
-    coverage_ratio = covered / total_proposals if total_proposals > 0 else 0
-    coverage_score = coverage_ratio * 20
+    for cnt in _Counter(food_subcats).values():
+        if cnt > 1:
+            score -= (cnt - 1) * 2
+    return score
 
-    # ── 4. 时间利用率 (0-15) ──
-    start_time_str = intent.get("time", {}).get("start", "09:00")
-    end_time_str = intent.get("time", {}).get("end", "21:00")
+
+def _calc_coverage_score(steps: list[dict], poi_proposals: list[dict], food_proposals: list[dict]) -> float:
+    """计算覆盖率分数 (0-20)。"""
+    route_names = _get_route_name_set(steps)
+    covered = sum(1 for p in poi_proposals + food_proposals if any(p.get("content", {}).get("name", "") in rn or rn in p.get("content", {}).get("name", "") for rn in route_names))
+    total = len(poi_proposals) + len(food_proposals)
+    return (covered / total * 20) if total > 0 else 0
+
+
+def _calc_time_score(steps: list[dict], intent: dict) -> float:
+    """计算时间利用率分数 (0-15)。"""
     try:
         first = datetime.strptime(steps[0]["arrival_time"], "%H:%M")
         last = datetime.strptime(steps[-1]["departure_time"], "%H:%M")
         route_min = (last - first).total_seconds() / 60
-        available = (
-            datetime.strptime(end_time_str, "%H:%M") - datetime.strptime(start_time_str, "%H:%M")
-        ).total_seconds() / 60
+        available = (datetime.strptime(intent.get("time", {}).get("end", "21:00"), "%H:%M") - datetime.strptime(intent.get("time", {}).get("start", "09:00"), "%H:%M")).total_seconds() / 60
         if available > 0:
             ratio = route_min / available
-            # 80-100%利用率最优, <50%或>110%扣分
             if 0.8 <= ratio <= 1.0:
-                time_score = 15
-            elif 0.5 <= ratio < 0.8:
-                time_score = ratio * 15
-            elif ratio > 1.0:
-                time_score = max(0, 15 - (ratio - 1.0) * 30)
-            else:
-                time_score = ratio * 10
-        else:
-            time_score = 7
+                return 15
+            if 0.5 <= ratio < 0.8:
+                return ratio * 15
+            if ratio > 1.0:
+                return max(0, 15 - (ratio - 1.0) * 30)
+            return ratio * 10
+        return 7
     except (ValueError, KeyError):
-        time_score = 7
+        return 7
 
-    # ── 5. 步数合理性 (0-15) ──
-    # 过少(< 3)或过多(> 8)扣分
-    n_steps = len(steps)
-    if 4 <= n_steps <= 7:
-        steps_score = 15
-    elif 3 <= n_steps <= 8:
-        steps_score = 10
-    elif n_steps <= 10:
-        steps_score = 5
-    else:
-        steps_score = max(-10, 5 - (n_steps - 10) * 3)  # 超过10站重罚
 
-    total = geo_score + diversity_score + coverage_score + time_score + steps_score
-    return total
+def _calc_steps_score(steps: list[dict]) -> float:
+    """计算步数合理性分数 (0-15)。"""
+    n = len(steps)
+    if 4 <= n <= 7:
+        return 15
+    if 3 <= n <= 8:
+        return 10
+    if n <= 10:
+        return 5
+    return max(-10, 5 - (n - 10) * 3)
+
+
+def _score_route_heuristic(
+    route: dict,
+    poi_proposals: list[dict],
+    food_proposals: list[dict],
+    intent: dict,
+) -> float:
+    """启发式评分路线质量(0-100)，越高越好。不调LLM，纯规则。"""
+    steps = route.get("route", [])
+    if not steps:
+        return -1.0
+
+    return (
+        _calc_geo_score(steps)
+        + _calc_diversity_score(steps)
+        + _calc_coverage_score(steps, poi_proposals, food_proposals)
+        + _calc_time_score(steps, intent)
+        + _calc_steps_score(steps)
+    )
 
 
 # ═══════════════════════════════════════════════════════════
