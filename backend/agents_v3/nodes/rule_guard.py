@@ -60,6 +60,14 @@ async def rule_guard(state: TravelState) -> dict:
     from backend.services.filters import check_hard_rules
     rule_violations = check_hard_rules(user_intent, candidates)
 
+    # ── 6. 预计算场景分类（ADR-PERF：无歧义场景跳过expert_router LLM调用） ──
+    pre_scene_type = None
+    try:
+        from backend.agents_v3.nodes.expert_router import _rule_precheck
+        pre_scene_type = _rule_precheck(user_input, user_intent)
+    except Exception:
+        pass
+
     await sse_emit(state, "agent_result", {"agent": "rule_guard", "summary": f"意图已解析，{len(candidates)}个候选POI"})
 
     # ── 提前推送候选POI预览（ADR-PERF：用户3-5秒内看到真实POI名称） ──
@@ -85,6 +93,7 @@ async def rule_guard(state: TravelState) -> dict:
         "rule_violations": rule_violations,
         "meta_rules": [],
         "errors": errors,
+        **({"pre_scene_type": pre_scene_type} if pre_scene_type else {}),
     }
 
 

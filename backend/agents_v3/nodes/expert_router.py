@@ -390,6 +390,7 @@ async def expert_router(state: TravelState) -> dict:
     user_input = state.get("user_input", "")
     user_intent = state.get("user_intent", {})
     candidates = state.get("candidates", [])
+    pre_scene_type = state.get("pre_scene_type")  # rule_guard预计算的场景类型
 
     # --- LLM classification + pool computation in parallel (ADR-PERF) ---
     # _compute_pools only needs candidates + state, not the classification result.
@@ -397,6 +398,13 @@ async def expert_router(state: TravelState) -> dict:
     from backend.agents_v3.experts.base import _llm_decide
 
     async def _classify():
+        # 如果rule_guard已预计算场景类型（无歧义场景），跳过LLM调用
+        if pre_scene_type:
+            logger.info("Using pre-computed scene type from rule_guard: %s", pre_scene_type)
+            weights = _FALLBACK_WEIGHTS.get(pre_scene_type, _FALLBACK_WEIGHTS["观光型"]).copy()
+            weights["poi"] = max(weights.get("poi", 0), 0.3)
+            active = sorted([k for k, v in weights.items() if v > 0], key=lambda k: weights[k], reverse=True)
+            return {"scene_type": pre_scene_type, "expert_weights": weights, "active_experts": active}
         try:
             return await _llm_decide(
                 _SYSTEM_PROMPT,
