@@ -193,45 +193,40 @@ def _build_metadata(route_result: dict, request: PlanRequestV2) -> dict:
 async def plan_route_v2(request: PlanRequestV2) -> StreamingResponse:
     """V2版本的路线规划（SSE流式响应，增强版）。"""
 
+    def _merge_request_params(user_intent: dict) -> None:
+        """合并V2请求参数到user_intent。"""
+        if request.constraints:
+            user_intent.setdefault("constraints", []).extend(request.constraints)
+        if request.pace:
+            user_intent["pace"] = request.pace
+        if request.preferences:
+            user_intent.setdefault("preferences", {}).update(request.preferences)
+        if request.city:
+            user_intent["city"] = request.city
+        if request.start_point:
+            user_intent["start_point"] = request.start_point
+        if request.end_point:
+            user_intent["end_point"] = request.end_point
+
     async def event_stream():
         try:
             yield _sse("phase", {"phase": "parsing", "message": "正在理解你的需求..."})
 
             from backend.services.intent_parser import parse_intent
 
-            user_intent = await _with_timeout(
-                parse_intent(request.user_input),
-                timeout_seconds=8.0,
-            )
+            user_intent = await _with_timeout(parse_intent(request.user_input), timeout_seconds=8.0)
             if user_intent is None:
                 yield _sse("error", {"error": "意图解析超时，请重试"})
                 return
 
-            # V2: 合并用户传入的约束和节奏
-            if request.constraints:
-                user_intent.setdefault("constraints", []).extend(request.constraints)
-            if request.pace:
-                user_intent["pace"] = request.pace
-            if request.preferences:
-                user_intent.setdefault("preferences", {}).update(request.preferences)
-            # V2: 合并城市信息
-            if request.city:
-                user_intent["city"] = request.city
-            # V2: 合并起终点信息
-            if request.start_point:
-                user_intent["start_point"] = request.start_point
-            if request.end_point:
-                user_intent["end_point"] = request.end_point
+            _merge_request_params(user_intent)
 
             yield _sse("phase", {"phase": "searching", "message": "正在为你寻找合适的地方..."})
 
             from backend.services.filters import filter_candidates
 
-            # 按城市过滤POI数据
             city = request.city or user_intent.get("city", "珠海")
-            all_pois = get_data("city_poi_db", city=city)
-            candidates = filter_candidates(all_pois, user_intent)
-
+            candidates = filter_candidates(get_data("city_poi_db", city=city), user_intent)
             if not candidates:
                 yield _sse("error", {"error": "没有找到符合条件的地点，请放宽条件重试"})
                 return
@@ -240,19 +235,10 @@ async def plan_route_v2(request: PlanRequestV2) -> StreamingResponse:
 
             from backend.services.solver import solve_route
 
-            start_time = user_intent.get("time", {}).get("start", "09:00")
             route_result = await _with_timeout(
-                asyncio.to_thread(
-                    solve_route,
-                    candidates,
-                    user_intent,
-                    start_time,
-                    start_point=request.start_point,
-                    end_point=request.end_point,
-                ),
+                asyncio.to_thread(solve_route, candidates, user_intent, user_intent.get("time", {}).get("start", "09:00"), start_point=request.start_point, end_point=request.end_point),
                 timeout_seconds=10.0,
             )
-
             if route_result is None or not route_result.get("route"):
                 logger.warning("路线求解失败/超时，使用简化路线")
                 route_result = _generate_simplified_route(candidates)
@@ -264,25 +250,15 @@ async def plan_route_v2(request: PlanRequestV2) -> StreamingResponse:
             narrative = await _with_timeout(
                 generate_narrative(route_result, user_intent),
                 timeout_seconds=5.0,
-                fallback={
-                    "opening": "",
-                    "steps": [""] * len(route_result.get("route", [])),
-                    "closing": "",
-                    "emotion_highlights": [],
-                },
+                fallback={"opening": "", "steps": [""] * len(route_result.get("route", [])), "closing": "", "emotion_highlights": []},
             )
 
-            steps_list = route_result.get("route", [])
-            narrative_steps = narrative.get("steps", [])
-            for i, step in enumerate(steps_list):
-                step_data = {
-                    "index": i + 1,
-                    "poi": step["poi"],
-                    "arrival_time": step.get("arrival_time"),
-                    "departure_time": step.get("departure_time"),
-                    "narrative": narrative_steps[i] if i < len(narrative_steps) else "",
-                }
-                yield _sse("step", step_data)
+            for i, step in enumerate(route_result.get("route", [])):
+                yield _sse("step", {
+                    "index": i + 1, "poi": step["poi"],
+                    "arrival_time": step.get("arrival_time"), "departure_time": step.get("departure_time"),
+                    "narrative": narrative.get("steps", [])[i] if i < len(narrative.get("steps", [])) else "",
+                })
                 await asyncio.sleep(0.05)
 
             route_id = uuid.uuid4().hex[:8]
@@ -290,19 +266,11 @@ async def plan_route_v2(request: PlanRequestV2) -> StreamingResponse:
             route_result["user_intent"] = user_intent
             route_cache.set(route_id, route_result)
 
-            # V2: 构建情绪曲线和元数据
-            emotion_curve = _build_emotion_curve(route_result)
-            metadata = _build_metadata(route_result, request)
-
-            yield _sse(
-                "done",
-                {
-                    "route_id": route_id,
-                    "full_route": route_result,
-                    "emotion_curve": emotion_curve,
-                    "metadata": metadata,
-                },
-            )
+            yield _sse("done", {
+                "route_id": route_id, "full_route": route_result,
+                "emotion_curve": _build_emotion_curve(route_result),
+                "metadata": _build_metadata(route_result, request),
+            })
 
         except Exception:
             logger.exception("V2 规划路线时出错")
