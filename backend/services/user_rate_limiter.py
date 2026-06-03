@@ -30,10 +30,10 @@ from backend.errors import CityFlowException, ErrorCode
 logger = logging.getLogger(__name__)
 
 __all__ = [
-    "UserRateLimiter",
-    "UserRateLimitResult",
-    "UserRateLimitExceededError",
     "EndpointTier",
+    "UserRateLimitExceededError",
+    "UserRateLimitResult",
+    "UserRateLimiter",
     "get_user_rate_limiter",
 ]
 
@@ -186,9 +186,7 @@ class _LocalUserRateLimiter:
     def cleanup(self, max_idle_seconds: int = 600) -> int:
         """清理长时间无活动的窗口。"""
         now = time.monotonic()
-        stale = [
-            k for k, w in self._windows.items() if now - w.start_ts > max_idle_seconds
-        ]
+        stale = [k for k, w in self._windows.items() if now - w.start_ts > max_idle_seconds]
         for k in stale:
             del self._windows[k]
         return len(stale)
@@ -251,8 +249,8 @@ class UserRateLimiter:
 
     def __init__(self, redis_client: aioredis.Redis | None = None) -> None:
         if redis_client is not None:
-            self._backend: _RedisUserRateLimiter | _LocalUserRateLimiter = (
-                _RedisUserRateLimiter(redis_client)
+            self._backend: _RedisUserRateLimiter | _LocalUserRateLimiter = _RedisUserRateLimiter(
+                redis_client
             )
             self._use_redis = True
             logger.info("用户限流器已初始化（Redis 模式）")
@@ -296,9 +294,7 @@ class UserRateLimiter:
         effective_limit = max(1, int(base_limit * multiplier))
 
         key = f"{user_id}:{tier.value}"
-        allowed, remaining, reset_ts = await self._backend.check(
-            key, effective_limit, window
-        )
+        allowed, remaining, reset_ts = await self._backend.check(key, effective_limit, window)
 
         result = UserRateLimitResult(
             allowed=allowed,
@@ -348,9 +344,7 @@ class UserRateLimiter:
         effective_limit = max(1, int(base_limit * multiplier))
 
         key = f"{user_id}:{tier.value}"
-        allowed, remaining, reset_ts = await self._backend.check(
-            key, effective_limit, window
-        )
+        allowed, remaining, reset_ts = await self._backend.check(key, effective_limit, window)
 
         return UserRateLimitResult(
             allowed=allowed,

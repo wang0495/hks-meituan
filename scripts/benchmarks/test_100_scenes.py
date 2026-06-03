@@ -3,7 +3,7 @@
 讯飞500并发零错误，多进程突破本地连接池瓶颈。
 
 使用方式:
-    python -m backend.agents_v3.test_100_scenes
+    python scripts/benchmarks/test_100_scenes
 """
 from __future__ import annotations
 
@@ -17,7 +17,7 @@ from concurrent.futures import ProcessPoolExecutor, as_completed
 from datetime import datetime
 from pathlib import Path
 
-_project_root = str(Path(__file__).resolve().parent.parent.parent)
+_project_root = str(Path(__file__).resolve().parent.parent)
 if _project_root not in sys.path:
     sys.path.insert(0, _project_root)
 
@@ -183,7 +183,7 @@ def _init_worker():
 def _run_batch(batch: list[tuple[int, str, str]]) -> list[dict]:
     """子进程串行跑一批场景。"""
     from backend.agents_v3 import get_graph_c, TravelState
-    from backend.agents_v3.test_5_scenes import llm_score_route, score_route
+    from test_5_scenes import llm_score_route, score_route
 
     results = []
     for idx, scene_type, user_input in batch:

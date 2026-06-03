@@ -25,8 +25,8 @@ logger = logging.getLogger(__name__)
 __all__ = [
     "AuditAction",
     "AuditLogger",
-    "get_audit_logger",
     "audit_log",
+    "get_audit_logger",
 ]
 
 

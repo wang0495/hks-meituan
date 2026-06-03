@@ -133,6 +133,7 @@ def _get_client() -> AsyncOpenAI:
     global _client
     if _client is None:
         from backend.config.settings import get_settings
+
         s = get_settings()
         _client = AsyncOpenAI(base_url=s.llm.base_url, api_key=s.llm.api_key)
     return _client
@@ -140,6 +141,7 @@ def _get_client() -> AsyncOpenAI:
 
 def _is_qwen() -> bool:
     from backend.config.settings import get_settings
+
     return "qwen" in get_settings().llm.model.lower()
 
 
@@ -208,9 +210,7 @@ async def extract_demand_vector(
     """
     history_str = ""
     if dialogue_history:
-        history_str = "\n".join(
-            f"{m['role']}: {m['content']}" for m in dialogue_history[-6:]
-        )
+        history_str = "\n".join(f"{m['role']}: {m['content']}" for m in dialogue_history[-6:])
     else:
         history_str = f"user: {user_input}"
 
@@ -281,9 +281,7 @@ async def ask_preference_question(
     }
     dim = missing_dimensions[0]
     return {
-        "question": default_questions.get(
-            dim, f"关于{dim}你有什么偏好？"
-        ),
+        "question": default_questions.get(dim, f"关于{dim}你有什么偏好？"),
         "dimension": dim,
         "reason": "降级：LLM 不可用，使用默认问题",
     }

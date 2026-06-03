@@ -14,21 +14,23 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from backend.services.circuit_breaker import (CircuitBreaker,
-                                              CircuitBreakerOpenError)
-from backend.services.fallback import (fallback, fallback_llm_chat,
-                                       fallback_narrative_generation,
-                                       fallback_route_planning)
+from backend.services.circuit_breaker import CircuitBreaker, CircuitBreakerOpenError
+from backend.services.fallback import (
+    fallback,
+    fallback_llm_chat,
+    fallback_narrative_generation,
+    fallback_route_planning,
+)
 from backend.services.retry import retry
 
 logger = logging.getLogger(__name__)
 
 __all__ = [
+    "chat_with_resilience",
+    "generate_narrative_with_resilience",
+    "get_all_circuit_breakers",
     "llm_circuit_breaker",
     "plan_route_with_resilience",
-    "generate_narrative_with_resilience",
-    "chat_with_resilience",
-    "get_all_circuit_breakers",
 ]
 
 # ---------------------------------------------------------------------------

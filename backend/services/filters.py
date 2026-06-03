@@ -7,10 +7,12 @@ import math
 import re
 from typing import Any
 
-from backend.services.emotion import (emotion_compatibility,
-                                      emotion_compatibility_with_consecutive,
-                                      fatigue_penalty)
-from backend.services.time_utils import (parse_time_window)
+from backend.services.emotion import (
+    emotion_compatibility,
+    emotion_compatibility_with_consecutive,
+    fatigue_penalty,
+)
+from backend.services.time_utils import parse_time_window
 
 logger = logging.getLogger(__name__)
 
@@ -24,9 +26,10 @@ def _haversine_km(lat1: float, lng1: float, lat2: float, lng2: float) -> float:
     R = 6371.0
     dlat = math.radians(lat2 - lat1)
     dlng = math.radians(lng2 - lng1)
-    a = math.sin(dlat / 2) ** 2 + math.cos(math.radians(lat1)) * math.cos(
-        math.radians(lat2)
-    ) * math.sin(dlng / 2) ** 2
+    a = (
+        math.sin(dlat / 2) ** 2
+        + math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) * math.sin(dlng / 2) ** 2
+    )
     return R * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
 
 
@@ -195,7 +198,7 @@ def filter_candidates(
         pois = _filter_by_radius(pois, user_lat, user_lng)
         if pois:
             logger.debug("位置过滤: %d个POI在半径内", len(pois))
-            logger.debug("最近: %s (%skm)", pois[0]['name'], pois[0].get('distance_km', '?'))
+            logger.debug("最近: %s (%skm)", pois[0]["name"], pois[0].get("distance_km", "?"))
 
     hard_constraints = user_intent.get("hard_constraints", [])
     budget_pp = user_intent.get("budget", {}).get("per_person", float("inf"))
@@ -205,9 +208,7 @@ def filter_candidates(
     need_access = _need_accessible(hard_constraints)
     need_pet = _need_pet_friendly(hard_constraints)
 
-    user_start, user_end = (
-        parse_time_window(time_info) if time_info.get("start") else (0, 0)
-    )
+    user_start, user_end = parse_time_window(time_info) if time_info.get("start") else (0, 0)
 
     # late_night场景：需要特殊处理营业时间检查
     _is_late_night = "late_night" in hard_constraints
@@ -239,7 +240,7 @@ def filter_candidates(
                 poi_close_min = close_h * 60 + close_m
             except (ValueError, AttributeError, IndexError):
                 # 无法解析营业时间，检查标签判断是否24h
-                tags_str = ' '.join(poi.get("tags", [])) + ' ' + poi.get("name", "")
+                tags_str = " ".join(poi.get("tags", [])) + " " + poi.get("name", "")
                 if "24小时" in tags_str or "通宵" in tags_str:
                     poi_open_min, poi_close_min = 0, 1439  # 24小时
                 else:
@@ -252,8 +253,9 @@ def filter_candidates(
                 # 2. 跨午夜营业 (如17:00-02:00, 18:00-05:00)
                 # 3. 早开门覆盖凌晨时段 (如06:00-22:00 覆盖06:00结束时间)
 
-                is_24h = (poi_open_min == 0 and poi_close_min >= 1439) or \
-                         "24小时" in ' '.join(poi.get("tags", []))
+                is_24h = (poi_open_min == 0 and poi_close_min >= 1439) or "24小时" in " ".join(
+                    poi.get("tags", [])
+                )
 
                 is_cross_midnight_poi = poi_close_min < poi_open_min  # POI跨午夜营业
 
@@ -284,23 +286,23 @@ def filter_candidates(
         # 排队
         q_time = poi.get("constraints", {}).get("queue_time_min", 0)
         if queue_tol is not None and q_time > queue_tol:
-            logger.debug("%s - 排队%dmin > 容忍%dmin", poi['name'], q_time, queue_tol)
+            logger.debug("%s - 排队%dmin > 容忍%dmin", poi["name"], q_time, queue_tol)
             continue
 
         # 无障碍
         if need_access and not poi.get("constraints", {}).get("accessible", False):
-            logger.debug("%s - 不支持无障碍通行", poi['name'])
+            logger.debug("%s - 不支持无障碍通行", poi["name"])
             continue
 
         # 宠物友好
         if need_pet and not poi.get("constraints", {}).get("pet_friendly", False):
-            logger.debug("%s - 不支持宠物", poi['name'])
+            logger.debug("%s - 不支持宠物", poi["name"])
             continue
 
         # 预算（硬约束：超预算 1.0 倍直接排除）
         price = poi.get("avg_price", 0)
         if price > budget_pp * 1.0:
-            logger.debug("%s - 价格%d > 预算%d", poi['name'], price, budget_pp)
+            logger.debug("%s - 价格%d > 预算%d", poi["name"], price, budget_pp)
             continue
 
         result.append(poi)
@@ -308,7 +310,9 @@ def filter_candidates(
     return result
 
 
-def check_hard_rules(intent: dict[str, Any], candidates: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def check_hard_rules(
+    intent: dict[str, Any], candidates: list[dict[str, Any]]
+) -> list[dict[str, Any]]:
     """检查硬约束，返回违规列表。
 
     Args:
@@ -325,20 +329,24 @@ def check_hard_rules(intent: dict[str, Any], candidates: list[dict[str, Any]]) -
     if budget > 0 and budget <= 300:
         over = [c for c in candidates if c.get("avg_price", 0) > budget * 1.2]
         if over:
-            violations.append({
-                "rule": "budget_hard",
-                "severity": "warning",
-                "description": f"{len(over)}个POI超过预算上限{int(budget*1.2)}元",
-            })
+            violations.append(
+                {
+                    "rule": "budget_hard",
+                    "severity": "warning",
+                    "description": f"{len(over)}个POI超过预算上限{int(budget*1.2)}元",
+                }
+            )
 
     if "accessible" in constraints:
         no_access = [c for c in candidates if not c.get("accessible", True)]
         if no_access:
-            violations.append({
-                "rule": "accessible",
-                "severity": "warning",
-                "description": f"{len(no_access)}个POI缺少无障碍设施",
-            })
+            violations.append(
+                {
+                    "rule": "accessible",
+                    "severity": "warning",
+                    "description": f"{len(no_access)}个POI缺少无障碍设施",
+                }
+            )
 
     return violations
 
@@ -348,9 +356,9 @@ def check_hard_rules(intent: dict[str, Any], candidates: list[dict[str, Any]]) -
 # ---------------------------------------------------------------------------
 
 __all__ = [
-    "filter_candidates",
     "check_hard_rules",
     "emotion_compatibility",
     "emotion_compatibility_with_consecutive",
     "fatigue_penalty",
+    "filter_candidates",
 ]

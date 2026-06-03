@@ -28,8 +28,7 @@ class PlanRequest(BaseModel):
     current_context: dict | None = Field(
         None,
         description=(
-            "当前上下文信息（天气/季节/节假日等）。"
-            "如果提供，系统会根据上下文模式匹配历史偏好。"
+            "当前上下文信息（天气/季节/节假日等）。" "如果提供，系统会根据上下文模式匹配历史偏好。"
         ),
     )
 

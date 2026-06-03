@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from typing import Optional
-
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
 
@@ -29,38 +27,38 @@ load_pois()
 class SearchRequest(BaseModel):
     """POI搜索请求体。"""
 
-    region: Optional[str] = Field(
+    region: str | None = Field(
         None,
         description='按城市筛选（精确匹配），如 "北京"、"上海"',
         examples=["北京"],
     )
-    categories: Optional[list[str]] = Field(
+    categories: list[str] | None = Field(
         None,
         description='按类别筛选（OR逻辑），如 ["景点", "餐厅"]',
         examples=[["景点", "公园"]],
     )
-    tags: Optional[list[str]] = Field(
+    tags: list[str] | None = Field(
         None,
         description="按标签筛选（AND逻辑，POI须包含所有指定标签）",
         examples=[["安静", "文艺"]],
     )
-    exclude_ids: Optional[list[str]] = Field(
+    exclude_ids: list[str] | None = Field(
         None,
         description="排除的POI ID列表",
     )
-    keyword: Optional[str] = Field(
+    keyword: str | None = Field(
         None,
         description="按名称模糊搜索（不区分大小写）",
         examples=["故宫"],
     )
-    min_rating: Optional[float] = Field(
+    min_rating: float | None = Field(
         None,
         ge=0,
         le=5,
         description="最低评分过滤（0~5）",
         examples=[4.0],
     )
-    max_price: Optional[int] = Field(
+    max_price: int | None = Field(
         None,
         ge=0,
         description="最高人均消费过滤（元）",
@@ -85,9 +83,7 @@ class SearchRequest(BaseModel):
 class SearchResponse(BaseModel):
     """POI搜索响应。"""
 
-    pois: list[dict] = Field(
-        ..., description="匹配的POI列表（已补充情绪标签和价格区间）"
-    )
+    pois: list[dict] = Field(..., description="匹配的POI列表（已补充情绪标签和价格区间）")
     total: int = Field(..., ge=0, description="匹配总数")
 
 
@@ -106,9 +102,7 @@ class DistanceMatrixRequest(BaseModel):
 class DistanceItem(BaseModel):
     """距离矩阵元素。"""
 
-    distance_m: int = Field(
-        ..., ge=0, description="距离（米），haversine * 1.3 道路系数"
-    )
+    distance_m: int = Field(..., ge=0, description="距离（米），haversine * 1.3 道路系数")
     time_min: int = Field(..., ge=0, description="预估耗时（分钟），按30km/h计算")
 
 
@@ -163,13 +157,13 @@ class DistanceMatrixResponse(BaseModel):
 )
 async def search_pois(
     request: SearchRequest,
-    lat: Optional[float] = Query(
+    lat: float | None = Query(
         None,
         ge=-90,
         le=90,
         description="中心点纬度（与lng配合使用，筛选10km范围内的POI）",
     ),
-    lng: Optional[float] = Query(
+    lng: float | None = Query(
         None,
         ge=-180,
         le=180,
@@ -266,13 +260,13 @@ async def search_pois(
 )
 async def get_poi_detail(
     poi_id: str,
-    lat: Optional[float] = Query(
+    lat: float | None = Query(
         None,
         ge=-90,
         le=90,
         description="用户当前纬度（预留，可用于距离计算）",
     ),
-    lng: Optional[float] = Query(
+    lng: float | None = Query(
         None,
         ge=-180,
         le=180,
@@ -336,9 +330,7 @@ async def get_poi_detail(
             "description": "POI ID无效",
             "content": {
                 "application/json": {
-                    "example": {
-                        "detail": {"error": "POI not found: invalid_id", "code": 400}
-                    },
+                    "example": {"detail": {"error": "POI not found: invalid_id", "code": 400}},
                 }
             },
         },

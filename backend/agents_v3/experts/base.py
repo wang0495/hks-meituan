@@ -37,9 +37,8 @@ import asyncio
 import functools
 import hashlib
 import json
-import math
-import os
 import logging
+import math
 import re as _re
 import time
 import uuid
@@ -85,6 +84,7 @@ def _llm_cache_set(key: str, result: dict) -> None:
         for k in expired:
             del _llm_cache[k]
 
+
 from backend.agents_v3.state import AGENT_META, sse_emit
 
 # ---------------------------------------------------------------------------
@@ -94,9 +94,23 @@ from backend.agents_v3.state import AGENT_META, sse_emit
 # Names containing any of these keywords should be treated as food POIs and
 # excluded from poi_agent selection.
 _FOOD_NAME_KWS = [
-    "美食街", "海鲜街", "小吃街", "美食城", "美食广场", "食街",
-    "夜市", "大排档", "海鲜城", "海鲜市场", "水产市场",
-    "餐厅", "茶餐厅", "火锅", "烧烤", "甜品店", "奶茶",
+    "美食街",
+    "海鲜街",
+    "小吃街",
+    "美食城",
+    "美食广场",
+    "食街",
+    "夜市",
+    "大排档",
+    "海鲜城",
+    "海鲜市场",
+    "水产市场",
+    "餐厅",
+    "茶餐厅",
+    "火锅",
+    "烧烤",
+    "甜品店",
+    "奶茶",
 ]
 
 # ---------------------------------------------------------------------------
@@ -150,13 +164,16 @@ def _get_ml_scanner():
         return _ML_SCANNER
     _ML_SCANNER_LOADED = True
     try:
-        from llm_guard.input_scanners import PromptInjection
         # Quick local-cache check — skip if model not already downloaded
         from pathlib import Path as _P
+
+        from llm_guard.input_scanners import PromptInjection
+
         _hf_cache = _P.home() / ".cache" / "huggingface" / "hub"
         _cached = (
             any("prompt-injection" in p.name for p in _hf_cache.glob("models--*"))
-            if _hf_cache.exists() else False
+            if _hf_cache.exists()
+            else False
         )
         if not _cached:
             logger.debug("llm-guard model not cached, ML injection scan disabled")
@@ -222,13 +239,21 @@ def _food_intent_hint(scene_reqs_text: str, user_input: str) -> str:
     hints = []
 
     if any(kw in text for kw in ["甜品", "奶茶", "冰室", "甜点", "蛋糕"]):
-        hints.append("   - \u26a0\ufe0f 用户核心需求是吃甜品！优先选甜品店/奶茶/冰室/茶餐厅甜品档，正餐最多选1家")
+        hints.append(
+            "   - \u26a0\ufe0f 用户核心需求是吃甜品！优先选甜品店/奶茶/冰室/茶餐厅甜品档，正餐最多选1家"
+        )
     if any(kw in text for kw in ["海鲜", "生蚝", "虾", "蟹"]):
-        hints.append("   - \u26a0\ufe0f 用户核心需求是吃海鲜！优先选海鲜排档/海鲜市场/海鲜餐厅，少选粉面粥")
+        hints.append(
+            "   - \u26a0\ufe0f 用户核心需求是吃海鲜！优先选海鲜排档/海鲜市场/海鲜餐厅，少选粉面粥"
+        )
     if any(kw in text for kw in ["小吃", "粉", "面", "粥", "排档", "扫街"]):
-        hints.append("   - \u26a0\ufe0f 用户核心需求是吃小吃！优先选粉面粥/排档/夜市小吃，正餐酒楼最多1家")
+        hints.append(
+            "   - \u26a0\ufe0f 用户核心需求是吃小吃！优先选粉面粥/排档/夜市小吃，正餐酒楼最多1家"
+        )
     if any(kw in text for kw in ["夜宵", "深夜", "凌晨", "宵夜", "夜市"]):
-        hints.append("   - \u26a0\ufe0f 用户是深夜觅食！优先选大排档/深夜营业场所，正餐餐厅可能已关门")
+        hints.append(
+            "   - \u26a0\ufe0f 用户是深夜觅食！优先选大排档/深夜营业场所，正餐餐厅可能已关门"
+        )
     if any(kw in text for kw in ["茶餐厅", "早茶", "点心"]):
         hints.append("   - \u26a0\ufe0f 用户想吃茶餐厅/早茶！优先选粤式茶餐厅，其他类型最多1家")
 
@@ -289,6 +314,7 @@ def _get_llm_client(prefix: str = "EXPERT_LLM") -> AsyncOpenAI:
     """Return a reused AsyncOpenAI client,优先从 pydantic settings 读取配置。"""
     if prefix not in _llm_clients:
         from backend.config.settings import get_settings
+
         settings = get_settings()
         # EXPERT_LLM 前缀用 settings.llm（.env 中 LLM_* 变量），
         # 因为 .env 没有 EXPERT_LLM_* 变量，统一走 LLM_* 配置
@@ -306,6 +332,7 @@ def clear_llm_cache():
 def _llm_model(prefix: str = "EXPERT_LLM") -> str:
     """Return the model name, 优先从 pydantic settings 读取。"""
     from backend.config.settings import get_settings
+
     return get_settings().llm.model
 
 
@@ -313,6 +340,7 @@ def _is_deepseek(prefix: str = "EXPERT_LLM") -> bool:
     """Check if current LLM provider is DeepSeek (needs special params)."""
     model = _llm_model(prefix)
     from backend.config.settings import get_settings
+
     base_url = get_settings().llm.base_url
     return "deepseek" in model.lower() or "deepseek" in base_url
 
@@ -382,7 +410,9 @@ async def _llm_decide(
     if not is_safe and risk > _ML_INJECTION_THRESHOLD:
         logger.warning(
             "LLM call blocked: ML injection check failed risk=%.2f prefix=%s prompt=%.100s",
-            risk, prefix, user_prompt[:100],
+            risk,
+            prefix,
+            user_prompt[:100],
         )
         return None
 
@@ -394,7 +424,9 @@ async def _llm_decide(
         try:
             user_content = user_prompt
             if error_feedback:
-                user_content += f"\n\n【上次输出有误，请修正】\n{error_feedback}\n请重新输出正确的JSON。"
+                user_content += (
+                    f"\n\n【上次输出有误，请修正】\n{error_feedback}\n请重新输出正确的JSON。"
+                )
             kwargs: dict = dict(
                 model=model,
                 messages=[
@@ -431,7 +463,9 @@ async def _llm_decide(
                     before = len(items)
                     result[key] = [i for i in items if isinstance(i, dict)]
                     if len(result[key]) < before:
-                        bad_keys.append(f"{key}: 列表中有{before - len(result[key])}个非dict元素被过滤")
+                        bad_keys.append(
+                            f"{key}: 列表中有{before - len(result[key])}个非dict元素被过滤"
+                        )
             if bad_keys:
                 error_feedback = "JSON结构问题: " + "; ".join(bad_keys)
             else:
@@ -442,7 +476,9 @@ async def _llm_decide(
             error_feedback = f"解析失败: {str(e)[:200]}"
             if attempt < retries - 1:
                 await asyncio.sleep(2)
-    logger.warning("_llm_decide failed after %d retries: prefix=%s, error=%s", retries, prefix, error_feedback)
+    logger.warning(
+        "_llm_decide failed after %d retries: prefix=%s, error=%s", retries, prefix, error_feedback
+    )
     return None
 
 
@@ -458,9 +494,7 @@ def _haversine_km(lat1: float, lng1: float, lat2: float, lng2: float) -> float:
     dlng = math.radians(lng2 - lng1)
     a = (
         math.sin(dlat / 2) ** 2
-        + math.cos(math.radians(lat1))
-        * math.cos(math.radians(lat2))
-        * math.sin(dlng / 2) ** 2
+        + math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) * math.sin(dlng / 2) ** 2
     )
     return R * 2 * math.asin(math.sqrt(a))
 
@@ -468,16 +502,52 @@ def _haversine_km(lat1: float, lng1: float, lat2: float, lng2: float) -> float:
 def _is_likely_macau(name: str) -> bool:
     """Heuristic: detect POIs that are actually in Macau (mislabelled in data)."""
     macau_keywords = [
-        "Museu", "Casa", "Troço", "Posto", "Esplanada", "Muralhas", "Taipa",
-        "Prémio", "Macau", "Wynn", "Grand", "Lisboa", "Venetian", "Parisian",
-        "Morrisson", "Guia", "Penha", "Barra", "Patane",
-        "博物館露天", "大賽車", "沙梨頭", "噴泉表演 Fountain",
-        "海事博物館", "倫記軟滑", "永利名店", "吉祥樹表演",
-        "龍環葡韻", "東方基金", "舊城牆遺址",
+        "Museu",
+        "Casa",
+        "Troço",
+        "Posto",
+        "Esplanada",
+        "Muralhas",
+        "Taipa",
+        "Prémio",
+        "Macau",
+        "Wynn",
+        "Grand",
+        "Lisboa",
+        "Venetian",
+        "Parisian",
+        "Morrisson",
+        "Guia",
+        "Penha",
+        "Barra",
+        "Patane",
+        "博物館露天",
+        "大賽車",
+        "沙梨頭",
+        "噴泉表演 Fountain",
+        "海事博物館",
+        "倫記軟滑",
+        "永利名店",
+        "吉祥樹表演",
+        "龍環葡韻",
+        "東方基金",
+        "舊城牆遺址",
         # Common Macau food establishments
-        "檸檬車露", "義順鮮奶", "禮記", "榮暉", "氹仔", "馬交",
-        "葡國菜", "葡式", "葡撻", "車厘哥夫", "潘榮",
-        "六記", "誠昌", "木糠", "杏仁餅",
+        "檸檬車露",
+        "義順鮮奶",
+        "禮記",
+        "榮暉",
+        "氹仔",
+        "馬交",
+        "葡國菜",
+        "葡式",
+        "葡撻",
+        "車厘哥夫",
+        "潘榮",
+        "六記",
+        "誠昌",
+        "木糠",
+        "杏仁餅",
     ]
     for kw in macau_keywords:
         if kw in name:
@@ -522,11 +592,27 @@ def _tag_similarity(poi: dict, keywords: list[str]) -> float:
 # ---------------------------------------------------------------------------
 
 _LANDMARK_NAMES = {
-    "长隆海洋王国", "海洋王国", "珠海渔女", "情侣路", "圆明新园",
-    "海滨泳场", "野狸岛", "日月贝", "珠海大剧院", "港珠澳大桥",
-    "外伶仃岛", "淇澳岛", "飞沙滩", "金海滩", "御温泉",
-    "唐家湾古镇", "梅溪牌坊", "农科奇观", "梦幻水城",
-    "湾仔海鲜街", "拱北口岸",
+    "长隆海洋王国",
+    "海洋王国",
+    "珠海渔女",
+    "情侣路",
+    "圆明新园",
+    "海滨泳场",
+    "野狸岛",
+    "日月贝",
+    "珠海大剧院",
+    "港珠澳大桥",
+    "外伶仃岛",
+    "淇澳岛",
+    "飞沙滩",
+    "金海滩",
+    "御温泉",
+    "唐家湾古镇",
+    "梅溪牌坊",
+    "农科奇观",
+    "梦幻水城",
+    "湾仔海鲜街",
+    "拱北口岸",
 }
 
 
@@ -549,10 +635,13 @@ _THINKING_MSGS: dict[str, list[str]] = {
 
 def sse_expert(agent_id: str):
     """Decorator: automatically emit agent_start/agent_thinking/agent_result SSE events."""
+
     def decorator(func):
         @functools.wraps(func)
         async def wrapper(state, *args, **kwargs):
-            meta = AGENT_META.get(agent_id, {"name": agent_id, "icon": "🤖", "role": "", "color": "#5ea2ff"})
+            meta = AGENT_META.get(
+                agent_id, {"name": agent_id, "icon": "🤖", "role": "", "color": "#5ea2ff"}
+            )
             # Agent starts
             await sse_emit(state, "agent_start", {"agent": agent_id, **meta})
             # Thinking messages
@@ -567,10 +656,16 @@ def sse_expert(agent_id: str):
                 # Try to make a nicer summary
                 first = proposals[0].get("content", {}) if proposals else {}
                 if isinstance(first, dict):
-                    names = [p.get("content", {}).get("name", "") for p in proposals[:3] if isinstance(p.get("content"), dict)]
+                    names = [
+                        p.get("content", {}).get("name", "")
+                        for p in proposals[:3]
+                        if isinstance(p.get("content"), dict)
+                    ]
                     if names:
                         summary = f"推荐: {', '.join(n for n in names if n)[:50]}"
             await sse_emit(state, "agent_result", {"agent": agent_id, "summary": summary})
             return result
+
         return wrapper
+
     return decorator

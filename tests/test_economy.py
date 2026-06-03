@@ -12,12 +12,10 @@ from __future__ import annotations
 
 from typing import Any
 
-import pytest
-
-from backend.services.economy import (calculate_leverage,
-                                      calculate_spend_emotion,
-                                      enrich_poi_economics,
-                                      get_price_elasticity)
+from backend.services.economy import (
+    enrich_poi_economics,
+    get_price_elasticity,
+)
 
 # ---------------------------------------------------------------------------
 # 工厂函数
@@ -298,9 +296,7 @@ class TestEconomyIntegration:
         """不同 POI 应产生不同的杠杆率分类。"""
         poi_cheap = _make_poi(avg_price=0, rating=4.5, name="免费公园", category="景点")
         poi_mid = _make_poi(avg_price=150, rating=4.0, name="普通餐厅", category="餐饮")
-        poi_expensive = _make_poi(
-            avg_price=500, rating=2.5, name="高价低质", category="购物"
-        )
+        poi_expensive = _make_poi(avg_price=500, rating=2.5, name="高价低质", category="购物")
 
         enrich_poi_economics(poi_cheap)
         enrich_poi_economics(poi_mid)
@@ -311,9 +307,7 @@ class TestEconomyIntegration:
             poi_mid["experience_leverage"],
             poi_expensive["experience_leverage"],
         }
-        assert len(leverages) >= 2, (
-            f"应有至少 2 种不同杠杆率，实际: {leverages}"
-        )
+        assert len(leverages) >= 2, f"应有至少 2 种不同杠杆率，实际: {leverages}"
 
     def test_poi_with_no_emotion_tags(self) -> None:
         """缺少 emotion_tags 的 POI 应仍能正确评估。"""
@@ -368,13 +362,11 @@ class TestSolverBudgetRhythm:
 
         route = _phase1_initialize(candidates, intent, "09:00")
         assert len(route) > 0
-        assert route[0]["poi"]["id"] == "high_lev", (
-            "预算紧张时应优先选择高杠杆POI"
-        )
+        assert route[0]["poi"]["id"] == "high_lev", "预算紧张时应优先选择高杠杆POI"
 
     def test_budget_rhythm_opening_prefers_cheap(self) -> None:
         """开场阶段应倾向于选择低价 POI。"""
-        from backend.services.solver import _phase1_initialize, _MAX_POIS_BY_PACE
+        from backend.services.solver import _MAX_POIS_BY_PACE, _phase1_initialize
 
         # 创建足够多的候选
         candidates = []
@@ -407,13 +399,11 @@ class TestSolverBudgetRhythm:
             avg_price_first_half = sum(
                 route[i]["poi"].get("avg_price", 0) for i in range(min(2, len(route)))
             ) / min(2, len(route))
-            avg_price_all = sum(
-                s["poi"].get("avg_price", 0) for s in route
-            ) / len(route)
+            avg_price_all = sum(s["poi"].get("avg_price", 0) for s in route) / len(route)
             # 开场平均价不应显著高于全程平均价
-            assert avg_price_first_half <= avg_price_all * 1.5 or first_price < 100, (
-                f"开场POI价格({first_price})应相对合理"
-            )
+            assert (
+                avg_price_first_half <= avg_price_all * 1.5 or first_price < 100
+            ), f"开场POI价格({first_price})应相对合理"
 
     def test_evaluate_route_still_works(self) -> None:
         """经济引擎不应破坏路线评估函数。"""

@@ -1,6 +1,6 @@
 """补跑规则降级的场景 — 5并发重跑LLM评分，合并回原JSON。
 
-用法: python -m backend.agents_v3.test_100_rerun_rule
+用法: python scripts/benchmarks/test_100_rerun_rule
 """
 from __future__ import annotations
 
@@ -12,11 +12,11 @@ import time
 from datetime import datetime
 from pathlib import Path
 
-_project_root = str(Path(__file__).resolve().parent.parent.parent)
+_project_root = str(Path(__file__).resolve().parent.parent)
 if _project_root not in sys.path:
     sys.path.insert(0, _project_root)
 
-_env_file = Path(__file__).resolve().parent.parent.parent / ".env"
+_env_file = Path(__file__).resolve().parent.parent / ".env"
 if _env_file.exists():
     for line in _env_file.read_text(encoding="utf-8").splitlines():
         line = line.strip()
@@ -52,7 +52,7 @@ print(f"读取: {SOURCE_FILE}")
 async def _rerun_one(r: dict, sem: asyncio.Semaphore) -> dict:
     """重跑单个场景（低并发）。"""
     from backend.agents_v3 import get_graph_c, TravelState
-    from backend.agents_v3.test_5_scenes import llm_score_route, score_route
+    from test_5_scenes import llm_score_route, score_route
 
     idx = r["id"]
     scene_type = r["scene"]

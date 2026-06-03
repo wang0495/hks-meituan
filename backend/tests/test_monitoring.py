@@ -29,9 +29,7 @@ class TestMetrics:
         track_request("GET", "/api/test", 200, 0.123)
 
         # 验证计数器增加
-        sample = REQUEST_COUNT.labels(
-            method="GET", endpoint="/api/test", status="200"
-        )._value.get()
+        sample = REQUEST_COUNT.labels(method="GET", endpoint="/api/test", status="200")._value.get()
         assert sample >= 1.0
 
     def test_track_request_converts_status_to_str(self) -> None:
@@ -44,8 +42,7 @@ class TestMetrics:
         assert sample >= 1.0
 
     def test_track_route_planning_increments(self) -> None:
-        from backend.monitoring.metrics import (ROUTE_COUNT,
-                                                track_route_planning)
+        from backend.monitoring.metrics import ROUTE_COUNT, track_route_planning
 
         track_route_planning()
         track_route_planning()
@@ -120,8 +117,7 @@ class TestPrometheusMetrics:
         assert sample >= 2.0
 
     def test_track_cache_miss(self) -> None:
-        from backend.monitoring.prometheus import (CACHE_MISSES,
-                                                   track_cache_miss)
+        from backend.monitoring.prometheus import CACHE_MISSES, track_cache_miss
 
         track_cache_miss("poi")
 
@@ -129,8 +125,7 @@ class TestPrometheusMetrics:
         assert sample >= 1.0
 
     def test_track_cache_eviction(self) -> None:
-        from backend.monitoring.prometheus import (CACHE_EVICTIONS,
-                                                   track_cache_eviction)
+        from backend.monitoring.prometheus import CACHE_EVICTIONS, track_cache_eviction
 
         track_cache_eviction("distance")
 
@@ -144,9 +139,11 @@ class TestPrometheusMetrics:
         assert CACHE_SIZE.labels(cache_name="route")._value.get() == 100.0
 
     def test_track_ws_connect_disconnect(self) -> None:
-        from backend.monitoring.prometheus import (WS_CONNECTIONS,
-                                                   track_ws_connect,
-                                                   track_ws_disconnect)
+        from backend.monitoring.prometheus import (
+            WS_CONNECTIONS,
+            track_ws_connect,
+            track_ws_disconnect,
+        )
 
         track_ws_connect()
         track_ws_connect()
@@ -174,22 +171,24 @@ class TestPrometheusMetrics:
 
     def test_update_circuit_breaker_state(self) -> None:
         from backend.monitoring.prometheus import (
-            CIRCUIT_BREAKER_STATE, update_circuit_breaker_state)
+            CIRCUIT_BREAKER_STATE,
+            update_circuit_breaker_state,
+        )
 
         update_circuit_breaker_state("llm", 1)
         assert CIRCUIT_BREAKER_STATE.labels(service="llm")._value.get() == 1.0
 
     def test_track_circuit_breaker_rejection(self) -> None:
         from backend.monitoring.prometheus import (
-            CIRCUIT_BREAKER_REJECTIONS, track_circuit_breaker_rejection)
+            CIRCUIT_BREAKER_REJECTIONS,
+            track_circuit_breaker_rejection,
+        )
 
         track_circuit_breaker_rejection("llm")
         assert CIRCUIT_BREAKER_REJECTIONS.labels(service="llm")._value.get() >= 1.0
 
     def test_track_llm_call(self) -> None:
-        from backend.monitoring.prometheus import (LLM_CALL_COUNT,
-                                                   LLM_TOKEN_USAGE,
-                                                   track_llm_call)
+        from backend.monitoring.prometheus import LLM_CALL_COUNT, LLM_TOKEN_USAGE, track_llm_call
 
         track_llm_call(
             model="deepseek",
@@ -199,29 +198,18 @@ class TestPrometheusMetrics:
             completion_tokens=200,
         )
 
-        assert (
-            LLM_CALL_COUNT.labels(model="deepseek", status="success")._value.get()
-            >= 1.0
-        )
-        assert (
-            LLM_TOKEN_USAGE.labels(model="deepseek", type="prompt")._value.get()
-            >= 500.0
-        )
-        assert (
-            LLM_TOKEN_USAGE.labels(model="deepseek", type="completion")._value.get()
-            >= 200.0
-        )
+        assert LLM_CALL_COUNT.labels(model="deepseek", status="success")._value.get() >= 1.0
+        assert LLM_TOKEN_USAGE.labels(model="deepseek", type="prompt")._value.get() >= 500.0
+        assert LLM_TOKEN_USAGE.labels(model="deepseek", type="completion")._value.get() >= 200.0
 
     def test_track_poi_query(self) -> None:
-        from backend.monitoring.prometheus import (POI_QUERY_COUNT,
-                                                   track_poi_query)
+        from backend.monitoring.prometheus import POI_QUERY_COUNT, track_poi_query
 
         track_poi_query("search", duration=0.05)
         assert POI_QUERY_COUNT.labels(query_type="search")._value.get() >= 1.0
 
     def test_track_dialogue(self) -> None:
-        from backend.monitoring.prometheus import (DIALOGUE_COUNT,
-                                                   track_dialogue)
+        from backend.monitoring.prometheus import DIALOGUE_COUNT, track_dialogue
 
         track_dialogue("replace", duration=1.0)
         assert DIALOGUE_COUNT.labels(instruction_type="replace")._value.get() >= 1.0
@@ -233,18 +221,19 @@ class TestPrometheusMetrics:
         assert TASK_COUNT.labels(status="completed")._value.get() >= 1.0
 
     def test_update_task_queue_size(self) -> None:
-        from backend.monitoring.prometheus import (TASK_QUEUE_SIZE,
-                                                   update_task_queue_size)
+        from backend.monitoring.prometheus import TASK_QUEUE_SIZE, update_task_queue_size
 
         update_task_queue_size(50)
         assert TASK_QUEUE_SIZE._value.get() == 50.0
 
     def test_update_system_resources(self) -> None:
-        from backend.monitoring.prometheus import (SYSTEM_CPU_PERCENT,
-                                                   SYSTEM_DISK_PERCENT,
-                                                   SYSTEM_MEMORY_PERCENT,
-                                                   SYSTEM_MEMORY_USED_MB,
-                                                   update_system_resources)
+        from backend.monitoring.prometheus import (
+            SYSTEM_CPU_PERCENT,
+            SYSTEM_DISK_PERCENT,
+            SYSTEM_MEMORY_PERCENT,
+            SYSTEM_MEMORY_USED_MB,
+            update_system_resources,
+        )
 
         update_system_resources(
             cpu=55.0,
@@ -272,11 +261,13 @@ class TestPrometheusMetrics:
         track_response_size("GET", "/api/data", 200, 4096)
 
     def test_get_metrics_summary(self) -> None:
-        from backend.monitoring.prometheus import (ACTIVE_SESSIONS,
-                                                   WS_CONNECTIONS,
-                                                   get_metrics_summary,
-                                                   update_system_resources,
-                                                   update_task_queue_size)
+        from backend.monitoring.prometheus import (
+            ACTIVE_SESSIONS,
+            WS_CONNECTIONS,
+            get_metrics_summary,
+            update_system_resources,
+            update_task_queue_size,
+        )
 
         ACTIVE_SESSIONS.set(10)
         WS_CONNECTIONS.set(5)
@@ -290,8 +281,7 @@ class TestPrometheusMetrics:
         assert summary["system_cpu_percent"] == 25.0
 
     def test_session_counters(self) -> None:
-        from backend.monitoring.prometheus import (SESSION_CREATED,
-                                                   SESSION_EXPIRED)
+        from backend.monitoring.prometheus import SESSION_CREATED, SESSION_EXPIRED
 
         SESSION_CREATED.inc()
         SESSION_EXPIRED.inc()
@@ -440,9 +430,7 @@ class TestBeforeSend:
         from backend.monitoring.error_filter import before_send
 
         event: dict = {}
-        hint: dict = {
-            "exc_info": (asyncio.CancelledError, asyncio.CancelledError(), None)
-        }
+        hint: dict = {"exc_info": (asyncio.CancelledError, asyncio.CancelledError(), None)}
         assert before_send(event, hint) is None
 
     def test_filters_rate_limit_message(self) -> None:

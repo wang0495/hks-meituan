@@ -6,7 +6,6 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Optional
 
 import strawberry
 
@@ -66,9 +65,9 @@ class POI:
     lng: float
     business_hours: str = "09:00-17:00"
     tags: list[str] = strawberry.field(default_factory=list)
-    emotion_tags: Optional[EmotionTags] = None
-    constraints: Optional[POIConstraints] = None
-    price_range: Optional[str] = None
+    emotion_tags: EmotionTags | None = None
+    constraints: POIConstraints | None = None
+    price_range: str | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -83,7 +82,7 @@ class RouteStep:
     poi: POI
     arrival_time: str
     departure_time: str
-    travel_from_prev: Optional[TravelInfo] = None
+    travel_from_prev: TravelInfo | None = None
 
 
 @strawberry.type
@@ -112,8 +111,8 @@ class Route:
     route_id: str
     user_input: str
     steps: list[RouteStep]
-    narrative: Optional[NarrativeStep] = None
-    total_cost: Optional[TotalCost] = None
+    narrative: NarrativeStep | None = None
+    total_cost: TotalCost | None = None
     emotion_curve: list[str] = strawberry.field(default_factory=list)
     created_at: datetime
 
@@ -150,8 +149,8 @@ class Query:
     @strawberry.field(description="查询 POI 列表，支持按城市和类别筛选")
     async def pois(
         self,
-        region: Optional[str] = None,
-        category: Optional[str] = None,
+        region: str | None = None,
+        category: str | None = None,
         limit: int = 10,
     ) -> list[POI]:
         from backend.graphql.resolvers import resolve_pois
@@ -159,7 +158,7 @@ class Query:
         return await resolve_pois(region=region, category=category, limit=limit)
 
     @strawberry.field(description="查询单个 POI")
-    async def poi(self, id: str) -> Optional[POI]:
+    async def poi(self, id: str) -> POI | None:
         from backend.graphql.resolvers import resolve_poi
 
         return await resolve_poi(id=id)
@@ -171,7 +170,7 @@ class Query:
         return await resolve_routes(limit=limit)
 
     @strawberry.field(description="查询单条路线")
-    async def route(self, id: str) -> Optional[Route]:
+    async def route(self, id: str) -> Route | None:
         from backend.graphql.resolvers import resolve_route
 
         return await resolve_route(id=id)

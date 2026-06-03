@@ -29,7 +29,7 @@ from typing import Any, TypeVar
 
 logger = logging.getLogger(__name__)
 
-__all__ = ["retry", "RetryExhaustedError"]
+__all__ = ["RetryExhaustedError", "retry"]
 
 F = TypeVar("F", bound=Callable[..., Any])
 

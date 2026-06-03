@@ -26,13 +26,13 @@ from typing import Any, TypeVar
 logger = logging.getLogger(__name__)
 
 __all__ = [
-    "fallback",
     "FallbackError",
-    "fallback_route_planning",
-    "fallback_poi_search",
-    "fallback_narrative_generation",
-    "fallback_llm_chat",
+    "fallback",
     "fallback_emotion_analysis",
+    "fallback_llm_chat",
+    "fallback_narrative_generation",
+    "fallback_poi_search",
+    "fallback_route_planning",
 ]
 
 F = TypeVar("F", bound=Callable[..., Any])

@@ -37,10 +37,7 @@ def build_heatmap(proposals: list[dict], conflicts: list[dict]) -> dict:
             "color": color,
             "agent": agent,
             "name": p.get("content", {}).get("name", ""),
-            "risk_factors": [
-                c["description"] for c in conflicts
-                if agent in c.get("agents", [])
-            ],
+            "risk_factors": [c["description"] for c in conflicts if agent in c.get("agents", [])],
         }
 
     return heatmap

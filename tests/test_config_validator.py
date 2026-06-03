@@ -19,7 +19,6 @@ import yaml
 
 from backend.config.validator import ConfigValidator
 
-
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
@@ -123,9 +122,7 @@ class TestPort:
         result = validator.validate_config(valid_config)
         assert not any("端口" in e for e in result.errors)
 
-    def test_port_out_of_range_high(
-        self, validator: ConfigValidator, valid_config: dict
-    ) -> None:
+    def test_port_out_of_range_high(self, validator: ConfigValidator, valid_config: dict) -> None:
         valid_config["port"] = 70000
         result = validator.validate_config(valid_config)
         assert not result.valid
@@ -136,17 +133,13 @@ class TestPort:
         result = validator.validate_config(valid_config)
         assert not result.valid
 
-    def test_privileged_port_warns(
-        self, validator: ConfigValidator, valid_config: dict
-    ) -> None:
+    def test_privileged_port_warns(self, validator: ConfigValidator, valid_config: dict) -> None:
         valid_config["port"] = 80
         result = validator.validate_config(valid_config)
         assert result.valid  # warning only
         assert any("特权端口" in w for w in result.warnings)
 
-    def test_string_port_errors(
-        self, validator: ConfigValidator, valid_config: dict
-    ) -> None:
+    def test_string_port_errors(self, validator: ConfigValidator, valid_config: dict) -> None:
         valid_config["port"] = "8000"
         result = validator.validate_config(valid_config)
         assert not result.valid
@@ -164,16 +157,12 @@ class TestPort:
 
 class TestLogLevel:
     @pytest.mark.parametrize("level", ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"])
-    def test_valid_levels(
-        self, validator: ConfigValidator, valid_config: dict, level: str
-    ) -> None:
+    def test_valid_levels(self, validator: ConfigValidator, valid_config: dict, level: str) -> None:
         valid_config["log_level"] = level
         result = validator.validate_config(valid_config)
         assert not any("日志级别" in w for w in result.warnings)
 
-    def test_unknown_level_warns(
-        self, validator: ConfigValidator, valid_config: dict
-    ) -> None:
+    def test_unknown_level_warns(self, validator: ConfigValidator, valid_config: dict) -> None:
         valid_config["log_level"] = "TRACE"
         result = validator.validate_config(valid_config)
         assert result.valid
@@ -191,16 +180,12 @@ class TestWorkers:
         result = validator.validate_config(valid_config)
         assert not any("workers" in e for e in result.errors)
 
-    def test_zero_workers_errors(
-        self, validator: ConfigValidator, valid_config: dict
-    ) -> None:
+    def test_zero_workers_errors(self, validator: ConfigValidator, valid_config: dict) -> None:
         valid_config["workers"] = 0
         result = validator.validate_config(valid_config)
         assert not result.valid
 
-    def test_negative_workers_errors(
-        self, validator: ConfigValidator, valid_config: dict
-    ) -> None:
+    def test_negative_workers_errors(self, validator: ConfigValidator, valid_config: dict) -> None:
         valid_config["workers"] = -1
         result = validator.validate_config(valid_config)
         assert not result.valid
@@ -229,24 +214,18 @@ class TestSections:
         assert result.valid
         assert any("redis.port" in w for w in result.warnings)
 
-    def test_llm_section_complete(
-        self, validator: ConfigValidator, valid_config: dict
-    ) -> None:
+    def test_llm_section_complete(self, validator: ConfigValidator, valid_config: dict) -> None:
         valid_config["llm"] = {"api_key": "sk-xxx", "base_url": "https://api.openai.com/v1"}
         result = validator.validate_config(valid_config)
         assert not any("llm." in w for w in result.warnings)
 
-    def test_non_dict_section_errors(
-        self, validator: ConfigValidator, valid_config: dict
-    ) -> None:
+    def test_non_dict_section_errors(self, validator: ConfigValidator, valid_config: dict) -> None:
         valid_config["database"] = "not a dict"
         result = validator.validate_config(valid_config)
         assert not result.valid
         assert any("database" in e and "对象" in e for e in result.errors)
 
-    def test_missing_section_is_fine(
-        self, validator: ConfigValidator, valid_config: dict
-    ) -> None:
+    def test_missing_section_is_fine(self, validator: ConfigValidator, valid_config: dict) -> None:
         result = validator.validate_config(valid_config)
         assert not any("database" in w for w in result.warnings)
 
@@ -276,9 +255,7 @@ class TestValidateFile:
         assert not result.valid
         assert any("YAML" in e or "格式" in e for e in result.errors)
 
-    def test_non_dict_top_level(
-        self, validator: ConfigValidator, config_dir: Path
-    ) -> None:
+    def test_non_dict_top_level(self, validator: ConfigValidator, config_dir: Path) -> None:
         list_file = config_dir / "list.yaml"
         list_file.write_text("- item1\n- item2\n", encoding="utf-8")
         result = validator.validate_file(list_file)
@@ -306,7 +283,9 @@ class TestValidateEnvVars:
         result = validator.validate_env_vars(["TEST_VAR_A", "TEST_VAR_B"])
         assert result.valid
 
-    def test_missing_vars(self, validator: ConfigValidator, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_missing_vars(
+        self, validator: ConfigValidator, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         monkeypatch.delenv("TEST_MISSING_X", raising=False)
         result = validator.validate_env_vars(["TEST_MISSING_X"])
         assert not result.valid

@@ -5,11 +5,11 @@ from __future__ import annotations
 import json
 
 from backend.agents_v3.experts.base import (
-    sse_expert,
-    _proposal,
     _llm_decide,
     _load_all_pois,
+    _proposal,
     _sanitize_for_prompt,
+    sse_expert,
 )
 from backend.agents_v3.state import TravelState
 
@@ -33,7 +33,7 @@ async def hotel_expert(state: TravelState) -> dict:
     )
     if not need_hotel:
         judge = await _llm_decide(
-            "判断用户是否需要住宿。输出JSON: {\"need\":true/false,\"reason\":\"理由\"}",
+            '判断用户是否需要住宿。输出JSON: {"need":true/false,"reason":"理由"}',
             f"用户输入: {_sanitize_for_prompt(user_input)}",
         )
         if judge and judge.get("need"):
@@ -70,7 +70,9 @@ async def hotel_expert(state: TravelState) -> dict:
         if c.get("category", "") not in ["住宿", "酒店", "民宿", "餐饮", "美食"]:
             lat, lng = c.get("lat", 0), c.get("lng", 0)
             if lat and lng:
-                poi_locations.append({"name": c.get("name", ""), "lat": round(lat, 3), "lng": round(lng, 3)})
+                poi_locations.append(
+                    {"name": c.get("name", ""), "lat": round(lat, 3), "lng": round(lng, 3)}
+                )
 
     summaries = [
         {
@@ -133,7 +135,9 @@ async def hotel_expert(state: TravelState) -> dict:
                         break
             if content:
                 proposals.append(
-                    _proposal("hotel", content, pick.get("confidence", 0.7), pick.get("reason", "LLM推荐"))
+                    _proposal(
+                        "hotel", content, pick.get("confidence", 0.7), pick.get("reason", "LLM推荐")
+                    )
                 )
 
     # Fallback: rating sort

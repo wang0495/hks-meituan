@@ -31,13 +31,15 @@ async def emergence_check(state: TravelState) -> dict:
     # 生成协商消息
     negotiation_msgs = []
     for c in conflicts:
-        negotiation_msgs.append({
-            "type": c.get("type", ""),
-            "from": "emergence_check",
-            "message": c.get("description", ""),
-            "severity": c.get("severity", "low"),
-            "auto_resolved": c.get("auto_resolvable", False),
-        })
+        negotiation_msgs.append(
+            {
+                "type": c.get("type", ""),
+                "from": "emergence_check",
+                "message": c.get("description", ""),
+                "severity": c.get("severity", "low"),
+                "auto_resolved": c.get("auto_resolvable", False),
+            }
+        )
 
     return {
         "conflicts": conflicts,

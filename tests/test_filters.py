@@ -7,9 +7,12 @@ from __future__ import annotations
 
 import pytest
 
-from backend.services.filters import (emotion_compatibility,
-                                      emotion_compatibility_with_consecutive,
-                                      fatigue_penalty, filter_candidates)
+from backend.services.filters import (
+    emotion_compatibility,
+    emotion_compatibility_with_consecutive,
+    fatigue_penalty,
+    filter_candidates,
+)
 
 # ---------------------------------------------------------------------------
 # Fixtures: 10 个模拟 POI
@@ -349,9 +352,7 @@ class TestFilterCandidates:
         result_ids = {p["id"] for p in result}
         assert "poi_00002" not in result_ids
 
-    def test_queue_tolerance_rejected(
-        self, pois: list[dict], base_intent: dict
-    ) -> None:
+    def test_queue_tolerance_rejected(self, pois: list[dict], base_intent: dict) -> None:
         """排队超限：poi_00003 排队45min，容忍度<10min应被过滤。"""
         result = filter_candidates(pois, base_intent)
         result_ids = {p["id"] for p in result}

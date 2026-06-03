@@ -20,8 +20,7 @@ import sentry_sdk
 from sentry_sdk.integrations.fastapi import FastApiIntegration
 from sentry_sdk.integrations.sqlalchemy import SqlalchemyIntegration
 
-from backend.monitoring.error_filter import (before_send,
-                                             before_send_transaction)
+from backend.monitoring.error_filter import before_send, before_send_transaction
 
 logger = logging.getLogger(__name__)
 

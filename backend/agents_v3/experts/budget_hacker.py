@@ -5,10 +5,10 @@ from __future__ import annotations
 import json
 
 from backend.agents_v3.experts.base import (
-    sse_expert,
-    _proposal,
-    _llm_decide,
     _is_likely_macau,
+    _llm_decide,
+    _proposal,
+    sse_expert,
 )
 from backend.agents_v3.state import TravelState
 
@@ -46,7 +46,7 @@ async def budget_hacker(state: TravelState) -> dict:
             continue
 
         price = c.get("avg_price", 0)
-        is_free_or_cheap = (price == 0 or price <= _PRICE_CAP)
+        is_free_or_cheap = price == 0 or price <= _PRICE_CAP
         is_budget_category = cat in _BUDGET_CATEGORIES
 
         # Include parks, beaches, historical streets by category even if no price info
@@ -64,9 +64,12 @@ async def budget_hacker(state: TravelState) -> dict:
             center_lat = sum(lats) / len(lats)
             center_lng = sum(lngs) / len(lngs)
             from backend.agents_v3.experts.base import _haversine_km
+
             budget_pois = [
-                p for p in budget_pois
-                if p.get("lat") and p.get("lng")
+                p
+                for p in budget_pois
+                if p.get("lat")
+                and p.get("lng")
                 and _haversine_km(center_lat, center_lng, p["lat"], p["lng"]) <= 10.0
             ]
 
@@ -128,7 +131,12 @@ async def budget_hacker(state: TravelState) -> dict:
                         break
             if content:
                 proposals.append(
-                    _proposal("budget_hacker", content, pick.get("confidence", 0.7), pick.get("reason", "LLM推荐"))
+                    _proposal(
+                        "budget_hacker",
+                        content,
+                        pick.get("confidence", 0.7),
+                        pick.get("reason", "LLM推荐"),
+                    )
                 )
 
     # Fallback: highest-rated free POIs

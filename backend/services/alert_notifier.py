@@ -77,9 +77,7 @@ class AlertNotifier:
             threshold: 阈值。
         """
         self._notification_count += 1
-        message = (
-            f"[告警] {rule_name}: 当前值={current_value:.1f}, 阈值={threshold:.1f}"
-        )
+        message = f"[告警] {rule_name}: 当前值={current_value:.1f}, 阈值={threshold:.1f}"
 
         # 日志记录
         logger.warning(message)

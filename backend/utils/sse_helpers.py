@@ -18,7 +18,7 @@ async def with_timeout(coro, timeout_seconds: float = 12.0, fallback=None):
     """给协程加超时，超时返回 fallback。"""
     try:
         return await asyncio.wait_for(coro, timeout=timeout_seconds)
-    except asyncio.TimeoutError:
+    except TimeoutError:
         logger.warning("操作超时 (%.1fs)，使用兜底", timeout_seconds)
         return fallback
 

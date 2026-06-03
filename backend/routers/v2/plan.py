@@ -5,7 +5,6 @@ from __future__ import annotations
 import asyncio
 import logging
 import uuid
-from typing import Optional
 
 from fastapi import APIRouter
 from fastapi.responses import StreamingResponse
@@ -15,7 +14,11 @@ from backend.services.cache import route_cache
 from backend.services.data_service import get_data
 from backend.utils.sse_helpers import (
     generate_simplified_route as _generate_simplified_route,
+)
+from backend.utils.sse_helpers import (
     sse as _sse,
+)
+from backend.utils.sse_helpers import (
     with_timeout as _with_timeout,
 )
 
@@ -39,31 +42,31 @@ class PlanRequestV2(BaseModel):
         description="用户出行需求的自然语言描述",
         examples=["周末想一个人安静走走"],
     )
-    preferences: Optional[dict] = Field(
+    preferences: dict | None = Field(
         None,
         description="偏好设置，如 {culture: 0.8, food: 0.6}",
     )
-    constraints: Optional[list[str]] = Field(
+    constraints: list[str] | None = Field(
         None,
         description="约束条件列表，如 ['文化深度', '无障碍通行']",
         examples=[["文化深度", "无障碍通行"]],
     )
-    pace: Optional[str] = Field(
+    pace: str | None = Field(
         "平衡型",
         description="节奏模式：闲逛型 / 平衡型 / 特种兵型",
         examples=["平衡型"],
     )
-    city: Optional[str] = Field(
+    city: str | None = Field(
         None,
         description="目标城市，如 '珠海'、'广州'、'深圳'",
         examples=["珠海"],
     )
-    start_point: Optional[dict] = Field(
+    start_point: dict | None = Field(
         None,
         description="起点位置，坐标 {lat, lng} 或地名字符串",
         examples=[{"lat": 22.270, "lng": 113.543}],
     )
-    end_point: Optional[dict] = Field(
+    end_point: dict | None = Field(
         None,
         description="终点位置，坐标 {lat, lng} 或地名字符串",
         examples=[{"lat": 22.217, "lng": 113.553}],
@@ -90,9 +93,7 @@ class RouteMetadata(BaseModel):
     estimated_budget: float = Field(0, ge=0, description="预估预算（元）")
     poi_count: int = Field(0, ge=0, description="POI数量")
     pace: str = Field("平衡型", description="节奏模式")
-    constraints_applied: list[str] = Field(
-        default_factory=list, description="已应用的约束条件"
-    )
+    constraints_applied: list[str] = Field(default_factory=list, description="已应用的约束条件")
 
 
 class PlanResponseV2(BaseModel):
@@ -222,9 +223,7 @@ async def plan_route_v2(request: PlanRequestV2) -> StreamingResponse:
             if request.end_point:
                 user_intent["end_point"] = request.end_point
 
-            yield _sse(
-                "phase", {"phase": "searching", "message": "正在为你寻找合适的地方..."}
-            )
+            yield _sse("phase", {"phase": "searching", "message": "正在为你寻找合适的地方..."})
 
             from backend.services.filters import filter_candidates
 
@@ -258,9 +257,7 @@ async def plan_route_v2(request: PlanRequestV2) -> StreamingResponse:
                 logger.warning("路线求解失败/超时，使用简化路线")
                 route_result = _generate_simplified_route(candidates)
 
-            yield _sse(
-                "phase", {"phase": "narrating", "message": "正在为你写一段行程说明..."}
-            )
+            yield _sse("phase", {"phase": "narrating", "message": "正在为你写一段行程说明..."})
 
             from backend.services.narrator import generate_narrative
 

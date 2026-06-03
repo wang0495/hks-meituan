@@ -6,10 +6,17 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from backend.errors import (CityFlowException, DialogueError, ErrorCode,
-                            IntentParseError, LLMServiceError,
-                            NarrativeGenerationError, NoPOIsFoundError,
-                            RateLimitError, RouteSolvingError)
+from backend.errors import (
+    CityFlowException,
+    DialogueError,
+    ErrorCode,
+    IntentParseError,
+    LLMServiceError,
+    NarrativeGenerationError,
+    NoPOIsFoundError,
+    RateLimitError,
+    RouteSolvingError,
+)
 from backend.middleware.error_handler import setup_error_handlers
 
 # ---------------------------------------------------------------------------

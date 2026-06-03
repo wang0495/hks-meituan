@@ -13,9 +13,10 @@ import asyncio
 import logging
 import time
 from collections import deque
+from collections.abc import Callable, Coroutine
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Callable, Coroutine
+from typing import Any
 
 from watchdog.events import FileSystemEvent, FileSystemEventHandler
 from watchdog.observers import Observer
@@ -323,9 +324,7 @@ class ConfigHotReloader:
             raise ConfigReloadError(f"无可用快照: {file_path}")
 
         if steps < 1 or steps >= len(history):
-            raise ConfigReloadError(
-                f"回滚步数 {steps} 超出范围（可用: 1-{len(history) - 1}）"
-            )
+            raise ConfigReloadError(f"回滚步数 {steps} 超出范围（可用: 1-{len(history) - 1}）")
 
         target = history[steps]
         path = Path(file_path)

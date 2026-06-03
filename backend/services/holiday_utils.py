@@ -207,8 +207,11 @@ def format_context_summary(context: dict[str, Any]) -> str:
         "🌧️ 小雨 18°C · 国庆节 · 秋季"
     """
     weather_icons = {
-        "sunny": "☀️", "rainy": "🌧️", "cloudy": "☁️",
-        "hot": "🌡️", "cold": "❄️",
+        "sunny": "☀️",
+        "rainy": "🌧️",
+        "cloudy": "☁️",
+        "hot": "🌡️",
+        "cold": "❄️",
     }
     icon = weather_icons.get(context.get("weather", ""), "")
     parts = [

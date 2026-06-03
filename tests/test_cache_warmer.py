@@ -7,10 +7,14 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from backend.services.cache_warmer import (CacheWarmer, CacheWarmerError,
-                                           WarmupReport, WarmupResult,
-                                           get_cache_warmer,
-                                           reset_cache_warmer)
+from backend.services.cache_warmer import (
+    CacheWarmer,
+    CacheWarmerError,
+    WarmupReport,
+    WarmupResult,
+    get_cache_warmer,
+    reset_cache_warmer,
+)
 
 # ---------------------------------------------------------------------------
 # WarmupResult / WarmupReport 数据类测试
@@ -213,9 +217,7 @@ class TestCacheWarmer:
         assert call_count >= 1
 
     @pytest.mark.asyncio
-    async def test_start_background_warmup_no_duplicate(
-        self, warmer: CacheWarmer
-    ) -> None:
+    async def test_start_background_warmup_no_duplicate(self, warmer: CacheWarmer) -> None:
         """重复调用 start_background_warmup 不会创建多个循环。"""
         warmer._running = True  # 模拟已在运行
         # 不应进入循环，直接返回
@@ -276,9 +278,7 @@ class TestDefaultWarmupTasks:
         mock_cache = AsyncMock()
 
         with (
-            patch(
-                "backend.services.cache.get_multilevel_cache", return_value=mock_cache
-            ),
+            patch("backend.services.cache.get_multilevel_cache", return_value=mock_cache),
             patch("backend.services.data_service.get_data", return_value=mock_pois),
         ):
             await warmup_poi_cache()
@@ -292,9 +292,7 @@ class TestDefaultWarmupTasks:
 
         mock_cache = AsyncMock()
         with (
-            patch(
-                "backend.services.cache.get_multilevel_cache", return_value=mock_cache
-            ),
+            patch("backend.services.cache.get_multilevel_cache", return_value=mock_cache),
             patch("backend.services.data_service.get_data", return_value=[]),
         ):
             await warmup_poi_cache()
@@ -313,9 +311,7 @@ class TestDefaultWarmupTasks:
         mock_cache = AsyncMock()
 
         with (
-            patch(
-                "backend.services.cache.get_multilevel_cache", return_value=mock_cache
-            ),
+            patch("backend.services.cache.get_multilevel_cache", return_value=mock_cache),
             patch("backend.services.data_service.get_data", return_value=mock_pois),
         ):
             await warmup_city_category_cache()
@@ -329,9 +325,7 @@ class TestDefaultWarmupTasks:
 
         mock_cache = AsyncMock()
         with (
-            patch(
-                "backend.services.cache.get_multilevel_cache", return_value=mock_cache
-            ),
+            patch("backend.services.cache.get_multilevel_cache", return_value=mock_cache),
             patch(
                 "backend.services.data_service.get_datasets",
                 return_value=["city_poi_db", "orders"],

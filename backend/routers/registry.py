@@ -32,9 +32,7 @@ class RegistryMessage(BaseModel):
 class ServiceListResponse(BaseModel):
     """服务列表响应。"""
 
-    services: list[dict[str, Any]] = Field(
-        default_factory=list, description="服务实例列表"
-    )
+    services: list[dict[str, Any]] = Field(default_factory=list, description="服务实例列表")
     total: int = Field(0, description="实例总数")
 
 

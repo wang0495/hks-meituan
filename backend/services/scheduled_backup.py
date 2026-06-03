@@ -75,9 +75,7 @@ class ScheduledBackup:
         )
 
         if self._enable_incremental:
-            self._incremental_task = asyncio.create_task(
-                self._run_incremental_loop()
-            )
+            self._incremental_task = asyncio.create_task(self._run_incremental_loop())
             logger.info(
                 "定时增量备份调度器已启动（间隔: %d 小时）",
                 self._incremental_interval // 3600,
@@ -109,9 +107,7 @@ class ScheduledBackup:
         """调度器是否正在运行。"""
         return self._task is not None and not self._task.done()
 
-    async def run_now(
-        self, backup_type: Literal["full", "incremental"] = "full"
-    ) -> str | None:
+    async def run_now(self, backup_type: Literal["full", "incremental"] = "full") -> str | None:
         """立即执行一次备份（不等待定时周期）。
 
         Args:

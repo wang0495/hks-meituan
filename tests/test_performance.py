@@ -72,9 +72,7 @@ class EndpointStats:
             "p95_ms": round(sorted_times[int(len(sorted_times) * 0.95)] * 1000, 2),
             "p99_ms": round(sorted_times[int(len(sorted_times) * 0.99)] * 1000, 2),
             "stdev_ms": (
-                round(statistics.stdev(sorted_times) * 1000, 2)
-                if len(sorted_times) > 1
-                else 0
+                round(statistics.stdev(sorted_times) * 1000, 2) if len(sorted_times) > 1 else 0
             ),
             "status_codes": self.status_codes,
         }
@@ -85,9 +83,7 @@ class EndpointStats:
 # ---------------------------------------------------------------------------
 
 
-async def _measure(
-    client: AsyncClient, method: str, url: str, **kwargs
-) -> tuple[float, int]:
+async def _measure(client: AsyncClient, method: str, url: str, **kwargs) -> tuple[float, int]:
     """发送请求并计时，返回 (耗时秒, 状态码)。"""
     start = time.perf_counter()
     if method == "get":
@@ -163,9 +159,7 @@ async def test_poi_search_response_time(client: AsyncClient) -> None:
     stats = EndpointStats(name="POST /api/poi/search")
     for i in range(POI_SEARCH_ROUNDS):
         payload = payloads[i % len(payloads)]
-        elapsed, status = await _measure(
-            client, "post", "/api/poi/search", json=payload
-        )
+        elapsed, status = await _measure(client, "post", "/api/poi/search", json=payload)
         stats.record(elapsed, status)
     _print_report(stats)
     r = stats.report()
@@ -177,9 +171,7 @@ async def test_poi_search_response_time(client: AsyncClient) -> None:
 async def test_poi_detail_response_time(client: AsyncClient) -> None:
     """测试 POI 详情端点的响应时间。"""
     # 先获取一个有效的 POI ID
-    resp = await client.post(
-        "/api/poi/search", json={"region": "珠海", "categories": ["文化"]}
-    )
+    resp = await client.post("/api/poi/search", json={"region": "珠海", "categories": ["文化"]})
     data = resp.json()
     if not data.get("pois"):
         pytest.skip("没有可用的 POI 数据")
@@ -280,9 +272,7 @@ async def test_plan_sse_response_time(client: AsyncClient) -> None:
                     async for line in resp.aiter_lines():
                         if line.startswith("event:") and first_event_time is None:
                             first_event_time = time.perf_counter() - start
-                        if line.startswith("event: done") or line.startswith(
-                            "event: error"
-                        ):
+                        if line.startswith("event: done") or line.startswith("event: error"):
                             break
         except Exception as e:
             stats.record(time.perf_counter() - start, 500)
@@ -522,9 +512,7 @@ async def test_search_scalability(client: AsyncClient) -> None:
         times = []
         total = 0
         for _ in range(10):
-            elapsed, status = await _measure(
-                client, "post", "/api/poi/search", json=payload
-            )
+            elapsed, status = await _measure(client, "post", "/api/poi/search", json=payload)
             times.append(elapsed)
             if not total:
                 resp = await client.post("/api/poi/search", json=payload)

@@ -152,7 +152,7 @@ class TestNarratorIntegration:
 
     def test_narrator_imports_city_personality(self) -> None:
         """验证 narrator 模块可导入且不报错。"""
-        from backend.services.narrator import generate_narrative  # noqa: F811
+        from backend.services.narrator import generate_narrative
 
         assert generate_narrative is not None
 

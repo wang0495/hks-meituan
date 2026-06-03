@@ -20,14 +20,14 @@ import time
 from pathlib import Path
 
 # 确保项目根目录在 sys.path 中
-_project_root = str(Path(__file__).resolve().parent.parent.parent)
+_project_root = str(Path(__file__).resolve().parent.parent)
 if _project_root not in sys.path:
     sys.path.insert(0, _project_root)
 
 import httpx
 
 # ── 加载 .env ──────────────────────────────────────────────────────
-_env_file = Path(__file__).resolve().parent.parent.parent / ".env"
+_env_file = Path(__file__).resolve().parent.parent / ".env"
 if _env_file.exists():
     for line in _env_file.read_text(encoding="utf-8").splitlines():
         line = line.strip()
@@ -475,7 +475,7 @@ async def main():
             print(f"  失败: {len(errors)} ({', '.join(r['scene'] for r in errors)})")
 
     # 保存
-    log_dir = Path(__file__).resolve().parent.parent.parent / "docs" / "logs"
+    log_dir = Path(__file__).resolve().parent.parent / "docs" / "logs"
     log_dir.mkdir(parents=True, exist_ok=True)
     with open(log_dir / "feedback_llm_results.json", "w", encoding="utf-8") as f:
         json.dump(results, f, ensure_ascii=False, indent=2)

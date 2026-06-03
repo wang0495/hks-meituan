@@ -126,7 +126,7 @@ Wave 4 & Synthesizer & Route assembly & TSPTW-optimized final route \\
 \end{table}
 
 \paragraph{Execution model.}
-Wave~1 experts execute in parallel with no inter-expert communication; each receives the same shared state (user intent, candidate POIs, scene type) and produces independent proposals. Wave~2 experts read the \textit{merged} Wave~1 proposals from shared state---for example, the Traffic Expert computes distance matrices over Wave~1's candidate POIs, and the Local Expert avoids recommending places already selected by the POI Expert. This is \textit{data-flow dependency}, not direct negotiation: experts do not exchange messages or iterate toward consensus.
+Wave~1 experts execute in parallel with no inter-expert communication; each receives the same shared state (user intent, candidate POIs, scene type) and produces independent proposals. Table~\ref{tab:experts} lists the expert modules by execution wave. Wave~2 experts read the \textit{merged} Wave~1 proposals from shared state---for example, the Traffic Expert computes distance matrices over Wave~1's candidate POIs, and the Local Expert avoids recommending places already selected by the POI Expert. This is \textit{data-flow dependency}, not direct negotiation: experts do not exchange messages or iterate toward consensus.
 
 The Food Expert, for instance, categorizes restaurants into sub-types (seafood, dim sum, street food, dessert, tea houses) and selects the top-3 from each sub-type based on ratings, ensuring internal diversity. Note that we also implemented a \texttt{negotiation\_agent} for expert-to-expert conflict resolution, but it is not activated in the current production pipeline; expert coordination is achieved entirely through the review-rework loop described below.
 

@@ -32,12 +32,8 @@ def locale_dir(tmp_path: Path) -> Path:
         "common": {"success": "Success", "error": "Error"},
         "route": {"planning": "Planning route...", "distance": "Distance: {km} km"},
     }
-    (tmp_path / "zh_CN.json").write_text(
-        json.dumps(zh, ensure_ascii=False), encoding="utf-8"
-    )
-    (tmp_path / "en_US.json").write_text(
-        json.dumps(en, ensure_ascii=False), encoding="utf-8"
-    )
+    (tmp_path / "zh_CN.json").write_text(json.dumps(zh, ensure_ascii=False), encoding="utf-8")
+    (tmp_path / "en_US.json").write_text(json.dumps(en, ensure_ascii=False), encoding="utf-8")
     return tmp_path
 
 
@@ -128,9 +124,7 @@ class TestEdgeCases:
 
     def test_malformed_json_skipped(self, tmp_path: Path) -> None:
         (tmp_path / "bad.json").write_text("{invalid json", encoding="utf-8")
-        (tmp_path / "zh_CN.json").write_text(
-            json.dumps({"ok": "yes"}), encoding="utf-8"
-        )
+        (tmp_path / "zh_CN.json").write_text(json.dumps({"ok": "yes"}), encoding="utf-8")
         i18n = I18n(locale_dir=tmp_path)
         assert i18n.translate("ok") == "yes"
 
@@ -143,9 +137,7 @@ class TestEdgeCases:
 class TestGlobalShortcut:
     """全局 t() 快捷函数测试。"""
 
-    def test_t_function(
-        self, locale_dir: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_t_function(self, locale_dir: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """重置全局单例后测试 t()。"""
         import backend.i18n as mod
 

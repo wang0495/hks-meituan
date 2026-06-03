@@ -55,7 +55,11 @@ def _normalize(poi: dict) -> dict:
         "_suitability": poi.get("suitability", {}),
         "emotion_tags": poi.get("emotion_tags", {}),
         "constraints": constraints,
-        "_llm_quality": {"is_tourist": poi.get("rating", 0) >= 4.0, "score": int(poi.get("rating", 0)), "issues": []},
+        "_llm_quality": {
+            "is_tourist": poi.get("rating", 0) >= 4.0,
+            "score": int(poi.get("rating", 0)),
+            "issues": [],
+        },
         # UGC评价摘要
         "_ugc_summary": ugc_summary,
     }
@@ -83,7 +87,7 @@ async def fetch_pois(
     if _cache is not None and _cache_key == key:
         return _cache  # type: ignore
 
-    async with httpx.AsyncClient(base_url=BASE, timeout=2.0) as client:
+    async with httpx.AsyncClient(base_url=BASE, timeout=15.0) as client:
         # 1. 分页获取全部POI（API限制limit最大200）
         items: list[dict] = []
         page_size = 200

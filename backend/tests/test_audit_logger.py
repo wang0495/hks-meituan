@@ -3,13 +3,12 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from backend.services.audit_logger import (AuditAction, AuditLogger, audit_log,
-                                           get_audit_logger)
+from backend.services.audit_logger import AuditAction, AuditLogger, audit_log, get_audit_logger
 
 
 class TestAuditAction:
@@ -121,9 +120,7 @@ class TestAuditLogger:
             }
         ]
 
-        with patch(
-            "backend.services.audit_logger.async_session_factory"
-        ) as mock_factory:
+        with patch("backend.services.audit_logger.async_session_factory") as mock_factory:
             mock_session = AsyncMock()
             mock_factory.return_value.__aenter__ = AsyncMock(return_value=mock_session)
             mock_factory.return_value.__aexit__ = AsyncMock(return_value=False)
@@ -143,9 +140,7 @@ class TestAuditLogger:
         al = AuditLogger()
         al.flush = AsyncMock()
 
-        with patch(
-            "backend.services.audit_logger.async_session_factory"
-        ) as mock_factory:
+        with patch("backend.services.audit_logger.async_session_factory") as mock_factory:
             mock_session = AsyncMock()
             mock_result = MagicMock()
             mock_result.scalars.return_value.all.return_value = []
@@ -219,7 +214,7 @@ class TestAuditLogger:
         mock_log.details = {"key": "value"}
         mock_log.ip_address = "127.0.0.1"
         mock_log.user_agent = "test"
-        mock_log.created_at = datetime(2026, 5, 9, tzinfo=timezone.utc)
+        mock_log.created_at = datetime(2026, 5, 9, tzinfo=UTC)
 
         result = AuditLogger._to_dict(mock_log)
         assert result["id"] == "test-id"
@@ -263,9 +258,7 @@ class TestAuditLogDecorator:
         async def my_function(user_id: str = "system"):
             return "result"
 
-        with patch.object(
-            get_audit_logger(), "log", new_callable=AsyncMock
-        ) as mock_log:
+        with patch.object(get_audit_logger(), "log", new_callable=AsyncMock) as mock_log:
             result = await my_function(user_id="user1")
 
         assert result == "result"

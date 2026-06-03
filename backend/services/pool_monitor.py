@@ -179,8 +179,7 @@ class PoolMonitor:
         warnings: list[str] = []
         if db_stats.utilization >= self._threshold:
             warnings.append(
-                f"数据库连接池使用率: {db_stats.utilization:.1%} "
-                f"(阈值 {self._threshold:.0%})"
+                f"数据库连接池使用率: {db_stats.utilization:.1%} " f"(阈值 {self._threshold:.0%})"
             )
         return warnings
 

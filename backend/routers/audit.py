@@ -82,8 +82,7 @@ async def get_audit_logs(
     "/export",
     summary="导出审计日志",
     description=(
-        "导出审计日志为 JSON 或 CSV 格式。\n\n"
-        "支持按时间范围筛选，最多导出 10000 条记录。"
+        "导出审计日志为 JSON 或 CSV 格式。\n\n" "支持按时间范围筛选，最多导出 10000 条记录。"
     ),
 )
 async def export_audit_logs(

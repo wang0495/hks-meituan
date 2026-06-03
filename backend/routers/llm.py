@@ -7,10 +7,16 @@ from backend.services import llm_service
 router = APIRouter(prefix="/api/llm", tags=["LLM"])
 
 # 允许的模型白名单
-_ALLOWED_MODELS = frozenset({
-    "openai", "deepseek-chat", "deepseek-reasoner",
-    "qwen-turbo", "qwen-plus", "qwen-max",
-})
+_ALLOWED_MODELS = frozenset(
+    {
+        "openai",
+        "deepseek-chat",
+        "deepseek-reasoner",
+        "qwen-turbo",
+        "qwen-plus",
+        "qwen-max",
+    }
+)
 
 
 @router.post(
@@ -89,9 +95,7 @@ async def chat_stream(req: ChatRequest) -> StreamingResponse:
         raise HTTPException(status_code=400, detail=f"不支持的模型: {model_name}")
 
     async def stream():
-        async for chunk in llm_service.chat_stream(
-            message=req.message, model=req.model
-        ):
+        async for chunk in llm_service.chat_stream(message=req.message, model=req.model):
             yield f"data: {chunk}\n\n"
         yield "data: [DONE]\n\n"
 

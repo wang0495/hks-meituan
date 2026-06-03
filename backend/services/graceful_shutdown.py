@@ -31,8 +31,9 @@ import asyncio
 import logging
 import signal
 import sys
+from collections.abc import Callable, Coroutine
 from dataclasses import dataclass, field
-from typing import Any, Callable, Coroutine
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -230,7 +231,7 @@ class GracefulShutdown:
                 timeout=self._shutdown_timeout,
             )
             logger.info("所有活跃请求已完成")
-        except asyncio.TimeoutError:
+        except TimeoutError:
             self._stats.timed_out = True
             remaining = len(self._active_requests)
             logger.warning(

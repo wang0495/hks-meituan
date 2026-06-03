@@ -101,15 +101,16 @@ def _review_router(state: TravelState) -> str:
 
 # ── 共享构建逻辑 ──
 
+
 def _register_nodes(graph: StateGraph) -> dict[str, str]:
     """注册所有节点（normal 和 feedback 共用），返回已注册的expert名。"""
-    from backend.agents_v3.nodes.rule_guard import rule_guard
+    from backend.agents_v3.nodes.emergence_check import emergence_check
     from backend.agents_v3.nodes.expert_router import expert_router
     from backend.agents_v3.nodes.feedback_entry import feedback_entry
-    from backend.agents_v3.nodes.review import review, rework
-    from backend.agents_v3.nodes.emergence_check import emergence_check
-    from backend.agents_v3.nodes.synthesizer import synthesizer
     from backend.agents_v3.nodes.live_itinerary_node import live_itinerary
+    from backend.agents_v3.nodes.review import review, rework
+    from backend.agents_v3.nodes.rule_guard import rule_guard
+    from backend.agents_v3.nodes.synthesizer import synthesizer
 
     graph.add_node("rule_guard", rule_guard)
     graph.add_node("expert_router", expert_router)
@@ -119,6 +120,7 @@ def _register_nodes(graph: StateGraph) -> dict[str, str]:
     _loaded_experts: dict[str, str] = {}
     for name, (module_path, func_name) in _EXPERT_MAP.items():
         import importlib
+
         mod = importlib.import_module(module_path)
         func = getattr(mod, func_name)
         graph.add_node(name, func)

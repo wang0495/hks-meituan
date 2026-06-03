@@ -8,16 +8,18 @@ from __future__ import annotations
 from collections.abc import AsyncGenerator
 
 import pytest
-from sqlalchemy.ext.asyncio import (AsyncSession, async_sessionmaker,
-                                    create_async_engine)
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from backend.database.base import Base
-from backend.database.models import POI, Route, User
+from backend.database.models import Route, User
 from backend.database.poi_repository import POIRepository
-from backend.database.repository import (DialogueRepository, RouteRepository,
-                                         RouteStepRepository,
-                                         UserPreferenceRepository,
-                                         UserRepository)
+from backend.database.repository import (
+    DialogueRepository,
+    RouteRepository,
+    RouteStepRepository,
+    UserPreferenceRepository,
+    UserRepository,
+)
 
 
 @pytest.fixture
@@ -35,9 +37,7 @@ async def db_engine():
 @pytest.fixture
 async def db_session(db_engine) -> AsyncGenerator[AsyncSession, None]:
     """每个测试一个独立事务，测试结束回滚。"""
-    session_factory = async_sessionmaker(
-        db_engine, class_=AsyncSession, expire_on_commit=False
-    )
+    session_factory = async_sessionmaker(db_engine, class_=AsyncSession, expire_on_commit=False)
     async with session_factory() as session:
         yield session
         await session.rollback()

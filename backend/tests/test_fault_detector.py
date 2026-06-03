@@ -5,9 +5,12 @@ from __future__ import annotations
 import time
 
 import pytest
-
-from backend.resilience.fault_detector import (FaultDetector, FaultEvent,
-                                               FaultLevel, get_fault_detector)
+from backend.resilience.fault_detector import (
+    FaultDetector,
+    FaultEvent,
+    FaultLevel,
+    get_fault_detector,
+)
 
 
 class TestFaultLevel:

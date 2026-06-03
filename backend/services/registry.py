@@ -48,12 +48,8 @@ class ServiceInfo(BaseModel):
     host: str = Field(..., description="服务主机地址")
     port: int = Field(..., ge=1, le=65535, description="服务端口")
     metadata: dict[str, Any] = Field(default_factory=dict, description="附加元数据")
-    registered_at: datetime = Field(
-        default_factory=datetime.now, description="注册时间"
-    )
-    last_heartbeat: datetime = Field(
-        default_factory=datetime.now, description="最后心跳时间"
-    )
+    registered_at: datetime = Field(default_factory=datetime.now, description="注册时间")
+    last_heartbeat: datetime = Field(default_factory=datetime.now, description="最后心跳时间")
     status: str = Field("healthy", description="服务状态: healthy / unhealthy")
 
     def to_dict(self) -> dict[str, Any]:
@@ -143,14 +139,10 @@ class ServiceRegistry:
             return random.choice(healthy)
         return None
 
-    async def get_all_services(
-        self, service_name: str | None = None
-    ) -> list[ServiceInfo]:
+    async def get_all_services(self, service_name: str | None = None) -> list[ServiceInfo]:
         """获取所有服务实例，可按服务名过滤。"""
         if service_name is not None:
-            return [
-                s for s in self._services.values() if s.service_name == service_name
-            ]
+            return [s for s in self._services.values() if s.service_name == service_name]
         return list(self._services.values())
 
     # ---- 健康检查 ----
@@ -160,9 +152,7 @@ class ServiceRegistry:
         while self._running:
             now = datetime.now()
             for service_id, service in list(self._services.items()):
-                if now - service.last_heartbeat > timedelta(
-                    seconds=self._heartbeat_timeout
-                ):
+                if now - service.last_heartbeat > timedelta(seconds=self._heartbeat_timeout):
                     if service.status != "unhealthy":
                         service.status = "unhealthy"
                         logger.warning(
@@ -194,9 +184,7 @@ class ServiceRegistry:
             return
         self._running = True
         self._health_task = asyncio.create_task(self._check_health_loop())
-        logger.info(
-            "服务注册中心已启动 (heartbeat_timeout=%ds)", self._heartbeat_timeout
-        )
+        logger.info("服务注册中心已启动 (heartbeat_timeout=%ds)", self._heartbeat_timeout)
 
     async def stop(self) -> None:
         """停止健康检查后台任务。"""

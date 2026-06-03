@@ -68,9 +68,7 @@ class ShortTermMemory:
         if r is not None:
             try:
                 redis_key = f"{SHORT_TERM_KEY_PREFIX}{user_id}"
-                await r.lpush(
-                    redis_key, json.dumps(trip_summary, ensure_ascii=False)
-                )
+                await r.lpush(redis_key, json.dumps(trip_summary, ensure_ascii=False))
                 await r.ltrim(redis_key, 0, SHORT_TERM_MAX_TRIPS - 1)
                 await r.expire(redis_key, SHORT_TERM_TTL)
                 return
@@ -84,9 +82,7 @@ class ShortTermMemory:
         self._memory[user_id].insert(0, trip_summary)
         self._memory[user_id] = self._memory[user_id][:SHORT_TERM_MAX_TRIPS]
 
-    async def get_recent_trips(
-        self, user_id: str, n: int = 3
-    ) -> list[dict[str, Any]]:
+    async def get_recent_trips(self, user_id: str, n: int = 3) -> list[dict[str, Any]]:
         """获取最近的 n 次行程。"""
         r = await self._get_redis()
         if r is not None:
@@ -96,9 +92,7 @@ class ShortTermMemory:
                 return [json.loads(item) for item in data]
             except Exception:
                 self._fallback = True
-                logger.warning(
-                    "[ShortTermMemory] Redis lrange 失败，切换到内存模式"
-                )
+                logger.warning("[ShortTermMemory] Redis lrange 失败，切换到内存模式")
 
         # Fallback: in-memory
         trips = self._memory.get(user_id, [])

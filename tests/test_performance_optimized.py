@@ -42,9 +42,7 @@ class TestRuleParsePerformance:
             start = time.perf_counter()
             _rule_based_parse(text)
             elapsed_ms = (time.perf_counter() - start) * 1000
-            assert (
-                elapsed_ms < 10
-            ), f"规则匹配耗时 {elapsed_ms:.1f}ms，超过 10ms: {text}"
+            assert elapsed_ms < 10, f"规则匹配耗时 {elapsed_ms:.1f}ms，超过 10ms: {text}"
 
     def test_rule_parse_batch_throughput(self) -> None:
         """批量规则匹配吞吐量测试。"""

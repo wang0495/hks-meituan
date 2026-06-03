@@ -23,7 +23,7 @@ from typing import Any
 from urllib.parse import quote_plus
 
 from backend.errors import DialogueError
-from backend.services.solver import _GAMMA, _BETA  # V2: 权重基线常量
+from backend.services.solver import _BETA, _GAMMA  # V2: 权重基线常量
 from backend.services.time_utils import format_time, parse_time
 
 logger = logging.getLogger(__name__)
@@ -254,9 +254,7 @@ class DialogueEngine:
 
     # ---- 指令分发 --------------------------------------------------------
 
-    async def process_instruction(
-        self, session_id: str, instruction: str
-    ) -> dict[str, Any]:
+    async def process_instruction(self, session_id: str, instruction: str) -> dict[str, Any]:
         """处理用户指令的主入口。
 
         Returns:
@@ -281,9 +279,7 @@ class DialogueEngine:
         # 记录用户消息
         state.add_message("user", instruction)
         state.turn_count += 1
-        logger.info(
-            "[Dialogue] 会话 %s 第 %d 轮: %s", session_id, state.turn_count, instruction
-        )
+        logger.info("[Dialogue] 会话 %s 第 %d 轮: %s", session_id, state.turn_count, instruction)
 
         # 分类 + 处理
         instruction_type = self._classify_instruction(instruction)
@@ -383,9 +379,7 @@ class DialogueEngine:
 
     # ---- 替换指令 --------------------------------------------------------
 
-    async def _handle_replace(
-        self, state: DialogueState, instruction: str
-    ) -> dict[str, Any]:
+    async def _handle_replace(self, state: DialogueState, instruction: str) -> dict[str, Any]:
         """处理替换指令：换掉路线中的某个景点。"""
         poi_name = self._extract_poi_name(instruction, state.route)
 
@@ -412,11 +406,7 @@ class DialogueEngine:
 
         # 从候选池找替代
         used_ids = {step["poi"]["id"] for step in state.route.get("route", [])}
-        unused = [
-            p
-            for p in state.route.get("unused_candidates", [])
-            if p["id"] not in used_ids
-        ]
+        unused = [p for p in state.route.get("unused_candidates", []) if p["id"] not in used_ids]
 
         if not unused:
             return {
@@ -430,9 +420,7 @@ class DialogueEngine:
 
         # 构建新的路线步骤
         new_route = self._deep_copy_route(state.route)
-        prev_poi = (
-            new_route["route"][replace_index - 1]["poi"] if replace_index > 0 else None
-        )
+        prev_poi = new_route["route"][replace_index - 1]["poi"] if replace_index > 0 else None
         prev_departure_str = (
             new_route["route"][replace_index - 1]["departure_time"]
             if replace_index > 0
@@ -462,9 +450,7 @@ class DialogueEngine:
         new_route["route"][replace_index] = new_step
 
         # 更新候选池：被换出的放回，被换入的移出
-        new_route["unused_candidates"] = [
-            p for p in unused if p["id"] != replacement["id"]
-        ]
+        new_route["unused_candidates"] = [p for p in unused if p["id"] != replacement["id"]]
         new_route["unused_candidates"].append(original_poi)
 
         state.route = new_route
@@ -526,20 +512,30 @@ class DialogueEngine:
 
     # ---- 节奏调整 --------------------------------------------------------
 
-    async def _handle_pace(
-        self, state: DialogueState, instruction: str
-    ) -> dict[str, Any]:
+    async def _handle_pace(self, state: DialogueState, instruction: str) -> dict[str, Any]:
         """处理节奏调整指令。"""
         current_pace = state.user_intent.get("pace", "平衡型")
 
         if any(kw in instruction for kw in ["太慢", "紧凑", "快"]):
             # 加快：闲逛型 → 平衡型 → 特种兵型
-            new_pace = {"闲逛型": "平衡型", "平衡型": "特种兵型", "特种兵型": "特种兵型"}.get(current_pace, "特种兵型")
-            reply = "好的，我帮你调整为%s行程。" % {"闲逛型": "更紧凑的", "平衡型": "紧凑型", "特种兵型": "更紧凑的"}.get(current_pace, "紧凑型")
+            new_pace = {"闲逛型": "平衡型", "平衡型": "特种兵型", "特种兵型": "特种兵型"}.get(
+                current_pace, "特种兵型"
+            )
+            reply = "好的，我帮你调整为%s行程。" % {
+                "闲逛型": "更紧凑的",
+                "平衡型": "紧凑型",
+                "特种兵型": "更紧凑的",
+            }.get(current_pace, "紧凑型")
         elif any(kw in instruction for kw in ["太赶", "太累", "轻松"]):
             # 放慢：特种兵型 → 平衡型 → 闲逛型
-            new_pace = {"特种兵型": "平衡型", "平衡型": "闲逛型", "闲逛型": "闲逛型"}.get(current_pace, "闲逛型")
-            reply = "好的，我帮你调整为%s行程。" % {"特种兵型": "更轻松的", "平衡型": "轻松型", "闲逛型": "更轻松的"}.get(current_pace, "轻松型")
+            new_pace = {"特种兵型": "平衡型", "平衡型": "闲逛型", "闲逛型": "闲逛型"}.get(
+                current_pace, "闲逛型"
+            )
+            reply = "好的，我帮你调整为%s行程。" % {
+                "特种兵型": "更轻松的",
+                "平衡型": "轻松型",
+                "闲逛型": "更轻松的",
+            }.get(current_pace, "轻松型")
         else:
             new_pace = "平衡型"
             reply = "好的，我帮你调整为平衡型行程。"
@@ -554,7 +550,9 @@ class DialogueEngine:
         filtered = filter_candidates(all_candidates, state.user_intent)
         start_time = state.user_intent.get("time", {}).get("start", "09:00")
         new_route = solve_route(
-            filtered, state.user_intent, start_time,
+            filtered,
+            state.user_intent,
+            start_time,
             dynamic_weights=state.user_intent.get("_dynamic_weights"),
         )
         state.route = new_route
@@ -568,9 +566,7 @@ class DialogueEngine:
 
     # ---- 预算调整 --------------------------------------------------------
 
-    async def _handle_budget(
-        self, state: DialogueState, instruction: str
-    ) -> dict[str, Any]:
+    async def _handle_budget(self, state: DialogueState, instruction: str) -> dict[str, Any]:
         """处理预算调整指令。"""
         current_budget = state.user_intent.get("budget", {}).get("per_person", 500)
         original_budget = current_budget
@@ -595,7 +591,9 @@ class DialogueEngine:
         filtered = filter_candidates(all_candidates, state.user_intent)
         start_time = state.user_intent.get("time", {}).get("start", "09:00")
         new_route = solve_route(
-            filtered, state.user_intent, start_time,
+            filtered,
+            state.user_intent,
+            start_time,
             dynamic_weights=state.user_intent.get("_dynamic_weights"),
         )
         state.route = new_route
@@ -609,9 +607,7 @@ class DialogueEngine:
 
     # ---- 时间调整 --------------------------------------------------------
 
-    async def _handle_time(
-        self, state: DialogueState, instruction: str
-    ) -> dict[str, Any]:
+    async def _handle_time(self, state: DialogueState, instruction: str) -> dict[str, Any]:
         """处理时间调整指令（增量调整，不重新规划）。"""
         # 尝试提取具体时间
         time_match = re.search(r"(\d{1,2})[点时:：](\d{2})?", instruction)
@@ -687,11 +683,10 @@ class DialogueEngine:
 
     # ---- 重新规划 --------------------------------------------------------
 
-    async def _handle_retry(
-        self, state: DialogueState, instruction: str
-    ) -> dict[str, Any]:
+    async def _handle_retry(self, state: DialogueState, instruction: str) -> dict[str, Any]:
         """处理重新规划指令。"""
         import random
+
         all_candidates = self._collect_all_candidates(state)
         from backend.services.filters import filter_candidates
         from backend.services.solver import solve_route
@@ -701,7 +696,9 @@ class DialogueEngine:
         random.shuffle(filtered)
         start_time = state.user_intent.get("time", {}).get("start", "09:00")
         new_route = solve_route(
-            filtered, state.user_intent, start_time,
+            filtered,
+            state.user_intent,
+            start_time,
             dynamic_weights=state.user_intent.get("_dynamic_weights"),
         )
         state.route = new_route
@@ -742,7 +739,9 @@ class DialogueEngine:
 
         # 构建动态权重（保留原有的 alpha/delta/budget_strictness）
         current_weights = dict(state.user_intent.get("_dynamic_weights", {}))
-        current_weights["gamma"] = max(0.1, current_weights.get("gamma", _GAMMA) + gamma_delta * 0.5)
+        current_weights["gamma"] = max(
+            0.1, current_weights.get("gamma", _GAMMA) + gamma_delta * 0.5
+        )
         current_weights["beta"] = max(0.1, current_weights.get("beta", _BETA) + beta_delta * 0.5)
         # 上限保护
         current_weights["gamma"] = min(3.0, current_weights["gamma"])
@@ -759,14 +758,18 @@ class DialogueEngine:
         filtered = filter_candidates(all_candidates, state.user_intent)
         start_time = state.user_intent.get("time", {}).get("start", "09:00")
         new_route = solve_route(
-            filtered, state.user_intent, start_time,
+            filtered,
+            state.user_intent,
+            start_time,
             dynamic_weights=current_weights,
         )
         state.route = new_route
 
-        logger.info("[Dialogue] 情绪权重调整: gamma=%.2f beta=%.2f",
-                     current_weights.get("gamma", _GAMMA),
-                     current_weights.get("beta", _BETA))
+        logger.info(
+            "[Dialogue] 情绪权重调整: gamma=%.2f beta=%.2f",
+            current_weights.get("gamma", _GAMMA),
+            current_weights.get("beta", _BETA),
+        )
         return {
             "reply": reply,
             "route": new_route,
@@ -775,9 +778,7 @@ class DialogueEngine:
 
     # ---- V2: 情感需求调整 -------------------------------------------------------
 
-    async def _handle_mood_adjust(
-        self, state: DialogueState, instruction: str
-    ) -> dict[str, Any]:
+    async def _handle_mood_adjust(self, state: DialogueState, instruction: str) -> dict[str, Any]:
         """处理情感需求指令：如"最近有点烦，想放松一下"。
 
         设置 emotion_need，调整偏好权重，然后全量重算。
@@ -811,7 +812,9 @@ class DialogueEngine:
         start_time = state.user_intent.get("time", {}).get("start", "09:00")
         dynamic_weights = state.user_intent.get("_dynamic_weights")
         new_route = solve_route(
-            filtered, state.user_intent, start_time,
+            filtered,
+            state.user_intent,
+            start_time,
             dynamic_weights=dynamic_weights,
         )
         state.route = new_route

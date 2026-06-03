@@ -8,8 +8,7 @@ from __future__ import annotations
 
 from collections.abc import AsyncGenerator
 
-from sqlalchemy.ext.asyncio import (AsyncSession, async_sessionmaker,
-                                    create_async_engine)
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase
 
 from backend.config import settings
@@ -20,8 +19,7 @@ from backend.config import settings
 
 _db = settings.database
 DATABASE_URL = (
-    f"postgresql+asyncpg://{_db.user}:{_db.password}"
-    f"@{_db.host}:{_db.port}/{_db.database}"
+    f"postgresql+asyncpg://{_db.user}:{_db.password}" f"@{_db.host}:{_db.port}/{_db.database}"
 )
 
 engine = create_async_engine(

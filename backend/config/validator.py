@@ -41,9 +41,7 @@ VALID_ENVIRONMENTS: frozenset[str] = frozenset(
     {"development", "testing", "production", "dev", "test", "prod"}
 )
 
-VALID_LOG_LEVELS: frozenset[str] = frozenset(
-    {"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"}
-)
+VALID_LOG_LEVELS: frozenset[str] = frozenset({"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"})
 
 # 各子配置的必需字段
 SECTION_REQUIRED_FIELDS: dict[str, dict[str, str]] = {
@@ -260,8 +258,7 @@ class ConfigValidator:
         env_str = str(env).lower()
         if env_str not in VALID_ENVIRONMENTS:
             result.add_warning(
-                f"未知环境: {env!r}，"
-                f"建议值: {', '.join(sorted(VALID_ENVIRONMENTS))}"
+                f"未知环境: {env!r}，" f"建议值: {', '.join(sorted(VALID_ENVIRONMENTS))}"
             )
 
     @staticmethod
@@ -290,8 +287,7 @@ class ConfigValidator:
             return
         if str(level).upper() not in VALID_LOG_LEVELS:
             result.add_warning(
-                f"未知日志级别: {level!r}，"
-                f"可选值: {', '.join(sorted(VALID_LOG_LEVELS))}"
+                f"未知日志级别: {level!r}，" f"可选值: {', '.join(sorted(VALID_LOG_LEVELS))}"
             )
 
     @staticmethod
@@ -322,9 +318,7 @@ class ConfigValidator:
                 continue
             for field_name, description in required.items():
                 if field_name not in section:
-                    result.add_warning(
-                        f"{section_name}.{field_name} 未配置（{description}）"
-                    )
+                    result.add_warning(f"{section_name}.{field_name} 未配置（{description}）")
 
     # ------------------------------------------------------------------
     # 聚合验证

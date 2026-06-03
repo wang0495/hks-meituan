@@ -151,8 +151,7 @@ class TestMetrics:
         assert counter._value.get() == 1.0
 
     def test_get_metrics(self) -> None:
-        from prometheus_client import (CollectorRegistry, Counter,
-                                       generate_latest)
+        from prometheus_client import CollectorRegistry, Counter, generate_latest
 
         registry = CollectorRegistry()
         Counter("test_metric", "test", registry=registry).inc()

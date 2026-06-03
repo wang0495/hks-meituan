@@ -7,13 +7,16 @@ import time
 
 import pytest
 
-from backend.services.user_rate_limiter import (EndpointTier, UserRateLimiter,
-                                                UserRateLimitExceededError,
-                                                UserRateLimitResult,
-                                                _LocalUserRateLimiter,
-                                                register_whitelist_user,
-                                                remove_whitelist_user,
-                                                resolve_endpoint_tier)
+from backend.services.user_rate_limiter import (
+    EndpointTier,
+    UserRateLimiter,
+    UserRateLimitExceededError,
+    UserRateLimitResult,
+    _LocalUserRateLimiter,
+    register_whitelist_user,
+    remove_whitelist_user,
+    resolve_endpoint_tier,
+)
 
 
 class TestEndpointTier:

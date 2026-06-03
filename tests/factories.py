@@ -173,9 +173,7 @@ class RouteFactory:
                     "poi": poi,
                     "arrival_time": f"{hour:02d}:00",
                     "departure_time": f"{hour + 1:02d}:30",
-                    "travel_from_prev": (
-                        {"distance_m": 2000, "time_min": 10} if i > 0 else None
-                    ),
+                    "travel_from_prev": ({"distance_m": 2000, "time_min": 10} if i > 0 else None),
                 }
             )
 

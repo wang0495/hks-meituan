@@ -151,9 +151,7 @@ class MemoryProfiler:
         )
         return info
 
-    def get_top_allocations(
-        self, limit: int = 10, label: str = "default"
-    ) -> list[dict[str, Any]]:
+    def get_top_allocations(self, limit: int = 10, label: str = "default") -> list[dict[str, Any]]:
         """获取内存分配 Top N。
 
         Args:

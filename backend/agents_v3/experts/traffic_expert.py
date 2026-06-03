@@ -5,11 +5,11 @@ from __future__ import annotations
 import json
 
 from backend.agents_v3.experts.base import (
-    sse_expert,
-    _proposal,
-    _llm_decide,
     _haversine_km,
+    _llm_decide,
+    _proposal,
     _sanitize_for_prompt,
+    sse_expert,
 )
 from backend.agents_v3.state import TravelState
 
@@ -57,13 +57,15 @@ async def traffic_expert(state: TravelState) -> dict:
     poi_locs: list[dict] = []
     for c in candidates[:30]:
         if c.get("category", "") not in ["住宿", "酒店", "民宿"]:
-            poi_locs.append({
-                "name": c.get("name", ""),
-                "lat": c.get("lat", 0),
-                "lng": c.get("lng", 0),
-                "category": c.get("category", ""),
-                "tags": c.get("tags", [])[:3],
-            })
+            poi_locs.append(
+                {
+                    "name": c.get("name", ""),
+                    "lat": c.get("lat", 0),
+                    "lng": c.get("lng", 0),
+                    "category": c.get("category", ""),
+                    "tags": c.get("tags", [])[:3],
+                }
+            )
 
     # Compute distance matrix (top 12 POIs, only meaningful distances > 0.5km)
     distances: list[dict] = []
@@ -139,16 +141,35 @@ async def traffic_expert(state: TravelState) -> dict:
 
     if result:
         result["distances"] = distances
-        return {"proposals": [_proposal("traffic", result, result.get("confidence", 0.7), "LLM交通规划")]}
+        return {
+            "proposals": [
+                _proposal("traffic", result, result.get("confidence", 0.7), "LLM交通规划")
+            ]
+        }
 
     # Fallback: nearest-neighbor ordering
     if poi_locs and distances:
         order = _nearest_neighbor_order(poi_locs)
-        return {"proposals": [_proposal("traffic", {
-            "mode": "公共交通+步行",
-            "suggested_order": order,
-            "estimated_total_time": 60,
-            "distances": distances,
-        }, 0.5, "规则引擎：最近邻排序")]}
+        return {
+            "proposals": [
+                _proposal(
+                    "traffic",
+                    {
+                        "mode": "公共交通+步行",
+                        "suggested_order": order,
+                        "estimated_total_time": 60,
+                        "distances": distances,
+                    },
+                    0.5,
+                    "规则引擎：最近邻排序",
+                )
+            ]
+        }
 
-    return {"proposals": [_proposal("traffic", {"mode": "公共交通", "estimated_total_time": 60}, 0.4, "默认交通方案")]}
+    return {
+        "proposals": [
+            _proposal(
+                "traffic", {"mode": "公共交通", "estimated_total_time": 60}, 0.4, "默认交通方案"
+            )
+        ]
+    }

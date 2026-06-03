@@ -1,7 +1,7 @@
 """美食型20场景快速测试 — 验证多样性修复效果。
 
 使用方式:
-    python -m backend.agents_v3.test_food_only
+    python scripts/benchmarks/test_food_only
 """
 from __future__ import annotations
 
@@ -14,11 +14,11 @@ from concurrent.futures import ProcessPoolExecutor, as_completed
 from datetime import datetime
 from pathlib import Path
 
-_project_root = str(Path(__file__).resolve().parent.parent.parent)
+_project_root = str(Path(__file__).resolve().parent.parent)
 if _project_root not in sys.path:
     sys.path.insert(0, _project_root)
 
-from backend.agents_v3.test_100_scenes import TEST_CASES, _run_batch
+from test_100_scenes import TEST_CASES, _run_batch
 
 # 筛选美食型
 FOOD_CASES = [(st, ui) for st, ui in TEST_CASES if st == "美食型"]

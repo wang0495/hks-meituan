@@ -13,16 +13,21 @@ import time
 
 import pytest
 
-from backend.services.circuit_breaker import (CircuitBreaker,
-                                              CircuitBreakerMetrics,
-                                              CircuitBreakerOpenError,
-                                              CircuitState)
-from backend.services.fallback import (FallbackError, fallback,
-                                       fallback_emotion_analysis,
-                                       fallback_llm_chat,
-                                       fallback_narrative_generation,
-                                       fallback_poi_search,
-                                       fallback_route_planning)
+from backend.services.circuit_breaker import (
+    CircuitBreaker,
+    CircuitBreakerMetrics,
+    CircuitBreakerOpenError,
+    CircuitState,
+)
+from backend.services.fallback import (
+    FallbackError,
+    fallback,
+    fallback_emotion_analysis,
+    fallback_llm_chat,
+    fallback_narrative_generation,
+    fallback_poi_search,
+    fallback_route_planning,
+)
 from backend.services.retry import RetryExhaustedError, retry
 
 # ===========================================================================

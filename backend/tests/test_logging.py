@@ -12,7 +12,6 @@ import time
 from pathlib import Path
 
 import pytest
-
 from backend.logging.config import get_rotation, setup_logging
 from backend.logging.query import LogEntry, LogQuery
 from backend.logging.rotation import (
@@ -22,7 +21,6 @@ from backend.logging.rotation import (
     _compress_file,
 )
 from backend.logging.structured import JSONFormatter, RequestLogger, get_logger
-
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -127,8 +125,7 @@ class TestCompressedRotatingFileHandler:
         assert len(gz_files) > 0
         # 不存在未压缩的 .log.N 文件（排除 .gz）
         plain_rotated = [
-            f for f in tmp_log_dir.glob("app.log.[0-9]*")
-            if not str(f).endswith(".gz")
+            f for f in tmp_log_dir.glob("app.log.[0-9]*") if not str(f).endswith(".gz")
         ]
         assert len(plain_rotated) == 0
 
@@ -211,7 +208,9 @@ class TestLogRotation:
     def test_time_handler_is_timed_handler(self, rotation: LogRotation) -> None:
         assert isinstance(rotation.time_handler, TimedRotatingFileHandler)
 
-    def test_compression_flag(self, rotation: LogRotation, compressed_rotation: LogRotation) -> None:
+    def test_compression_flag(
+        self, rotation: LogRotation, compressed_rotation: LogRotation
+    ) -> None:
         assert rotation.compression_enabled is False
         assert compressed_rotation.compression_enabled is True
 
@@ -237,6 +236,7 @@ class TestLogRotation:
         old_file.write_text("old data", encoding="utf-8")
         old_time = time.time() - 31 * 86400
         import os
+
         os.utime(old_file, (old_time, old_time))
 
         # 创建一个新文件
@@ -306,7 +306,6 @@ class TestLogRotation:
 # 需要导入这些用于 isinstance 检查
 from logging.handlers import RotatingFileHandler, TimedRotatingFileHandler
 
-
 # ---------------------------------------------------------------------------
 # config.py
 # ---------------------------------------------------------------------------
@@ -355,7 +354,9 @@ class TestSetupLogging:
             )
             # 应有 size + time + error 三个文件 handler
             file_handlers = [
-                h for h in root.handlers if isinstance(h, (RotatingFileHandler, TimedRotatingFileHandler))
+                h
+                for h in root.handlers
+                if isinstance(h, (RotatingFileHandler, TimedRotatingFileHandler))
             ]
             assert len(file_handlers) >= 3
         finally:
@@ -384,8 +385,13 @@ class TestJSONFormatter:
     def test_format_produces_valid_json(self) -> None:
         formatter = JSONFormatter()
         record = logging.LogRecord(
-            name="test", level=logging.INFO, pathname="test.py",
-            lineno=10, msg="hello %s", args=("world",), exc_info=None,
+            name="test",
+            level=logging.INFO,
+            pathname="test.py",
+            lineno=10,
+            msg="hello %s",
+            args=("world",),
+            exc_info=None,
         )
         output = formatter.format(record)
         data = json.loads(output)
@@ -400,11 +406,17 @@ class TestJSONFormatter:
             raise ValueError("boom")
         except ValueError:
             import sys
+
             exc_info = sys.exc_info()
 
         record = logging.LogRecord(
-            name="test", level=logging.ERROR, pathname="test.py",
-            lineno=1, msg="error", args=(), exc_info=exc_info,
+            name="test",
+            level=logging.ERROR,
+            pathname="test.py",
+            lineno=1,
+            msg="error",
+            args=(),
+            exc_info=exc_info,
         )
         output = formatter.format(record)
         data = json.loads(output)
@@ -414,8 +426,13 @@ class TestJSONFormatter:
     def test_format_with_extra(self) -> None:
         formatter = JSONFormatter()
         record = logging.LogRecord(
-            name="test", level=logging.INFO, pathname="test.py",
-            lineno=1, msg="msg", args=(), exc_info=None,
+            name="test",
+            level=logging.INFO,
+            pathname="test.py",
+            lineno=1,
+            msg="msg",
+            args=(),
+            exc_info=None,
         )
         record.extra = {"user_id": "u1", "action": "login"}
         output = formatter.format(record)

@@ -16,8 +16,9 @@ config_watcher 负责语义层面的配置变更检测与通知。
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable, Coroutine
 from dataclasses import dataclass
-from typing import Any, Callable, Coroutine
+from typing import Any
 
 from backend.config import Settings, get_settings
 

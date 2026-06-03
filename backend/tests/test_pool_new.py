@@ -13,7 +13,6 @@ import pytest
 from backend.pool.database import DatabasePool
 from backend.pool.http import HTTPPool
 
-
 # ---------------------------------------------------------------------------
 # DatabasePool
 # ---------------------------------------------------------------------------
@@ -45,9 +44,7 @@ class TestDatabasePoolNew:
     @pytest.fixture()
     def pool(self, mock_engine):
         """创建使用模拟引擎的连接池。"""
-        with patch(
-            "backend.pool.database.create_async_engine", return_value=mock_engine
-        ):
+        with patch("backend.pool.database.create_async_engine", return_value=mock_engine):
             p = DatabasePool(
                 database_url="postgresql+asyncpg://test:test@localhost/test",
                 pool_size=5,
@@ -105,9 +102,7 @@ class TestDatabasePoolNew:
     async def test_context_manager(self) -> None:
         mock_engine = MagicMock()
         mock_engine.dispose = AsyncMock()
-        with patch(
-            "backend.pool.database.create_async_engine", return_value=mock_engine
-        ):
+        with patch("backend.pool.database.create_async_engine", return_value=mock_engine):
             async with DatabasePool("postgresql+asyncpg://x") as p:
                 assert p.engine is mock_engine
             mock_engine.dispose.assert_awaited_once()
@@ -162,18 +157,14 @@ class TestHTTPPoolNew:
     async def test_get_delegates_to_request(self, pool: HTTPPool) -> None:
         """GET 请求应正确委托。"""
         mock_resp = MagicMock()
-        with patch.object(
-            pool, "request", new_callable=AsyncMock, return_value=mock_resp
-        ):
+        with patch.object(pool, "request", new_callable=AsyncMock, return_value=mock_resp):
             result = await pool.get("http://example.com")
             assert result is mock_resp
 
     async def test_post_delegates_to_request(self, pool: HTTPPool) -> None:
         """POST 请求应正确委托。"""
         mock_resp = MagicMock()
-        with patch.object(
-            pool, "request", new_callable=AsyncMock, return_value=mock_resp
-        ):
+        with patch.object(pool, "request", new_callable=AsyncMock, return_value=mock_resp):
             result = await pool.post("http://example.com", json={"a": 1})
             assert result is mock_resp
 
@@ -257,9 +248,7 @@ class TestHTTPPoolNew:
         client = pool._ensure_client()
         mock_resp = MagicMock()
         mock_resp.status_code = 200
-        with patch.object(
-            client, "head", new_callable=AsyncMock, return_value=mock_resp
-        ):
+        with patch.object(client, "head", new_callable=AsyncMock, return_value=mock_resp):
             result = await pool.ping()
             assert result is True
 
@@ -268,9 +257,7 @@ class TestHTTPPoolNew:
         client = pool._ensure_client()
         mock_resp = MagicMock()
         mock_resp.status_code = 503
-        with patch.object(
-            client, "head", new_callable=AsyncMock, return_value=mock_resp
-        ):
+        with patch.object(client, "head", new_callable=AsyncMock, return_value=mock_resp):
             result = await pool.ping()
             assert result is False
 

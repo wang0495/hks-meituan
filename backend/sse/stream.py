@@ -4,7 +4,8 @@ from __future__ import annotations
 
 import asyncio
 import json
-from typing import Any, AsyncGenerator
+from collections.abc import AsyncGenerator
+from typing import Any
 
 from fastapi.responses import StreamingResponse
 
@@ -29,7 +30,7 @@ class SSEStream:
                 data = json.dumps(event["data"], ensure_ascii=False)
 
                 yield f"event: {event_type}\ndata: {data}\n\n"
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 # 心跳保活
                 yield ": heartbeat\n\n"
             except Exception as e:

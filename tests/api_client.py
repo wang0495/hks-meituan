@@ -11,7 +11,7 @@
 
 from __future__ import annotations
 
-from typing import Any, Optional
+from typing import Any
 
 import httpx
 
@@ -34,7 +34,7 @@ class APITestClient:
         self,
         base_url: str = "http://localhost:8000",
         timeout: float = 30.0,
-        headers: Optional[dict[str, str]] = None,
+        headers: dict[str, str] | None = None,
     ) -> None:
         self._base_url = base_url.rstrip("/")
         self._timeout = timeout
@@ -64,10 +64,10 @@ class APITestClient:
         method: str,
         path: str,
         *,
-        params: Optional[dict[str, Any]] = None,
-        json: Optional[Any] = None,
-        content: Optional[bytes] = None,
-        headers: Optional[dict[str, str]] = None,
+        params: dict[str, Any] | None = None,
+        json: Any | None = None,
+        content: bytes | None = None,
+        headers: dict[str, str] | None = None,
     ) -> dict[str, Any]:
         """发送 HTTP 请求并返回统一格式的响应。"""
         response = await self._client.request(
@@ -83,8 +83,8 @@ class APITestClient:
     async def get(
         self,
         path: str,
-        params: Optional[dict[str, Any]] = None,
-        headers: Optional[dict[str, str]] = None,
+        params: dict[str, Any] | None = None,
+        headers: dict[str, str] | None = None,
     ) -> dict[str, Any]:
         """GET 请求。"""
         return await self.request("GET", path, params=params, headers=headers)
@@ -92,20 +92,18 @@ class APITestClient:
     async def post(
         self,
         path: str,
-        json: Optional[Any] = None,
-        content: Optional[bytes] = None,
-        headers: Optional[dict[str, str]] = None,
+        json: Any | None = None,
+        content: bytes | None = None,
+        headers: dict[str, str] | None = None,
     ) -> dict[str, Any]:
         """POST 请求。"""
-        return await self.request(
-            "POST", path, json=json, content=content, headers=headers
-        )
+        return await self.request("POST", path, json=json, content=content, headers=headers)
 
     async def put(
         self,
         path: str,
-        json: Optional[Any] = None,
-        headers: Optional[dict[str, str]] = None,
+        json: Any | None = None,
+        headers: dict[str, str] | None = None,
     ) -> dict[str, Any]:
         """PUT 请求。"""
         return await self.request("PUT", path, json=json, headers=headers)
@@ -113,7 +111,7 @@ class APITestClient:
     async def delete(
         self,
         path: str,
-        headers: Optional[dict[str, str]] = None,
+        headers: dict[str, str] | None = None,
     ) -> dict[str, Any]:
         """DELETE 请求。"""
         return await self.request("DELETE", path, headers=headers)
@@ -121,8 +119,8 @@ class APITestClient:
     async def head(
         self,
         path: str,
-        params: Optional[dict[str, Any]] = None,
-        headers: Optional[dict[str, str]] = None,
+        params: dict[str, Any] | None = None,
+        headers: dict[str, str] | None = None,
     ) -> dict[str, Any]:
         """HEAD 请求（常用于健康检查 / 探活）。"""
         return await self.request("HEAD", path, params=params, headers=headers)
@@ -134,7 +132,7 @@ class APITestClient:
     async def stream_sse(
         self,
         path: str,
-        json: Optional[Any] = None,
+        json: Any | None = None,
     ) -> list[dict[str, str]]:
         """发送请求并解析 SSE 事件流，返回事件列表。
 
@@ -189,11 +187,7 @@ class APITestClient:
                 data = body
             else:
                 # CityFlow 错误格式: {"error": "...", "code": 400}
-                error = (
-                    body.get("error", str(body))
-                    if isinstance(body, dict)
-                    else str(body)
-                )
+                error = body.get("error", str(body)) if isinstance(body, dict) else str(body)
                 data = body
         except Exception:
             if status >= 400:

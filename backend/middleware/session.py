@@ -30,9 +30,7 @@ class SessionMiddleware(BaseHTTPMiddleware):
 
     async def dispatch(self, request: Request, call_next) -> Response:
         # 从 cookie 或 header 获取 session_id
-        session_id = request.cookies.get("session_id") or request.headers.get(
-            "X-Session-ID"
-        )
+        session_id = request.cookies.get("session_id") or request.headers.get("X-Session-ID")
 
         # 没有 session 则创建新的
         if not session_id:

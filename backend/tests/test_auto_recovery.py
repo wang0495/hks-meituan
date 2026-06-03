@@ -4,8 +4,12 @@ from __future__ import annotations
 
 import pytest
 
-from backend.services.auto_recovery import (AutoRecovery, RecoveryAttempt,
-                                            RecoveryResult, RecoveryStatus)
+from backend.services.auto_recovery import (
+    AutoRecovery,
+    RecoveryAttempt,
+    RecoveryResult,
+    RecoveryStatus,
+)
 
 
 class TestRecoveryAttempt:

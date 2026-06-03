@@ -107,8 +107,6 @@ class LocalizedResponse:
                 "total": total,
                 "page": page,
                 "page_size": page_size,
-                "total_pages": (
-                    (total + page_size - 1) // page_size if page_size > 0 else 0
-                ),
+                "total_pages": ((total + page_size - 1) // page_size if page_size > 0 else 0),
             },
         }

@@ -12,9 +12,10 @@ from __future__ import annotations
 import asyncio
 import logging
 import uuid
+from collections.abc import Callable
 from datetime import datetime
 from enum import Enum
-from typing import Any, Callable, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -55,10 +56,10 @@ class Task:
         self.kwargs = kwargs
         self.status: TaskStatus = TaskStatus.PENDING
         self.result: Any = None
-        self.error: Optional[str] = None
+        self.error: str | None = None
         self.created_at: datetime = datetime.now()
-        self.started_at: Optional[datetime] = None
-        self.completed_at: Optional[datetime] = None
+        self.started_at: datetime | None = None
+        self.completed_at: datetime | None = None
 
     def to_dict(self) -> dict[str, Any]:
         """序列化为 API 响应字典。"""
@@ -69,9 +70,7 @@ class Task:
             "error": self.error,
             "created_at": self.created_at.isoformat(),
             "started_at": self.started_at.isoformat() if self.started_at else None,
-            "completed_at": (
-                self.completed_at.isoformat() if self.completed_at else None
-            ),
+            "completed_at": (self.completed_at.isoformat() if self.completed_at else None),
         }
 
 
@@ -96,8 +95,7 @@ class TaskQueue:
             return
         self._running = True
         self._workers = [
-            asyncio.create_task(self._worker(f"worker-{i}"))
-            for i in range(self._max_workers)
+            asyncio.create_task(self._worker(f"worker-{i}")) for i in range(self._max_workers)
         ]
         logger.info("任务队列启动，worker 数: %d", self._max_workers)
 
@@ -119,7 +117,7 @@ class TaskQueue:
         logger.info("任务已提交: %s", task_id)
         return task_id
 
-    async def get_task(self, task_id: str) -> Optional[Task]:
+    async def get_task(self, task_id: str) -> Task | None:
         """根据 task_id 获取任务对象。"""
         return self._tasks.get(task_id)
 
@@ -136,9 +134,7 @@ class TaskQueue:
             return True
         return False
 
-    async def list_tasks(
-        self, status: Optional[TaskStatus] = None
-    ) -> list[dict[str, Any]]:
+    async def list_tasks(self, status: TaskStatus | None = None) -> list[dict[str, Any]]:
         """列出所有任务，可按状态过滤。"""
         tasks = self._tasks.values()
         if status:
@@ -156,7 +152,7 @@ class TaskQueue:
         while self._running:
             try:
                 task = await asyncio.wait_for(self._queue.get(), timeout=1.0)
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 continue
             except asyncio.CancelledError:
                 break
@@ -187,7 +183,7 @@ class TaskQueue:
 # 全局单例
 # ---------------------------------------------------------------------------
 
-_task_queue: Optional[TaskQueue] = None
+_task_queue: TaskQueue | None = None
 
 
 def get_task_queue() -> TaskQueue:

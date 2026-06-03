@@ -6,8 +6,7 @@ import asyncio
 
 import pytest
 
-from backend.services.health_checker import (CheckResult, CheckStatus,
-                                             HealthChecker, HealthReport)
+from backend.services.health_checker import CheckResult, CheckStatus, HealthChecker, HealthReport
 
 
 class TestCheckResult:

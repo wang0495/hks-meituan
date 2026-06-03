@@ -13,12 +13,19 @@ import pytest
 
 from backend.services.filters import filter_candidates
 from backend.services.geo import haversine
-from backend.services.solver import (_check_time_windows, _evaluate_route,
-                                     _phase1_initialize, _phase2_improve,
-                                     _phase3_breathing, _phase4_finale,
-                                     _recalculate_times, estimate_distance,
-                                     estimate_steps, estimate_travel_time,
-                                     solve_route)
+from backend.services.solver import (
+    _check_time_windows,
+    _evaluate_route,
+    _phase1_initialize,
+    _phase2_improve,
+    _phase3_breathing,
+    _phase4_finale,
+    _recalculate_times,
+    estimate_distance,
+    estimate_steps,
+    estimate_travel_time,
+    solve_route,
+)
 from backend.services.time_utils import get_poi_opening_hours
 
 # ---------------------------------------------------------------------------
@@ -565,16 +572,12 @@ class TestHelperFunctions:
 class TestPhase1Initialize:
     """Phase 1 贪心初始化测试。"""
 
-    def test_returns_nonempty_route(
-        self, poi_pool: list[dict], p1_intent: dict
-    ) -> None:
+    def test_returns_nonempty_route(self, poi_pool: list[dict], p1_intent: dict) -> None:
         """有候选 POI 时应返回非空路线。"""
         route = _phase1_initialize(poi_pool, p1_intent, "09:00")
         assert len(route) > 0
 
-    def test_all_pois_from_candidates(
-        self, poi_pool: list[dict], p1_intent: dict
-    ) -> None:
+    def test_all_pois_from_candidates(self, poi_pool: list[dict], p1_intent: dict) -> None:
         """路线中所有 POI 应来自候选池。"""
         candidate_ids = {p["id"] for p in poi_pool}
         route = _phase1_initialize(poi_pool, p1_intent, "09:00")
@@ -587,16 +590,12 @@ class TestPhase1Initialize:
         ids = [s["poi"]["id"] for s in route]
         assert len(ids) == len(set(ids))
 
-    def test_time_windows_respected(
-        self, poi_pool: list[dict], p1_intent: dict
-    ) -> None:
+    def test_time_windows_respected(self, poi_pool: list[dict], p1_intent: dict) -> None:
         """路线应满足时间窗约束。"""
         route = _phase1_initialize(poi_pool, p1_intent, "09:00")
         assert _check_time_windows(route)
 
-    def test_arrival_before_departure(
-        self, poi_pool: list[dict], p1_intent: dict
-    ) -> None:
+    def test_arrival_before_departure(self, poi_pool: list[dict], p1_intent: dict) -> None:
         """每一步的出发时间应 >= 到达时间。"""
         route = _phase1_initialize(poi_pool, p1_intent, "09:00")
         for step in route:
@@ -643,18 +642,14 @@ class TestPhase1Initialize:
 class TestPhase2Improve:
     """Phase 2 局部改进测试。"""
 
-    def test_improve_preserves_length(
-        self, poi_pool: list[dict], p1_intent: dict
-    ) -> None:
+    def test_improve_preserves_length(self, poi_pool: list[dict], p1_intent: dict) -> None:
         """改进后路线长度不变。"""
         route = _phase1_initialize(poi_pool, p1_intent, "09:00")
         original_len = len(route)
         improved = _phase2_improve(route, p1_intent, "09:00")
         assert len(improved) == original_len
 
-    def test_improve_maintains_time_windows(
-        self, poi_pool: list[dict], p1_intent: dict
-    ) -> None:
+    def test_improve_maintains_time_windows(self, poi_pool: list[dict], p1_intent: dict) -> None:
         """改进后仍应满足时间窗。"""
         route = _phase1_initialize(poi_pool, p1_intent, "09:00")
         improved = _phase2_improve(route, p1_intent, "09:00")
@@ -682,9 +677,7 @@ class TestPhase2Improve:
 class TestPhase3Breathing:
     """Phase 3 呼吸空间插入测试。"""
 
-    def test_breathing_inserts_rest_for_high_excitement(
-        self, poi_pool: list[dict]
-    ) -> None:
+    def test_breathing_inserts_rest_for_high_excitement(self, poi_pool: list[dict]) -> None:
         """连续 3 个高兴奋 POI 应触发休息插入。"""
         route = []
         for poi in [poi_pool[1], poi_pool[7], poi_pool[11]]:
@@ -737,9 +730,7 @@ class TestPhase3Breathing:
         new_route, spots = _phase3_breathing(route, poi_pool, intent)
         assert len(spots) >= 1
 
-    def test_breathing_rest_poi_has_high_tranquility(
-        self, poi_pool: list[dict]
-    ) -> None:
+    def test_breathing_rest_poi_has_high_tranquility(self, poi_pool: list[dict]) -> None:
         """插入的休息节点应有高宁静度。"""
         route = []
         for poi in [poi_pool[1], poi_pool[7], poi_pool[11]]:
@@ -899,9 +890,7 @@ class TestEvaluateRoute:
         ]
 
         intent = {"preferences": {"culture": 0.5, "nature": 0.5}}
-        assert _evaluate_route(enhanced_route, intent) > _evaluate_route(
-            overload_route, intent
-        )
+        assert _evaluate_route(enhanced_route, intent) > _evaluate_route(overload_route, intent)
 
 
 # ---------------------------------------------------------------------------
@@ -929,9 +918,7 @@ class TestSolveRouteIntegration:
         assert "unused_candidates" in result
         assert "breathing_spots" in result
 
-    def test_route_has_required_fields(
-        self, poi_pool: list[dict], p1_intent: dict
-    ) -> None:
+    def test_route_has_required_fields(self, poi_pool: list[dict], p1_intent: dict) -> None:
         """路线每一步应有 poi, arrival_time, departure_time, travel_from_prev。"""
         filtered = filter_candidates(poi_pool, p1_intent)
         result = solve_route(filtered, p1_intent, "09:00")
@@ -943,17 +930,13 @@ class TestSolveRouteIntegration:
             assert "distance_m" in step["travel_from_prev"]
             assert "time_min" in step["travel_from_prev"]
 
-    def test_emotion_curve_matches_route(
-        self, poi_pool: list[dict], p1_intent: dict
-    ) -> None:
+    def test_emotion_curve_matches_route(self, poi_pool: list[dict], p1_intent: dict) -> None:
         """情绪曲线长度应等于路线长度。"""
         filtered = filter_candidates(poi_pool, p1_intent)
         result = solve_route(filtered, p1_intent, "09:00")
         assert len(result["emotion_curve"]) == len(result["route"])
 
-    def test_unused_candidates_not_in_route(
-        self, poi_pool: list[dict], p1_intent: dict
-    ) -> None:
+    def test_unused_candidates_not_in_route(self, poi_pool: list[dict], p1_intent: dict) -> None:
         """未使用的候选 POI 应不在路线中。"""
         filtered = filter_candidates(poi_pool, p1_intent)
         result = solve_route(filtered, p1_intent, "09:00")
@@ -961,9 +944,7 @@ class TestSolveRouteIntegration:
         for p in result["unused_candidates"]:
             assert p["id"] not in used_ids
 
-    def test_total_cost_nonnegative(
-        self, poi_pool: list[dict], p1_intent: dict
-    ) -> None:
+    def test_total_cost_nonnegative(self, poi_pool: list[dict], p1_intent: dict) -> None:
         """总成本各项应为非负数。"""
         filtered = filter_candidates(poi_pool, p1_intent)
         result = solve_route(filtered, p1_intent, "09:00")
@@ -997,9 +978,7 @@ class TestP1SocialAnxiety:
         )
         assert has_quiet, "路线应包含至少一个宁静POI"
 
-    def test_no_consecutive_same_category(
-        self, poi_pool: list[dict], p1_intent: dict
-    ) -> None:
+    def test_no_consecutive_same_category(self, poi_pool: list[dict], p1_intent: dict) -> None:
         """路线中不应有连续两个相同类别的 POI。"""
         filtered = filter_candidates(poi_pool, p1_intent)
         result = solve_route(filtered, p1_intent, "09:00")
@@ -1012,9 +991,7 @@ class TestP1SocialAnxiety:
                 f"{route[i+1]['poi']['name']}({cat_b})"
             )
 
-    def test_idle_pace_has_breathing_spots(
-        self, poi_pool: list[dict], p1_intent: dict
-    ) -> None:
+    def test_idle_pace_has_breathing_spots(self, poi_pool: list[dict], p1_intent: dict) -> None:
         """闲逛型路线应有休息节点或已包含休息型POI。"""
         result = solve_route(poi_pool, p1_intent, "09:00")
         # 闲逛型 + 多个POI时应有休息节点或路线本身包含休息型POI
@@ -1025,9 +1002,7 @@ class TestP1SocialAnxiety:
             )
             assert has_rest, "闲逛型路线应有休息节点或包含休息型POI"
 
-    def test_time_windows_satisfied(
-        self, poi_pool: list[dict], p1_intent: dict
-    ) -> None:
+    def test_time_windows_satisfied(self, poi_pool: list[dict], p1_intent: dict) -> None:
         """路线应满足所有时间窗约束。"""
         filtered = filter_candidates(poi_pool, p1_intent)
         result = solve_route(filtered, p1_intent, "09:00")
@@ -1060,9 +1035,7 @@ class TestP2Couple:
         """路线应包含至少一个可拍照 POI。"""
         result = solve_route(poi_pool, p2_intent, "14:00")
         photo_tags = {"拍照", "浪漫", "艺术", "约会"}
-        has_photo = any(
-            photo_tags & set(step["poi"].get("tags", [])) for step in result["route"]
-        )
+        has_photo = any(photo_tags & set(step["poi"].get("tags", [])) for step in result["route"])
         assert has_photo, "情侣路线应包含可拍照POI"
 
     def test_contains_interactive(self, poi_pool: list[dict], p2_intent: dict) -> None:
@@ -1070,14 +1043,11 @@ class TestP2Couple:
         result = solve_route(poi_pool, p2_intent, "14:00")
         interactive_tags = {"互动", "解谜", "体验"}
         has_interactive = any(
-            interactive_tags & set(step["poi"].get("tags", []))
-            for step in result["route"]
+            interactive_tags & set(step["poi"].get("tags", [])) for step in result["route"]
         )
         assert has_interactive, "情侣路线应包含互动体验"
 
-    def test_emotion_curve_has_data(
-        self, poi_pool: list[dict], p2_intent: dict
-    ) -> None:
+    def test_emotion_curve_has_data(self, poi_pool: list[dict], p2_intent: dict) -> None:
         """情绪曲线应有数据，且包含必要情绪字段。"""
         result = solve_route(poi_pool, p2_intent, "14:00")
         assert len(result["emotion_curve"]) > 0
@@ -1092,9 +1062,7 @@ class TestP2Couple:
         max_possible = sum(p.get("avg_price", 0) for p in poi_pool)
         assert result["total_cost"]["budget_used"] <= max_possible
 
-    def test_time_windows_satisfied(
-        self, poi_pool: list[dict], p2_intent: dict
-    ) -> None:
+    def test_time_windows_satisfied(self, poi_pool: list[dict], p2_intent: dict) -> None:
         """路线应满足所有时间窗约束。"""
         result = solve_route(poi_pool, p2_intent, "14:00")
         assert _check_time_windows(result["route"])
@@ -1140,13 +1108,9 @@ class TestP14Family:
         result = solve_route(filtered, p14_intent, "09:00")
         for step in result["route"]:
             demand = step["poi"].get("emotion_tags", {}).get("physical_demand", 0)
-            assert (
-                demand <= 0.8
-            ), f'{step["poi"]["name"]} 体力需求 {demand} 对三代同堂过高'
+            assert demand <= 0.8, f'{step["poi"]["name"]} 体力需求 {demand} 对三代同堂过高'
 
-    def test_unused_candidates_present(
-        self, poi_pool: list[dict], p14_intent: dict
-    ) -> None:
+    def test_unused_candidates_present(self, poi_pool: list[dict], p14_intent: dict) -> None:
         """未使用的候选 POI 应被正确记录。"""
         filtered = filter_candidates(poi_pool, p14_intent)
         result = solve_route(filtered, p14_intent, "09:00")
@@ -1154,9 +1118,7 @@ class TestP14Family:
         for p in result["unused_candidates"]:
             assert p["id"] not in used_ids
 
-    def test_time_windows_satisfied(
-        self, poi_pool: list[dict], p14_intent: dict
-    ) -> None:
+    def test_time_windows_satisfied(self, poi_pool: list[dict], p14_intent: dict) -> None:
         """路线应满足所有时间窗约束。"""
         filtered = filter_candidates(poi_pool, p14_intent)
         result = solve_route(filtered, p14_intent, "09:00")

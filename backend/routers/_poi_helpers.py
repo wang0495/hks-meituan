@@ -7,7 +7,6 @@ from __future__ import annotations
 
 import math
 from pathlib import Path
-from typing import Optional
 
 from fastapi import HTTPException
 
@@ -70,10 +69,7 @@ def haversine(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
     phi1, phi2 = math.radians(lat1), math.radians(lat2)
     d_phi = math.radians(lat2 - lat1)
     d_lambda = math.radians(lon2 - lon1)
-    a = (
-        math.sin(d_phi / 2) ** 2
-        + math.cos(phi1) * math.cos(phi2) * math.sin(d_lambda / 2) ** 2
-    )
+    a = math.sin(d_phi / 2) ** 2 + math.cos(phi1) * math.cos(phi2) * math.sin(d_lambda / 2) ** 2
     return R * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
 
 
@@ -154,14 +150,14 @@ def compute_distance_matrix(poi_ids: list[str]) -> dict:
 def apply_basic_filters(
     results: list[dict],
     *,
-    region: Optional[str] = None,
-    categories: Optional[list[str]] = None,
-    tags: Optional[list[str]] = None,
-    keyword: Optional[str] = None,
-    min_rating: Optional[float] = None,
-    max_price: Optional[int] = None,
-    lat: Optional[float] = None,
-    lng: Optional[float] = None,
+    region: str | None = None,
+    categories: list[str] | None = None,
+    tags: list[str] | None = None,
+    keyword: str | None = None,
+    min_rating: float | None = None,
+    max_price: int | None = None,
+    lat: float | None = None,
+    lng: float | None = None,
 ) -> list[dict]:
     """应用基础过滤条件，返回过滤后的列表。"""
     if region:
@@ -181,7 +177,6 @@ def apply_basic_filters(
         results = [p for p in results if p.get("avg_price", 0) <= max_price]
     if lat is not None and lng is not None:
         results = [
-            p for p in results
-            if haversine(lat, lng, p.get("lat", 0), p.get("lng", 0)) <= 10_000
+            p for p in results if haversine(lat, lng, p.get("lat", 0), p.get("lng", 0)) <= 10_000
         ]
     return results

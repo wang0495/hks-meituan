@@ -6,7 +6,6 @@
 from __future__ import annotations
 
 import logging
-from typing import Dict, Optional, Set
 
 from fastapi import WebSocket
 
@@ -24,9 +23,9 @@ class ConnectionManager:
 
     def __init__(self) -> None:
         # 活跃连接: {session_id: WebSocket}
-        self._connections: Dict[str, WebSocket] = {}
+        self._connections: dict[str, WebSocket] = {}
         # 订阅关系: {route_id: Set[session_id]}
-        self._subscriptions: Dict[str, Set[str]] = {}
+        self._subscriptions: dict[str, set[str]] = {}
 
     # ------------------------------------------------------------------
     # 连接生命周期
@@ -36,9 +35,7 @@ class ConnectionManager:
         """接受 WebSocket 连接并注册。"""
         await websocket.accept()
         self._connections[session_id] = websocket
-        logger.info(
-            "WebSocket 连接建立: %s (当前 %d 个)", session_id, len(self._connections)
-        )
+        logger.info("WebSocket 连接建立: %s (当前 %d 个)", session_id, len(self._connections))
 
     async def disconnect(self, session_id: str) -> None:
         """断开连接并清理所有订阅关系。"""
@@ -53,9 +50,7 @@ class ConnectionManager:
         for rid in empty_routes:
             del self._subscriptions[rid]
 
-        logger.info(
-            "WebSocket 连接断开: %s (剩余 %d 个)", session_id, len(self._connections)
-        )
+        logger.info("WebSocket 连接断开: %s (剩余 %d 个)", session_id, len(self._connections))
 
     # ------------------------------------------------------------------
     # 订阅管理
@@ -113,7 +108,7 @@ class ConnectionManager:
         """获取当前订阅的路线数。"""
         return len(self._subscriptions)
 
-    def get_subscribers(self, route_id: str) -> Set[str]:
+    def get_subscribers(self, route_id: str) -> set[str]:
         """获取某条路线的所有订阅者。"""
         return self._subscriptions.get(route_id, set()).copy()
 
@@ -126,7 +121,7 @@ class ConnectionManager:
 # 单例
 # ---------------------------------------------------------------------------
 
-_manager: Optional[ConnectionManager] = None
+_manager: ConnectionManager | None = None
 
 
 def get_websocket_manager() -> ConnectionManager:

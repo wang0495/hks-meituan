@@ -12,12 +12,11 @@ from __future__ import annotations
 
 import pytest
 
+from backend.services.memory import MemoryOrchestrator
 from backend.services.memory.long_term import LongTermMemory
 from backend.services.memory.psychology import PsychologyRules
 from backend.services.memory.short_term import ShortTermMemory
 from backend.services.memory.working_memory import WorkingMemory
-from backend.services.memory import MemoryOrchestrator
-
 
 # ---------------------------------------------------------------------------
 # 辅助函数
@@ -504,9 +503,7 @@ class TestPsychologyRules:
 
     def test_hedonic_adaptation_multiple_batches(self) -> None:
         """连续 7 个高兴奋度，第 4 和第 7 个应折扣。"""
-        route = [
-            _make_step(f"P{i}", excitement=0.8) for i in range(7)
-        ]
+        route = [_make_step(f"P{i}", excitement=0.8) for i in range(7)]
         scores = [1.0] * 7
         result = PsychologyRules.apply_hedonic_adaptation(route, scores)
         # 索引 3 和 6 受到折扣（第 4 和第 7 个连续高）
@@ -518,7 +515,7 @@ class TestPsychologyRules:
         route = [
             _make_step("A", price=100),
             _make_step("B", price=100),
-            _make_step("C", price=50),   # 偏离 50%
+            _make_step("C", price=50),  # 偏离 50%
             _make_step("D", price=150),  # 偏离 50%
         ]
         scores = [1.0, 1.0, 1.0, 1.0]
@@ -533,7 +530,7 @@ class TestPsychologyRules:
         route = [
             _make_step("A", price=100),
             _make_step("B", price=110),  # 10% 偏离
-            _make_step("C", price=90),   # 10% 偏离
+            _make_step("C", price=90),  # 10% 偏离
         ]
         scores = [1.0, 1.0, 1.0]
         result = PsychologyRules.apply_loss_aversion(route, scores)
@@ -552,10 +549,10 @@ class TestPsychologyRules:
     def test_loss_aversion_mixed_free(self) -> None:
         """混合免费和付费景点，应以付费景点均价为基准。"""
         route = [
-            _make_step("A", price=0),     # 免费，不参与基准计算
-            _make_step("B", price=100),   # 基准
-            _make_step("C", price=100),   # 基准
-            _make_step("D", price=50),    # 偏离 50%
+            _make_step("A", price=0),  # 免费，不参与基准计算
+            _make_step("B", price=100),  # 基准
+            _make_step("C", price=100),  # 基准
+            _make_step("D", price=50),  # 偏离 50%
         ]
         scores = [1.0, 1.0, 1.0, 1.0]
         result = PsychologyRules.apply_loss_aversion(route, scores)
@@ -693,12 +690,8 @@ class TestMemoryOrchestrator:
         trip1 = _trip_summary("珠海")
         trip2 = _trip_summary("广州")
 
-        await orch.on_trip_completed(
-            user_id="u_multi", session_id="s1", trip_summary=trip1
-        )
-        await orch.on_trip_completed(
-            user_id="u_multi", session_id="s2", trip_summary=trip2
-        )
+        await orch.on_trip_completed(user_id="u_multi", session_id="s1", trip_summary=trip1)
+        await orch.on_trip_completed(user_id="u_multi", session_id="s2", trip_summary=trip2)
 
         # L2: 应有 2 次行程
         stm = await orch.get_short_term("u_multi")

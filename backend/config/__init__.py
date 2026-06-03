@@ -9,16 +9,26 @@
 
 from __future__ import annotations
 
-from backend.config.hot_reload import (ConfigHotReloader, ConfigReloadError,
-                                       ConfigRollbackError, ConfigSnapshot)
+from backend.config.hot_reload import (
+    ConfigHotReloader,
+    ConfigReloadError,
+    ConfigRollbackError,
+    ConfigSnapshot,
+)
 from backend.config.manager import ConfigManager, ConfigManagerError
 from backend.config.pool_config import PoolSettings, pool_settings
-from backend.config.settings import (DatabaseSettings, Environment,
-                                     IntentLLMSettings, LLMSettings,
-                                     RedisSettings, SecuritySettings, Settings,
-                                     get_settings, settings)
-from backend.config.validator import (ConfigValidationError, ConfigValidator,
-                                      ValidationResult)
+from backend.config.settings import (
+    DatabaseSettings,
+    Environment,
+    IntentLLMSettings,
+    LLMSettings,
+    RedisSettings,
+    SecuritySettings,
+    Settings,
+    get_settings,
+    settings,
+)
+from backend.config.validator import ConfigValidationError, ConfigValidator, ValidationResult
 
 __all__ = [
     # 原 config.py 导出

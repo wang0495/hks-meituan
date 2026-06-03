@@ -181,9 +181,7 @@ class MetricsCollector:
         )
 
         error_rate = (
-            self._error_requests / self._total_requests
-            if self._total_requests > 0
-            else 0.0
+            self._error_requests / self._total_requests if self._total_requests > 0 else 0.0
         )
 
         return SystemMetrics(
@@ -334,9 +332,7 @@ class AdaptiveRateLimiter:
         # 渐进式调整：不直接跳到目标值，而是逐步逼近
         if target > self._current_multiplier:
             # 放宽：缓慢恢复
-            self._current_multiplier += (
-                target - self._current_multiplier
-            ) * self._recovery_factor
+            self._current_multiplier += (target - self._current_multiplier) * self._recovery_factor
         else:
             # 收紧：快速响应
             self._current_multiplier = target

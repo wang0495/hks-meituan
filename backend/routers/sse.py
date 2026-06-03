@@ -12,9 +12,8 @@ import asyncio
 import logging
 
 from fastapi import APIRouter, Request
-from pydantic import BaseModel, Field
-
 from fastapi.responses import StreamingResponse
+from pydantic import BaseModel, Field
 
 from backend.sse.stream import SSEStream, create_sse_response
 
@@ -41,6 +40,7 @@ async def plan_route_stream(request: Request) -> StreamingResponse:
         body = await request.json()
     except Exception:
         from fastapi.responses import JSONResponse
+
         return JSONResponse({"error": "无效的JSON请求体"}, status_code=400)
     # Pydantic 风格验证
     validated = SSERequest(**body)
@@ -51,9 +51,7 @@ async def plan_route_stream(request: Request) -> StreamingResponse:
     async def process() -> None:
         try:
             # 阶段1: 解析意图
-            await stream.send(
-                "phase", {"phase": "parsing", "message": "正在理解你的需求..."}
-            )
+            await stream.send("phase", {"phase": "parsing", "message": "正在理解你的需求..."})
             intent = await parse_intent(user_input, {})
 
             # 阶段2: 搜索POI + 感知上下文
@@ -68,9 +66,7 @@ async def plan_route_stream(request: Request) -> StreamingResponse:
             perception_ctx = await perception_service.get_context()
 
             # 阶段3: 求解路线（携带感知上下文）
-            await stream.send(
-                "phase", {"phase": "solving", "message": "正在编排最佳路线..."}
-            )
+            await stream.send("phase", {"phase": "solving", "message": "正在编排最佳路线..."})
             route = solve_route(pois[:20], intent, perception_ctx=perception_ctx)
 
             # 检测异常（需要 solver 输出的 emotion_curve）
@@ -133,7 +129,7 @@ async def plan_route_stream(request: Request) -> StreamingResponse:
                             },
                         )
                     await stream.send("polish_done", {})
-                except asyncio.TimeoutError:
+                except TimeoutError:
                     logger.warning("[SSE] LLM 润色超时，保留模板文案")
                 except Exception:
                     logger.exception("[SSE] LLM 润色异常，保留模板文案")
@@ -141,7 +137,7 @@ async def plan_route_stream(request: Request) -> StreamingResponse:
             asyncio.create_task(_polish_narrative())
             # ----------------------------------------------------------------
 
-        except Exception as e:
+        except Exception:
             logger.exception("SSE 流式规划出错")
             await stream.send("error", {"error": "路线规划失败，请重试"})
 

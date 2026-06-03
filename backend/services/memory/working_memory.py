@@ -64,9 +64,7 @@ class WorkingMemory:
         if r is not None:
             try:
                 redis_key = f"{WORKING_MEMORY_KEY_PREFIX}{session_id}"
-                await r.hset(
-                    redis_key, key, json.dumps(value, ensure_ascii=False)
-                )
+                await r.hset(redis_key, key, json.dumps(value, ensure_ascii=False))
                 await r.expire(redis_key, WORKING_MEMORY_TTL)
                 return
             except Exception:

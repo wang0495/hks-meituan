@@ -1,9 +1,9 @@
 \section{Conclusion}
 \label{sec:conclusion}
 
-We presented CityFlow, an expert-ensemble multi-agent framework for personalized urban route planning. By decomposing the planning problem across 11 specialized experts with scene-aware dispatch, parallel wave execution, and review-rework feedback loops, our system achieves an average score of 7.4/10 on 5 core scenarios with 5/5 pass rate, outperforming single-LLM baselines by 1.2 points on 20 extended scenarios. The ablation study identifies algorithmic time smoothing as the most critical component ($-$0.8 when removed), confirming that LLM outputs require deterministic validation for physical constraints.
+We presented CityFlow, an expert-ensemble multi-agent framework for personalized urban route planning. By decomposing the planning problem across 11 specialized experts with scene-aware dispatch, parallel wave execution, and review-rework feedback loops, our system achieves 90\% pass rate with an average score of 74.3/100 across 100 diverse scenarios (grade distribution: S:12, A:24, B:23, C:30, D:10, F:1), and 7.4/10 on 5 core scenarios with 5/5 pass rate. Speed-run scenarios achieve 100\% pass rate (20/20), while destination scenarios remain the weakest type (68.3 avg, 5 D-grades). The ablation analysis identifies algorithmic time smoothing as the most critical component, confirming that LLM outputs require deterministic validation for physical constraints.
 
-Three design principles emerge from our systematic optimization journey---from 65.2 to 81.2 points across 100 scenarios and seven rounds of targeted fixes:
+Three design principles emerge from our systematic optimization journey---from 65.2 to 81.2 points across 100 scenarios and seven rounds of targeted fixes, validated by the final 100-scenario evaluation (90\% pass, 74.3 avg):
 
 \begin{enumerate}[leftmargin=*]
     \item \textbf{Prompt before architecture}: Six lines of refusal prompt replaced a dedicated feasibility-gate component, suggesting that prompt engineering should be the first resort, not the last.

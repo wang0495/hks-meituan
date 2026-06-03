@@ -20,8 +20,8 @@ from backend.docs.custom_swagger import register_docs_endpoints
 
 __all__ = [
     "custom_openapi",
-    "register_docs_endpoints",
     "get_swagger_css_content",
+    "register_docs_endpoints",
 ]
 
 
@@ -40,8 +40,13 @@ def custom_openapi(app: FastAPI) -> dict:
 
     # ---- 过滤管理端点，不对外暴露 ----
     _ADMIN_PREFIXES = (
-        "/metrics", "/pool", "/tasks", "/mq/", "/cache/stats",
-        "/health/pools", "/health/pool",
+        "/metrics",
+        "/pool",
+        "/tasks",
+        "/mq/",
+        "/cache/stats",
+        "/health/pools",
+        "/health/pool",
     )
     paths = openapi_schema.get("paths", {})
     admin_paths = [p for p in paths if any(p.startswith(pre) for pre in _ADMIN_PREFIXES)]
@@ -49,6 +54,7 @@ def custom_openapi(app: FastAPI) -> dict:
         del paths[p]
     if admin_paths:
         import logging
+
         logging.getLogger(__name__).debug("OpenAPI: 隐藏了 %d 个管理端点", len(admin_paths))
 
     # ---- 附加自定义字段 ----

@@ -45,9 +45,7 @@ class PrometheusMiddleware(BaseHTTPMiddleware):
         content_length = request.headers.get("content-length")
         if content_length is not None:
             try:
-                REQUEST_SIZE.labels(method=method, endpoint=path).observe(
-                    int(content_length)
-                )
+                REQUEST_SIZE.labels(method=method, endpoint=path).observe(int(content_length))
             except (ValueError, TypeError):
                 pass
 
@@ -63,9 +61,9 @@ class PrometheusMiddleware(BaseHTTPMiddleware):
         resp_length = response.headers.get("content-length")
         if resp_length is not None:
             try:
-                RESPONSE_SIZE.labels(
-                    method=method, endpoint=path, status=status
-                ).observe(int(resp_length))
+                RESPONSE_SIZE.labels(method=method, endpoint=path, status=status).observe(
+                    int(resp_length)
+                )
             except (ValueError, TypeError):
                 pass
 

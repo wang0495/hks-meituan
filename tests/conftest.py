@@ -8,8 +8,8 @@ from __future__ import annotations
 import asyncio
 import json
 import sys
+from collections.abc import AsyncIterator, Iterator
 from pathlib import Path
-from typing import AsyncIterator, Iterator
 from unittest.mock import AsyncMock
 
 import pytest

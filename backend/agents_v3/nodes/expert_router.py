@@ -39,7 +39,6 @@ few-shot示例理解这种微妙区别，而关键词匹配永远做不到。
 from __future__ import annotations
 
 import asyncio
-import json
 import logging
 
 from backend.agents_v3.experts.base import (
@@ -47,7 +46,7 @@ from backend.agents_v3.experts.base import (
     _haversine_km,
     _is_likely_macau,
 )
-from backend.agents_v3.state import TravelState, AGENT_META, sse_emit
+from backend.agents_v3.state import AGENT_META, TravelState, sse_emit
 
 logger = logging.getLogger(__name__)
 
@@ -57,26 +56,48 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 _DEST_COORDS: dict[str, tuple[float, float]] = {
     # Fallback only — primary detection now uses LLM + POI data
-    "长隆": (22.11, 113.54), "海洋王国": (22.11, 113.54),
-    "御温泉": (22.17, 113.28), "圆明新园": (22.27, 113.55),
+    "长隆": (22.11, 113.54),
+    "海洋王国": (22.11, 113.54),
+    "御温泉": (22.17, 113.28),
+    "圆明新园": (22.27, 113.55),
     "梦幻水城": (22.27, 113.55),
     # 扩展：覆盖更多核心目的地
-    "海泉湾": (22.10, 113.26), "港珠澳大桥": (22.22, 113.58),
-    "东澳岛": (22.01, 113.72), "外伶仃岛": (22.08, 114.00),
-    "金沙滩": (22.06, 113.32), "创新方": (22.12, 113.52),
-    "景山公园": (22.24, 113.57), "海滨公园": (22.26, 113.58),
-    "海滨泳场": (22.22, 113.57), "梅溪牌坊": (22.28, 113.53),
-    "野狸岛": (22.28, 113.59), "罗西尼": (22.30, 113.52),
-    "唐家湾": (22.36, 113.58), "横琴": (22.12, 113.52),
-    "飞沙滩": (22.04, 113.34), "三板村": (22.10, 113.35),
-    "灯笼沙": (22.18, 113.25), "黄杨山": (22.25, 113.27),
-    "斗门古街": (22.22, 113.29), "接霞庄": (22.20, 113.26),
+    "海泉湾": (22.10, 113.26),
+    "港珠澳大桥": (22.22, 113.58),
+    "东澳岛": (22.01, 113.72),
+    "外伶仃岛": (22.08, 114.00),
+    "金沙滩": (22.06, 113.32),
+    "创新方": (22.12, 113.52),
+    "景山公园": (22.24, 113.57),
+    "海滨公园": (22.26, 113.58),
+    "海滨泳场": (22.22, 113.57),
+    "梅溪牌坊": (22.28, 113.53),
+    "野狸岛": (22.28, 113.59),
+    "罗西尼": (22.30, 113.52),
+    "唐家湾": (22.36, 113.58),
+    "横琴": (22.12, 113.52),
+    "飞沙滩": (22.04, 113.34),
+    "三板村": (22.10, 113.35),
+    "灯笼沙": (22.18, 113.25),
+    "黄杨山": (22.25, 113.27),
+    "斗门古街": (22.22, 113.29),
+    "接霞庄": (22.20, 113.26),
 }
 _POI_EXCLUDE_CATS = {"住宿", "酒店", "民宿", "餐饮", "美食"}
 _FOOD_CATS = {"餐饮", "美食", "小吃", "夜市小吃"}
 _FOOD_NAME_PARTS = [
-    "餐厅", "火锅", "烧烤", "甜品", "海鲜", "粉", "面",
-    "粥", "茶餐厅", "早茶", "烧腊", "煲仔",
+    "餐厅",
+    "火锅",
+    "烧烤",
+    "甜品",
+    "海鲜",
+    "粉",
+    "面",
+    "粥",
+    "茶餐厅",
+    "早茶",
+    "烧腊",
+    "煲仔",
 ]
 _HOTEL_CATS = {"住宿", "酒店", "民宿"}
 _BUDGET_FREE_CATS = {"公园", "文化", "自然", "运动"}
@@ -142,16 +163,49 @@ def _classify_scene(user_input: str, intent: dict) -> str:
     prefs = intent.get("preferred_categories", [])
     if any(kw in text for kw in ["美食", "海鲜", "小吃", "特色菜", "夜市", "吃货"]):
         return "美食型"
-    if any(kw in text for kw in [
-        "长隆", "海洋王国", "圆明新园", "御温泉", "梦幻水城",
-        "海泉湾", "港珠澳大桥", "东澳岛", "外伶仃岛",
-        "金沙滩", "创新方", "景山公园", "海滨公园",
-        "海滨泳场", "梅溪牌坊", "野狸岛", "飞沙滩",
-    ]):
+    if any(
+        kw in text
+        for kw in [
+            "长隆",
+            "海洋王国",
+            "圆明新园",
+            "御温泉",
+            "梦幻水城",
+            "海泉湾",
+            "港珠澳大桥",
+            "东澳岛",
+            "外伶仃岛",
+            "金沙滩",
+            "创新方",
+            "景山公园",
+            "海滨公园",
+            "海滨泳场",
+            "梅溪牌坊",
+            "野狸岛",
+            "飞沙滩",
+        ]
+    ):
         return "目的地型"
     if "特种兵" in text or "特种兵" in intent.get("pace", ""):
         return "特种兵型"
-    if any(kw in text for kw in ["休闲", "慢", "闲逛", "养老", "散步", "轻松", "不累", "安静", "晨练", "晨跑", "文艺", "独处", "喝茶"]) or "闲逛" in intent.get("pace", ""):
+    if any(
+        kw in text
+        for kw in [
+            "休闲",
+            "慢",
+            "闲逛",
+            "养老",
+            "散步",
+            "轻松",
+            "不累",
+            "安静",
+            "晨练",
+            "晨跑",
+            "文艺",
+            "独处",
+            "喝茶",
+        ]
+    ) or "闲逛" in intent.get("pace", ""):
         return "休闲型"
     return "观光型"
 
@@ -173,10 +227,28 @@ _SCENE_TYPE_ALIASES: dict[str, str] = {
 
 # Keywords that unambiguously signal a specific scene type
 _UNAMBIGUOUS_RULES: list[tuple[list[str], str]] = [
-    (["长隆", "海洋王国", "圆明新园", "御温泉", "梦幻水城",
-      "海泉湾", "港珠澳大桥", "东澳岛", "外伶仃岛",
-      "金沙滩", "创新方", "景山公园", "海滨公园",
-      "海滨泳场", "梅溪牌坊", "野狸岛", "飞沙滩"], "目的地型"),
+    (
+        [
+            "长隆",
+            "海洋王国",
+            "圆明新园",
+            "御温泉",
+            "梦幻水城",
+            "海泉湾",
+            "港珠澳大桥",
+            "东澳岛",
+            "外伶仃岛",
+            "金沙滩",
+            "创新方",
+            "景山公园",
+            "海滨公园",
+            "海滨泳场",
+            "梅溪牌坊",
+            "野狸岛",
+            "飞沙滩",
+        ],
+        "目的地型",
+    ),
     (["特种兵"], "特种兵型"),
     (["美食游", "美食一日游", "吃海鲜", "吃遍", "扫街吃", "一路吃"], "美食型"),
 ]
@@ -242,7 +314,9 @@ def _fallback_result(user_input: str, intent: dict) -> dict:
     if any(kw in text for kw in ["两日", "二日", "过夜", "住宿"]):
         weights["hotel"] = 0.6
     weights["poi"] = max(weights.get("poi", 0), 0.3)
-    active = sorted([k for k, v in weights.items() if v > 0], key=lambda k: weights[k], reverse=True)
+    active = sorted(
+        [k for k, v in weights.items() if v > 0], key=lambda k: weights[k], reverse=True
+    )
     return {"scene_type": scene, "expert_weights": weights, "active_experts": active}
 
 
@@ -259,7 +333,9 @@ def _is_food_poi(p: dict) -> bool:
     return cat in _FOOD_CATS or any(kw in name for kw in _FOOD_NAME_PARTS)
 
 
-async def _detect_destination_center(user_input: str, candidates: list[dict]) -> tuple[str | None, tuple[float, float] | None]:
+async def _detect_destination_center(
+    user_input: str, candidates: list[dict]
+) -> tuple[str | None, tuple[float, float] | None]:
     """LLM 从候选 POI 中识别用户的目的地，返回 (名称, 坐标) 或 (None, None)。"""
     # Level 1: 硬编码关键词（常见目的地零延迟）
     for name_kw, coords in _DEST_COORDS.items():
@@ -267,8 +343,22 @@ async def _detect_destination_center(user_input: str, candidates: list[dict]) ->
             return name_kw, coords
 
     # Level 2: 从全量 POI 中模糊匹配
-    _SCENIC_WORDS = {"温泉", "乐园", "沙滩", "大桥", "公园", "景区", "海洋", "王国",
-                     "岛屿", "沙滩", "古镇", "博物馆", "水城", "创新方", "海泉湾"}
+    _SCENIC_WORDS = {
+        "温泉",
+        "乐园",
+        "沙滩",
+        "大桥",
+        "公园",
+        "景区",
+        "海洋",
+        "王国",
+        "岛屿",
+        "古镇",
+        "博物馆",
+        "水城",
+        "创新方",
+        "海泉湾",
+    }
     best_match = None
     best_score = 0
     for p in candidates:
@@ -286,7 +376,7 @@ async def _detect_destination_center(user_input: str, candidates: list[dict]) ->
         # user_input 的2-5字片段出现在 POI 名里
         for flen in range(min(5, len(user_input)), 1, -1):
             for si in range(len(user_input) - flen + 1):
-                frag = user_input[si:si + flen]
+                frag = user_input[si : si + flen]
                 if frag in name and len(frag) >= 2:
                     # 景点名匹配大幅加分，普通词匹配低分
                     is_scenic = any(w in frag for w in _SCENIC_WORDS)
@@ -309,6 +399,7 @@ async def _detect_destination_center(user_input: str, candidates: list[dict]) ->
 
     # LLM 检测目的地
     from backend.agents_v3.experts.base import _llm_decide
+
     result = await _llm_decide(
         "你是旅行目的地检测器。从用户输入中识别想去的具体目的地名称。只输出JSON。",
         f"用户输入：{user_input}\n候选POI：{[p['name'] for p in top_pois[:20]]}\n输出JSON: {{\"destination\": \"目的地名称或null\"}}",
@@ -334,24 +425,27 @@ async def _compute_pools(candidates: list[dict], state: TravelState) -> dict[str
     pools: dict[str, list[dict]] = {}
 
     pools["poi"] = [
-        p for p in candidates
+        p
+        for p in candidates
         if p.get("category", "") not in _POI_EXCLUDE_CATS
         and not _has_food_name(p.get("name", ""))
         and not _is_likely_macau(p.get("name", ""))
         and p.get("rating") is not None
     ]
     pools["food"] = [
-        p for p in candidates
+        p
+        for p in candidates
         if _is_food_poi(p)
         and not _is_likely_macau(p.get("name", ""))
         and p.get("rating") is not None
     ]
     pools["hotel"] = [p for p in candidates if p.get("category", "") in _HOTEL_CATS]
-    pools["traffic"] = sorted(candidates, key=lambda p: float(p.get("rating", 0)), reverse=True)[:15]
+    pools["traffic"] = sorted(candidates, key=lambda p: float(p.get("rating", 0)), reverse=True)[
+        :15
+    ]
     pools["weather"] = list(candidates)
     pools["local_expert"] = [
-        p for p in candidates
-        if p.get("rating") is not None and float(p["rating"]) >= 4.0
+        p for p in candidates if p.get("rating") is not None and float(p["rating"]) >= 4.0
     ]
 
     # 目的地候选池：LLM 识别目的地坐标，岛类扩大半径
@@ -362,7 +456,8 @@ async def _compute_pools(candidates: list[dict], state: TravelState) -> dict[str
         _is_island = dest_name and any(kw in dest_name for kw in ("岛", "群岛"))
         _radius = 20.0 if _is_island else 5.0
         pools["destination"] = [
-            p for p in candidates
+            p
+            for p in candidates
             if _haversine_km(dlat, dlng, float(p.get("lat", 0)), float(p.get("lng", 0))) <= _radius
         ]
     # 把目的地信息存到 extra 供下游使用
@@ -370,7 +465,8 @@ async def _compute_pools(candidates: list[dict], state: TravelState) -> dict[str
     pools["_dest_coords"] = dest_coords
 
     pools["budget_hacker"] = [
-        p for p in candidates
+        p
+        for p in candidates
         if p.get("avg_price", 999) == 0
         or float(p.get("avg_price", 999)) <= 50
         or p.get("category", "") in _BUDGET_FREE_CATS
@@ -385,7 +481,11 @@ async def expert_router(state: TravelState) -> dict:
     """LLM-based expert router: classify scene, activate experts, compute pools."""
     meta = AGENT_META.get("expert_router", {})
     await sse_emit(state, "agent_start", {"agent": "expert_router", **meta})
-    await sse_emit(state, "agent_thinking", {"agent": "expert_router", "text": "LLM 分析场景类型，决定激活哪些专家..."})
+    await sse_emit(
+        state,
+        "agent_thinking",
+        {"agent": "expert_router", "text": "LLM 分析场景类型，决定激活哪些专家..."},
+    )
 
     user_input = state.get("user_input", "")
     user_intent = state.get("user_intent", {})
@@ -403,8 +503,14 @@ async def expert_router(state: TravelState) -> dict:
             logger.info("Using pre-computed scene type from rule_guard: %s", pre_scene_type)
             weights = _FALLBACK_WEIGHTS.get(pre_scene_type, _FALLBACK_WEIGHTS["观光型"]).copy()
             weights["poi"] = max(weights.get("poi", 0), 0.3)
-            active = sorted([k for k, v in weights.items() if v > 0], key=lambda k: weights[k], reverse=True)
-            return {"scene_type": pre_scene_type, "expert_weights": weights, "active_experts": active}
+            active = sorted(
+                [k for k, v in weights.items() if v > 0], key=lambda k: weights[k], reverse=True
+            )
+            return {
+                "scene_type": pre_scene_type,
+                "expert_weights": weights,
+                "active_experts": active,
+            }
         try:
             return await _llm_decide(
                 _SYSTEM_PROMPT,
@@ -447,7 +553,14 @@ async def expert_router(state: TravelState) -> dict:
 
     pools = await pools_task
 
-    await sse_emit(state, "agent_result", {"agent": "expert_router", "summary": f"场景: {result['scene_type']}，激活: {', '.join(active)}"})
+    await sse_emit(
+        state,
+        "agent_result",
+        {
+            "agent": "expert_router",
+            "summary": f"场景: {result['scene_type']}，激活: {', '.join(active)}",
+        },
+    )
 
     # 多日行程：提升hotel权重
     num_days = user_intent.get("num_days", 1)

@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import asyncio
 
-from backend.agents_v3.state import TravelState, AGENT_META, sse_emit
+from backend.agents_v3.state import AGENT_META, TravelState, sse_emit
 
 
 async def rule_guard(state: TravelState) -> dict:
@@ -23,13 +23,14 @@ async def rule_guard(state: TravelState) -> dict:
     """
     meta = AGENT_META.get("rule_guard", {})
     await sse_emit(state, "agent_start", {"agent": "rule_guard", **meta})
-    await sse_emit(state, "agent_thinking", {"agent": "rule_guard", "text": "解析意图 + 加载数据（并行）..."})
+    await sse_emit(
+        state, "agent_thinking", {"agent": "rule_guard", "text": "解析意图 + 加载数据（并行）..."}
+    )
 
     user_input = state.get("user_input", "")
     errors: list[str] = []
 
     # ── 1+2. 并行：意图解析 + POI加载（ADR-R5） ──
-    from backend.services.intent_parser import parse_intent
     from backend.services.data_service import load_pois
 
     intent_result, all_pois = await asyncio.gather(
@@ -42,6 +43,7 @@ async def rule_guard(state: TravelState) -> dict:
     # 如果城市不是珠海，重新加载（罕见路径）
     if target_city != "珠海" and all_pois:
         from backend.services.data_service import load_pois as _load
+
         all_pois = await _load(city=target_city, errors=errors)
 
     # ── 3. 硬约束预筛 ──
@@ -49,6 +51,7 @@ async def rule_guard(state: TravelState) -> dict:
     if all_pois:
         try:
             from backend.services.filters import filter_candidates
+
             candidates = filter_candidates(all_pois, user_intent)
         except Exception:
             candidates = all_pois[:120]
@@ -58,34 +61,48 @@ async def rule_guard(state: TravelState) -> dict:
 
     # ── 5. 硬约束违规检查 ──
     from backend.services.filters import check_hard_rules
+
     rule_violations = check_hard_rules(user_intent, candidates)
 
     # ── 6. 预计算场景分类（ADR-PERF：无歧义场景跳过expert_router LLM调用） ──
     pre_scene_type = None
     try:
         from backend.agents_v3.nodes.expert_router import _rule_precheck
+
         pre_scene_type = _rule_precheck(user_input, user_intent)
     except Exception:
         pass
 
-    await sse_emit(state, "agent_result", {"agent": "rule_guard", "summary": f"意图已解析，{len(candidates)}个候选POI"})
+    await sse_emit(
+        state,
+        "agent_result",
+        {"agent": "rule_guard", "summary": f"意图已解析，{len(candidates)}个候选POI"},
+    )
 
     # ── 提前推送候选POI预览（ADR-PERF：用户3-5秒内看到真实POI名称） ──
     if candidates:
         top_preview = sorted(candidates, key=lambda p: float(p.get("rating", 0)), reverse=True)[:6]
-        await sse_emit(state, "searching", {
-            "message": f"已找到 {len(candidates)} 个候选地点",
-            "preview": [
-                {"name": p.get("name", ""), "category": p.get("category", ""), "rating": p.get("rating", 0)}
-                for p in top_preview
-            ],
-            "intent_summary": {
-                "city": user_intent.get("city", "珠海"),
-                "period": user_intent.get("time", {}).get("period", "全天"),
-                "pace": user_intent.get("pace", "平衡型"),
-                "group": user_intent.get("group", {}).get("type", "独居"),
+        await sse_emit(
+            state,
+            "searching",
+            {
+                "message": f"已找到 {len(candidates)} 个候选地点",
+                "preview": [
+                    {
+                        "name": p.get("name", ""),
+                        "category": p.get("category", ""),
+                        "rating": p.get("rating", 0),
+                    }
+                    for p in top_preview
+                ],
+                "intent_summary": {
+                    "city": user_intent.get("city", "珠海"),
+                    "period": user_intent.get("time", {}).get("period", "全天"),
+                    "pace": user_intent.get("pace", "平衡型"),
+                    "group": user_intent.get("group", {}).get("type", "独居"),
+                },
             },
-        })
+        )
 
     return {
         "user_intent": user_intent,
@@ -100,6 +117,7 @@ async def rule_guard(state: TravelState) -> dict:
 async def _safe_parse_intent(user_input: str) -> dict:
     """带异常捕获的意图解析。"""
     from backend.services.intent_parser import parse_intent
+
     try:
         return await parse_intent(user_input)
     except Exception:
@@ -123,11 +141,28 @@ def _bare_intent(user_input: str) -> dict:
 
 # 珠海核心景点（关键词匹配兜底）
 _KEY_POIS = [
-    "长隆海洋王国", "海洋王国", "横琴长隆海洋科学馆", "长隆马戏城",
-    "珠海渔女", "情侣路", "外伶仃岛", "淇澳岛", "圆明新园",
-    "海滨泳场", "海滨公园", "野狸岛", "日月贝", "珠海大剧院",
-    "港珠澳大桥", "东澳岛", "金海滩", "飞沙滩", "御温泉",
-    "梅华海鲜城", "新海利", "湾仔海鲜街",
+    "长隆海洋王国",
+    "海洋王国",
+    "横琴长隆海洋科学馆",
+    "长隆马戏城",
+    "珠海渔女",
+    "情侣路",
+    "外伶仃岛",
+    "淇澳岛",
+    "圆明新园",
+    "海滨泳场",
+    "海滨公园",
+    "野狸岛",
+    "日月贝",
+    "珠海大剧院",
+    "港珠澳大桥",
+    "东澳岛",
+    "金海滩",
+    "飞沙滩",
+    "御温泉",
+    "梅华海鲜城",
+    "新海利",
+    "湾仔海鲜街",
 ]
 
 

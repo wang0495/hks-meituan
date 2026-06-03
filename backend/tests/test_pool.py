@@ -335,9 +335,7 @@ class TestPoolMonitor:
         assert report.all_healthy is False
         assert "数据库连接 ping 失败" in report.warnings
 
-    async def test_check_health_high_utilization_warning(
-        self, monitor: PoolMonitor
-    ) -> None:
+    async def test_check_health_high_utilization_warning(self, monitor: PoolMonitor) -> None:
         monitor._db_pool.ping = AsyncMock(return_value=True)  # type: ignore[assignment]
         monitor._db_pool.get_stats.return_value = PoolStats(  # type: ignore[union-attr]
             pool_size=5, checked_in=1, checked_out=4, overflow=0

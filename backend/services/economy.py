@@ -32,9 +32,9 @@ _CATEGORY_EXPERIENCE_BONUS: dict[str, float] = {
 
 # 价格弹性阈值（avg_price）
 _PRICE_ELASTICITY_BRACKETS: list[tuple[float, float, float]] = [
-    (0, 50, 0.8),      # 低价：弹性高
-    (50, 100, 0.6),    # 中低价：弹性中高
-    (100, 200, 0.4),   # 中价：弹性中低
+    (0, 50, 0.8),  # 低价：弹性高
+    (50, 100, 0.6),  # 中低价：弹性中高
+    (100, 200, 0.4),  # 中价：弹性中低
 ]
 
 # 体验杠杆率阈值（experience_value / avg_price）

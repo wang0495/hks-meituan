@@ -26,9 +26,7 @@ router = APIRouter(prefix="/api/pool", tags=["连接池"])
 class PoolStatsResponse(BaseModel):
     """连接池统计响应。"""
 
-    database: dict[str, Any] = Field(
-        default_factory=dict, description="数据库连接池统计"
-    )
+    database: dict[str, Any] = Field(default_factory=dict, description="数据库连接池统计")
     http: dict[str, Any] = Field(default_factory=dict, description="HTTP 连接池统计")
 
 

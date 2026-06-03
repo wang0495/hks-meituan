@@ -85,9 +85,7 @@ class TestServiceRegistry:
         assert result.service_id == "s1"
 
     @pytest.mark.asyncio()
-    async def test_get_nonexistent_returns_none(
-        self, registry: ServiceRegistry
-    ) -> None:
+    async def test_get_nonexistent_returns_none(self, registry: ServiceRegistry) -> None:
         result = await registry.get_service("no-such-svc")
         assert result is None
 
@@ -133,9 +131,7 @@ class TestServiceRegistry:
         assert len(filtered) == 2
 
     @pytest.mark.asyncio()
-    async def test_unhealthy_service_not_returned(
-        self, registry: ServiceRegistry
-    ) -> None:
+    async def test_unhealthy_service_not_returned(self, registry: ServiceRegistry) -> None:
         svc = _make_service()
         svc.status = "unhealthy"
         await registry.register(svc)
@@ -144,9 +140,7 @@ class TestServiceRegistry:
         assert result is None
 
     @pytest.mark.asyncio()
-    async def test_health_check_marks_unhealthy(
-        self, registry: ServiceRegistry
-    ) -> None:
+    async def test_health_check_marks_unhealthy(self, registry: ServiceRegistry) -> None:
         svc = _make_service()
         # 设置心跳时间为很久以前
         svc.last_heartbeat = datetime.now() - timedelta(seconds=60)

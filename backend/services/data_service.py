@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import logging
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 DATA_DIR = Path(__file__).parent.parent / "data"
 
@@ -21,7 +21,9 @@ def load_data() -> None:
         _cache[json_file.stem] = json.loads(json_file.read_text(encoding="utf-8"))
 
 
-def get_data(dataset: Optional[str] = None, filters: Optional[dict] = None, city: Optional[str] = None) -> Any:
+def get_data(
+    dataset: str | None = None, filters: dict | None = None, city: str | None = None
+) -> Any:
     if not _cache:
         load_data()
 
@@ -56,7 +58,7 @@ def get_datasets() -> list[str]:
 
 
 async def get_poi_data_async(
-    filters: Optional[dict[str, Any]] = None,
+    filters: dict[str, Any] | None = None,
     limit: int = 1000,
 ) -> list[dict[str, Any]]:
     """从 PostgreSQL 查询 POI 数据（DB 模式）。
@@ -124,8 +126,17 @@ async def get_poi_data_async(
 
 # 名称中包含这些关键词的POI，即使category不是餐饮也应归为餐饮
 _FOOD_NAME_KWS = [
-    "美食街", "海鲜街", "小吃街", "美食城", "美食广场", "食街",
-    "夜市", "大排档", "海鲜城", "海鲜市场", "水产市场",
+    "美食街",
+    "海鲜街",
+    "小吃街",
+    "美食城",
+    "美食广场",
+    "食街",
+    "夜市",
+    "大排档",
+    "海鲜城",
+    "海鲜市场",
+    "水产市场",
 ]
 
 
@@ -147,8 +158,6 @@ def _fix_food_categories(pois: list[dict[str, Any]]) -> None:
 async def load_pois(city: str = "珠海", errors: list[str] | None = None) -> list[dict[str, Any]]:
     """统一POI加载：美团API → 本地JSON降级 → 数据清洗 → 城市过滤。
 
-    优化：先快速检查API可用性，不可用直接跳过（ADR-DL1）。
-
     Args:
         city: 目标城市，默认珠海。
         errors: 可选的错误收集列表，调用方传入可追踪降级原因。
@@ -158,28 +167,14 @@ async def load_pois(city: str = "珠海", errors: list[str] | None = None) -> li
     """
     errs = errors or []
 
-    # ADR-DL1: 先快速检查美团API可用性（0.5秒超时）
-    meituan_available = False
+    # 1. 优先从美团API加载
     try:
-        import httpx
-        async with httpx.AsyncClient(base_url="http://localhost:8001/api", timeout=0.5) as client:
-            resp = await client.get("/poi/search", params={"limit": 1})
-            if resp.status_code == 200:
-                meituan_available = True
-    except Exception:
-        pass
+        from backend.agents_v3.meituan_client import fetch_pois
 
-    # 1. 美团API可用时才尝试加载
-    all_pois = []
-    if meituan_available:
-        try:
-            from backend.agents_v3.meituan_client import fetch_pois
-            all_pois = await fetch_pois()
-        except Exception as e:
-            errs.append(f"美团API加载失败: {e}")
-
-    # 2. 降级到本地JSON（API不可用或加载失败时）
-    if not all_pois:
+        all_pois = await fetch_pois()
+    except Exception as e:
+        errs.append(f"美团API不可用: {e}")
+        # 2. 降级到本地JSON
         try:
             all_pois = get_data()
             if isinstance(all_pois, dict):

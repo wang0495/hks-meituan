@@ -2,7 +2,7 @@
 
 5进程(每模型1进程) 并发，进程内场景串行避免API过载。
 使用方式:
-    LLM_API_KEY=xxx LLM_BASE_URL=xxx python -m backend.agents_v3.test_model_bench
+    LLM_API_KEY=xxx LLM_BASE_URL=xxx python scripts/benchmarks/test_model_bench
 """
 from __future__ import annotations
 
@@ -15,7 +15,7 @@ from concurrent.futures import ProcessPoolExecutor
 from datetime import datetime
 from pathlib import Path
 
-_project_root = str(Path(__file__).resolve().parent.parent.parent)
+_project_root = str(Path(__file__).resolve().parent.parent)
 
 MODELS = [
     "xsparkx2flash",
@@ -51,7 +51,7 @@ def _init():
         except Exception:
             pass
     # Pre-import to catch errors early
-    from backend.agents_v3.test_5_scenes import SCENES  # noqa: F401
+    from test_5_scenes import SCENES  # noqa: F401
 
 
 def _run_model(model: str, api_key: str, base_url: str) -> dict:
@@ -67,7 +67,7 @@ async def _run_model_async(model: str) -> dict:
     from backend.agents_v3 import get_graph_c, TravelState
     from backend.agents_v3.experts.base import clear_llm_cache
     from backend.agents_v3.meituan_client import clear_cache
-    from backend.agents_v3.test_5_scenes import SCENES, score_route
+    from test_5_scenes import SCENES, score_route
 
     clear_llm_cache()
     clear_cache()
@@ -102,7 +102,7 @@ async def _run_one(scene_type: str, user_input: str, model: str) -> dict:
     from backend.agents_v3 import get_graph_c, TravelState
     from backend.agents_v3.experts.base import clear_llm_cache
     from backend.agents_v3.meituan_client import clear_cache
-    from backend.agents_v3.test_5_scenes import score_route
+    from test_5_scenes import score_route
 
     last_error = None
     for attempt in range(1, MAX_RETRIES + 1):
@@ -178,7 +178,7 @@ def main():
     total_elapsed = round(time.perf_counter() - t0, 1)
 
     # 排名
-    from backend.agents_v3.test_5_scenes import SCENES as _SCENES
+    from test_5_scenes import SCENES as _SCENES
     ranked = sorted(model_results, key=lambda x: x.get("avg_score", 0), reverse=True)
 
     print(f"\n{'=' * 60}")

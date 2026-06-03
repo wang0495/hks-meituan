@@ -27,9 +27,9 @@ from backend.errors import CityFlowException, ErrorCode
 logger = logging.getLogger(__name__)
 
 __all__ = [
-    "RateLimiter",
-    "RateLimitResult",
     "RateLimitExceededError",
+    "RateLimitResult",
+    "RateLimiter",
     "get_rate_limiter",
 ]
 
@@ -125,9 +125,7 @@ class _LocalRateLimiter:
     def cleanup(self, max_idle_seconds: int = 600) -> int:
         """清理长时间无活动的窗口，返回清理数量。"""
         now = time.monotonic()
-        stale = [
-            k for k, w in self._windows.items() if now - w.start_ts > max_idle_seconds
-        ]
+        stale = [k for k, w in self._windows.items() if now - w.start_ts > max_idle_seconds]
         for k in stale:
             del self._windows[k]
         return len(stale)
@@ -198,9 +196,7 @@ class RateLimiter:
 
     def __init__(self, redis_client: aioredis.Redis | None = None) -> None:
         if redis_client is not None:
-            self._backend: _RedisRateLimiter | _LocalRateLimiter = _RedisRateLimiter(
-                redis_client
-            )
+            self._backend: _RedisRateLimiter | _LocalRateLimiter = _RedisRateLimiter(redis_client)
             self._use_redis = True
             logger.info("速率限制器已初始化（Redis 模式）")
         else:

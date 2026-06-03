@@ -38,10 +38,7 @@ def haversine(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
     phi1, phi2 = math.radians(lat1), math.radians(lat2)
     dphi = math.radians(lat2 - lat1)
     dlam = math.radians(lon2 - lon1)
-    a = (
-        math.sin(dphi / 2) ** 2
-        + math.cos(phi1) * math.cos(phi2) * math.sin(dlam / 2) ** 2
-    )
+    a = math.sin(dphi / 2) ** 2 + math.cos(phi1) * math.cos(phi2) * math.sin(dlam / 2) ** 2
     return _EARTH_RADIUS_M * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
 
 
@@ -97,14 +94,10 @@ def poi_distance(poi_a: dict[str, Any] | None, poi_b: dict[str, Any] | None) -> 
     """
     if not poi_a or not poi_b:
         return 0.0
-    return haversine_with_road_factor(
-        poi_a["lat"], poi_a["lng"], poi_b["lat"], poi_b["lng"]
-    )
+    return haversine_with_road_factor(poi_a["lat"], poi_a["lng"], poi_b["lat"], poi_b["lng"])
 
 
-def poi_travel_time(
-    poi_a: dict[str, Any] | None, poi_b: dict[str, Any] | None
-) -> float:
+def poi_travel_time(poi_a: dict[str, Any] | None, poi_b: dict[str, Any] | None) -> float:
     """估算两个 POI 间的旅行时间（分钟）。None 安全。
 
     Args:

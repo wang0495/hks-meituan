@@ -133,9 +133,7 @@ async def test_run_now_incremental(backup_instance: DataBackup) -> None:
 
     try:
         # 修改文件以产生增量
-        (backup_instance._data_dir / "test.json").write_text(
-            '{"key": "new"}', encoding="utf-8"
-        )
+        (backup_instance._data_dir / "test.json").write_text('{"key": "new"}', encoding="utf-8")
         name = await scheduler.run_now(backup_type="incremental")
         assert name is not None
         assert name.startswith("incr_")

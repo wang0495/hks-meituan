@@ -189,9 +189,7 @@ class CPUProfiler:
         sorted_funcs = sorted(result.functions, key=key_fn, reverse=True)
         return [f.to_dict() for f in sorted_funcs[:limit]]
 
-    def get_pstats_text(
-        self, label: str | None = None, sort_by: str = "cumulative"
-    ) -> str:
+    def get_pstats_text(self, label: str | None = None, sort_by: str = "cumulative") -> str:
         """获取 pstats 原始文本输出（便于调试）。
 
         Args:

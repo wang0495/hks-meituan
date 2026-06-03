@@ -129,7 +129,6 @@ def _get_client() -> AsyncOpenAI:
     return _client
 
 
-
 def _get_llm_model() -> str:
     """获取 LLM 模型名，通过 pydantic 配置读取（INTENT_LLM_MODEL 优先，LLM_MODEL 兜底）。"""
     return get_settings().intent_llm.model
@@ -138,7 +137,7 @@ def _get_llm_model() -> str:
 # Intent parser response cache (same user_input → same intent, 30min TTL)
 _intent_cache: dict[str, tuple[dict, float]] = {}
 _INTENT_CACHE_TTL = 1800  # 30 minutes
-_INTENT_CACHE_MAX = 200   # max entries to prevent unbounded growth
+_INTENT_CACHE_MAX = 200  # max entries to prevent unbounded growth
 
 # Generic tool schema for Qwen models — avoids response_format's NotEnoughCvError
 _GENERIC_TOOLS = [
@@ -157,7 +156,9 @@ _GENERIC_TOOL_CHOICE = {"type": "function", "function": {"name": "submit_result"
 async def _call_llm(user_input: str) -> dict | None:
     """调用 LLM 解析意图，返回解析结果或 None（失败时）。带缓存+重试。"""
     # Check cache
-    import hashlib, time as _time
+    import hashlib
+    import time as _time
+
     cache_key = hashlib.md5(user_input.encode()).hexdigest()
     entry = _intent_cache.get(cache_key)
     if entry is not None:
@@ -207,8 +208,11 @@ async def _call_llm(user_input: str) -> dict | None:
                 # Cache the result
                 if len(_intent_cache) >= _INTENT_CACHE_MAX:
                     now_mono = _time.monotonic()
-                    expired = [k for k, (_, ts) in _intent_cache.items()
-                               if now_mono - ts > _INTENT_CACHE_TTL]
+                    expired = [
+                        k
+                        for k, (_, ts) in _intent_cache.items()
+                        if now_mono - ts > _INTENT_CACHE_TTL
+                    ]
                     for k in expired:
                         del _intent_cache[k]
                     if len(_intent_cache) >= _INTENT_CACHE_MAX:
@@ -308,16 +312,18 @@ def merge_user_preference(
         source["budget"] = "profile_default"
 
     # 情感需求
-    emotion_need = intent.get("emotion_need") or (
-        user_stated_prefs.get("emotion_need") if user_stated_prefs else None
-    ) or (
-        ltm_prediction.get("predicted_emotion_need") if ltm_prediction else None
+    emotion_need = (
+        intent.get("emotion_need")
+        or (user_stated_prefs.get("emotion_need") if user_stated_prefs else None)
+        or (ltm_prediction.get("predicted_emotion_need") if ltm_prediction else None)
     )
     if emotion_need:
         intent["emotion_need"] = emotion_need
-        source["emotion_need"] = "user_stated" if (
-            user_stated_prefs and user_stated_prefs.get("emotion_need")
-        ) else "ltm_contextual"
+        source["emotion_need"] = (
+            "user_stated"
+            if (user_stated_prefs and user_stated_prefs.get("emotion_need"))
+            else "ltm_contextual"
+        )
 
     intent["preferences_source"] = source
     return intent
@@ -426,9 +432,7 @@ def _rule_based_parse(user_input: str) -> dict:
 
     social = 0.5
     # 否定模式优先：不想/不要/不去 + 人多/热闹 → 低社交
-    _neg_crowd = re.search(
-        r"(不想|不要|不去|不愿|害怕|怕).{0,4}(人多|热闹|拥挤|排队)", text
-    )
+    _neg_crowd = re.search(r"(不想|不要|不去|不愿|害怕|怕).{0,4}(人多|热闹|拥挤|排队)", text)
     if _neg_crowd or any(w in text for w in ["社恐", "安静", "独处", "一个人"]):
         social = 0.1
     elif any(w in text for w in ["热闹", "人多", "聚会", "嗨"]):
@@ -463,15 +467,28 @@ def _rule_based_parse(user_input: str) -> dict:
         hard_constraints.append("late_night")
     # 具体活动需求
     activity_map = {
-        "游乐园": "needs_entertainment", "乐园": "needs_entertainment", "游乐场": "needs_entertainment",
-        "海洋馆": "needs_entertainment", "海洋王国": "needs_entertainment", "水族馆": "needs_entertainment",
+        "游乐园": "needs_entertainment",
+        "乐园": "needs_entertainment",
+        "游乐场": "needs_entertainment",
+        "海洋馆": "needs_entertainment",
+        "海洋王国": "needs_entertainment",
+        "水族馆": "needs_entertainment",
         "动物园": "needs_entertainment",
-        "烧烤": "needs_bbq", "火锅": "needs_dining",
-        "茶馆": "needs_teahouse", "茶室": "needs_teahouse", "品茶": "needs_teahouse",
-        "书店": "needs_bookstore", "书吧": "needs_bookstore",
-        "游泳": "needs_swimming", "泳池": "needs_swimming",
-        "踢球": "needs_sports", "打球": "needs_sports", "爬山": "needs_hiking",
-        "画画": "needs_art", "写生": "needs_art", "书法": "needs_calligraphy",
+        "烧烤": "needs_bbq",
+        "火锅": "needs_dining",
+        "茶馆": "needs_teahouse",
+        "茶室": "needs_teahouse",
+        "品茶": "needs_teahouse",
+        "书店": "needs_bookstore",
+        "书吧": "needs_bookstore",
+        "游泳": "needs_swimming",
+        "泳池": "needs_swimming",
+        "踢球": "needs_sports",
+        "打球": "needs_sports",
+        "爬山": "needs_hiking",
+        "画画": "needs_art",
+        "写生": "needs_art",
+        "书法": "needs_calligraphy",
     }
     for kw, constraint in activity_map.items():
         if kw in text and constraint not in hard_constraints:
@@ -480,20 +497,32 @@ def _rule_based_parse(user_input: str) -> dict:
     # 场景需求提取
     scene_requirements: list[str] = []
     scene_map = {
-        "喝茶": ["茶馆", "品茶"], "听曲": ["曲艺表演", "传统文化"], "茶馆": ["茶馆"],
-        "街边小吃": ["街边小店", "本地小吃"], "小吃街": ["小吃街", "夜市"],
-        "拍照": ["拍照打卡", "网红景点"], "出片": ["出片", "拍照打卡"],
-        "游乐园": ["游乐园", "儿童游乐"], "海洋馆": ["海洋馆", "水族馆"],
-        "蹦迪": ["酒吧", "夜店"], "喝酒": ["酒吧", "清吧"],
-        "烧烤": ["烧烤", "聚餐"], "火锅": ["火锅"],
-        "书店": ["书店", "阅读空间"], "咖啡馆": ["咖啡馆"],
-        "书法": ["书法", "传统文化"], "画画": ["艺术", "写生"],
-        "日出": ["日出观景", "海边观景"], "日落": ["日落观景"],
+        "喝茶": ["茶馆", "品茶"],
+        "听曲": ["曲艺表演", "传统文化"],
+        "茶馆": ["茶馆"],
+        "街边小吃": ["街边小店", "本地小吃"],
+        "小吃街": ["小吃街", "夜市"],
+        "拍照": ["拍照打卡", "网红景点"],
+        "出片": ["出片", "拍照打卡"],
+        "游乐园": ["游乐园", "儿童游乐"],
+        "海洋馆": ["海洋馆", "水族馆"],
+        "蹦迪": ["酒吧", "夜店"],
+        "喝酒": ["酒吧", "清吧"],
+        "烧烤": ["烧烤", "聚餐"],
+        "火锅": ["火锅"],
+        "书店": ["书店", "阅读空间"],
+        "咖啡馆": ["咖啡馆"],
+        "书法": ["书法", "传统文化"],
+        "画画": ["艺术", "写生"],
+        "日出": ["日出观景", "海边观景"],
+        "日落": ["日落观景"],
         "夜景": ["夜景观景", "城市夜景"],
-        "游泳": ["游泳", "水上运动"], "攀岩": ["攀岩"],
+        "游泳": ["游泳", "水上运动"],
+        "攀岩": ["攀岩"],
         "密室": ["密室逃脱", "剧本杀"],
         "长隆": ["长隆", "海洋王国", "游乐园"],
-        "画画": ["安静画画", "艺术", "写生"], "安静画画": ["安静画画", "艺术"],
+        "画画": ["安静画画", "艺术", "写生"],
+        "安静画画": ["安静画画", "艺术"],
         "蹦迪": ["蹦迪", "酒吧", "夜店"],
     }
     for kw, scenes in scene_map.items():
@@ -505,23 +534,46 @@ def _rule_based_parse(user_input: str) -> dict:
     # 推断preferred_categories
     preferred_categories: list[str] = []
     _CAT_MAP = {
-        "游乐园": ["景点", "娱乐"], "乐园": ["景点", "娱乐"], "游乐场": ["景点", "娱乐"],
-        "海洋馆": ["景点", "娱乐"], "水族馆": ["景点", "娱乐"],
-        "蹦迪": ["娱乐", "餐饮"], "酒吧": ["娱乐", "餐饮"], "夜店": ["娱乐"],
-        "KTV": ["娱乐"], "密室": ["娱乐", "密室逃脱"], "剧本杀": ["娱乐", "剧本杀"],
-        "烧烤": ["餐饮"], "火锅": ["餐饮"], "美食": ["餐饮"], "小吃": ["餐饮", "夜市小吃"],
+        "游乐园": ["景点", "娱乐"],
+        "乐园": ["景点", "娱乐"],
+        "游乐场": ["景点", "娱乐"],
+        "海洋馆": ["景点", "娱乐"],
+        "水族馆": ["景点", "娱乐"],
+        "蹦迪": ["娱乐", "餐饮"],
+        "酒吧": ["娱乐", "餐饮"],
+        "夜店": ["娱乐"],
+        "KTV": ["娱乐"],
+        "密室": ["娱乐", "密室逃脱"],
+        "剧本杀": ["娱乐", "剧本杀"],
+        "烧烤": ["餐饮"],
+        "火锅": ["餐饮"],
+        "美食": ["餐饮"],
+        "小吃": ["餐饮", "夜市小吃"],
         "宵夜": ["餐饮", "夜市", "夜市小吃"],
-        "博物馆": ["文化"], "美术馆": ["文化"], "展览": ["文化"], "书法": ["文化"],
-        "画画": ["文化", "文艺", "咖啡馆"], "安静画画": ["文化", "文艺", "咖啡馆"],
-        "书店": ["书店", "文化"], "咖啡馆": ["咖啡馆", "海景咖啡馆"],
-        "公园": ["景点", "运动"], "爬山": ["运动", "自然风光"], "运动": ["运动"],
-        "海边": ["景点", "自然风光"], "沙滩": ["景点", "自然风光"],
-        "购物": ["购物"], "逛街": ["购物"],
-        "拍照": ["景点", "文化"], "打卡": ["景点", "文化"],
-        "温泉": ["温泉SPA"], "游泳": ["水上运动场所"],
-        "聚会": ["餐饮", "娱乐", "购物"], "朋友": ["餐饮", "娱乐", "购物"],
+        "博物馆": ["文化"],
+        "美术馆": ["文化"],
+        "展览": ["文化"],
+        "书法": ["文化"],
+        "画画": ["文化", "文艺", "咖啡馆"],
+        "安静画画": ["文化", "文艺", "咖啡馆"],
+        "书店": ["书店", "文化"],
+        "咖啡馆": ["咖啡馆", "海景咖啡馆"],
+        "公园": ["景点", "运动"],
+        "爬山": ["运动", "自然风光"],
+        "运动": ["运动"],
+        "海边": ["景点", "自然风光"],
+        "沙滩": ["景点", "自然风光"],
+        "购物": ["购物"],
+        "逛街": ["购物"],
+        "拍照": ["景点", "文化"],
+        "打卡": ["景点", "文化"],
+        "温泉": ["温泉SPA"],
+        "游泳": ["水上运动场所"],
+        "聚会": ["餐饮", "娱乐", "购物"],
+        "朋友": ["餐饮", "娱乐", "购物"],
         "情侣": ["餐饮", "文化", "景点", "海景咖啡馆"],
-        "亲子": ["景点", "运动", "娱乐"], "孩子": ["景点", "运动", "娱乐"],
+        "亲子": ["景点", "运动", "娱乐"],
+        "孩子": ["景点", "运动", "娱乐"],
         "退休": ["文化", "景点", "餐饮"],
     }
     for kw, cats in _CAT_MAP.items():
@@ -555,11 +607,9 @@ def _rule_based_parse(user_input: str) -> dict:
     }
 
 
-
 # ---------------------------------------------------------------------------
 # 天数提取
 # ---------------------------------------------------------------------------
-
 
 
 def _extract_num_days(text: str) -> int:
@@ -607,10 +657,6 @@ async def parse_intent(user_input: str) -> dict:
     """
     将用户自然语言输入解析为结构化出行需求。
 
-    优化：规则优先，LLM异步补充（ADR-IP1）。
-    - 规则匹配：0延迟，立即返回基础结果
-    - LLM补充：异步执行，补充需求向量等高级信息
-
     参数:
         user_input: 用户的自然语言出行需求
 
@@ -619,31 +665,38 @@ async def parse_intent(user_input: str) -> dict:
     """
     logger.info("收到用户输入: %s", user_input)
 
-    # ADR-IP1: 规则优先，立即返回基础结果（0延迟）
-    intent = _rule_based_parse(user_input)
+    # 尝试 LLM 解析（重试3次，每次30秒超时）
+    intent: dict | None = None
     llm_used = False
     llm_error = ""
+    for attempt in range(3):
+        try:
+            intent = await asyncio.wait_for(_call_llm(user_input), timeout=30.0)
+            if intent:
+                llm_used = True
+                logger.info("LLM 解析成功")
+                break
+            else:
+                llm_error = "LLM 返回空结果"
+        except TimeoutError:
+            llm_error = f"LLM 超时（30s）第{attempt + 1}次"
+            logger.warning("%s", llm_error)
+        except Exception as e:
+            llm_error = f"LLM 异常: {e}"
+            logger.warning("%s", llm_error)
+        if attempt < 2:
+            await asyncio.sleep(1)
 
-    # 尝试 LLM 解析（1次，10秒超时，快速失败）
-    try:
-        llm_result = await asyncio.wait_for(_call_llm(user_input), timeout=10.0)
-        if llm_result:
-            # 合并LLM结果：保留规则的基础结构，补充LLM的高级信息
-            intent.update(llm_result)
-            llm_used = True
-            logger.info("LLM 解析成功，已合并结果")
-        else:
-            llm_error = "LLM 返回空结果"
-    except asyncio.TimeoutError:
-        llm_error = "LLM 超时（10s）"
-        logger.warning("%s", llm_error)
-    except Exception as e:
-        llm_error = f"LLM 异常: {e}"
-        logger.warning("%s", llm_error)
+    # 降级方案
+    if intent is None:
+        intent = _rule_based_parse(user_input)
+        logger.info("使用规则匹配结果")
 
     # 提取需求向量（来自LLM，或为规则匹配创建默认值）
     dv = intent.pop("demand_vector", None) if isinstance(intent, dict) else None
-    if dv and all(k in dv for k in ("efficiency_seeking", "excitement_seeking", "tranquility_seeking")):
+    if dv and all(
+        k in dv for k in ("efficiency_seeking", "excitement_seeking", "tranquility_seeking")
+    ):
         intent["_demand_vector"] = dv
     else:
         intent["_demand_vector"] = {
@@ -677,9 +730,17 @@ async def parse_intent(user_input: str) -> dict:
 
     # hard_constraints去重+白名单校验
     valid_constraints = {
-        "queue_intolerant", "accessible", "pet_friendly", "indoor_only",
-        "outdoor_preferred", "late_night", "needs_entertainment", "free",
-        "低人流", "儿童友好", "排队容忍度<10min",
+        "queue_intolerant",
+        "accessible",
+        "pet_friendly",
+        "indoor_only",
+        "outdoor_preferred",
+        "late_night",
+        "needs_entertainment",
+        "free",
+        "低人流",
+        "儿童友好",
+        "排队容忍度<10min",
     }
     hc = intent.get("hard_constraints", [])
     intent["hard_constraints"] = list(set(c for c in hc if c in valid_constraints))
@@ -734,7 +795,9 @@ async def parse_intent(user_input: str) -> dict:
                 intent["time"] = {"period": "深夜", "start": "22:00", "end": "06:00"}
         else:
             # 没有明确深夜关键词 → 移除late_night约束，保留LLM返回的时间
-            intent["hard_constraints"] = [c for c in intent.get("hard_constraints", []) if c != "late_night"]
+            intent["hard_constraints"] = [
+                c for c in intent.get("hard_constraints", []) if c != "late_night"
+            ]
             logger.debug("移除late_night约束（无明确深夜关键词）")
 
     intent["_llm_used"] = llm_used
@@ -752,11 +815,7 @@ async def parse_intent(user_input: str) -> dict:
 if __name__ == "__main__":
     import sys
 
-    test_input = (
-        " ".join(sys.argv[1:])
-        if len(sys.argv) > 1
-        else "周末想出去走走，不想去人多的地方"
-    )
+    test_input = " ".join(sys.argv[1:]) if len(sys.argv) > 1 else "周末想出去走走，不想去人多的地方"
     result = asyncio.run(parse_intent(test_input))
     print("\n=== 最终结果 ===")
     print(json.dumps(result, ensure_ascii=False, indent=2))

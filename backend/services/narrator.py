@@ -73,6 +73,7 @@ DESIGN_INTENT_TEMPLATES: dict[str, list[str]] = {
     ],
 }
 
+
 # 体验杠杆率判断
 def _get_leverage(avg_price: float, rating: float, category: str) -> str:
     """判断POI的体验杠杆率。"""
@@ -248,8 +249,8 @@ def _generate_step(step: dict[str, Any], index: int, total: int, city: str = "")
     else:
         dominant = get_dominant_emotion(emotion_tags)
         templates = [
-            f"在{{poi_name}}，感受不一样的体验。",
-            f"{{poi_name}}，值得停留的地方。",
+            "在{poi_name}，感受不一样的体验。",
+            "{poi_name}，值得停留的地方。",
         ]
     template = random.choice(templates)
     description = template.format(poi_name=poi_name)
@@ -327,23 +328,29 @@ def _extract_emotion_highlights(route_result: dict[str, Any]) -> list[dict[str, 
         poi_name = step["poi"]["name"]
 
         if emotion.get("excitement", 0) > 0.8:
-            highlights.append({
-                "type": "excitement",
-                "poi": poi_name,
-                "description": "心跳加速的时刻",
-            })
+            highlights.append(
+                {
+                    "type": "excitement",
+                    "poi": poi_name,
+                    "description": "心跳加速的时刻",
+                }
+            )
         if emotion.get("tranquility", 0) > 0.8:
-            highlights.append({
-                "type": "tranquility",
-                "poi": poi_name,
-                "description": "宁静致远的角落",
-            })
+            highlights.append(
+                {
+                    "type": "tranquility",
+                    "poi": poi_name,
+                    "description": "宁静致远的角落",
+                }
+            )
         if emotion.get("culture_depth", 0) > 0.8:
-            highlights.append({
-                "type": "culture",
-                "poi": poi_name,
-                "description": "文化底蕴深厚",
-            })
+            highlights.append(
+                {
+                    "type": "culture",
+                    "poi": poi_name,
+                    "description": "文化底蕴深厚",
+                }
+            )
 
     return highlights
 
@@ -368,16 +375,16 @@ async def _llm_generate_description(step: dict, user_intent: dict, city: str = "
     pace = user_intent.get("pace", "平衡型")
 
     prompt = (
-        f'你是CityFlow的旅行文案写手。为以下路线站点写1-2句中文描述，'
+        f"你是CityFlow的旅行文案写手。为以下路线站点写1-2句中文描述，"
         f'要生动、有画面感，不要评价"不错/很好"：\n'
-        f'地点：{poi_name}\n'
-        f'类别：{category}\n'
-        f'评分：{rating}\n'
+        f"地点：{poi_name}\n"
+        f"类别：{category}\n"
+        f"评分：{rating}\n"
         f'标签：{", ".join(tags[:4])}\n'
-        f'情绪氛围：{emotion_str}\n'
-        f'用户类型：{group_type}，节奏：{pace}\n'
+        f"情绪氛围：{emotion_str}\n"
+        f"用户类型：{group_type}，节奏：{pace}\n"
         f'城市：{city or "珠海"}\n'
-        f'要求：写一段让人身临其境的短描述，包含具体感官体验。'
+        f"要求：写一段让人身临其境的短描述，包含具体感官体验。"
     )
 
     try:
@@ -385,7 +392,7 @@ async def _llm_generate_description(step: dict, user_intent: dict, city: str = "
         if result and len(result) > 10:
             arrival = step.get("arrival_time", "")
             return f"{arrival} {result.strip()}" if arrival else result.strip()
-    except (asyncio.TimeoutError, Exception):
+    except (TimeoutError, Exception):
         pass
 
     # 退回模板
@@ -398,17 +405,25 @@ def _template_step_description(step: dict, user_intent: dict, city: str = "") ->
     poi_name = poi["name"]
     category = poi.get("category", "")
 
-    templates = CATEGORY_STEP_TEMPLATES.get(category, [
-        f"在{{poi_name}}，感受不一样的体验。",
-        f"{{poi_name}}，值得停留的地方。",
-    ])
+    templates = CATEGORY_STEP_TEMPLATES.get(
+        category,
+        [
+            "在{poi_name}，感受不一样的体验。",
+            "{poi_name}，值得停留的地方。",
+        ],
+    )
     import random
+
     template = random.choice(templates)
     description = template.format(poi_name=poi_name)
 
     if city:
         try:
-            from backend.services.city_personality import get_vibe_style_adjectives, get_city_personality
+            from backend.services.city_personality import (
+                get_city_personality,
+                get_vibe_style_adjectives,
+            )
+
             personality = get_city_personality(city)
             if personality:
                 vibe = personality.get("vibe", "")
@@ -464,6 +479,7 @@ async def generate_narrative(
     # LLM润色：并行调用所有step的description
     if enable_llm_polish and steps:
         import asyncio
+
         llm_tasks = [
             _llm_generate_description(route[i], user_intent, city)
             for i in range(min(len(steps), len(route)))

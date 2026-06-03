@@ -26,14 +26,17 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from prometheus_client import (REGISTRY, Counter, Gauge, Histogram, Info,
-                               generate_latest)
+from prometheus_client import REGISTRY, Counter, Gauge, Histogram, Info, generate_latest
 
 # 复用 metrics.py 中已定义的基础指标，避免重复注册
-from backend.monitoring.metrics import (ACTIVE_SESSIONS,  # noqa: F401
-                                        CACHE_HITS, CACHE_MISSES,
-                                        REQUEST_COUNT, REQUEST_LATENCY,
-                                        ROUTE_COUNT)
+from backend.monitoring.metrics import (  # noqa: F401
+    ACTIVE_SESSIONS,
+    CACHE_HITS,
+    CACHE_MISSES,
+    REQUEST_COUNT,
+    REQUEST_LATENCY,
+    ROUTE_COUNT,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -321,9 +324,7 @@ def track_request_size(method: str, endpoint: str, size: int) -> None:
 
 def track_response_size(method: str, endpoint: str, status: int, size: int) -> None:
     """记录响应体大小。"""
-    RESPONSE_SIZE.labels(method=method, endpoint=endpoint, status=str(status)).observe(
-        size
-    )
+    RESPONSE_SIZE.labels(method=method, endpoint=endpoint, status=str(status)).observe(size)
 
 
 def track_route_planning(
@@ -383,9 +384,7 @@ def track_llm_call(
         LLM_TOKEN_USAGE.labels(model=model, type="completion").inc(completion_tokens)
 
 
-def track_dialogue(
-    instruction_type: str = "unknown", duration: float | None = None
-) -> None:
+def track_dialogue(instruction_type: str = "unknown", duration: float | None = None) -> None:
     """记录对话调整。"""
     DIALOGUE_COUNT.labels(instruction_type=instruction_type).inc()
     if duration is not None:

@@ -5,12 +5,14 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from backend.services.vectorized import (distance_from_point_vectorized,
-                                         distance_matrix_vectorized,
-                                         emotion_score_vectorized,
-                                         haversine_scalar,
-                                         haversine_vectorized,
-                                         travel_time_matrix_vectorized)
+from backend.services.vectorized import (
+    distance_from_point_vectorized,
+    distance_matrix_vectorized,
+    emotion_score_vectorized,
+    haversine_scalar,
+    haversine_vectorized,
+    travel_time_matrix_vectorized,
+)
 
 # ---------------------------------------------------------------------------
 # 测试数据
@@ -87,9 +89,7 @@ class TestDistanceMatrix:
         matrix = distance_matrix_vectorized(SAMPLE_POIS)
         for i in range(3):
             for j in range(3):
-                assert float(matrix[i, j]) == pytest.approx(
-                    float(matrix[j, i]), rel=1e-10
-                )
+                assert float(matrix[i, j]) == pytest.approx(float(matrix[j, i]), rel=1e-10)
 
     def test_road_factor_applied(self) -> None:
         matrix_default = distance_matrix_vectorized(SAMPLE_POIS)

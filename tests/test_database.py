@@ -11,10 +11,13 @@ import uuid
 import pytest
 
 from backend.database.models import Route, User
-from backend.database.repository import (DialogueRepository, RouteRepository,
-                                         RouteStepRepository,
-                                         UserPreferenceRepository,
-                                         UserRepository)
+from backend.database.repository import (
+    DialogueRepository,
+    RouteRepository,
+    RouteStepRepository,
+    UserPreferenceRepository,
+    UserRepository,
+)
 
 # ---------------------------------------------------------------------------
 # UserRepository
@@ -98,9 +101,7 @@ async def test_update_route(route_repo: RouteRepository, sample_route: Route) ->
 
 
 @pytest.mark.asyncio
-async def test_update_route_status(
-    route_repo: RouteRepository, sample_route: Route
-) -> None:
+async def test_update_route_status(route_repo: RouteRepository, sample_route: Route) -> None:
     updated = await route_repo.update_status(sample_route.id, "archived")
     assert updated is not None
     assert updated.status == "archived"
@@ -176,9 +177,7 @@ async def test_get_steps_by_route(
 
 
 @pytest.mark.asyncio
-async def test_add_and_get_dialogue(
-    dialogue_repo: DialogueRepository, sample_route: Route
-) -> None:
+async def test_add_and_get_dialogue(dialogue_repo: DialogueRepository, sample_route: Route) -> None:
     session_id = "test_session_001"
     msg = await dialogue_repo.add_message(
         route_id=sample_route.id,
@@ -208,9 +207,7 @@ async def test_add_and_get_dialogue(
 
 
 @pytest.mark.asyncio
-async def test_upsert_preference(
-    pref_repo: UserPreferenceRepository, sample_user: User
-) -> None:
+async def test_upsert_preference(pref_repo: UserPreferenceRepository, sample_user: User) -> None:
     # 首次插入
     pref = await pref_repo.upsert(sample_user.id, "pace", {"value": "relaxed"})
     assert pref.preference_type == "pace"
@@ -223,9 +220,7 @@ async def test_upsert_preference(
 
 
 @pytest.mark.asyncio
-async def test_get_all_preferences(
-    pref_repo: UserPreferenceRepository, sample_user: User
-) -> None:
+async def test_get_all_preferences(pref_repo: UserPreferenceRepository, sample_user: User) -> None:
     await pref_repo.upsert(sample_user.id, "pace", {"value": "relaxed"})
     await pref_repo.upsert(sample_user.id, "budget", {"max": 500})
 

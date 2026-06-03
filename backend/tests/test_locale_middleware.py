@@ -15,9 +15,7 @@ from fastapi.testclient import TestClient
 # （ConfigMiddleware 依赖 backend.config.get_settings，该符号在 config 包中缺失）
 def _load_locale_middleware():  # type: ignore[no-untyped-def]
     module_path = Path(__file__).resolve().parent.parent / "middleware" / "locale.py"
-    spec = importlib.util.spec_from_file_location(
-        "backend.middleware.locale", module_path
-    )
+    spec = importlib.util.spec_from_file_location("backend.middleware.locale", module_path)
     mod = importlib.util.module_from_spec(spec)  # type: ignore[arg-type]
     sys.modules["backend.middleware.locale"] = mod
     spec.loader.exec_module(mod)  # type: ignore[union-attr]
@@ -26,7 +24,6 @@ def _load_locale_middleware():  # type: ignore[no-untyped-def]
 
 _mod = _load_locale_middleware()
 LocaleMiddleware = _mod.LocaleMiddleware
-
 
 
 @pytest.fixture()

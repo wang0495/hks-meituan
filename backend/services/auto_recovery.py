@@ -25,18 +25,18 @@ import logging
 import time
 from collections import deque
 from collections.abc import Callable, Coroutine
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
 from typing import Any
 
 __all__ = [
-    "RecoveryStatus",
+    "AutoRecovery",
     "RecoveryAttempt",
     "RecoveryResult",
-    "AutoRecovery",
+    "RecoveryStatus",
     "recover_database",
-    "recover_redis",
     "recover_llm_service",
+    "recover_redis",
 ]
 
 logger = logging.getLogger(__name__)
@@ -60,7 +60,7 @@ class RecoveryStatus(str, Enum):
 class RecoveryAttempt:
     """单次恢复尝试的记录。"""
 
-    __slots__ = ("service", "status", "attempt", "error", "latency_ms", "timestamp")
+    __slots__ = ("attempt", "error", "latency_ms", "service", "status", "timestamp")
 
     def __init__(
         self,
@@ -75,7 +75,7 @@ class RecoveryAttempt:
         self.attempt = attempt
         self.error = error
         self.latency_ms = latency_ms
-        self.timestamp = datetime.now(timezone.utc)
+        self.timestamp = datetime.now(UTC)
 
     def to_dict(self) -> dict[str, Any]:
         result: dict[str, Any] = {
@@ -93,12 +93,12 @@ class RecoveryAttempt:
 class RecoveryResult:
     """一组恢复尝试的汇总结果。"""
 
-    __slots__ = ("attempts", "all_succeeded", "timestamp")
+    __slots__ = ("all_succeeded", "attempts", "timestamp")
 
     def __init__(self, attempts: list[RecoveryAttempt]) -> None:
         self.attempts = attempts
         self.all_succeeded = all(a.status == RecoveryStatus.SUCCESS for a in attempts)
-        self.timestamp = datetime.now(timezone.utc)
+        self.timestamp = datetime.now(UTC)
 
     def to_dict(self) -> dict[str, Any]:
         return {

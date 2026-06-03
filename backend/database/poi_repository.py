@@ -113,19 +113,17 @@ class POIRepository:
         filters = filters or {}
         query = select(POI)
 
-        if "city" in filters and filters["city"]:
+        if filters.get("city"):
             query = query.where(POI.city == filters["city"])
-        if "category" in filters and filters["category"]:
+        if filters.get("category"):
             query = query.where(POI.category == filters["category"])
         if "min_rating" in filters:
             query = query.where(POI.rating >= filters["min_rating"])
         if "max_price" in filters:
-            query = query.where(
-                (POI.avg_price <= filters["max_price"]) | (POI.avg_price.is_(None))
-            )
+            query = query.where((POI.avg_price <= filters["max_price"]) | (POI.avg_price.is_(None)))
         if "queue_prone" in filters:
             query = query.where(POI.queue_prone == filters["queue_prone"])
-        if "tags" in filters and filters["tags"]:
+        if filters.get("tags"):
             # tags 是 JSONB 数组，使用 PostgreSQL @> 或 ? 操作符
             # 这里用简单方式：对每个 tag 做 contains 过滤
             for tag in filters["tags"]:

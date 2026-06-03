@@ -190,9 +190,9 @@ class PoolMonitor:
                 result["database"] = db_stats
 
                 # 健康判定: checkedout 不超过 pool_size + max_overflow
-                pool_ok = db_stats["checkedout"] <= db_stats[
-                    "pool_size"
-                ] + db_stats.get("overflow", 0)
+                pool_ok = db_stats["checkedout"] <= db_stats["pool_size"] + db_stats.get(
+                    "overflow", 0
+                )
                 POOL_HEALTH_STATUS.labels(pool_type="database").set(1 if pool_ok else 0)
             except Exception:
                 logger.exception("获取数据库连接池指标失败")

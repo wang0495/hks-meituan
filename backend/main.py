@@ -3,42 +3,65 @@
 from __future__ import annotations
 
 import asyncio
-import json
 import logging
 import uuid
 from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import Any
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from fastapi.staticfiles import StaticFiles
+
 from backend.config import settings
-from backend.schemas import AdjustRequest, HealthResponse, PlanRequest
 from backend.docs import custom_openapi, register_docs_endpoints
 from backend.errors import CityFlowException, ErrorCode
-from backend.middleware import (APIVersionMiddleware, ConfigMiddleware,
-                                InputValidationMiddleware,
-                                PrometheusMiddleware, RateLimitMiddleware,
-                                SecurityHeadersMiddleware, SessionMiddleware,
-                                ShutdownMiddleware, setup_error_handlers)
-from backend.utils.sse_helpers import (
-    generate_simplified_route as _generate_simplified_route,
-    sse as _sse,
-    with_timeout as _with_timeout,
+from backend.middleware import (
+    APIVersionMiddleware,
+    ConfigMiddleware,
+    InputValidationMiddleware,
+    PrometheusMiddleware,
+    RateLimitMiddleware,
+    SecurityHeadersMiddleware,
+    SessionMiddleware,
+    ShutdownMiddleware,
+    setup_error_handlers,
 )
 from backend.middleware.auth import APIKeyAuthMiddleware
-from backend.routers import (audit, data, health, llm, mq, poi, pool, registry,
-                             session, sse, tasks, v1, v2, websocket)
+from backend.routers import (
+    audit,
+    data,
+    health,
+    llm,
+    mq,
+    poi,
+    pool,
+    registry,
+    session,
+    sse,
+    tasks,
+    v1,
+    v2,
+    websocket,
+)
 from backend.routers.graphql import router as graphql_router
 from backend.routers.metrics import router as metrics_router
-from backend.services.cache import (close_multilevel_cache, distance_cache,
-                                    general_cache, get_multilevel_cache,
-                                    init_multilevel_cache, poi_cache,
-                                    profile_cache, route_cache)
+from backend.schemas import AdjustRequest, HealthResponse, PlanRequest
+from backend.services.cache import (
+    close_multilevel_cache,
+    distance_cache,
+    general_cache,
+    get_multilevel_cache,
+    init_multilevel_cache,
+    poi_cache,
+    profile_cache,
+    route_cache,
+)
 from backend.services.cache_warmup import warmup_memory_caches
 from backend.services.data_service import load_data
+from backend.utils.sse_helpers import (
+    sse as _sse,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -164,6 +187,7 @@ async def lifespan(app: FastAPI):
     # 初始化 Sentry（DSN 未配置时自动跳过）
     try:
         from backend.monitoring.sentry import init_sentry
+
         init_sentry()
     except Exception as e:
         logger.debug("Sentry初始化失败: %s", e)
@@ -230,8 +254,7 @@ async def lifespan(app: FastAPI):
         logger.info("API Key 认证已启用")
     else:
         logger.warning(
-            "SECURITY_API_KEY 未设置 — 管理端点无认证保护。"
-            "建议在.env中设置 SECURITY_API_KEY"
+            "SECURITY_API_KEY 未设置 — 管理端点无认证保护。" "建议在.env中设置 SECURITY_API_KEY"
         )
 
     logger.info("CityFlow API 启动完成 | %s", get_config_summary(settings))
@@ -430,12 +453,14 @@ app.include_router(graphql_router)
 
 _quick_client = None
 
+
 async def _quick_llm(prompt: str, max_tokens: int = 50) -> str:
     """快速调一次 LLM，用于生成用户可见的进度文案。失败返回空字符串。"""
     global _quick_client
     try:
         if _quick_client is None:
             from openai import AsyncOpenAI
+
             _quick_client = AsyncOpenAI(
                 base_url=settings.llm.base_url,
                 api_key=settings.llm.api_key,
@@ -458,10 +483,22 @@ async def _generate_greeting(user_input: str) -> str:
     """生成个性化开场白（即时，规则匹配），作为用户看到的第一个有意义文字。"""
     # 规则匹配，0延迟 —— LLM 调用留给后续周期性进度播报
     keywords = {
-        "海边": "🌊", "散步": "🚶", "美食": "🍜", "咖啡": "☕",
-        "亲子": "👨‍👩‍👧", "约会": "💕", "购物": "🛍", "文化": "🏛",
-        "公园": "🌿", "夜景": "🌃", "登山": "⛰", "海岛": "🏝",
-        "浪漫": "💕", "历史": "🏛", "艺术": "🎨", "自然": "🌿",
+        "海边": "🌊",
+        "散步": "🚶",
+        "美食": "🍜",
+        "咖啡": "☕",
+        "亲子": "👨‍👩‍👧",
+        "约会": "💕",
+        "购物": "🛍",
+        "文化": "🏛",
+        "公园": "🌿",
+        "夜景": "🌃",
+        "登山": "⛰",
+        "海岛": "🏝",
+        "浪漫": "💕",
+        "历史": "🏛",
+        "艺术": "🎨",
+        "自然": "🌿",
     }
     emoji = "✈️"
     for kw, em in keywords.items():
@@ -593,7 +630,7 @@ async def plan_route(request: PlanRequest):
             # （intent 解析、偏好、权重全部在 graph 内 rule_guard 中完成）
             # ══════════════════════════════════════════════════
             try:
-                from backend.agents_v3 import get_graph_c, TravelState
+                from backend.agents_v3 import TravelState, get_graph_c
 
                 yield _sse("phase", {"phase": "agents", "message": "7个智能体正在并行规划..."})
 
@@ -629,7 +666,9 @@ async def plan_route(request: PlanRequest):
                         if summary:
                             _agent_summary_ref[0] = ""
                             try:
-                                progress = await _generate_progress("智能体协作规划中", summary[-80:])
+                                progress = await _generate_progress(
+                                    "智能体协作规划中", summary[-80:]
+                                )
                                 if progress:
                                     await sse_queue.put(("chat", {"text": progress}))
                             except Exception:
@@ -639,15 +678,19 @@ async def plan_route(request: PlanRequest):
 
                 while not graph_task.done():
                     try:
-                        event_type, event_data = await asyncio.wait_for(sse_queue.get(), timeout=0.3)
+                        event_type, event_data = await asyncio.wait_for(
+                            sse_queue.get(), timeout=0.3
+                        )
                         yield _sse(event_type, event_data)
                         # 追踪 agent 状态用于进度播报
                         if event_type == "agent_start":
-                            _agent_summary_ref[0] += f"启动{event_data.get('name', event_data.get('agent', ''))}、"
+                            _agent_summary_ref[
+                                0
+                            ] += f"启动{event_data.get('name', event_data.get('agent', ''))}、"
                         elif event_type == "agent_result":
                             _agent_summary_ref[0] += f"完成{event_data.get('summary', '')}、"
                         await asyncio.sleep(0)  # yield control → flush to network
-                    except asyncio.TimeoutError:
+                    except TimeoutError:
                         pass
 
                 # 取消进度播报任务
@@ -682,22 +725,30 @@ async def plan_route(request: PlanRequest):
                     # steps 已由 synthesizer 实时推送，直接发 done
                     route_id = uuid.uuid4().hex[:8]
                     if multi_routes and len(multi_routes) > 1:
-                        yield _sse("done", {
-                            "route_id": route_id,
-                            "full_route": {"days": multi_routes},
-                            "num_days": num_days,
-                            "version": "C-分布式智能体",
-                        })
-                        route_cache.set(route_id, {"days": multi_routes, "user_intent": user_intent})
+                        yield _sse(
+                            "done",
+                            {
+                                "route_id": route_id,
+                                "full_route": {"days": multi_routes},
+                                "num_days": num_days,
+                                "version": "C-分布式智能体",
+                            },
+                        )
+                        route_cache.set(
+                            route_id, {"days": multi_routes, "user_intent": user_intent}
+                        )
                     else:
                         if not c_steps:
                             logger.warning("C版本返回空路线，降级到原管线")
                             raise RuntimeError("C版本空路线")
-                        yield _sse("done", {
-                            "route_id": route_id,
-                            "full_route": c_route,
-                            "version": "C-分布式智能体",
-                        })
+                        yield _sse(
+                            "done",
+                            {
+                                "route_id": route_id,
+                                "full_route": c_route,
+                                "version": "C-分布式智能体",
+                            },
+                        )
                         c_route["narrative"] = c_narrative
                         c_route["user_intent"] = user_intent
                         route_cache.set(route_id, c_route)
@@ -726,12 +777,15 @@ async def plan_route(request: PlanRequest):
                         yield _sse("day_end", {"day": day_num})
 
                     route_id = uuid.uuid4().hex[:8]
-                    yield _sse("done", {
-                        "route_id": route_id,
-                        "full_route": {"days": multi_routes},
-                        "num_days": num_days,
-                        "version": "C-分布式智能体",
-                    })
+                    yield _sse(
+                        "done",
+                        {
+                            "route_id": route_id,
+                            "full_route": {"days": multi_routes},
+                            "num_days": num_days,
+                            "version": "C-分布式智能体",
+                        },
+                    )
                     route_cache.set(route_id, {"days": multi_routes, "user_intent": user_intent})
                     return
 
@@ -744,12 +798,15 @@ async def plan_route(request: PlanRequest):
                 if settings.debug:
                     proposals = c_result.get("proposals", [])
                     agent_types = list(set(p.get("agent", "?") for p in proposals))
-                    yield _sse("debug_agents", {
-                        "version": "C",
-                        "agent_count": len(proposals),
-                        "agents": agent_types,
-                        "conflicts": len(c_result.get("conflicts", [])),
-                    })
+                    yield _sse(
+                        "debug_agents",
+                        {
+                            "version": "C",
+                            "agent_count": len(proposals),
+                            "agents": agent_types,
+                            "conflicts": len(c_result.get("conflicts", [])),
+                        },
+                    )
 
                 # 逐步返回步骤（兼容前端SSE格式）
                 n_steps = c_narrative.get("steps", []) if c_narrative else []
@@ -761,7 +818,9 @@ async def plan_route(request: PlanRequest):
                         "arrival_time": step.get("arrival_time"),
                         "departure_time": step.get("departure_time"),
                         "narrative": ns.get("description", "") if isinstance(ns, dict) else str(ns),
-                        "emotion_design": ns.get("emotion_design", "") if isinstance(ns, dict) else "",
+                        "emotion_design": (
+                            ns.get("emotion_design", "") if isinstance(ns, dict) else ""
+                        ),
                         "scene_tags": step.get("poi", {}).get("_scene_tags", []),
                     }
                     yield _sse("step", step_data)
@@ -769,11 +828,14 @@ async def plan_route(request: PlanRequest):
 
                 # 完成
                 route_id = uuid.uuid4().hex[:8]
-                yield _sse("done", {
-                    "route_id": route_id,
-                    "full_route": c_route,
-                    "version": "C-分布式智能体",
-                })
+                yield _sse(
+                    "done",
+                    {
+                        "route_id": route_id,
+                        "full_route": c_route,
+                        "version": "C-分布式智能体",
+                    },
+                )
 
                 # 缓存route用于对话
                 c_route["narrative"] = c_narrative
@@ -898,12 +960,11 @@ async def get_route(route_id: str):
 def _deep_copy_route(route: dict) -> dict:
     """深拷贝路线数据（用于保存调整前快照）。"""
     import copy
+
     return copy.deepcopy(route)
 
 
-def _generate_changes_summary(
-    previous_route: dict, new_route: dict, changes_made: list
-) -> str:
+def _generate_changes_summary(previous_route: dict, new_route: dict, changes_made: list) -> str:
     """生成变更摘要。"""
     summaries = []
     for change in changes_made:
@@ -976,6 +1037,7 @@ async def adjust_route(route_id: str, instruction: str):
     if result.get("changes_made") and user_intent.get("_user_id"):
         try:
             from backend.services.preference_manager import PreferenceManager
+
             pref_mgr = PreferenceManager.from_user_id(user_intent["_user_id"])
             await pref_mgr._ensure_init()
             await pref_mgr.record_feedback(
@@ -1057,9 +1119,7 @@ async def adjust_route(route_id: str, instruction: str):
                             "value": {
                                 "reply": "好的，我帮你调整为轻松型行程，增加休息时间。",
                                 "route": {"route": [], "emotion_curve": []},
-                                "changes_made": [
-                                    {"type": "pace", "new_pace": "闲逛型"}
-                                ],
+                                "changes_made": [{"type": "pace", "new_pace": "闲逛型"}],
                             },
                         },
                     },
@@ -1119,6 +1179,7 @@ async def dialogue(session_id: str, request: AdjustRequest):
             session = await dialogue_engine.get_session(session_id)
             if session and session.user_intent.get("_user_id"):
                 from backend.services.preference_manager import PreferenceManager
+
                 pref_mgr = PreferenceManager.from_user_id(session.user_intent["_user_id"])
                 await pref_mgr._ensure_init()
                 await pref_mgr.record_feedback(
@@ -1184,4 +1245,3 @@ async def cache_stats():
 FRONTEND_DIR = Path(__file__).parent.parent / "frontend"
 _static = StaticFiles(directory=str(FRONTEND_DIR), html=True)
 app.mount("/", _static, name="frontend")
-

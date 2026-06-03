@@ -10,7 +10,8 @@ import functools
 import logging
 import time
 from collections import defaultdict
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -18,7 +19,7 @@ logger = logging.getLogger(__name__)
 class ProfilerStats:
     """单个函数的统计数据。"""
 
-    __slots__ = ("count", "total", "min", "max")
+    __slots__ = ("count", "max", "min", "total")
 
     def __init__(self) -> None:
         self.count: int = 0
@@ -147,9 +148,7 @@ def get_profiler() -> Profiler:
     return _profiler
 
 
-def profile(
-    name: str | None = None, *, slow_threshold: float | None = None
-) -> Callable:
+def profile(name: str | None = None, *, slow_threshold: float | None = None) -> Callable:
     """性能分析装饰器（异步函数）。
 
     用法::
@@ -180,9 +179,7 @@ def profile(
                 _profiler.record(func_name, duration)
 
                 threshold = (
-                    slow_threshold
-                    if slow_threshold is not None
-                    else _profiler._slow_threshold
+                    slow_threshold if slow_threshold is not None else _profiler._slow_threshold
                 )
                 if duration > threshold:
                     logger.warning("慢函数: %s - %.3fs", func_name, duration)
@@ -197,9 +194,7 @@ def profile(
                 _profiler.record(func_name, duration)
 
                 threshold = (
-                    slow_threshold
-                    if slow_threshold is not None
-                    else _profiler._slow_threshold
+                    slow_threshold if slow_threshold is not None else _profiler._slow_threshold
                 )
                 if duration > threshold:
                     logger.warning("慢函数: %s - %.3fs", func_name, duration)

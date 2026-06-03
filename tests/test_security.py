@@ -11,7 +11,6 @@ from unittest.mock import MagicMock, patch
 
 from backend.security.scanner import ScanResult, SecurityScanner
 
-
 # ---------------------------------------------------------------------------
 # ScanResult 数据类测试
 # ---------------------------------------------------------------------------
@@ -463,9 +462,7 @@ class TestGenerateReport:
         mock_safety: MagicMock,
         mock_pip_audit: MagicMock,
     ) -> None:
-        mock_bandit.return_value = ScanResult(
-            tool="bandit", success=False, error="未安装"
-        )
+        mock_bandit.return_value = ScanResult(tool="bandit", success=False, error="未安装")
         mock_safety.return_value = ScanResult(tool="safety", success=True)
         mock_pip_audit.return_value = ScanResult(tool="pip-audit", success=True)
 

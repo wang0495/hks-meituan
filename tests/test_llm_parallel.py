@@ -9,12 +9,10 @@
 from __future__ import annotations
 
 import asyncio
-from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
 from backend.sse.stream import SSEStream
-
 
 # ---------------------------------------------------------------------------
 # Mock 数据
@@ -74,12 +72,29 @@ def _mock_template_narrative() -> dict:
     return {
         "opening": "开启一段美好旅程",
         "steps": [
-            {"description": "景点A模板描述", "emotion_design": "宁静", "design_intent": "开场预热", "leverage": "高", "cost": 0},
-            {"description": "景点B模板描述", "emotion_design": "兴奋", "design_intent": "渐入佳境", "leverage": "中", "cost": 30},
+            {
+                "description": "景点A模板描述",
+                "emotion_design": "宁静",
+                "design_intent": "开场预热",
+                "leverage": "高",
+                "cost": 0,
+            },
+            {
+                "description": "景点B模板描述",
+                "emotion_design": "兴奋",
+                "design_intent": "渐入佳境",
+                "leverage": "中",
+                "cost": 30,
+            },
         ],
         "closing": "完美收尾",
         "emotion_highlights": [],
-        "budget_breakdown": {"total": 30, "budget_limit": 500, "remaining": 470, "leverage_summary": {}},
+        "budget_breakdown": {
+            "total": 30,
+            "budget_limit": 500,
+            "remaining": 470,
+            "leverage_summary": {},
+        },
     }
 
 
@@ -88,12 +103,29 @@ def _mock_polished_narrative() -> dict:
     return {
         "opening": "开启一段美好旅程",
         "steps": [
-            {"description": "景点A LLM润色版描述 ✨", "emotion_design": "宁静", "design_intent": "开场预热", "leverage": "高", "cost": 0},
-            {"description": "景点B LLM润色版描述 ✨", "emotion_design": "兴奋", "design_intent": "渐入佳境", "leverage": "中", "cost": 30},
+            {
+                "description": "景点A LLM润色版描述 ✨",
+                "emotion_design": "宁静",
+                "design_intent": "开场预热",
+                "leverage": "高",
+                "cost": 0,
+            },
+            {
+                "description": "景点B LLM润色版描述 ✨",
+                "emotion_design": "兴奋",
+                "design_intent": "渐入佳境",
+                "leverage": "中",
+                "cost": 30,
+            },
         ],
         "closing": "完美收尾",
         "emotion_highlights": [],
-        "budget_breakdown": {"total": 30, "budget_limit": 500, "remaining": 470, "leverage_summary": {}},
+        "budget_breakdown": {
+            "total": 30,
+            "budget_limit": 500,
+            "remaining": 470,
+            "leverage_summary": {},
+        },
     }
 
 
@@ -176,7 +208,9 @@ class TestSSEParallelFlow:
         async def polish_task() -> None:
             result = await slow_polish()
             for i, step_data in enumerate(result.get("steps", [])):
-                await stream.send("step_update", {"index": i + 1, "description": step_data["description"]})
+                await stream.send(
+                    "step_update", {"index": i + 1, "description": step_data["description"]}
+                )
 
         task = asyncio.create_task(polish_task())
         await task
@@ -212,7 +246,7 @@ class TestSSEParallelFlow:
         # 后台执行（设置超时）
         try:
             result = await asyncio.wait_for(timeout_polish(), timeout=0.1)
-        except asyncio.TimeoutError:
+        except TimeoutError:
             # 超时是预期行为，保留模板文案
             pass
 
@@ -223,7 +257,7 @@ class TestSSEParallelFlow:
     @pytest.mark.asyncio
     async def test_sse_route_endpoint_imports(self) -> None:
         """SSE 路由模块可导入（验证 syntax 正确）。"""
-        from backend.routers import sse  # noqa: F811
+        from backend.routers import sse
 
         assert hasattr(sse, "plan_route_stream")
         assert hasattr(sse, "router")

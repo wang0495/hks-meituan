@@ -15,7 +15,6 @@ import json
 from collections import Counter
 
 from backend.agents_v3.experts.base import (
-    sse_expert,
     _food_intent_hint,
     _haversine_km,
     _is_likely_macau,
@@ -24,9 +23,9 @@ from backend.agents_v3.experts.base import (
     _proposal,
     _sanitize_for_prompt,
     _tag_similarity,
+    sse_expert,
 )
 from backend.agents_v3.state import TravelState
-
 
 # ---------------------------------------------------------------------------
 # Food subcategory definitions
@@ -45,8 +44,26 @@ _LIANGCHA_KWS = ["凉茶", "草本", "龟苓膏", "苦茶"]
 _FOOD_CATS = ["餐饮", "美食", "小吃", "海鲜", "餐厅", "夜市", "茶餐厅", "甜品", "饮品"]
 
 _FOOD_NAMES = [
-    "餐厅", "海鲜", "烧", "煲", "粉", "面", "火锅", "烧烤", "夜市", "粥", "蚝", "排档",
-    "甜品", "奶茶", "冰", "茶餐厅", "柠檬", "美食街", "海鲜街", "老街",
+    "餐厅",
+    "海鲜",
+    "烧",
+    "煲",
+    "粉",
+    "面",
+    "火锅",
+    "烧烤",
+    "夜市",
+    "粥",
+    "蚝",
+    "排档",
+    "甜品",
+    "奶茶",
+    "冰",
+    "茶餐厅",
+    "柠檬",
+    "美食街",
+    "海鲜街",
+    "老街",
 ]
 
 # Fixed LLM system prefix (cache-friendly -- kept at module level)
@@ -96,8 +113,7 @@ def _check_food_diversity_issues(
         return []
 
     subcats = [
-        _get_food_subcat(p.get("content", {}).get("name", ""), subcat_defs)
-        for p in proposals
+        _get_food_subcat(p.get("content", {}).get("name", ""), subcat_defs) for p in proposals
     ]
     counts = Counter(subcats)
     issues: list[str] = []
@@ -150,7 +166,9 @@ def _match_food_picks(picks_data: list[dict], foods: list[dict]) -> list[dict]:
                     break
         if content:
             matched.append(
-                _proposal("food", content, pick.get("confidence", 0.7), pick.get("reason", "LLM推荐"))
+                _proposal(
+                    "food", content, pick.get("confidence", 0.7), pick.get("reason", "LLM推荐")
+                )
             )
     return matched
 
@@ -258,8 +276,10 @@ async def food_expert(state: TravelState) -> dict:
     foods: list[dict] = [
         c
         for c in all_pois
-        if (any(kw in c.get("category", "") for kw in _FOOD_CATS)
-            or any(kw in c.get("name", "") for kw in _FOOD_NAMES))
+        if (
+            any(kw in c.get("category", "") for kw in _FOOD_CATS)
+            or any(kw in c.get("name", "") for kw in _FOOD_NAMES)
+        )
         and c.get("category", "") not in ["购物", "酒店", "住宿"]
         and not _is_likely_macau(c.get("name", ""))
         and c.get("rating") is not None
@@ -291,12 +311,14 @@ async def food_expert(state: TravelState) -> dict:
         if c.get("category", "") not in ["住宿", "酒店", "民宿", "餐饮", "美食"]:
             lat, lng = c.get("lat", 0), c.get("lng", 0)
             if lat and lng:
-                poi_locations.append({
-                    "name": c.get("name", ""),
-                    "lat": round(lat, 3),
-                    "lng": round(lng, 3),
-                    "category": c.get("category", ""),
-                })
+                poi_locations.append(
+                    {
+                        "name": c.get("name", ""),
+                        "lat": round(lat, 3),
+                        "lng": round(lng, 3),
+                        "category": c.get("category", ""),
+                    }
+                )
 
     # POI cluster center (for rule scoring)
     _poi_center: tuple[float, float] | None = None
@@ -321,7 +343,8 @@ async def food_expert(state: TravelState) -> dict:
     seen_names: set[str] = set()
     for sub_name, kws in _FOOD_SUBCATS.items():
         bucket = [
-            f for f in foods
+            f
+            for f in foods
             if any(kw in f.get("name", "") or kw in f.get("category", "") for kw in kws)
             and f.get("name", "") not in seen_names
         ]
@@ -404,7 +427,9 @@ async def food_expert(state: TravelState) -> dict:
 
     result = await _llm_decide(system, user)
 
-    proposals = _match_food_picks(result.get("picks", []), foods) if result and "picks" in result else []
+    proposals = (
+        _match_food_picks(result.get("picks", []), foods) if result and "picks" in result else []
+    )
 
     # ── Post-hoc diversity check + retry (up to 3 rounds) ──
     for _ in range(3):
@@ -413,19 +438,18 @@ async def food_expert(state: TravelState) -> dict:
             break
         current_info = [
             f"{p['content']['name']}({_get_food_subcat(p['content']['name'])})"
-            for p in proposals if p.get("content", {}).get("name")
+            for p in proposals
+            if p.get("content", {}).get("name")
         ]
         # 找出已占用的子类，引导LLM从其他子类选
         used_subcats = set(
             _get_food_subcat(p.get("content", {}).get("name", ""))
-            for p in proposals if p.get("content", {}).get("name")
+            for p in proposals
+            if p.get("content", {}).get("name")
         )
         needed_subcats = [s for s in _FOOD_SUBCATS if s not in used_subcats]
         # 过滤候选：优先展示未占用子类的候选
-        diverse_summaries = [
-            s for s in summaries
-            if s.get("type") in needed_subcats
-        ]
+        diverse_summaries = [s for s in summaries if s.get("type") in needed_subcats]
         # 补上其他候选
         other_summaries = [s for s in summaries if s not in diverse_summaries]
         prioritized = diverse_summaries + other_summaries

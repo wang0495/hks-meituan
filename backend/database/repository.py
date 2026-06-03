@@ -6,13 +6,12 @@
 from __future__ import annotations
 
 import uuid
-from typing import Sequence
+from collections.abc import Sequence
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.database.models import (Dialogue, Route, RouteStep, User,
-                                     UserPreference)
+from backend.database.models import Dialogue, Route, RouteStep, User, UserPreference
 
 # ---------------------------------------------------------------------------
 # 用户 Repository
@@ -38,9 +37,7 @@ class UserRepository:
         result = await self.db.execute(select(User).where(User.id == user_id))
         return result.scalar_one_or_none()
 
-    async def update_preferences(
-        self, user_id: uuid.UUID, preferences: dict
-    ) -> User | None:
+    async def update_preferences(self, user_id: uuid.UUID, preferences: dict) -> User | None:
         """更新用户偏好。"""
         user = await self.get(user_id)
         if user is not None:
@@ -141,9 +138,7 @@ class RouteStepRepository:
     def __init__(self, db: AsyncSession) -> None:
         self.db = db
 
-    async def bulk_create(
-        self, route_id: uuid.UUID, steps: list[dict]
-    ) -> list[RouteStep]:
+    async def bulk_create(self, route_id: uuid.UUID, steps: list[dict]) -> list[RouteStep]:
         """批量创建路线步骤。
 
         steps 中每个 dict 应包含：
@@ -160,15 +155,11 @@ class RouteStepRepository:
     async def get_by_route(self, route_id: uuid.UUID) -> Sequence[RouteStep]:
         """获取路线的所有步骤（按 step_index 排序）。"""
         result = await self.db.execute(
-            select(RouteStep)
-            .where(RouteStep.route_id == route_id)
-            .order_by(RouteStep.step_index)
+            select(RouteStep).where(RouteStep.route_id == route_id).order_by(RouteStep.step_index)
         )
         return result.scalars().all()
 
-    async def replace_all(
-        self, route_id: uuid.UUID, steps: list[dict]
-    ) -> list[RouteStep]:
+    async def replace_all(self, route_id: uuid.UUID, steps: list[dict]) -> list[RouteStep]:
         """替换路线的全部步骤（先删后插）。"""
         old_steps = await self.get_by_route(route_id)
         for s in old_steps:
@@ -209,9 +200,7 @@ class DialogueRepository:
         await self.db.refresh(dialogue)
         return dialogue
 
-    async def get_session_messages(
-        self, session_id: str, limit: int = 100
-    ) -> Sequence[Dialogue]:
+    async def get_session_messages(self, session_id: str, limit: int = 100) -> Sequence[Dialogue]:
         """获取会话的全部消息（按时间排序）。"""
         result = await self.db.execute(
             select(Dialogue)
@@ -224,9 +213,7 @@ class DialogueRepository:
     async def get_route_dialogues(self, route_id: uuid.UUID) -> Sequence[Dialogue]:
         """获取路线关联的所有对话。"""
         result = await self.db.execute(
-            select(Dialogue)
-            .where(Dialogue.route_id == route_id)
-            .order_by(Dialogue.created_at)
+            select(Dialogue).where(Dialogue.route_id == route_id).order_by(Dialogue.created_at)
         )
         return result.scalars().all()
 
@@ -271,9 +258,7 @@ class UserPreferenceRepository:
         await self.db.refresh(pref)
         return pref
 
-    async def get(
-        self, user_id: uuid.UUID, preference_type: str
-    ) -> UserPreference | None:
+    async def get(self, user_id: uuid.UUID, preference_type: str) -> UserPreference | None:
         """获取指定类型的偏好。"""
         result = await self.db.execute(
             select(UserPreference).where(

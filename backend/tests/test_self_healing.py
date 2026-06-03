@@ -3,11 +3,14 @@
 from __future__ import annotations
 
 import pytest
-
 from backend.resilience.fault_detector import FaultDetector
-from backend.resilience.self_healing import (DegradationLevel, HealingAttempt,
-                                             HealingStatus, SelfHealing,
-                                             get_self_healing)
+from backend.resilience.self_healing import (
+    DegradationLevel,
+    HealingAttempt,
+    HealingStatus,
+    SelfHealing,
+    get_self_healing,
+)
 
 
 @pytest.fixture
@@ -79,9 +82,7 @@ class TestSelfHealing:
             nonlocal degraded_level
             degraded_level = level
 
-        healing.register_service(
-            "svc", recovery=mock_recovery, degradation=mock_degradation
-        )
+        healing.register_service("svc", recovery=mock_recovery, degradation=mock_degradation)
         attempt = await healing.heal("svc")
 
         assert attempt.status == HealingStatus.DEGRADED
@@ -137,9 +138,7 @@ class TestSelfHealing:
         assert results == []
 
     @pytest.mark.asyncio
-    async def test_heal_all_faulty(
-        self, healing: SelfHealing, detector: FaultDetector
-    ) -> None:
+    async def test_heal_all_faulty(self, healing: SelfHealing, detector: FaultDetector) -> None:
         async def mock_recovery() -> None:
             pass
 
@@ -268,9 +267,7 @@ class TestSelfHealing:
     async def test_determine_degradation_level_critical(
         self, healing: SelfHealing, detector: FaultDetector
     ) -> None:
-        for _ in range(
-            2
-        ):  # 2/3 = ~67%, should be WARNING not CRITICAL with threshold=3
+        for _ in range(2):  # 2/3 = ~67%, should be WARNING not CRITICAL with threshold=3
             detector.record_failure("svc")
         level = healing._determine_degradation_level("svc")
         assert level == DegradationLevel.LIGHT

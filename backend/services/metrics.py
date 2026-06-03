@@ -22,9 +22,7 @@ REQUEST_LATENCY = Histogram(
 )
 
 # 活跃会话数
-ACTIVE_SESSIONS = Gauge(
-    "cityflow_active_sessions", "Number of active dialogue sessions"
-)
+ACTIVE_SESSIONS = Gauge("cityflow_active_sessions", "Number of active dialogue sessions")
 
 # 路线规划计数
 ROUTE_COUNT = Counter("cityflow_routes_total", "Total routes planned", ["user_type"])

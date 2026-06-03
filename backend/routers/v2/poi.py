@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from typing import Optional
-
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
 
@@ -30,22 +28,18 @@ load_pois()
 class SearchRequestV2(BaseModel):
     """V2 POI 搜索请求（增强版，支持约束过滤）。"""
 
-    region: Optional[str] = Field(None, description="按城市筛选", examples=["北京"])
-    categories: Optional[list[str]] = Field(
-        None, description="按类别筛选", examples=[["景点"]]
-    )
-    tags: Optional[list[str]] = Field(None, description="按标签筛选（AND逻辑）")
-    keyword: Optional[str] = Field(None, description="按名称模糊搜索")
-    min_rating: Optional[float] = Field(None, ge=0, le=5, description="最低评分")
-    max_price: Optional[int] = Field(None, ge=0, description="最高人均消费")
+    region: str | None = Field(None, description="按城市筛选", examples=["北京"])
+    categories: list[str] | None = Field(None, description="按类别筛选", examples=[["景点"]])
+    tags: list[str] | None = Field(None, description="按标签筛选（AND逻辑）")
+    keyword: str | None = Field(None, description="按名称模糊搜索")
+    min_rating: float | None = Field(None, ge=0, le=5, description="最低评分")
+    max_price: int | None = Field(None, ge=0, description="最高人均消费")
     # V2 新增
-    exclude_ids: Optional[list[str]] = Field(None, description="排除的POI ID列表")
-    accessible: Optional[bool] = Field(None, description="仅返回无障碍通行的POI")
-    pet_friendly: Optional[bool] = Field(None, description="仅返回允许携带宠物的POI")
-    max_queue_time: Optional[int] = Field(
-        None, ge=0, description="最大排队时间（分钟）"
-    )
-    emotion_filter: Optional[dict] = Field(
+    exclude_ids: list[str] | None = Field(None, description="排除的POI ID列表")
+    accessible: bool | None = Field(None, description="仅返回无障碍通行的POI")
+    pet_friendly: bool | None = Field(None, description="仅返回允许携带宠物的POI")
+    max_queue_time: int | None = Field(None, ge=0, description="最大排队时间（分钟）")
+    emotion_filter: dict | None = Field(
         None,
         description="情绪标签过滤，如 {'excitement_min': 0.7, 'tranquility_min': 0.5}",
     )
@@ -83,8 +77,8 @@ class DistanceMatrixRequestV2(BaseModel):
 )
 async def search_pois_v2(
     request: SearchRequestV2,
-    lat: Optional[float] = Query(None, ge=-90, le=90, description="中心点纬度"),
-    lng: Optional[float] = Query(None, ge=-180, le=180, description="中心点经度"),
+    lat: float | None = Query(None, ge=-90, le=90, description="中心点纬度"),
+    lng: float | None = Query(None, ge=-180, le=180, description="中心点经度"),
 ) -> dict:
     """V2 版本的 POI 搜索（增强版）。"""
     results = apply_basic_filters(
@@ -117,15 +111,13 @@ async def search_pois_v2(
         results = [
             p
             for p in results
-            if p.get("constraints", {}).get("pet_friendly", False)
-            == request.pet_friendly
+            if p.get("constraints", {}).get("pet_friendly", False) == request.pet_friendly
         ]
     if request.max_queue_time is not None:
         results = [
             p
             for p in results
-            if p.get("constraints", {}).get("queue_time_min", 0)
-            <= request.max_queue_time
+            if p.get("constraints", {}).get("queue_time_min", 0) <= request.max_queue_time
         ]
 
     # 情绪标签过滤
@@ -142,15 +134,11 @@ async def search_pois_v2(
             max_key = f"{key}_max"
             if min_key in ef:
                 results = [
-                    p
-                    for p in results
-                    if p.get("emotion_tags", {}).get(key, 0) >= ef[min_key]
+                    p for p in results if p.get("emotion_tags", {}).get(key, 0) >= ef[min_key]
                 ]
             if max_key in ef:
                 results = [
-                    p
-                    for p in results
-                    if p.get("emotion_tags", {}).get(key, 1) <= ef[max_key]
+                    p for p in results if p.get("emotion_tags", {}).get(key, 1) <= ef[max_key]
                 ]
 
     return {"pois": results, "total": len(results)}

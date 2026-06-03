@@ -9,8 +9,13 @@ from fastapi import FastAPI
 from fastapi.openapi.docs import get_redoc_html, get_swagger_ui_html
 from fastapi.responses import HTMLResponse
 
-from backend.docs.config import (_FAVICON_URL, _REDOC_JS_URL, _SWAGGER_CSS_URL,
-                                 _SWAGGER_JS_URL, get_swagger_css_content)
+from backend.docs.config import (
+    _FAVICON_URL,
+    _REDOC_JS_URL,
+    _SWAGGER_CSS_URL,
+    _SWAGGER_JS_URL,
+    get_swagger_css_content,
+)
 
 
 def register_docs_endpoints(app: FastAPI) -> None:
@@ -43,11 +48,7 @@ def register_docs_endpoints(app: FastAPI) -> None:
         custom_css = get_swagger_css_content()
         if custom_css:
             style_tag = f'<style type="text/css">{custom_css}</style>'
-            body = (
-                base_html.body.decode("utf-8")
-                if hasattr(base_html, "body")
-                else str(base_html)
-            )
+            body = base_html.body.decode("utf-8") if hasattr(base_html, "body") else str(base_html)
             if "</head>" in body:
                 body = body.replace("</head>", f"{style_tag}</head>")
             return HTMLResponse(content=body)

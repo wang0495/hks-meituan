@@ -32,13 +32,17 @@ def _detect_budget_conflicts(proposals: list[dict], intent: dict) -> list[dict]:
     )
 
     if total > budget * 1.5:
-        return [{
-            "type": "budget",
-            "severity": "high" if total > budget * 2 else "medium",
-            "description": f"总花费{total}元，超预算{budget}元{(total/budget-1)*100:.0f}%",
-            "agents": [p["agent"] for p in proposals if p.get("content", {}).get("avg_price", 0) > 0],
-            "auto_resolvable": total <= budget * 2,
-        }]
+        return [
+            {
+                "type": "budget",
+                "severity": "high" if total > budget * 2 else "medium",
+                "description": f"总花费{total}元，超预算{budget}元{(total/budget-1)*100:.0f}%",
+                "agents": [
+                    p["agent"] for p in proposals if p.get("content", {}).get("avg_price", 0) > 0
+                ],
+                "auto_resolvable": total <= budget * 2,
+            }
+        ]
     return []
 
 
@@ -52,13 +56,15 @@ def _detect_theme_conflicts(proposals: list[dict], intent: dict) -> list[dict]:
     for p in proposals:
         content_str = str(p.get("content", {}))
         if any(kw in content_str for kw in ["酒吧", "夜店", "club", "夜市"]):
-            conflicts.append({
-                "type": "theme",
-                "severity": "high",
-                "description": f"亲子行程包含不适合儿童的活动: {p.get('content', {}).get('name', '')}",
-                "agents": [p.get("agent", "")],
-                "auto_resolvable": True,  # 自动移除
-            })
+            conflicts.append(
+                {
+                    "type": "theme",
+                    "severity": "high",
+                    "description": f"亲子行程包含不适合儿童的活动: {p.get('content', {}).get('name', '')}",
+                    "agents": [p.get("agent", "")],
+                    "auto_resolvable": True,  # 自动移除
+                }
+            )
     return conflicts
 
 
@@ -88,18 +94,24 @@ def _detect_geo_conflicts(proposals: list[dict]) -> list[dict]:
             R = 6371
             dlat = math.radians(p_lat - h_lat)
             dlng = math.radians(p_lng - h_lng)
-            a = (math.sin(dlat / 2) ** 2 +
-                 math.cos(math.radians(h_lat)) * math.cos(math.radians(p_lat)) * math.sin(dlng / 2) ** 2)
+            a = (
+                math.sin(dlat / 2) ** 2
+                + math.cos(math.radians(h_lat))
+                * math.cos(math.radians(p_lat))
+                * math.sin(dlng / 2) ** 2
+            )
             dist = R * 2 * math.asin(math.sqrt(a))
 
             if dist > 20:  # 超过20km标记冲突
-                conflicts.append({
-                    "type": "geo",
-                    "severity": "medium" if dist > 40 else "low",
-                    "description": f"住宿{hotel_content.get('name', '')}距景点{poi_content.get('name', '')}约{dist:.0f}km，较远",
-                    "agents": ["hotel", "poi"],
-                    "auto_resolvable": True,
-                })
+                conflicts.append(
+                    {
+                        "type": "geo",
+                        "severity": "medium" if dist > 40 else "low",
+                        "description": f"住宿{hotel_content.get('name', '')}距景点{poi_content.get('name', '')}约{dist:.0f}km，较远",
+                        "agents": ["hotel", "poi"],
+                        "auto_resolvable": True,
+                    }
+                )
     return conflicts
 
 
@@ -138,6 +150,5 @@ def resolve_conflicts(proposals: list[dict], conflicts: list[dict]) -> list[dict
 def should_escalate(conflicts: list[dict]) -> bool:
     """是否需要升级给用户。"""
     return any(
-        c.get("severity") == "high" and not c.get("auto_resolvable", False)
-        for c in conflicts
+        c.get("severity") == "high" and not c.get("auto_resolvable", False) for c in conflicts
     )

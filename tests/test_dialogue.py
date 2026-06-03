@@ -187,9 +187,7 @@ def engine() -> DialogueEngine:
 
 
 @pytest.fixture()
-async def state(
-    engine: DialogueEngine, pois: list[dict], sample_intent: dict
-) -> DialogueState:
+async def state(engine: DialogueEngine, pois: list[dict], sample_intent: dict) -> DialogueState:
     """已创建好的会话状态（路线包含 p1, p2）。"""
     route = _build_route([pois[0], pois[1]])
     return await engine.create_session("test_session", route, sample_intent)
@@ -590,9 +588,7 @@ class TestConvenienceFunctions:
     """模块级便捷函数测试。"""
 
     @pytest.mark.asyncio
-    async def test_create_and_process(
-        self, pois: list[dict], sample_intent: dict
-    ) -> None:
+    async def test_create_and_process(self, pois: list[dict], sample_intent: dict) -> None:
         """通过便捷函数创建会话并处理指令。"""
         from backend.services.dialogue import create_dialogue, process_dialogue
 

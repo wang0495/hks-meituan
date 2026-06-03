@@ -241,9 +241,7 @@ class TestDialogueEngineWithPersistence:
     """T-F002-02: DialogueEngine + Redis 持久化集成。"""
 
     @pytest.mark.asyncio
-    async def test_create_saves_to_redis(
-        self, engine_with_persistence: DialogueEngine
-    ) -> None:
+    async def test_create_saves_to_redis(self, engine_with_persistence: DialogueEngine) -> None:
         """创建会话时应持久化到 Redis。"""
         from fakeredis.aioredis import FakeRedis
 
@@ -261,9 +259,7 @@ class TestDialogueEngineWithPersistence:
         assert data["session_id"] == "s1"
 
     @pytest.mark.asyncio
-    async def test_restore_after_restart(
-        self, engine_with_persistence: DialogueEngine
-    ) -> None:
+    async def test_restore_after_restart(self, engine_with_persistence: DialogueEngine) -> None:
         """清理内存后，能从 Redis 恢复会话。"""
         from fakeredis.aioredis import FakeRedis
 

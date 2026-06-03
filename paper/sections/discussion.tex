@@ -3,7 +3,7 @@
 
 \subsection{Why Expert-Ensemble Over Single-LLM?}
 
-Single LLMs tend to anchor on the most common interpretation of user input. For food requests, they recommend the same popular restaurants regardless of sub-type diversity. Our expert decomposition forces diverse perspectives: the Food Expert explicitly balances sub-types (seafood, dim sum, street food, dessert, tea houses), while the Local Expert adds hidden gems that a single model would miss. The review loop catches cases where experts produce conflicting proposals. The ablation study (Table~\ref{tab:ablation}) confirms that scene-aware dispatch contributes +0.4 to overall score by activating domain-relevant experts.
+Single LLMs tend to anchor on the most common interpretation of user input. For food requests, they recommend the same popular restaurants regardless of sub-type diversity. Our expert decomposition forces diverse perspectives: the Food Expert explicitly balances sub-types (seafood, dim sum, street food, dessert, tea houses), while the Local Expert adds hidden gems that a single model would miss. The review loop catches cases where experts produce conflicting proposals. The optimization log (commit \texttt{d323625}) confirms that expert rule-ification (replacing LLM experts with fixed rules) caused regression from 4/5 to 3/5 pass rate, validating the value of LLM-based expert decomposition.
 
 This finding is consistent with the broader multi-agent literature~\cite{tran2025multiagent}, which shows that specialized agents outperform generalist agents on complex tasks. However, our system differs from general-purpose multi-agent frameworks~\cite{wu2023autogen,crewai2024} in that expert activation is determined by scene classification rather than free-form agent communication, providing more predictable and debuggable behavior.
 
@@ -45,7 +45,7 @@ A key architectural principle emerges from our work: \textit{LLMs should propose
 
 This principle extends beyond time allocation. Our geographic continuity checks use haversine distance calculations rather than LLM judgment, and our station count caps are enforced by code rather than prompt instructions. In each case, the LLM provides the semantic layer (``which POIs are relevant?'') while the algorithm provides the physical layer (``is this route feasible?'').
 
-The ablation study quantifies this: removing \texttt{\_smooth\_times()} causes the largest score drop ($-$0.8), larger than removing the review-rework loop ($-$0.6) or scene-aware dispatch ($-$0.4). This confirms that algorithmic validation of LLM outputs is more critical than the sophistication of the multi-agent architecture itself.
+The ablation analysis (Table~\ref{tab:ablation}) quantifies this: removing \texttt{\_smooth\_times()} caused the speed-run scenario to score F~(42) versus A~(85) with the fix, the largest single-factor improvement in our optimization history (commit \texttt{487f99a}). This confirms that algorithmic validation of LLM outputs is more critical than the sophistication of the multi-agent architecture itself.
 
 \subsection{Evaluation Methodology Matters}
 
@@ -57,8 +57,8 @@ This has implications for the broader LLM evaluation community: \textit{evaluati
 
 \begin{itemize}[leftmargin=*]
     \item \textbf{Static POI database}: The system operates on a pre-loaded dataset of 2000+ POIs. Real-time availability (restaurant wait times, traffic conditions, temporary closures) is not integrated. Future work could incorporate real-time data APIs.
-    \item \textbf{Limited geographic scope}: Currently optimized for Zhuhai (primary) and Guangzhou (secondary). Multi-city extension would require city-specific POI databases and potentially different expert weights. The 20-scenario evaluation includes cross-city variants but at limited scale.
-    \item \textbf{Evaluation LLM dependency}: Scoring relies on an external LLM judge, which introduces its own biases~\cite{gu2024llmjudge}. While our consistency analysis shows low variance (0.4 average), absolute scores may vary across different judge models.
+    \item \textbf{Limited geographic scope}: Currently optimized for Zhuhai only. Multi-city extension would require city-specific POI databases and potentially different expert weights.
+    \item \textbf{Evaluation LLM dependency}: Scoring relies on an external LLM judge, which introduces its own biases~\cite{gu2024llmjudge}. Our two-run comparison (Table~\ref{tab:consistency}) shows $\leq$1 point variation in overall scores, but absolute scores may vary across different judge models.
     \item \textbf{Latency}: The 54.4-second average end-to-end latency is dominated by LLM API calls. Further parallelization or model distillation could reduce this.
     \item \textbf{Expert-ensemble vs.\ classical MoE}: Our system uses rule-based expert dispatch rather than learned gating, which limits adaptability to novel scenario types. Exploring lightweight learned routers is a direction for future work.
     \item \textbf{No human evaluation}: All evaluations use LLM judges or algorithmic metrics. A user study comparing CityFlow routes against human-planned routes would strengthen the validity of our findings.

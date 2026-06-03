@@ -24,10 +24,10 @@ from backend.errors import CityFlowException, ErrorCode
 logger = logging.getLogger(__name__)
 
 __all__ = [
-    "CircuitState",
     "CircuitBreaker",
-    "CircuitBreakerOpenError",
     "CircuitBreakerMetrics",
+    "CircuitBreakerOpenError",
+    "CircuitState",
 ]
 
 F = TypeVar("F", bound=Callable[..., Any])
@@ -148,9 +148,7 @@ class CircuitBreaker:
         self,
         failure_threshold: int = 5,
         recovery_timeout: float = 30.0,
-        expected_exception: (
-            type[BaseException] | tuple[type[BaseException], ...]
-        ) = Exception,
+        expected_exception: type[BaseException] | tuple[type[BaseException], ...] = Exception,
         name: str = "default",
     ) -> None:
         self.failure_threshold = failure_threshold

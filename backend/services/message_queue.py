@@ -13,8 +13,9 @@ import asyncio
 import json
 import logging
 import uuid
+from collections.abc import Callable, Coroutine
 from datetime import datetime
-from typing import Any, Callable, Coroutine, Optional
+from typing import Any
 
 import redis.asyncio as aioredis
 
@@ -124,9 +125,7 @@ class MessageQueue:
         logger.info("消息已发布: queue=%s, id=%s", queue, msg.message_id)
         return msg
 
-    async def publish_many(
-        self, queue: str, payloads: list[dict[str, Any]]
-    ) -> list[Message]:
+    async def publish_many(self, queue: str, payloads: list[dict[str, Any]]) -> list[Message]:
         """批量发布消息，使用 pipeline 减少 RTT。"""
         messages = [Message(queue=queue, payload=p) for p in payloads]
         pipe = self._redis.pipeline()
@@ -210,9 +209,7 @@ class MessageQueue:
             消费者 asyncio.Task。
         """
         self._running = True
-        task = asyncio.create_task(
-            self.consume(queue, handler), name=f"mq-consumer-{queue}"
-        )
+        task = asyncio.create_task(self.consume(queue, handler), name=f"mq-consumer-{queue}")
         self._consumers[queue] = task
         logger.info("消费者 task 已创建: queue=%s", queue)
         return task
@@ -255,7 +252,7 @@ class MessageQueue:
 # 全局单例
 # ---------------------------------------------------------------------------
 
-_mq: Optional[MessageQueue] = None
+_mq: MessageQueue | None = None
 
 
 def get_message_queue() -> MessageQueue:

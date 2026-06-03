@@ -89,11 +89,7 @@ class PsychologyRules:
         consecutive_count = 0
 
         for i, step in enumerate(route):
-            excitement = (
-                step.get("poi", {})
-                .get("emotion_tags", {})
-                .get("excitement", 0)
-            )
+            excitement = step.get("poi", {}).get("emotion_tags", {}).get("excitement", 0)
 
             if excitement > 0.6:
                 consecutive_count += 1
@@ -123,9 +119,7 @@ class PsychologyRules:
         if not route or not scores:
             return list(scores)
 
-        prices = [
-            step.get("poi", {}).get("avg_price", 0) for step in route
-        ]
+        prices = [step.get("poi", {}).get("avg_price", 0) for step in route]
 
         # 过滤价格为 0 的（免费景点不影响基准线）
         non_zero = [p for p in prices if p > 0]

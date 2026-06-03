@@ -180,8 +180,7 @@ class PoolManager:
         threshold = self.config.utilization_warn_threshold
         if db_stats.utilization >= threshold:
             warnings.append(
-                f"数据库连接池使用率过高: {db_stats.utilization:.1%} "
-                f"(阈值 {threshold:.0%})"
+                f"数据库连接池使用率过高: {db_stats.utilization:.1%} " f"(阈值 {threshold:.0%})"
             )
 
         return {

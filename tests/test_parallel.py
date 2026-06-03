@@ -7,8 +7,7 @@ from typing import Any
 
 import pytest
 
-from backend.services.parallel import (parallel_filter, parallel_map,
-                                       parallel_solve, with_timeout)
+from backend.services.parallel import parallel_filter, parallel_map, parallel_solve, with_timeout
 
 # ---------------------------------------------------------------------------
 # parallel_filter 测试

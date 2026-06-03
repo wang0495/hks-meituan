@@ -40,7 +40,7 @@ import hashlib
 import json
 import logging
 import shutil
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import StrEnum
 from pathlib import Path
 from typing import Any
@@ -163,7 +163,7 @@ class DataBackup:
 
     def _create_backup_sync(self, name: str | None) -> str:
         """同步创建备份（在线程中运行）。"""
-        timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+        timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
         backup_name = name or f"backup_{timestamp}"
         backup_path = self._backup_dir / backup_name
 
@@ -419,9 +419,7 @@ class DataBackup:
         Raises:
             BackupError: 备份创建失败。
         """
-        return await asyncio.to_thread(
-            self._create_incremental_backup_sync, since, parent_backup
-        )
+        return await asyncio.to_thread(self._create_incremental_backup_sync, since, parent_backup)
 
     def _create_incremental_backup_sync(
         self,
@@ -437,7 +435,7 @@ class DataBackup:
                 return self._create_backup_sync(None)
             since = last_backup_time
 
-        timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+        timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
         backup_name = f"incr_{timestamp}"
         backup_path = self._backup_dir / backup_name
 
@@ -452,9 +450,7 @@ class DataBackup:
             if self._data_dir.exists():
                 dest_data = backup_path / _DATA_SUBDIR
                 for file_path in self._collect_files(self._data_dir):
-                    mtime = datetime.fromtimestamp(
-                        file_path.stat().st_mtime, tz=timezone.utc
-                    )
+                    mtime = datetime.fromtimestamp(file_path.stat().st_mtime, tz=UTC)
                     if mtime > since:
                         rel_path = file_path.relative_to(self._data_dir)
                         dest = dest_data / rel_path
@@ -467,9 +463,7 @@ class DataBackup:
             for cfg_name in _CONFIG_FILES:
                 cfg_path = Path(cfg_name)
                 if cfg_path.exists():
-                    mtime = datetime.fromtimestamp(
-                        cfg_path.stat().st_mtime, tz=timezone.utc
-                    )
+                    mtime = datetime.fromtimestamp(cfg_path.stat().st_mtime, tz=UTC)
                     if mtime > since:
                         shutil.copy(cfg_path, backup_path / cfg_name)
                         changed_files.append(cfg_name)
@@ -536,9 +530,7 @@ class DataBackup:
         if not timestamp_str:
             return None
         try:
-            return datetime.strptime(timestamp_str, "%Y%m%d_%H%M%S").replace(
-                tzinfo=timezone.utc
-            )
+            return datetime.strptime(timestamp_str, "%Y%m%d_%H%M%S").replace(tzinfo=UTC)
         except ValueError:
             return None
 

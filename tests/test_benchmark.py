@@ -16,7 +16,7 @@ import json
 import statistics
 import sys
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from httpx import ASGITransport, AsyncClient
@@ -75,9 +75,7 @@ class PerformanceBenchmark:
         print("=== CityFlow 性能基准测试 ===\n")
 
         transport = ASGITransport(app=app)
-        async with AsyncClient(
-            transport=transport, base_url="http://testserver"
-        ) as client:
+        async with AsyncClient(transport=transport, base_url="http://testserver") as client:
             await self.benchmark_health_check(client)
             await self.benchmark_poi_search(client)
             await self.benchmark_distance_matrix(client)
@@ -89,9 +87,7 @@ class PerformanceBenchmark:
 
     # ---- 1. 健康检查 ----
 
-    async def benchmark_health_check(
-        self, client: AsyncClient, iterations: int = 100
-    ) -> None:
+    async def benchmark_health_check(self, client: AsyncClient, iterations: int = 100) -> None:
         """健康检查基准。"""
         times: list[float] = []
         for _ in range(iterations):
@@ -106,9 +102,7 @@ class PerformanceBenchmark:
 
     # ---- 2. POI 搜索 ----
 
-    async def benchmark_poi_search(
-        self, client: AsyncClient, iterations: int = 50
-    ) -> None:
+    async def benchmark_poi_search(self, client: AsyncClient, iterations: int = 50) -> None:
         """POI 搜索基准。"""
         times: list[float] = []
         for _ in range(iterations):
@@ -125,9 +119,7 @@ class PerformanceBenchmark:
 
     # ---- 3. 距离矩阵 ----
 
-    async def benchmark_distance_matrix(
-        self, client: AsyncClient, iterations: int = 20
-    ) -> None:
+    async def benchmark_distance_matrix(self, client: AsyncClient, iterations: int = 20) -> None:
         """距离矩阵基准。"""
         # 先获取一些 POI
         resp = await client.post("/api/poi/search", json={"region": "珠海"})
@@ -142,9 +134,7 @@ class PerformanceBenchmark:
         times: list[float] = []
         for _ in range(iterations):
             start = time.perf_counter()
-            resp = await client.post(
-                "/api/poi/distance-matrix", json={"poi_ids": poi_ids}
-            )
+            resp = await client.post("/api/poi/distance-matrix", json={"poi_ids": poi_ids})
             times.append(time.perf_counter() - start)
             assert resp.status_code == 200, f"距离矩阵失败: {resp.status_code}"
 
@@ -156,9 +146,7 @@ class PerformanceBenchmark:
 
     # ---- 4. 路线规划（SSE） ----
 
-    async def benchmark_route_planning(
-        self, client: AsyncClient, iterations: int = 5
-    ) -> None:
+    async def benchmark_route_planning(self, client: AsyncClient, iterations: int = 5) -> None:
         """路线规划基准（SSE 流式端点）。"""
         times: list[float] = []
         first_event_times: list[float] = []
@@ -181,9 +169,7 @@ class PerformanceBenchmark:
                         async for line in resp.aiter_lines():
                             if line.startswith("event:") and first_event is None:
                                 first_event = time.perf_counter() - start
-                            if line.startswith("event: done") or line.startswith(
-                                "event: error"
-                            ):
+                            if line.startswith("event: done") or line.startswith("event: error"):
                                 break
             except Exception:
                 errors += 1
@@ -211,9 +197,7 @@ class PerformanceBenchmark:
 
     # ---- 5. 并发 ----
 
-    async def benchmark_concurrency(
-        self, client: AsyncClient, concurrent_users: int = 10
-    ) -> None:
+    async def benchmark_concurrency(self, client: AsyncClient, concurrent_users: int = 10) -> None:
         """并发基准。"""
 
         async def _single_request() -> float:
@@ -239,7 +223,7 @@ class PerformanceBenchmark:
 
     def save_results(self) -> None:
         """保存测试结果到 JSON 文件。"""
-        self.results["timestamp"] = datetime.now(timezone.utc).isoformat()
+        self.results["timestamp"] = datetime.now(UTC).isoformat()
         RESULTS_FILE.write_text(
             json.dumps(self.results, indent=2, ensure_ascii=False), encoding="utf-8"
         )

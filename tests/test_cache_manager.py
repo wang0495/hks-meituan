@@ -2,13 +2,12 @@
 
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock
 
 import pytest
 
 from backend.cache.manager import CacheManager, get_cache_manager, reset_cache_manager
 from backend.services.cache import MemoryCache, MultiLevelCache, RedisCache
-
 
 # ---------------------------------------------------------------------------
 # fixtures

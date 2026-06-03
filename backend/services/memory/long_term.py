@@ -86,9 +86,7 @@ class LongTermMemory:
                     await r.hset(
                         redis_key,
                         mapping={
-                            "preferences": json.dumps(
-                                default["preferences"], ensure_ascii=False
-                            ),
+                            "preferences": json.dumps(default["preferences"], ensure_ascii=False),
                             "category_visits": json.dumps(
                                 default["category_visits"], ensure_ascii=False
                             ),
@@ -97,9 +95,7 @@ class LongTermMemory:
                             "emotion_history": json.dumps(
                                 default["emotion_history"], ensure_ascii=False
                             ),
-                            "trip_history": json.dumps(
-                                default["trip_history"], ensure_ascii=False
-                            ),
+                            "trip_history": json.dumps(default["trip_history"], ensure_ascii=False),
                             "weight_mapper": json.dumps(
                                 default["weight_mapper"], ensure_ascii=False
                             ),
@@ -137,20 +133,12 @@ class LongTermMemory:
                 if data:
                     return {
                         "preferences": json.loads(data.get("preferences", "{}")),
-                        "category_visits": json.loads(
-                            data.get("category_visits", "{}")
-                        ),
+                        "category_visits": json.loads(data.get("category_visits", "{}")),
                         "visit_count": json.loads(data.get("visit_count", "0")),
                         "total_spent": json.loads(data.get("total_spent", "0")),
-                        "emotion_history": json.loads(
-                            data.get("emotion_history", "[]")
-                        ),
-                        "trip_history": json.loads(
-                            data.get("trip_history", "[]")
-                        ),
-                        "weight_mapper": json.loads(
-                            data.get("weight_mapper", "null")
-                        ),
+                        "emotion_history": json.loads(data.get("emotion_history", "[]")),
+                        "trip_history": json.loads(data.get("trip_history", "[]")),
+                        "weight_mapper": json.loads(data.get("weight_mapper", "null")),
                     }
                 return self._default_profile()
             except Exception:
@@ -181,9 +169,7 @@ class LongTermMemory:
             profile[field] = value
             self._memory[user_id] = profile
 
-    async def update_preference(
-        self, user_id: str, category: str, value: float
-    ) -> None:
+    async def update_preference(self, user_id: str, category: str, value: float) -> None:
         """更新或添加用户偏好。"""
         profile = await self.get_profile(user_id)
         profile["preferences"][category] = value
@@ -272,9 +258,7 @@ class LongTermMemory:
         profile["visit_count"] += 1
         profile["total_spent"] += route_summary.get("total_cost", 0)
         for cat in route_summary.get("categories", []):
-            profile["category_visits"][cat] = (
-                profile["category_visits"].get(cat, 0) + 1
-            )
+            profile["category_visits"][cat] = profile["category_visits"].get(cat, 0) + 1
 
         r = await self._get_redis()
         if r is not None:
@@ -338,9 +322,7 @@ class LongTermMemory:
 
         return history[:limit]
 
-    async def get_contextual_patterns(
-        self, user_id: str
-    ) -> dict[str, Any]:
+    async def get_contextual_patterns(self, user_id: str) -> dict[str, Any]:
         """全面分析用户在不同上下文下的行为模式。
 
         按 weather / season / day_type / holiday / temperature / period
@@ -375,9 +357,7 @@ class LongTermMemory:
             for t in trips:
                 intent = t.get("intent", {})
                 paces.append(intent.get("pace", "unknown"))
-                budgets.append(
-                    intent.get("budget", {}).get("per_person", 0)
-                )
+                budgets.append(intent.get("budget", {}).get("per_person", 0))
                 summary = t.get("route_summary", {})
                 categories.extend(summary.get("categories", []))
                 constraints.extend(intent.get("constraints", []))
@@ -388,17 +368,11 @@ class LongTermMemory:
             return {
                 "n": len(trips),
                 "common_pace": _most_common(paces),
-                "avg_budget": (
-                    round(sum(budgets) / len(budgets)) if budgets else 0
-                ),
-                "top_categories": [
-                    c for c, _ in Counter(categories).most_common(3)
-                ],
+                "avg_budget": (round(sum(budgets) / len(budgets)) if budgets else 0),
+                "top_categories": [c for c, _ in Counter(categories).most_common(3)],
                 "pace_distribution": _distribution(paces),
                 "common_constraints": list(
-                    dict.fromkeys(
-                        c for c, _ in Counter(constraints).most_common(3)
-                    )
+                    dict.fromkeys(c for c, _ in Counter(constraints).most_common(3))
                 ),
                 "emotion_need_distribution": (
                     _distribution(emotion_needs) if emotion_needs else {}
@@ -413,9 +387,7 @@ class LongTermMemory:
             ctx = trip.get("context", {})
             key = ctx.get("weather", "unknown")
             weather_groups.setdefault(key, []).append(trip)
-        patterns["weather_patterns"] = {
-            k: _analyze_group(v) for k, v in weather_groups.items()
-        }
+        patterns["weather_patterns"] = {k: _analyze_group(v) for k, v in weather_groups.items()}
 
         # season
         season_groups: dict[str, list] = {}
@@ -423,9 +395,7 @@ class LongTermMemory:
             ctx = trip.get("context", {})
             key = ctx.get("season", "unknown")
             season_groups.setdefault(key, []).append(trip)
-        patterns["season_patterns"] = {
-            k: _analyze_group(v) for k, v in season_groups.items()
-        }
+        patterns["season_patterns"] = {k: _analyze_group(v) for k, v in season_groups.items()}
 
         # day_type (holiday / weekend / workday)
         day_groups: dict[str, list] = {}
@@ -434,9 +404,7 @@ class LongTermMemory:
             holiday = ctx.get("holiday", {})
             key = holiday.get("day_type", "workday")
             day_groups.setdefault(key, []).append(trip)
-        patterns["day_type_patterns"] = {
-            k: _analyze_group(v) for k, v in day_groups.items()
-        }
+        patterns["day_type_patterns"] = {k: _analyze_group(v) for k, v in day_groups.items()}
 
         # holiday vs non-holiday
         holiday_groups: dict[str, list] = {"holiday": [], "non_holiday": []}
@@ -446,9 +414,7 @@ class LongTermMemory:
                 holiday_groups["holiday"].append(trip)
             else:
                 holiday_groups["non_holiday"].append(trip)
-        patterns["holiday_patterns"] = {
-            k: _analyze_group(v) for k, v in holiday_groups.items()
-        }
+        patterns["holiday_patterns"] = {k: _analyze_group(v) for k, v in holiday_groups.items()}
 
         # temperature_level
         temp_groups: dict[str, list] = {}
@@ -456,9 +422,7 @@ class LongTermMemory:
             ctx = trip.get("context", {})
             key = ctx.get("temperature_level", "comfortable")
             temp_groups.setdefault(key, []).append(trip)
-        patterns["temperature_patterns"] = {
-            k: _analyze_group(v) for k, v in temp_groups.items()
-        }
+        patterns["temperature_patterns"] = {k: _analyze_group(v) for k, v in temp_groups.items()}
 
         # period
         period_groups: dict[str, list] = {}
@@ -466,9 +430,7 @@ class LongTermMemory:
             ctx = trip.get("context", {})
             key = ctx.get("period", "morning")
             period_groups.setdefault(key, []).append(trip)
-        patterns["period_patterns"] = {
-            k: _analyze_group(v) for k, v in period_groups.items()
-        }
+        patterns["period_patterns"] = {k: _analyze_group(v) for k, v in period_groups.items()}
 
         # is_weekend
         weekend_groups: dict[str, list] = {"weekend": [], "workday": []}
@@ -478,9 +440,7 @@ class LongTermMemory:
                 weekend_groups["weekend"].append(trip)
             else:
                 weekend_groups["workday"].append(trip)
-        patterns["weekday_patterns"] = {
-            k: _analyze_group(v) for k, v in weekend_groups.items()
-        }
+        patterns["weekday_patterns"] = {k: _analyze_group(v) for k, v in weekend_groups.items()}
 
         patterns["overall"] = _analyze_group(history)
 
@@ -514,9 +474,7 @@ class LongTermMemory:
         if not history:
             return {"data_points": 0, "confidence": 0.0}
 
-        def _context_match_score(
-            trip: dict, ctx: dict[str, Any]
-        ) -> float:
+        def _context_match_score(trip: dict, ctx: dict[str, Any]) -> float:
             score = 0.0
             tctx = trip.get("context", {})
 
@@ -557,9 +515,7 @@ class LongTermMemory:
         for weight, trip in top:
             intent = trip.get("intent", {})
             paces.extend([intent.get("pace", "unknown")] * int(weight))
-            budgets.append(
-                intent.get("budget", {}).get("per_person", 0) * weight
-            )
+            budgets.append(intent.get("budget", {}).get("per_person", 0) * weight)
             summary = trip.get("route_summary", {})
             categories.extend(summary.get("categories", []))
             need = intent.get("emotion_need")
@@ -568,9 +524,11 @@ class LongTermMemory:
 
         # 计算偏好维度分：category → preference_dim 映射
         _CATEGORY_TO_DIM: dict[str, str] = {
-            "文化": "culture", "景点": "culture",
+            "文化": "culture",
+            "景点": "culture",
             "餐饮": "food",
-            "运动": "nature", "自然": "nature",
+            "运动": "nature",
+            "自然": "nature",
             "购物": "social",
         }
         dim_scores: dict[str, float] = {"culture": 0.0, "food": 0.0, "nature": 0.0, "social": 0.0}
@@ -588,20 +546,12 @@ class LongTermMemory:
                 dim_scores[dim] = round(min(1.0, dim_scores[dim] / total_weighted), 2)
 
         return {
-            "predicted_pace": (
-                Counter(paces).most_common(1)[0][0] if paces else None
-            ),
-            "predicted_budget": (
-                round(sum(budgets) / total_weight) if budgets else 0
-            ),
-            "predicted_categories": [
-                c for c, _ in Counter(categories).most_common(3)
-            ],
+            "predicted_pace": (Counter(paces).most_common(1)[0][0] if paces else None),
+            "predicted_budget": (round(sum(budgets) / total_weight) if budgets else 0),
+            "predicted_categories": [c for c, _ in Counter(categories).most_common(3)],
             "predicted_dimensions": dim_scores,
             "predicted_emotion_need": (
-                Counter(emotion_needs).most_common(1)[0][0]
-                if emotion_needs
-                else None
+                Counter(emotion_needs).most_common(1)[0][0] if emotion_needs else None
             ),
             "confidence": round(min(1.0, total_weight / 15.0), 2),
             "data_points": len(scored),
@@ -609,15 +559,11 @@ class LongTermMemory:
 
     # ── V2 新增: weight_mapper 读写 ──────────────────────────────
 
-    async def save_weight_mapper(
-        self, user_id: str, mapper_data: dict[str, Any]
-    ) -> None:
+    async def save_weight_mapper(self, user_id: str, mapper_data: dict[str, Any]) -> None:
         """保存 WeightMapper 的 delta 参数到 LTM。"""
         await self._save_field(user_id, "weight_mapper", mapper_data)
 
-    async def get_weight_mapper(
-        self, user_id: str
-    ) -> dict[str, Any] | None:
+    async def get_weight_mapper(self, user_id: str) -> dict[str, Any] | None:
         """读取 WeightMapper 的 delta 参数。"""
         profile = await self.get_profile(user_id)
         return profile.get("weight_mapper")
@@ -630,9 +576,7 @@ class LongTermMemory:
 
         category_visits = profile.get("category_visits", {})
         most_visited_category = (
-            max(category_visits, key=category_visits.get)
-            if category_visits
-            else None
+            max(category_visits, key=category_visits.get) if category_visits else None
         )
 
         visit_count = profile.get("visit_count", 0)
@@ -643,9 +587,7 @@ class LongTermMemory:
             "visit_count": visit_count,
             "category_visits": category_visits,
             "most_visited_category": most_visited_category,
-            "average_spending": (
-                round(total_spent / visit_count, 2) if visit_count > 0 else 0.0
-            ),
+            "average_spending": (round(total_spent / visit_count, 2) if visit_count > 0 else 0.0),
             "total_spent": total_spent,
             "emotion_history_count": len(profile.get("emotion_history", [])),
             "trip_history_count": trip_count,

@@ -128,27 +128,19 @@ def _validate_constraints(constraints: object, errors: list[str]) -> None:
             errors.append(f"constraints.queue_time_min 必须 >= 0，当前值: {val}")
 
     if "accessible" in constraints and not isinstance(constraints["accessible"], bool):
-        errors.append(
-            f"constraints.accessible 必须是布尔值，当前值: {constraints['accessible']!r}"
-        )
+        errors.append(f"constraints.accessible 必须是布尔值，当前值: {constraints['accessible']!r}")
 
-    if "pet_friendly" in constraints and not isinstance(
-        constraints["pet_friendly"], bool
-    ):
+    if "pet_friendly" in constraints and not isinstance(constraints["pet_friendly"], bool):
         errors.append(
             f"constraints.pet_friendly 必须是布尔值，当前值: {constraints['pet_friendly']!r}"
         )
 
-    if "opening_hours" in constraints and not isinstance(
-        constraints["opening_hours"], str
-    ):
+    if "opening_hours" in constraints and not isinstance(constraints["opening_hours"], str):
         errors.append(
             f"constraints.opening_hours 必须是字符串，当前值: {constraints['opening_hours']!r}"
         )
 
-    if "has_restroom" in constraints and not isinstance(
-        constraints["has_restroom"], bool
-    ):
+    if "has_restroom" in constraints and not isinstance(constraints["has_restroom"], bool):
         errors.append(
             f"constraints.has_restroom 必须是布尔值，当前值: {constraints['has_restroom']!r}"
         )
@@ -207,9 +199,7 @@ def main() -> None:
     total = result["total"]
     valid = result["valid"]
     invalid = result["invalid"]
-    assert (
-        isinstance(total, int) and isinstance(valid, int) and isinstance(invalid, int)
-    )
+    assert isinstance(total, int) and isinstance(valid, int) and isinstance(invalid, int)
 
     print("\n验证完成:")
     print(f"  总数: {total}")

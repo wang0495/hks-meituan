@@ -4,13 +4,21 @@ from __future__ import annotations
 
 import pytest
 
-from backend.utils.encryption import (DataEncryptor, EncryptionError,
-                                      decrypt_sensitive_data,
-                                      encrypt_sensitive_data, get_encryptor,
-                                      reset_encryptor)
-from backend.utils.field_encryption import (decrypt_field, decrypt_value,
-                                            encrypt_field, encrypt_fields,
-                                            encrypt_value)
+from backend.utils.encryption import (
+    DataEncryptor,
+    EncryptionError,
+    decrypt_sensitive_data,
+    encrypt_sensitive_data,
+    get_encryptor,
+    reset_encryptor,
+)
+from backend.utils.field_encryption import (
+    decrypt_field,
+    decrypt_value,
+    encrypt_field,
+    encrypt_fields,
+    encrypt_value,
+)
 
 # ---------------------------------------------------------------------------
 # DataEncryptor 测试

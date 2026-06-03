@@ -5,10 +5,10 @@ from __future__ import annotations
 import json
 
 from backend.agents_v3.experts.base import (
-    sse_expert,
-    _proposal,
     _llm_decide,
+    _proposal,
     _sanitize_for_prompt,
+    sse_expert,
 )
 from backend.agents_v3.state import TravelState
 
@@ -32,12 +32,14 @@ async def local_expert(state: TravelState) -> dict:
         tags = c.get("tags", [])
         rating = c.get("rating", 0)
         if rating >= 4.0 and (llm_q.get("score", 0) >= 7 or any("小众" in str(t) for t in tags)):
-            hidden_gems.append({
-                "name": c.get("name", ""),
-                "category": c.get("category", ""),
-                "rating": rating,
-                "tags": tags[:3],
-            })
+            hidden_gems.append(
+                {
+                    "name": c.get("name", ""),
+                    "category": c.get("category", ""),
+                    "rating": rating,
+                    "tags": tags[:3],
+                }
+            )
 
     # Already-selected popular POIs (for dedup in prompt)
     popular_names: list[str] = []
@@ -76,15 +78,36 @@ async def local_expert(state: TravelState) -> dict:
     result = await _llm_decide(system, user)
 
     if result:
-        return {"proposals": [_proposal("local_expert", result, result.get("confidence", 0.75), "LLM本地建议")]}
+        return {
+            "proposals": [
+                _proposal("local_expert", result, result.get("confidence", 0.75), "LLM本地建议")
+            ]
+        }
 
     # Fallback: pick top hidden gems
-    gems = hidden_gems[:3] if hidden_gems else [{"name": "唐家湾古镇", "type": "小众景点", "why": "人少景美，岭南古村落"}]
-    return {"proposals": [_proposal("local_expert", {
-        "tips": [
-            {"name": g.get("name", ""), "type": g.get("type", g.get("category", "")), "why": g.get("why", "小众推荐")}
-            for g in gems
-        ],
-        "secrets": [g.get("name", "") for g in gems],
-        "local_advice": "珠海天气湿热，建议早出晚归避开正午高温",
-    }, 0.4, "规则引擎：小众POI推荐")]}
+    gems = (
+        hidden_gems[:3]
+        if hidden_gems
+        else [{"name": "唐家湾古镇", "type": "小众景点", "why": "人少景美，岭南古村落"}]
+    )
+    return {
+        "proposals": [
+            _proposal(
+                "local_expert",
+                {
+                    "tips": [
+                        {
+                            "name": g.get("name", ""),
+                            "type": g.get("type", g.get("category", "")),
+                            "why": g.get("why", "小众推荐"),
+                        }
+                        for g in gems
+                    ],
+                    "secrets": [g.get("name", "") for g in gems],
+                    "local_advice": "珠海天气湿热，建议早出晚归避开正午高温",
+                },
+                0.4,
+                "规则引擎：小众POI推荐",
+            )
+        ]
+    }

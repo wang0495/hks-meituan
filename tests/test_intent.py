@@ -105,7 +105,7 @@ class TestParseIntentE2E:
     @patch("backend.services.intent_parser._call_llm", new_callable=AsyncMock)
     def test_llm_timeout_fallback(self, mock_llm):
         """LLM 超时 → 降级为规则匹配。"""
-        mock_llm.side_effect = asyncio.TimeoutError()
+        mock_llm.side_effect = TimeoutError()
 
         result = run(parse_intent("周末想出去走走，不想去人多的地方"))
 
@@ -132,7 +132,7 @@ class TestParseIntentE2E:
     @patch("backend.services.intent_parser._call_llm", new_callable=AsyncMock)
     def test_family_with_baby(self, mock_llm):
         """亲子场景端到端。"""
-        mock_llm.side_effect = asyncio.TimeoutError()
+        mock_llm.side_effect = TimeoutError()
 
         result = run(parse_intent("周末一家人带娃出去，让他消耗体力"))
 
@@ -141,7 +141,7 @@ class TestParseIntentE2E:
     @patch("backend.services.intent_parser._call_llm", new_callable=AsyncMock)
     def test_pet_scenario(self, mock_llm):
         """宠物场景端到端。"""
-        mock_llm.side_effect = asyncio.TimeoutError()
+        mock_llm.side_effect = TimeoutError()
 
         result = run(parse_intent("带狗子出去转转"))
 
@@ -150,7 +150,7 @@ class TestParseIntentE2E:
     @patch("backend.services.intent_parser._call_llm", new_callable=AsyncMock)
     def test_couple_date_scenario(self, mock_llm):
         """情侣约会端到端。"""
-        mock_llm.side_effect = asyncio.TimeoutError()
+        mock_llm.side_effect = TimeoutError()
 
         result = run(parse_intent("和女朋友约会，想找有氛围的地方"))
 

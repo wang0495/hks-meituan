@@ -9,8 +9,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from backend.services.log_rotation import setup_log_rotation
-from backend.services.logger import (JSONFormatter, RequestLogger, get_logger,
-                                     setup_logging)
+from backend.services.logger import JSONFormatter, RequestLogger, get_logger, setup_logging
 
 
 class TestJSONFormatter:
@@ -122,8 +121,10 @@ class TestLogRotationNew:
 
     def test_rotation_creates_handlers(self, tmp_path: Path):
         from backend.logging.rotation import (
-            CompressedRotatingFileHandler, CompressedTimedRotatingFileHandler,
-            LogRotation)
+            CompressedRotatingFileHandler,
+            CompressedTimedRotatingFileHandler,
+            LogRotation,
+        )
 
         r = LogRotation(log_dir=tmp_path, enable_compression=True)
         assert isinstance(r.size_handler, CompressedRotatingFileHandler)
@@ -133,8 +134,7 @@ class TestLogRotationNew:
         r.time_handler.close()
 
     def test_rotation_no_compression(self, tmp_path: Path):
-        from logging.handlers import (RotatingFileHandler,
-                                      TimedRotatingFileHandler)
+        from logging.handlers import RotatingFileHandler, TimedRotatingFileHandler
 
         from backend.logging.rotation import LogRotation
 

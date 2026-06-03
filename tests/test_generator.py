@@ -291,9 +291,7 @@ class TestCaseGenerator:
                 seen.add(key)
         return merged
 
-    def generate_boundary_tests(
-        self, schema_name: str | None = None
-    ) -> list[dict[str, Any]]:
+    def generate_boundary_tests(self, schema_name: str | None = None) -> list[dict[str, Any]]:
         """为 CityFlow 关键 schema 生成边界 / 校验测试。"""
         tests: list[dict[str, Any]] = []
 

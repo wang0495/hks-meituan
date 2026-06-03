@@ -18,13 +18,13 @@ BASE_URL = "http://localhost:8001/api"
 
 # tool_name → (HTTP method, path)
 _TOOL_ROUTES: dict[str, tuple[str, str]] = {
-    "search_poi":         ("GET", "/poi/search"),
-    "get_poi_detail":     ("GET", "/poi/{poi_id}"),
-    "get_poi_reviews":    ("GET", "/poi/{poi_id}/reviews"),
-    "get_poi_location":   ("GET", "/poi/{poi_id}/location"),
+    "search_poi": ("GET", "/poi/search"),
+    "get_poi_detail": ("GET", "/poi/{poi_id}"),
+    "get_poi_reviews": ("GET", "/poi/{poi_id}/reviews"),
+    "get_poi_location": ("GET", "/poi/{poi_id}/location"),
     "get_route_distance": ("GET", "/route/distance"),
-    "get_hot_trending":   ("GET", "/hot/trending"),
-    "get_area_boundaries":("GET", "/area/boundaries"),
+    "get_hot_trending": ("GET", "/hot/trending"),
+    "get_area_boundaries": ("GET", "/area/boundaries"),
 }
 
 

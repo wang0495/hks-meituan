@@ -66,7 +66,10 @@ def test_plan(scenario: dict) -> dict:
             print(f"   耗时: {elapsed:.1f}s")
 
             if response.status_code != 200:
-                return {"pass": False, "error": f"HTTP {response.status_code}: {response.text[:200]}"}
+                return {
+                    "pass": False,
+                    "error": f"HTTP {response.status_code}: {response.text[:200]}",
+                }
 
             # 解析 SSE（event: xxx 行 + data: xxx 行的模式）
             result = {}
@@ -120,7 +123,9 @@ def analyze_result(scenario: dict, result: dict, elapsed: float) -> dict:
             issues.append(f"❌ 含不应出现的类别: {step['poi']['name']} ({cat})")
 
     # 3. 距离跳跃检查（从audit_issues）
-    geo_jumps = [a for a in audit if "距离" in a.get("message", "") and "跨区" in a.get("message", "")]
+    geo_jumps = [
+        a for a in audit if "距离" in a.get("message", "") and "跨区" in a.get("message", "")
+    ]
     for j in geo_jumps:
         issues.append(f"⚠️ {j['message']}")
 
@@ -142,22 +147,27 @@ def analyze_result(scenario: dict, result: dict, elapsed: float) -> dict:
     cats = [s.get("poi", {}).get("category", "") for s in route]
     if len(cats) >= 3:
         from collections import Counter
+
         cat_dist = Counter(cats)
         max_cat_count = max(cat_dist.values())
         max_cat_ratio = max_cat_count / len(cats)
         # 纯主题请求放宽阈值（用户明确要求某类活动）
         name_lower = scenario.get("name", "").lower()
         input_lower = scenario.get("input", "").lower()
-        is_focused = any(kw in name_lower or kw in input_lower for kw in ["运动", "美食", "购物", "文化"])
+        is_focused = any(
+            kw in name_lower or kw in input_lower for kw in ["运动", "美食", "购物", "文化"]
+        )
         threshold = 0.65 if is_focused else 0.5
         if max_cat_ratio > threshold:
             dominant = max(cat_dist, key=cat_dist.get)
-            issues.append(f"❌ category过于集中: {dominant}占{max_cat_ratio*100:.0f}% ({max_cat_count}/{len(cats)})")
+            issues.append(
+                f"❌ category过于集中: {dominant}占{max_cat_ratio*100:.0f}% ({max_cat_count}/{len(cats)})"
+            )
         # 连续同类检查
         max_consec = 1
         cur = 1
         for i in range(1, len(cats)):
-            if cats[i] == cats[i-1]:
+            if cats[i] == cats[i - 1]:
                 cur += 1
                 max_consec = max(max_consec, cur)
             else:
@@ -230,10 +240,7 @@ def main():
         # 写结果到文件持久化
         Path("test_e2e_results.json").write_text(
             json.dumps(
-                [
-                    {"scenario": s["name"], **r}
-                    for s, r in zip(TEST_SCENARIOS, results)
-                ],
+                [{"scenario": s["name"], **r} for s, r in zip(TEST_SCENARIOS, results)],
                 ensure_ascii=False,
                 indent=2,
             ),

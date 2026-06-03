@@ -7,10 +7,16 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from backend.cache.warmup import (CacheWarmup, WarmupReport, WarmupResult,
-                                  get_cache_warmup, reset_cache_warmup,
-                                  warmup_city_category_cache,
-                                  warmup_other_datasets, warmup_poi_cache)
+from backend.cache.warmup import (
+    CacheWarmup,
+    WarmupReport,
+    WarmupResult,
+    get_cache_warmup,
+    reset_cache_warmup,
+    warmup_city_category_cache,
+    warmup_other_datasets,
+    warmup_poi_cache,
+)
 
 # ---------------------------------------------------------------------------
 # WarmupResult / WarmupReport 数据类测试
@@ -189,9 +195,7 @@ class TestCacheWarmup:
     # --- warmup_task (单个) ---
 
     @pytest.mark.asyncio
-    async def test_warmup_task_single(
-        self, warmup: CacheWarmup, mock_cache: AsyncMock
-    ) -> None:
+    async def test_warmup_task_single(self, warmup: CacheWarmup, mock_cache: AsyncMock) -> None:
         called = False
 
         async def solo(cache) -> None:
@@ -209,9 +213,7 @@ class TestCacheWarmup:
             await warmup.warmup_task("nonexistent")
 
     @pytest.mark.asyncio
-    async def test_warmup_task_failure(
-        self, warmup: CacheWarmup, mock_cache: AsyncMock
-    ) -> None:
+    async def test_warmup_task_failure(self, warmup: CacheWarmup, mock_cache: AsyncMock) -> None:
         async def bad(cache) -> None:
             raise ValueError("bad data")
 
@@ -223,9 +225,7 @@ class TestCacheWarmup:
     # --- cache 传递 ---
 
     @pytest.mark.asyncio
-    async def test_cache_passed_to_task(
-        self, warmup: CacheWarmup, mock_cache: AsyncMock
-    ) -> None:
+    async def test_cache_passed_to_task(self, warmup: CacheWarmup, mock_cache: AsyncMock) -> None:
         received_cache = None
 
         async def capture(cache) -> None:
@@ -242,9 +242,7 @@ class TestCacheWarmup:
         warmup.stop()  # 不应抛异常
 
     @pytest.mark.asyncio
-    async def test_stop_halts_background(
-        self, warmup: CacheWarmup, mock_cache: AsyncMock
-    ) -> None:
+    async def test_stop_halts_background(self, warmup: CacheWarmup, mock_cache: AsyncMock) -> None:
         call_count = 0
 
         async def counting_task(cache) -> None:
@@ -267,9 +265,7 @@ class TestCacheWarmup:
         assert call_count >= 1
 
     @pytest.mark.asyncio
-    async def test_start_background_warmup_no_duplicate(
-        self, warmup: CacheWarmup
-    ) -> None:
+    async def test_start_background_warmup_no_duplicate(self, warmup: CacheWarmup) -> None:
         """重复调用 start_background_warmup 不会创建多个循环。"""
         warmup._running = True  # 模拟已在运行
         # 不应进入循环，直接返回

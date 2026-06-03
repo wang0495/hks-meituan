@@ -116,10 +116,7 @@ def _build_route_summary(route_result: dict, user_intent: dict) -> dict:
     avg_emotion: dict[str, float] = {}
     if emotion_values:
         for k in emotion_keys:
-            vals = [
-                step.get("poi", {}).get("emotion_tags", {}).get(k, 0)
-                for step in route or []
-            ]
+            vals = [step.get("poi", {}).get("emotion_tags", {}).get(k, 0) for step in route or []]
             vals = [v for v in vals if v is not None]
             if vals:
                 avg_emotion[k] = round(sum(vals) / len(vals), 2)
@@ -155,13 +152,14 @@ class PreferenceManager:
         self._initialized = False
 
     @classmethod
-    def from_user_id(cls, user_id: str) -> "PreferenceManager":
+    def from_user_id(cls, user_id: str) -> PreferenceManager:
         """用指定 user_id 创建。校验user_id格式防止注入。"""
         # user_id白名单: 只允许字母数字下划线短横线，长度3-64
         if not user_id or not isinstance(user_id, str):
             raise ValueError("user_id不能为空")
         import re
-        if not re.match(r'^[a-zA-Z0-9_-]{1,64}$', user_id):
+
+        if not re.match(r"^[a-zA-Z0-9_-]{1,64}$", user_id):
             raise ValueError(f"user_id格式无效: {user_id[:20]}")
         return cls(user_id)
 
@@ -182,6 +180,7 @@ class PreferenceManager:
         """从配置构建 Redis 连接 URL。"""
         try:
             from backend.config import settings
+
             rs = settings.redis
             if rs.password:
                 return f"redis://:{quote_plus(rs.password)}@{rs.host}:{rs.port}/{rs.db}"
@@ -244,9 +243,7 @@ class PreferenceManager:
                 hp = patterns.get("holiday_patterns", {}).get("holiday", {})
                 if hp.get("n", 0) >= 1:
                     avg_budget = hp.get("avg_budget", 0)
-                    context_hints.append(
-                        f"{holiday_info['name']}你一般预算在¥{avg_budget}左右"
-                    )
+                    context_hints.append(f"{holiday_info['name']}你一般预算在¥{avg_budget}左右")
 
         context_info = ""
         if current_context:
@@ -286,9 +283,7 @@ class PreferenceManager:
         assert self.ltm is not None
 
         # 预测偏好
-        prediction = await self.ltm.predict_preferences(
-            self.user_id, current_context
-        )
+        prediction = await self.ltm.predict_preferences(self.user_id, current_context)
         has_prediction = prediction.get("data_points", 0) > 0
 
         recommendations = []
@@ -317,12 +312,14 @@ class PreferenceManager:
             if budget > 0:
                 ah_intent.setdefault("budget", {})["per_person"] = budget
 
-            recommendations.append({
-                "id": "a",
-                "label": label,
-                "description": desc,
-                "intent_hint": ah_intent,
-            })
+            recommendations.append(
+                {
+                    "id": "a",
+                    "label": label,
+                    "description": desc,
+                    "intent_hint": ah_intent,
+                }
+            )
 
             # 选项 B: 换一个方向（如果预测明确，推荐相反方向）
             b_intent: dict[str, Any] = {}
@@ -336,28 +333,34 @@ class PreferenceManager:
                 b_intent["pace"] = "闲逛型"
                 b_label = "换个节奏试试"
 
-            recommendations.append({
-                "id": "b",
-                "label": b_label,
-                "description": "尝试不同的节奏和风格",
-                "intent_hint": b_intent,
-            })
+            recommendations.append(
+                {
+                    "id": "b",
+                    "label": b_label,
+                    "description": "尝试不同的节奏和风格",
+                    "intent_hint": b_intent,
+                }
+            )
 
         # 选项 C: 自定义
-        recommendations.append({
-            "id": "c",
-            "label": "我自己来",
-            "description": "自由描述出行偏好",
-            "intent_hint": {},
-        })
+        recommendations.append(
+            {
+                "id": "c",
+                "label": "我自己来",
+                "description": "自由描述出行偏好",
+                "intent_hint": {},
+            }
+        )
 
         # 选项 D: 一键规划（直接用 parse_intent 默认）
-        recommendations.append({
-            "id": "d",
-            "label": "直接规划",
-            "description": "用默认配置快速出方案",
-            "intent_hint": {},
-        })
+        recommendations.append(
+            {
+                "id": "d",
+                "label": "直接规划",
+                "description": "用默认配置快速出方案",
+                "intent_hint": {},
+            }
+        )
 
         return {
             "has_recommendations": has_prediction,
@@ -395,13 +398,10 @@ class PreferenceManager:
         )
 
         # 持久化到 LTM
-        await self.ltm.save_weight_mapper(
-            self.user_id, self.mapper.to_dict()
-        )
+        await self.ltm.save_weight_mapper(self.user_id, self.mapper.to_dict())
 
         logger.info(
-            f"[PreferenceManager] 反馈 {feedback} 已学习. "
-            f"Mapper: {self.mapper.summary()}"
+            f"[PreferenceManager] 反馈 {feedback} 已学习. " f"Mapper: {self.mapper.summary()}"
         )
         return new_weights
 
@@ -432,9 +432,7 @@ class PreferenceManager:
 
         # 持久化 mapper 参数
         if self.mapper is not None:
-            await self.ltm.save_weight_mapper(
-                self.user_id, self.mapper.to_dict()
-            )
+            await self.ltm.save_weight_mapper(self.user_id, self.mapper.to_dict())
 
         logger.info(
             f"[PreferenceManager] 行程已记录到 LTM user={self.user_id} "

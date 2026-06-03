@@ -13,14 +13,12 @@ from unittest.mock import AsyncMock, patch
 
 import httpx
 import jwt
-from fastapi.testclient import TestClient
-from starlette.requests import Request as StarletteRequest
-
 from backend.gateway.auth import AuthMiddleware, create_token
 from backend.gateway.main import create_gateway_app
 from backend.gateway.rate_limit import GatewayRateLimitMiddleware
 from backend.gateway.router import GatewayRouter, RouteTarget, setup_default_routes
-
+from fastapi.testclient import TestClient
+from starlette.requests import Request as StarletteRequest
 
 # ===================================================================
 # GatewayRouter
@@ -428,7 +426,7 @@ class TestGatewayApp:
         """转发时保留 query string。"""
         mock_response = AsyncMock()
         mock_response.status_code = 200
-        mock_response.content = b'{}'
+        mock_response.content = b"{}"
         mock_response.headers = {}
 
         mock_client = AsyncMock()
@@ -450,7 +448,7 @@ class TestGatewayApp:
         """转发时剥离 /api/poi 前缀。"""
         mock_response = AsyncMock()
         mock_response.status_code = 200
-        mock_response.content = b'{}'
+        mock_response.content = b"{}"
         mock_response.headers = {}
 
         mock_client = AsyncMock()
@@ -473,7 +471,7 @@ class TestGatewayApp:
         """转发时注入 X-Forwarded-For 和 X-Request-ID 头。"""
         mock_response = AsyncMock()
         mock_response.status_code = 200
-        mock_response.content = b'{}'
+        mock_response.content = b"{}"
         mock_response.headers = {}
 
         mock_client = AsyncMock()

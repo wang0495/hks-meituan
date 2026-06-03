@@ -5,10 +5,10 @@ from __future__ import annotations
 from datetime import datetime
 
 from backend.agents_v3.experts.base import (
-    sse_expert,
-    _proposal,
     _llm_decide,
+    _proposal,
     _sanitize_for_prompt,
+    sse_expert,
 )
 from backend.agents_v3.state import TravelState
 
@@ -43,8 +43,18 @@ async def weather_expert(state: TravelState) -> dict:
     now = datetime.now()
     month = now.month
     season_map = {
-        1: "冬季", 2: "冬季", 3: "春季", 4: "春季", 5: "夏季", 6: "夏季",
-        7: "夏季", 8: "夏季", 9: "秋季", 10: "秋季", 11: "秋季", 12: "冬季",
+        1: "冬季",
+        2: "冬季",
+        3: "春季",
+        4: "春季",
+        5: "夏季",
+        6: "夏季",
+        7: "夏季",
+        8: "夏季",
+        9: "秋季",
+        10: "秋季",
+        11: "秋季",
+        12: "冬季",
     }
     season = season_map.get(month, "未知")
 
@@ -68,14 +78,27 @@ async def weather_expert(state: TravelState) -> dict:
     result = await _llm_decide(system, user)
 
     if result:
-        return {"proposals": [_proposal("weather", result, result.get("confidence", 0.8), "LLM天气评估")]}
+        return {
+            "proposals": [
+                _proposal("weather", result, result.get("confidence", 0.8), "LLM天气评估")
+            ]
+        }
 
     # Fallback: season-based rules
-    return {"proposals": [_proposal("weather", {
-        "condition": "多云",
-        "temperature": "26-32°C",
-        "outdoor_ok": True,
-        "advice": f"{month}月珠海{season}气候，建议上午户外下午室内，注意防晒防暑",
-        "rain_probability": 0.35,
-        "indoor_alternatives": indoor_pois[:3] if indoor_pois else ["长隆海洋科学馆"],
-    }, 0.6, "规则引擎：季节性天气评估")]}
+    return {
+        "proposals": [
+            _proposal(
+                "weather",
+                {
+                    "condition": "多云",
+                    "temperature": "26-32°C",
+                    "outdoor_ok": True,
+                    "advice": f"{month}月珠海{season}气候，建议上午户外下午室内，注意防晒防暑",
+                    "rain_probability": 0.35,
+                    "indoor_alternatives": indoor_pois[:3] if indoor_pois else ["长隆海洋科学馆"],
+                },
+                0.6,
+                "规则引擎：季节性天气评估",
+            )
+        ]
+    }

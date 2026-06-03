@@ -16,7 +16,7 @@ import asyncio
 import json
 import logging
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -34,16 +34,16 @@ class TestResult:
     """单条测试执行结果。"""
 
     __slots__ = (
-        "name",
-        "method",
-        "path",
         "description",
-        "passed",
-        "status_code",
-        "expected_status",
-        "response_data",
-        "error",
         "elapsed_ms",
+        "error",
+        "expected_status",
+        "method",
+        "name",
+        "passed",
+        "path",
+        "response_data",
+        "status_code",
     )
 
     def __init__(
@@ -100,7 +100,7 @@ class TestReport:
         self.failed = self.total - self.passed
         self.pass_rate = self.passed / self.total if self.total > 0 else 0.0
         self.total_elapsed_ms = sum(r.elapsed_ms for r in results)
-        self.generated_at = datetime.now(timezone.utc).isoformat()
+        self.generated_at = datetime.now(UTC).isoformat()
 
     @property
     def failed_results(self) -> list[TestResult]:
@@ -199,9 +199,7 @@ class APITestRunner:
     # 单条执行
     # ------------------------------------------------------------------
 
-    async def _execute_one(
-        self, client: APITestClient, test: dict[str, Any]
-    ) -> TestResult:
+    async def _execute_one(self, client: APITestClient, test: dict[str, Any]) -> TestResult:
         """执行单条测试用例。"""
         method = test["method"].upper()
         path = test["path"]

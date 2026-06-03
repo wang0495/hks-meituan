@@ -7,10 +7,12 @@ import time
 
 import pytest
 
-from backend.services.ip_rate_limiter import (IPRateLimiter,
-                                              IPRateLimitExceededError,
-                                              IPRateLimitResult,
-                                              _LocalIPRateLimiter)
+from backend.services.ip_rate_limiter import (
+    IPRateLimiter,
+    IPRateLimitExceededError,
+    IPRateLimitResult,
+    _LocalIPRateLimiter,
+)
 
 
 class TestIPRateLimitResult:
@@ -47,9 +49,7 @@ class TestLocalIPRateLimiter:
     @pytest.mark.asyncio
     async def test_allows_first_request(self) -> None:
         limiter = _LocalIPRateLimiter()
-        allowed, remaining, _ = await limiter.check(
-            "ep:1.2.3.4:/api", limit=10, window=60
-        )
+        allowed, remaining, _ = await limiter.check("ep:1.2.3.4:/api", limit=10, window=60)
         assert allowed is True
         assert remaining == 9
 
@@ -59,9 +59,7 @@ class TestLocalIPRateLimiter:
         for _ in range(5):
             await limiter.check("ep:5.6.7.8:/api", limit=5, window=60)
 
-        allowed, remaining, _ = await limiter.check(
-            "ep:5.6.7.8:/api", limit=5, window=60
-        )
+        allowed, remaining, _ = await limiter.check("ep:5.6.7.8:/api", limit=5, window=60)
         assert allowed is False
         assert remaining == 0
 
@@ -183,9 +181,7 @@ class TestIPRateLimiterLocal:
 
     @pytest.mark.asyncio
     async def test_custom_limit_override(self) -> None:
-        limiter = IPRateLimiter(
-            redis_client=None, endpoint_limit=100, endpoint_window=60
-        )
+        limiter = IPRateLimiter(redis_client=None, endpoint_limit=100, endpoint_window=60)
         # 覆盖为 2
         for _ in range(2):
             result = await limiter.check("2.2.2.2", "/api/v1/poi", endpoint_limit=2)
@@ -208,9 +204,7 @@ class TestIPRateLimiterLocal:
 
     @pytest.mark.asyncio
     async def test_result_fields(self) -> None:
-        limiter = IPRateLimiter(
-            redis_client=None, endpoint_limit=50, endpoint_window=60
-        )
+        limiter = IPRateLimiter(redis_client=None, endpoint_limit=50, endpoint_window=60)
         result = await limiter.check("3.3.3.3", "/api/v1/dialogue")
 
         assert result.ip == "3.3.3.3"

@@ -22,10 +22,11 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from collections.abc import Callable, Coroutine
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import StrEnum
-from typing import Any, Callable, Coroutine
+from typing import Any
 
 import psutil
 
@@ -83,7 +84,7 @@ class ResourceMetrics:
     disk_total_gb: float
     net_bytes_sent: int
     net_bytes_recv: int
-    timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    timestamp: datetime = field(default_factory=lambda: datetime.now(UTC))
 
     def to_dict(self) -> dict[str, Any]:
         """转换为字典。"""
@@ -142,7 +143,7 @@ class AlertEvent:
     threshold: float
     severity: AlertSeverity
     message: str
-    timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    timestamp: datetime = field(default_factory=lambda: datetime.now(UTC))
 
     def to_dict(self) -> dict[str, Any]:
         """转换为字典。"""
@@ -361,7 +362,7 @@ class ResourceMonitor:
     async def _evaluate_rules(self, metrics: ResourceMetrics) -> None:
         """评估所有告警规则。"""
         metrics_dict = metrics.to_dict()
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         for rule in self._rules.values():
             value = metrics_dict.get(rule.metric)
@@ -434,9 +435,7 @@ class ResourceMonitor:
             "rules_count": len(self._rules),
             "callbacks_count": len(self._callbacks),
             "latest_metrics": (
-                self._latest_metrics.to_dict()
-                if self._latest_metrics is not None
-                else None
+                self._latest_metrics.to_dict() if self._latest_metrics is not None else None
             ),
         }
 

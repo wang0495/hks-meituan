@@ -9,12 +9,21 @@ from __future__ import annotations
 import asyncio
 import logging
 import uuid
-from datetime import datetime, timezone
-from typing import Any, Optional
+from datetime import UTC, datetime
+from typing import Any
 
-from backend.graphql.schema import (POI, ChangeRecord, DialogueResponse,
-                                    EmotionTags, NarrativeStep, POIConstraints,
-                                    Route, RouteStep, TotalCost, TravelInfo)
+from backend.graphql.schema import (
+    POI,
+    ChangeRecord,
+    DialogueResponse,
+    EmotionTags,
+    NarrativeStep,
+    POIConstraints,
+    Route,
+    RouteStep,
+    TotalCost,
+    TravelInfo,
+)
 from backend.services.cache import route_cache
 from backend.utils.sse_helpers import with_timeout as _with_timeout
 
@@ -121,7 +130,7 @@ def _to_route(route_id: str, raw: dict[str, Any], user_input: str = "") -> Route
         narrative=_to_narrative(raw.get("narrative")),
         total_cost=_to_total_cost(raw.get("total_cost")),
         emotion_curve=[str(c) for c in raw.get("emotion_curve", [])],
-        created_at=datetime.now(timezone.utc),
+        created_at=datetime.now(UTC),
     )
 
 
@@ -131,8 +140,8 @@ def _to_route(route_id: str, raw: dict[str, Any], user_input: str = "") -> Route
 
 
 async def resolve_pois(
-    region: Optional[str] = None,
-    category: Optional[str] = None,
+    region: str | None = None,
+    category: str | None = None,
     limit: int = 10,
 ) -> list[POI]:
     """查询 POI 列表。"""
@@ -149,7 +158,7 @@ async def resolve_pois(
     return [_to_poi(p) for p in pois_raw[:limit]]
 
 
-async def resolve_poi(id: str) -> Optional[POI]:
+async def resolve_poi(id: str) -> POI | None:
     """查询单个 POI。"""
     from backend.services.data_service import get_data
 
@@ -167,13 +176,11 @@ async def resolve_routes(limit: int = 10) -> list[Route]:
     """查询已缓存的路线列表（脱敏：不暴露其他用户的输入/意图）。"""
     results: list[Route] = []
     for key, (raw, _ts) in list(route_cache._cache.items())[:limit]:
-        results.append(
-            _to_route(route_id=key, raw=raw, user_input="")  # 不暴露原始输入
-        )
+        results.append(_to_route(route_id=key, raw=raw, user_input=""))  # 不暴露原始输入
     return results
 
 
-async def resolve_route(id: str) -> Optional[Route]:
+async def resolve_route(id: str) -> Route | None:
     """查询单条已缓存路线。"""
     raw = route_cache.get(id)
     if raw is None:
@@ -216,9 +223,7 @@ async def resolve_plan_route(user_input: str) -> Route:
     )
     if route_result is None or not route_result.get("route"):
         # 兜底：取评分最高的 3 个
-        sorted_pois = sorted(
-            candidates, key=lambda p: p.get("rating", 0), reverse=True
-        )[:3]
+        sorted_pois = sorted(candidates, key=lambda p: p.get("rating", 0), reverse=True)[:3]
         route_result = {
             "route": [
                 {
@@ -278,8 +283,7 @@ async def resolve_adjust_route(route_id: str, instruction: str) -> DialogueRespo
 
     # 构造响应
     changes = [
-        ChangeRecord(type=c.get("type", ""), detail=str(c))
-        for c in result.get("changes_made", [])
+        ChangeRecord(type=c.get("type", ""), detail=str(c)) for c in result.get("changes_made", [])
     ]
 
     return DialogueResponse(

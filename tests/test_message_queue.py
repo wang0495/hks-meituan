@@ -261,9 +261,7 @@ async def test_handle_notification():
     with patch(
         "backend.services.notification.notify_personal", new_callable=AsyncMock
     ) as mock_notify:
-        await handle_notification(
-            {"session_id": "s1", "content": "hello", "msg_type": "info"}
-        )
+        await handle_notification({"session_id": "s1", "content": "hello", "msg_type": "info"})
         mock_notify.assert_called_once()
         call_args = mock_notify.call_args
         assert call_args[0][0] == "s1"
@@ -315,9 +313,7 @@ async def mq_client():
     app.dependency_overrides[get_session_manager] = lambda: mock_session
 
     # 同时 patch middleware 用到的 session manager
-    with patch(
-        "backend.middleware.session.get_session_manager", return_value=mock_session
-    ):
+    with patch("backend.middleware.session.get_session_manager", return_value=mock_session):
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as c:
             yield c

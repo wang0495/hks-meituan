@@ -21,17 +21,22 @@ from __future__ import annotations
 
 import logging
 import time
-from collections.abc import Coroutine
-from datetime import datetime, timezone
+from collections.abc import Callable, Coroutine
+from datetime import UTC, datetime
 from enum import Enum
-from typing import Any, Callable
+from typing import Any
 
-from backend.services.health_checker import (CheckResult, CheckStatus,
-                                             HealthChecker, HealthReport,
-                                             check_database, check_llm_service,
-                                             check_redis)
+from backend.services.health_checker import (
+    CheckResult,
+    CheckStatus,
+    HealthChecker,
+    HealthReport,
+    check_database,
+    check_llm_service,
+    check_redis,
+)
 
-__all__ = ["DeepHealthCheck", "AggregatedStatus"]
+__all__ = ["AggregatedStatus", "DeepHealthCheck"]
 
 logger = logging.getLogger(__name__)
 
@@ -142,9 +147,7 @@ async def check_memory() -> CheckResult:
 
 
 # 检查项定义：(名称, 检查函数, 是否为关键依赖)
-_DEFAULT_CHECKS: list[
-    tuple[str, Callable[..., Coroutine[Any, Any, bool | CheckResult]], bool]
-] = [
+_DEFAULT_CHECKS: list[tuple[str, Callable[..., Coroutine[Any, Any, bool | CheckResult]], bool]] = [
     ("database", check_database, True),
     ("redis", check_redis, True),
     ("llm_service", check_llm_service, False),
@@ -223,10 +226,7 @@ class DeepHealthCheck:
         # - 全部正常 -> healthy
         if has_critical_failure:
             status = AggregatedStatus.UNHEALTHY
-        elif (
-            report.overall_status in (CheckStatus.UNHEALTHY, CheckStatus.ERROR)
-            or has_degraded
-        ):
+        elif report.overall_status in (CheckStatus.UNHEALTHY, CheckStatus.ERROR) or has_degraded:
             status = AggregatedStatus.DEGRADED
         else:
             status = AggregatedStatus.HEALTHY
@@ -234,12 +234,10 @@ class DeepHealthCheck:
         return {
             "status": status.value,
             "checks": checks,
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "duration_ms": round(report.duration_ms, 2),
             "total": len(report.results),
-            "healthy": sum(
-                1 for r in report.results if r.status == CheckStatus.HEALTHY
-            ),
+            "healthy": sum(1 for r in report.results if r.status == CheckStatus.HEALTHY),
         }
 
 

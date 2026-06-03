@@ -102,8 +102,7 @@ class CityFlowException(Exception):
             }
         }
         if self.details:
-            safe_details = {k: v for k, v in self.details.items()
-                           if k not in self._SENSITIVE_KEYS}
+            safe_details = {k: v for k, v in self.details.items() if k not in self._SENSITIVE_KEYS}
             if safe_details:
                 result["error"]["details"] = safe_details
         return result
@@ -184,9 +183,7 @@ class DialogueError(CityFlowException):
 class LLMServiceError(CityFlowException):
     """LLM 服务异常。"""
 
-    def __init__(
-        self, message: str = "LLM服务异常", details: dict[str, Any] | None = None
-    ) -> None:
+    def __init__(self, message: str = "LLM服务异常", details: dict[str, Any] | None = None) -> None:
         super().__init__(
             code=ErrorCode.LLM_SERVICE_ERROR,
             message=message,

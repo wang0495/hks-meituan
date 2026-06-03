@@ -44,16 +44,30 @@ import logging
 import math
 import uuid
 
-from backend.agents_v3.state import TravelState, AGENT_META, sse_emit
+from backend.agents_v3.state import AGENT_META, TravelState, sse_emit
 
 logger = logging.getLogger(__name__)
 
 
 # 名称中包含这些关键词的POI应归为餐饮，不应被poi_agent选中
 _FOOD_NAME_KWS = [
-    "美食街", "海鲜街", "小吃街", "美食城", "美食广场", "食街",
-    "夜市", "大排档", "海鲜城", "海鲜市场", "水产市场",
-    "餐厅", "茶餐厅", "火锅", "烧烤", "甜品店", "奶茶",
+    "美食街",
+    "海鲜街",
+    "小吃街",
+    "美食城",
+    "美食广场",
+    "食街",
+    "夜市",
+    "大排档",
+    "海鲜城",
+    "海鲜市场",
+    "水产市场",
+    "餐厅",
+    "茶餐厅",
+    "火锅",
+    "烧烤",
+    "甜品店",
+    "奶茶",
 ]
 
 
@@ -67,7 +81,9 @@ def _food_intent_hint(scene_reqs_text: str, user_input: str) -> str:
     hints = []
 
     if any(kw in text for kw in ["甜品", "奶茶", "冰室", "甜点", "蛋糕"]):
-        hints.append("   - ⚠️ 用户核心需求是吃甜品！优先选甜品店/奶茶/冰室/茶餐厅甜品档，正餐最多选1家")
+        hints.append(
+            "   - ⚠️ 用户核心需求是吃甜品！优先选甜品店/奶茶/冰室/茶餐厅甜品档，正餐最多选1家"
+        )
     if any(kw in text for kw in ["海鲜", "生蚝", "虾", "蟹"]):
         hints.append("   - ⚠️ 用户核心需求是吃海鲜！优先选海鲜排档/海鲜市场/海鲜餐厅，少选粉面粥")
     if any(kw in text for kw in ["小吃", "粉", "面", "粥", "排档", "扫街"]):
@@ -86,6 +102,7 @@ def _food_intent_hint(scene_reqs_text: str, user_input: str) -> str:
 # 公共工具
 # ═══════════════════════════════════════════════════════════
 
+
 def _proposal(agent: str, content: dict, confidence: float, reasoning: str) -> dict:
     return {
         "proposal_id": f"prop_{agent}_{uuid.uuid4().hex[:6]}",
@@ -100,11 +117,13 @@ async def _load_all_pois() -> list[dict]:
     """从美团API获取全部POI数据。"""
     try:
         from backend.agents_v3.meituan_client import fetch_pois
+
         return await fetch_pois()
     except Exception:
         # API不可用时降级到本地JSON
         try:
             from backend.services.data_service import get_data
+
             data = get_data()
             if isinstance(data, dict):
                 return list(data.values())
@@ -114,8 +133,9 @@ async def _load_all_pois() -> list[dict]:
             logger.debug("local JSON data_service fallback failed", exc_info=True)
         return []
 
+
 # LLM调用统一委托给experts/base.py
-from backend.agents_v3.experts.base import _llm_decide, _get_llm_client  # noqa: F401
+from backend.agents_v3.experts.base import _get_llm_client, _llm_decide  # noqa: F401
 
 
 def _haversine_km(lat1: float, lng1: float, lat2: float, lng2: float) -> float:
@@ -123,30 +143,69 @@ def _haversine_km(lat1: float, lng1: float, lat2: float, lng2: float) -> float:
     R = 6371
     dlat = math.radians(lat2 - lat1)
     dlng = math.radians(lng2 - lng1)
-    a = math.sin(dlat / 2) ** 2 + math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) * math.sin(dlng / 2) ** 2
+    a = (
+        math.sin(dlat / 2) ** 2
+        + math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) * math.sin(dlng / 2) ** 2
+    )
     return R * 2 * math.asin(math.sqrt(a))
 
 
 def _is_likely_macau(name: str) -> bool:
     """检测是否是澳门POI（数据中有些错误标记为珠海）。"""
     macau_keywords = [
-        "Museu", "Casa", "Troço", "Posto", "Esplanada", "Muralhas", "Taipa",
-        "Prémio", "Macau", "Wynn", "Grand", "Lisboa", "Venetian", "Parisian",
-        "Morrisson", "Guia", "Penha", "Barra", "Patane",
-        "博物館露天", "大賽車", "沙梨頭", "噴泉表演 Fountain",
-        "海事博物館", "倫記軟滑", "永利名店", "吉祥樹表演",
-        "龍環葡韻", "東方基金", "舊城牆遺址",
+        "Museu",
+        "Casa",
+        "Troço",
+        "Posto",
+        "Esplanada",
+        "Muralhas",
+        "Taipa",
+        "Prémio",
+        "Macau",
+        "Wynn",
+        "Grand",
+        "Lisboa",
+        "Venetian",
+        "Parisian",
+        "Morrisson",
+        "Guia",
+        "Penha",
+        "Barra",
+        "Patane",
+        "博物館露天",
+        "大賽車",
+        "沙梨頭",
+        "噴泉表演 Fountain",
+        "海事博物館",
+        "倫記軟滑",
+        "永利名店",
+        "吉祥樹表演",
+        "龍環葡韻",
+        "東方基金",
+        "舊城牆遺址",
         # 新增常见澳门餐饮
-        "檸檬車露", "義順鮮奶", "禮記", "榮暉", "氹仔", "馬交",
-        "葡國菜", "葡式", "葡撻", "車厘哥夫", "潘榮",
-        "六記", "誠昌", "木糠", "杏仁餅",
+        "檸檬車露",
+        "義順鮮奶",
+        "禮記",
+        "榮暉",
+        "氹仔",
+        "馬交",
+        "葡國菜",
+        "葡式",
+        "葡撻",
+        "車厘哥夫",
+        "潘榮",
+        "六記",
+        "誠昌",
+        "木糠",
+        "杏仁餅",
     ]
     for kw in macau_keywords:
         if kw in name:
             return True
     # 检测是否含大量葡萄牙语/英语（澳门POI通常中英双语）
-    chinese_chars = sum(1 for c in name if '\u4e00' <= c <= '\u9fff')
-    latin_chars = sum(1 for c in name if ('a' <= c <= 'z') or ('A' <= c <= 'Z'))
+    chinese_chars = sum(1 for c in name if "\u4e00" <= c <= "\u9fff")
+    latin_chars = sum(1 for c in name if ("a" <= c <= "z") or ("A" <= c <= "Z"))
     if latin_chars > chinese_chars and latin_chars > 5:
         return True
     return False
@@ -154,11 +213,27 @@ def _is_likely_macau(name: str) -> bool:
 
 # 珠海知名地标（用于评分boost）
 _LANDMARK_NAMES = {
-    "长隆海洋王国", "海洋王国", "珠海渔女", "情侣路", "圆明新园",
-    "海滨泳场", "野狸岛", "日月贝", "珠海大剧院", "港珠澳大桥",
-    "外伶仃岛", "淇澳岛", "飞沙滩", "金海滩", "御温泉",
-    "唐家湾古镇", "梅溪牌坊", "农科奇观", "梦幻水城",
-    "湾仔海鲜街", "拱北口岸",
+    "长隆海洋王国",
+    "海洋王国",
+    "珠海渔女",
+    "情侣路",
+    "圆明新园",
+    "海滨泳场",
+    "野狸岛",
+    "日月贝",
+    "珠海大剧院",
+    "港珠澳大桥",
+    "外伶仃岛",
+    "淇澳岛",
+    "飞沙滩",
+    "金海滩",
+    "御温泉",
+    "唐家湾古镇",
+    "梅溪牌坊",
+    "农科奇观",
+    "梦幻水城",
+    "湾仔海鲜街",
+    "拱北口岸",
 }
 
 
@@ -253,7 +328,9 @@ def _build_poi_prompt(intent: dict) -> str:
     # 预算
     budget_extra = ""
     if budget and budget <= 200:
-        budget_extra = "\n- 穷游模式：优先选免费景点（公园、海滩、历史街区），付费景点仅选1-2个高价值"
+        budget_extra = (
+            "\n- 穷游模式：优先选免费景点（公园、海滩、历史街区），付费景点仅选1-2个高价值"
+        )
 
     return f"""你是珠海旅游景点规划专家。根据用户需求从候选列表中挑选最合适的景点组合。
 
@@ -275,12 +352,15 @@ def _build_poi_prompt(intent: dict) -> str:
 # 景点Agent — LLM感知+决策+行动
 # ═══════════════════════════════════════════════════════════
 
+
 async def poi_agent(state: TravelState) -> dict:
     """景点Agent：LLM直接从候选池选景点，不做算法预排序。"""
     # ── SSE: Agent启动 ──
     meta = AGENT_META.get("poi", {})
     await sse_emit(state, "agent_start", {"agent": "poi", **meta})
-    await sse_emit(state, "agent_thinking", {"agent": "poi", "text": "加载候选景点，按分类分层抽样..."})
+    await sse_emit(
+        state, "agent_thinking", {"agent": "poi", "text": "加载候选景点，按分类分层抽样..."}
+    )
 
     # ── 感知 ──
     candidates = state.get("candidates", [])
@@ -334,19 +414,21 @@ async def poi_agent(state: TravelState) -> dict:
     # 构建LLM摘要
     poi_summaries = []
     for c in sampled:
-        poi_summaries.append({
-            "name": c.get("name", ""),
-            "category": c.get("category", ""),
-            "rating": c.get("rating", 0),
-            "price": c.get("avg_price", 0),
-            "tags": c.get("tags", [])[:5],
-            "scene_tags": c.get("_scene_tags", [])[:3],
-            "avg_stay_min": c.get("avg_stay_min", 60),
-            "lat": c.get("lat", 0),
-            "lng": c.get("lng", 0),
-            "reviews": c.get("_ugc_summary", ""),
-            "suitability": c.get("_suitability", {}),
-        })
+        poi_summaries.append(
+            {
+                "name": c.get("name", ""),
+                "category": c.get("category", ""),
+                "rating": c.get("rating", 0),
+                "price": c.get("avg_price", 0),
+                "tags": c.get("tags", [])[:5],
+                "scene_tags": c.get("_scene_tags", [])[:3],
+                "avg_stay_min": c.get("avg_stay_min", 60),
+                "lat": c.get("lat", 0),
+                "lng": c.get("lng", 0),
+                "reviews": c.get("_ugc_summary", ""),
+                "suitability": c.get("_suitability", {}),
+            }
+        )
 
     # ── 决策：LLM（按场景类型分化prompt） ──
     system = _build_poi_prompt(intent)
@@ -392,12 +474,14 @@ async def poi_agent(state: TravelState) -> dict:
                         content = c
                         break
             if content:
-                proposals.append(_proposal(
-                    "poi",
-                    content,
-                    pick.get("confidence", 0.7),
-                    pick.get("reason", "LLM推荐"),
-                ))
+                proposals.append(
+                    _proposal(
+                        "poi",
+                        content,
+                        pick.get("confidence", 0.7),
+                        pick.get("reason", "LLM推荐"),
+                    )
+                )
 
     # ── 降级：智能规则引擎（非简单fallback） ──
     if not proposals:
@@ -427,8 +511,9 @@ def _geo_cluster_filter(proposals: list[dict], all_candidates: list[dict]) -> li
     dist_matrix = [[0.0] * n for _ in range(n)]
     for i in range(n):
         for j in range(i + 1, n):
-            d = _haversine_km(poi_coords[i][1], poi_coords[i][2],
-                              poi_coords[j][1], poi_coords[j][2])
+            d = _haversine_km(
+                poi_coords[i][1], poi_coords[i][2], poi_coords[j][1], poi_coords[j][2]
+            )
             dist_matrix[i][j] = d
             dist_matrix[j][i] = d
 
@@ -597,18 +682,24 @@ def _smart_poi_selection(candidates: list[dict], intent: dict, user_input: str) 
         selected.append((c, s))
         seen_categories.add(cat)
 
-    return [_proposal("poi", c, round(min(0.5 + s, 0.95), 3), f"规则引擎评分{s:.2f}") for c, s in selected]
+    return [
+        _proposal("poi", c, round(min(0.5 + s, 0.95), 3), f"规则引擎评分{s:.2f}")
+        for c, s in selected
+    ]
 
 
 # ═══════════════════════════════════════════════════════════
 # 餐饮Agent — LLM感知+决策+行动
 # ═══════════════════════════════════════════════════════════
 
+
 async def food_agent(state: TravelState) -> dict:
     """餐饮Agent：独立加载全部餐饮数据 → LLM选餐厅 → 提案。"""
     meta = AGENT_META.get("food", {})
     await sse_emit(state, "agent_start", {"agent": "food", **meta})
-    await sse_emit(state, "agent_thinking", {"agent": "food", "text": "加载餐饮POI，5子类各取TOP3..."})
+    await sse_emit(
+        state, "agent_thinking", {"agent": "food", "text": "加载餐饮POI，5子类各取TOP3..."}
+    )
 
     # ── 感知 ──
     intent = state.get("user_intent", {})
@@ -631,12 +722,35 @@ async def food_agent(state: TravelState) -> dict:
     target_city = intent.get("city", "珠海")
     all_pois = [p for p in all_pois if p.get("city", "") == target_city or not p.get("city")]
     food_cats = ["餐饮", "美食", "小吃", "海鲜", "餐厅", "夜市", "茶餐厅", "甜品", "饮品"]
-    food_names = ["餐厅", "海鲜", "烧", "煲", "粉", "面", "火锅", "烧烤", "夜市", "粥", "蚝", "排档",
-                  "甜品", "奶茶", "冰", "茶餐厅", "柠檬", "美食街", "海鲜街", "老街"]
+    food_names = [
+        "餐厅",
+        "海鲜",
+        "烧",
+        "煲",
+        "粉",
+        "面",
+        "火锅",
+        "烧烤",
+        "夜市",
+        "粥",
+        "蚝",
+        "排档",
+        "甜品",
+        "奶茶",
+        "冰",
+        "茶餐厅",
+        "柠檬",
+        "美食街",
+        "海鲜街",
+        "老街",
+    ]
     foods = [
-        c for c in all_pois
-        if (any(kw in c.get("category", "") for kw in food_cats)
-            or any(kw in c.get("name", "") for kw in food_names))
+        c
+        for c in all_pois
+        if (
+            any(kw in c.get("category", "") for kw in food_cats)
+            or any(kw in c.get("name", "") for kw in food_names)
+        )
         and c.get("category", "") not in ["购物", "酒店", "住宿"]  # 排除非餐饮类
         and not _is_likely_macau(c.get("name", ""))
         and c.get("rating") is not None  # 过滤垃圾POI
@@ -655,12 +769,14 @@ async def food_agent(state: TravelState) -> dict:
         if c.get("category", "") not in ["住宿", "酒店", "民宿", "餐饮", "美食"]:
             lat, lng = c.get("lat", 0), c.get("lng", 0)
             if lat and lng:
-                poi_locations.append({
-                    "name": c.get("name", ""),
-                    "lat": round(lat, 3),
-                    "lng": round(lng, 3),
-                    "category": c.get("category", ""),
-                })
+                poi_locations.append(
+                    {
+                        "name": c.get("name", ""),
+                        "lat": round(lat, 3),
+                        "lng": round(lng, 3),
+                        "category": c.get("category", ""),
+                    }
+                )
 
     # 计算景点簇中心（供规则预排用）
     _poi_center = None
@@ -691,8 +807,12 @@ async def food_agent(state: TravelState) -> dict:
     subcat_map = {}  # name -> subcat
     seen_names = set()
     for sub_name, kws in _FOOD_SUBCATS.items():
-        bucket = [f for f in foods if any(kw in f.get("name", "") or kw in f.get("category", "") for kw in kws)
-                  and f.get("name", "") not in seen_names]
+        bucket = [
+            f
+            for f in foods
+            if any(kw in f.get("name", "") or kw in f.get("category", "") for kw in kws)
+            and f.get("name", "") not in seen_names
+        ]
         bucket.sort(key=_food_rule_score, reverse=True)
         for f in bucket[:3]:
             stratified.append(f)
@@ -757,9 +877,9 @@ async def food_agent(state: TravelState) -> dict:
         max_food = 5
     else:
         # 观光/目的地/特种兵/休闲：餐饮是配角，选2-3家
-        _GROUP_HINT = '亲子：选环境好、有儿童餐的；' if group_type == '亲子' else ''
-        _GROUP_HINT += '情侣：选氛围好的特色餐厅；' if group_type == '情侣' else ''
-        _GROUP_HINT += '特种兵：选快节奏、不用排队的。' if '特种兵' in user_input else ''
+        _GROUP_HINT = "亲子：选环境好、有儿童餐的；" if group_type == "亲子" else ""
+        _GROUP_HINT += "情侣：选氛围好的特色餐厅；" if group_type == "情侣" else ""
+        _GROUP_HINT += "特种兵：选快节奏、不用排队的。" if "特种兵" in user_input else ""
         system = _FOOD_SYSTEM_PREFIX + f"""
 5. 【群体适配】{_GROUP_HINT}
 
@@ -795,7 +915,11 @@ async def food_agent(state: TravelState) -> dict:
                         content = f
                         break
             if content:
-                matched.append(_proposal("food", content, pick.get("confidence", 0.7), pick.get("reason", "LLM推荐")))
+                matched.append(
+                    _proposal(
+                        "food", content, pick.get("confidence", 0.7), pick.get("reason", "LLM推荐")
+                    )
+                )
         return matched
 
     proposals = _match_food_picks(result.get("picks", [])) if result and "picks" in result else []
@@ -807,7 +931,8 @@ async def food_agent(state: TravelState) -> dict:
             break
         current_info = [
             f"{p['content']['name']}({_get_food_subcat(p['content']['name'], _FOOD_SUBCATS)})"
-            for p in proposals if p.get("content", {}).get("name")
+            for p in proposals
+            if p.get("content", {}).get("name")
         ]
         feedback = "\n".join(f"❌ {i}" for i in issues)
         reselect_user = f"""你之前选了: {', '.join(current_info)}
@@ -853,16 +978,23 @@ def _check_food_diversity_issues(
 
     from collections import Counter
 
-    subcats = [_get_food_subcat(p.get("content", {}).get("name", ""), subcat_defs) for p in proposals]
+    subcats = [
+        _get_food_subcat(p.get("content", {}).get("name", ""), subcat_defs) for p in proposals
+    ]
     counts = Counter(subcats)
     issues = []
 
     # 综合美食街最多1个
     street_count = counts.get("综合美食街", 0)
     if street_count > 1:
-        street_names = [p.get("content", {}).get("name", "") for p in proposals
-                        if _get_food_subcat(p.get("content", {}).get("name", ""), subcat_defs) == "综合美食街"]
-        issues.append(f"选了{street_count}个综合美食场所（{', '.join(street_names)}），内部已有多种美食，最多选1个")
+        street_names = [
+            p.get("content", {}).get("name", "")
+            for p in proposals
+            if _get_food_subcat(p.get("content", {}).get("name", ""), subcat_defs) == "综合美食街"
+        ]
+        issues.append(
+            f"选了{street_count}个综合美食场所（{', '.join(street_names)}），内部已有多种美食，最多选1个"
+        )
 
     # 任何子类不超过2个
     for sub, cnt in counts.items():
@@ -871,7 +1003,9 @@ def _check_food_diversity_issues(
 
     # 美食型需要≥3种子类
     if scene_type == "美食型" and len(set(subcats)) < 3:
-        issues.append(f"只覆盖{len(set(subcats))}种子类（{', '.join(set(subcats))}），美食路线需要≥3种不同子类")
+        issues.append(
+            f"只覆盖{len(set(subcats))}种子类（{', '.join(set(subcats))}），美食路线需要≥3种不同子类"
+        )
 
     return issues
 
@@ -904,12 +1038,16 @@ def _smart_food_selection(foods: list[dict], intent: dict, user_input: str) -> l
         scored.append((f, score))
 
     scored.sort(key=lambda x: x[1], reverse=True)
-    return [_proposal("food", f, round(min(0.4 + s, 0.9), 3), f"规则引擎选餐{s:.2f}") for f, s in scored[:3]]
+    return [
+        _proposal("food", f, round(min(0.4 + s, 0.9), 3), f"规则引擎选餐{s:.2f}")
+        for f, s in scored[:3]
+    ]
 
 
 # ═══════════════════════════════════════════════════════════
 # 住宿Agent — LLM感知+决策+行动
 # ═══════════════════════════════════════════════════════════
+
 
 async def hotel_agent(state: TravelState) -> dict:
     """住宿Agent：感知是否需要住宿 → LLM选酒店 → 提案。"""
@@ -922,12 +1060,15 @@ async def hotel_agent(state: TravelState) -> dict:
     user_input = str(state.get("user_input", ""))
 
     # 判断是否需要住宿
-    need_hotel = any(kw in user_input for kw in ["晚", "两", "二", "三天", "住宿", "酒店", "民宿", "二日", "两日", "过夜"])
+    need_hotel = any(
+        kw in user_input
+        for kw in ["晚", "两", "二", "三天", "住宿", "酒店", "民宿", "二日", "两日", "过夜"]
+    )
     if not need_hotel:
         # LLM判断是否隐含需要住宿
         judge = await _llm_decide(
-            "判断用户是否需要住宿。输出JSON: {\"need\":true/false,\"reason\":\"理由\"}",
-            f"用户输入: {user_input}"
+            '判断用户是否需要住宿。输出JSON: {"need":true/false,"reason":"理由"}',
+            f"用户输入: {user_input}",
         )
         if judge and judge.get("need"):
             need_hotel = True
@@ -941,7 +1082,8 @@ async def hotel_agent(state: TravelState) -> dict:
     all_pois = [p for p in all_pois if p.get("city", "") == target_city or not p.get("city")]
     hotel_sources = all_pois + candidates
     hotels = [
-        c for c in hotel_sources
+        c
+        for c in hotel_sources
         if any(kw in c.get("category", "") for kw in ["住宿", "酒店", "民宿"])
         or any(kw in c.get("name", "") for kw in ["酒店", "民宿", "宾馆", "公寓"])
     ]
@@ -961,7 +1103,9 @@ async def hotel_agent(state: TravelState) -> dict:
         if c.get("category", "") not in ["住宿", "酒店", "民宿", "餐饮", "美食"]:
             lat, lng = c.get("lat", 0), c.get("lng", 0)
             if lat and lng:
-                poi_locations.append({"name": c.get("name", ""), "lat": round(lat, 3), "lng": round(lng, 3)})
+                poi_locations.append(
+                    {"name": c.get("name", ""), "lat": round(lat, 3), "lng": round(lng, 3)}
+                )
 
     summaries = [
         {
@@ -1023,7 +1167,11 @@ async def hotel_agent(state: TravelState) -> dict:
                         content = h
                         break
             if content:
-                proposals.append(_proposal("hotel", content, pick.get("confidence", 0.7), pick.get("reason", "LLM推荐")))
+                proposals.append(
+                    _proposal(
+                        "hotel", content, pick.get("confidence", 0.7), pick.get("reason", "LLM推荐")
+                    )
+                )
 
     # 降级
     if not proposals and hotels:
@@ -1037,6 +1185,7 @@ async def hotel_agent(state: TravelState) -> dict:
 # ═══════════════════════════════════════════════════════════
 # 交通Agent — LLM评估交通+路线串联
 # ═══════════════════════════════════════════════════════════
+
 
 async def traffic_agent(state: TravelState) -> dict:
     """交通Agent：分析候选POI分布 → LLM规划交通方案 → 提案。"""
@@ -1052,13 +1201,15 @@ async def traffic_agent(state: TravelState) -> dict:
     poi_locs = []
     for c in candidates[:30]:
         if c.get("category", "") not in ["住宿", "酒店", "民宿"]:
-            poi_locs.append({
-                "name": c.get("name", ""),
-                "lat": c.get("lat", 0),
-                "lng": c.get("lng", 0),
-                "category": c.get("category", ""),
-                "tags": c.get("tags", [])[:3],
-            })
+            poi_locs.append(
+                {
+                    "name": c.get("name", ""),
+                    "lat": c.get("lat", 0),
+                    "lng": c.get("lng", 0),
+                    "category": c.get("category", ""),
+                    "tags": c.get("tags", [])[:3],
+                }
+            )
 
     # 计算POI之间的距离矩阵（关键景点之间）
     distances = []
@@ -1135,19 +1286,38 @@ async def traffic_agent(state: TravelState) -> dict:
 
     if result:
         result["distances"] = distances
-        return {"proposals": [_proposal("traffic", result, result.get("confidence", 0.7), "LLM交通规划")]}
+        return {
+            "proposals": [
+                _proposal("traffic", result, result.get("confidence", 0.7), "LLM交通规划")
+            ]
+        }
 
     # 降级：基于距离矩阵计算最近邻顺序
     if poi_locs and distances:
         order = _nearest_neighbor_order(poi_locs)
-        return {"proposals": [_proposal("traffic", {
-            "mode": "公共交通+步行",
-            "suggested_order": order,
-            "estimated_total_time": 60,
-            "distances": distances,
-        }, 0.5, "规则引擎：最近邻排序")]}
+        return {
+            "proposals": [
+                _proposal(
+                    "traffic",
+                    {
+                        "mode": "公共交通+步行",
+                        "suggested_order": order,
+                        "estimated_total_time": 60,
+                        "distances": distances,
+                    },
+                    0.5,
+                    "规则引擎：最近邻排序",
+                )
+            ]
+        }
 
-    return {"proposals": [_proposal("traffic", {"mode": "公共交通", "estimated_total_time": 60}, 0.4, "默认交通方案")]}
+    return {
+        "proposals": [
+            _proposal(
+                "traffic", {"mode": "公共交通", "estimated_total_time": 60}, 0.4, "默认交通方案"
+            )
+        ]
+    }
 
 
 def _nearest_neighbor_order(poi_locs: list[dict]) -> list[str]:
@@ -1181,6 +1351,7 @@ def _nearest_neighbor_order(poi_locs: list[dict]) -> list[str]:
 # 天气Agent — LLM评估天气影响
 # ═══════════════════════════════════════════════════════════
 
+
 async def weather_agent(state: TravelState) -> dict:
     """天气Agent：LLM评估天气对行程的影响。"""
     meta = AGENT_META.get("weather", {})
@@ -1207,10 +1378,23 @@ async def weather_agent(state: TravelState) -> dict:
 
     # 动态获取当前月份
     from datetime import datetime
+
     now = datetime.now()
     month = now.month
-    season_map = {1: "冬季", 2: "冬季", 3: "春季", 4: "春季", 5: "夏季", 6: "夏季",
-                  7: "夏季", 8: "夏季", 9: "秋季", 10: "秋季", 11: "秋季", 12: "冬季"}
+    season_map = {
+        1: "冬季",
+        2: "冬季",
+        3: "春季",
+        4: "春季",
+        5: "夏季",
+        6: "夏季",
+        7: "夏季",
+        8: "夏季",
+        9: "秋季",
+        10: "秋季",
+        11: "秋季",
+        12: "冬季",
+    }
     season = season_map.get(month, "未知")
 
     # ── 决策：LLM ──
@@ -1233,28 +1417,44 @@ async def weather_agent(state: TravelState) -> dict:
     result = await _llm_decide(system, user)
 
     if result:
-        return {"proposals": [_proposal("weather", result, result.get("confidence", 0.8), "LLM天气评估")]}
+        return {
+            "proposals": [
+                _proposal("weather", result, result.get("confidence", 0.8), "LLM天气评估")
+            ]
+        }
 
     # 降级：基于季节的规则评估
-    return {"proposals": [_proposal("weather", {
-        "condition": "多云",
-        "temperature": "26-32°C",
-        "outdoor_ok": True,
-        "advice": f"{month}月珠海{season}气候，建议上午户外下午室内，注意防晒防暑",
-        "rain_probability": 0.35,
-        "indoor_alternatives": indoor_pois[:3] if indoor_pois else ["长隆海洋科学馆"],
-    }, 0.6, "规则引擎：季节性天气评估")]}
+    return {
+        "proposals": [
+            _proposal(
+                "weather",
+                {
+                    "condition": "多云",
+                    "temperature": "26-32°C",
+                    "outdoor_ok": True,
+                    "advice": f"{month}月珠海{season}气候，建议上午户外下午室内，注意防晒防暑",
+                    "rain_probability": 0.35,
+                    "indoor_alternatives": indoor_pois[:3] if indoor_pois else ["长隆海洋科学馆"],
+                },
+                0.6,
+                "规则引擎：季节性天气评估",
+            )
+        ]
+    }
 
 
 # ═══════════════════════════════════════════════════════════
 # 本地达人Agent — LLM生成本地建议
 # ═══════════════════════════════════════════════════════════
 
+
 async def local_expert_agent(state: TravelState) -> dict:
     """本地达人Agent：LLM结合POI数据给本地特色建议。"""
     meta = AGENT_META.get("local_expert", {})
     await sse_emit(state, "agent_start", {"agent": "local_expert", **meta})
-    await sse_emit(state, "agent_thinking", {"agent": "local_expert", "text": "搜索非热门高评地点..."})
+    await sse_emit(
+        state, "agent_thinking", {"agent": "local_expert", "text": "搜索非热门高评地点..."}
+    )
     # ── 感知 ──
     intent = state.get("user_intent", {})
     user_input = state.get("user_input", "")
@@ -1268,12 +1468,14 @@ async def local_expert_agent(state: TravelState) -> dict:
         rating = c.get("rating", 0)
         # 小众但高质量
         if rating >= 4.0 and (llm_q.get("score", 0) >= 7 or any("小众" in str(t) for t in tags)):
-            hidden_gems.append({
-                "name": c.get("name", ""),
-                "category": c.get("category", ""),
-                "rating": rating,
-                "tags": tags[:3],
-            })
+            hidden_gems.append(
+                {
+                    "name": c.get("name", ""),
+                    "category": c.get("category", ""),
+                    "rating": rating,
+                    "tags": tags[:3],
+                }
+            )
 
     # 获取用户可能已选的热门POI（用于去重）
     popular_names = []
@@ -1312,20 +1514,45 @@ async def local_expert_agent(state: TravelState) -> dict:
     result = await _llm_decide(system, user)
 
     if result:
-        return {"proposals": [_proposal("local_expert", result, result.get("confidence", 0.75), "LLM本地建议")]}
+        return {
+            "proposals": [
+                _proposal("local_expert", result, result.get("confidence", 0.75), "LLM本地建议")
+            ]
+        }
 
     # 降级：基于数据的小众推荐
-    gems = hidden_gems[:3] if hidden_gems else [{"name": "唐家湾古镇", "type": "小众景点", "why": "人少景美，岭南古村落"}]
-    return {"proposals": [_proposal("local_expert", {
-        "tips": [{"name": g.get("name", ""), "type": g.get("type", g.get("category", "")), "why": g.get("why", "小众推荐")} for g in gems],
-        "secrets": [g.get("name", "") for g in gems],
-        "local_advice": "珠海天气湿热，建议早出晚归避开正午高温",
-    }, 0.4, "规则引擎：小众POI推荐")]}
+    gems = (
+        hidden_gems[:3]
+        if hidden_gems
+        else [{"name": "唐家湾古镇", "type": "小众景点", "why": "人少景美，岭南古村落"}]
+    )
+    return {
+        "proposals": [
+            _proposal(
+                "local_expert",
+                {
+                    "tips": [
+                        {
+                            "name": g.get("name", ""),
+                            "type": g.get("type", g.get("category", "")),
+                            "why": g.get("why", "小众推荐"),
+                        }
+                        for g in gems
+                    ],
+                    "secrets": [g.get("name", "") for g in gems],
+                    "local_advice": "珠海天气湿热，建议早出晚归避开正午高温",
+                },
+                0.4,
+                "规则引擎：小众POI推荐",
+            )
+        ]
+    }
 
 
 # ═══════════════════════════════════════════════════════════
 # 保险Agent — LLM评估风险
 # ═══════════════════════════════════════════════════════════
+
 
 async def insurance_agent(state: TravelState) -> dict:
     """保险Agent：LLM直接分析行程风险。"""
@@ -1339,11 +1566,19 @@ async def insurance_agent(state: TravelState) -> dict:
 
     # 收集行程信息给LLM（不做if/else预处理）
     poi_names = [p.get("content", {}).get("name", "") for p in proposals if p.get("agent") == "poi"]
-    food_names = [p.get("content", {}).get("name", "") for p in proposals if p.get("agent") == "food"]
-    total_cost = sum(p.get("content", {}).get("avg_price", 0) for p in proposals if p.get("agent") in ["poi", "food", "hotel"])
+    food_names = [
+        p.get("content", {}).get("name", "") for p in proposals if p.get("agent") == "food"
+    ]
+    total_cost = sum(
+        p.get("content", {}).get("avg_price", 0)
+        for p in proposals
+        if p.get("agent") in ["poi", "food", "hotel"]
+    )
 
     # 收集住宿信息
-    hotel_names = [p.get("content", {}).get("name", "") for p in proposals if p.get("agent") == "hotel"]
+    hotel_names = [
+        p.get("content", {}).get("name", "") for p in proposals if p.get("agent") == "hotel"
+    ]
 
     # ── 决策：LLM直接分析 ──
     system = """你是旅行保险顾问。请直接分析用户行程的风险因素并给出保险建议。
@@ -1369,7 +1604,11 @@ async def insurance_agent(state: TravelState) -> dict:
     result = await _llm_decide(system, user)
 
     if result:
-        return {"proposals": [_proposal("insurance", result, result.get("confidence", 0.7), "LLM风险评估")]}
+        return {
+            "proposals": [
+                _proposal("insurance", result, result.get("confidence", 0.7), "LLM风险评估")
+            ]
+        }
 
     # 降级：基于花费的简单规则
     level = "low"
@@ -1377,24 +1616,36 @@ async def insurance_agent(state: TravelState) -> dict:
         level = "medium"
     if total_cost > 2000:
         level = "high"
-    return {"proposals": [_proposal("insurance", {
-        "risk_level": level,
-        "risk_factors": [f"预估花费{total_cost}元"],
-        "recommended_insurance": "综合旅行险" if level != "low" else "基础旅行险",
-        "coverage": "50万" if level == "high" else "20万",
-        "notes": ["注意防晒防暑", "保管好个人物品"],
-    }, 0.5, f"规则降级：{level}风险")]}
+    return {
+        "proposals": [
+            _proposal(
+                "insurance",
+                {
+                    "risk_level": level,
+                    "risk_factors": [f"预估花费{total_cost}元"],
+                    "recommended_insurance": "综合旅行险" if level != "low" else "基础旅行险",
+                    "coverage": "50万" if level == "high" else "20万",
+                    "notes": ["注意防晒防暑", "保管好个人物品"],
+                },
+                0.5,
+                f"规则降级：{level}风险",
+            )
+        ]
+    }
 
 
 # ═══════════════════════════════════════════════════════════
 # 协商Agent — 基于其他Agent提案生成反提案
 # ═══════════════════════════════════════════════════════════
 
+
 async def negotiation_agent(state: TravelState) -> dict:
     """协商Agent：读取所有提案 → LLM分析冲突 → 生成优化建议。"""
     meta = AGENT_META.get("negotiation", {})
     await sse_emit(state, "agent_start", {"agent": "negotiation", **meta})
-    await sse_emit(state, "agent_thinking", {"agent": "negotiation", "text": "读取提案，分析冲突..."})
+    await sse_emit(
+        state, "agent_thinking", {"agent": "negotiation", "text": "读取提案，分析冲突..."}
+    )
     proposals = state.get("proposals", [])
     intent = state.get("user_intent", {})
     user_input = state.get("user_input", "")
@@ -1406,16 +1657,18 @@ async def negotiation_agent(state: TravelState) -> dict:
     proposal_details = []
     for p in proposals:
         content = p.get("content", {})
-        proposal_details.append({
-            "agent": p.get("agent", "unknown"),
-            "name": content.get("name", ""),
-            "category": content.get("category", ""),
-            "price": content.get("avg_price", 0),
-            "rating": content.get("rating", 0),
-            "lat": content.get("lat", 0),
-            "lng": content.get("lng", 0),
-            "confidence": p.get("confidence", 0),
-        })
+        proposal_details.append(
+            {
+                "agent": p.get("agent", "unknown"),
+                "name": content.get("name", ""),
+                "category": content.get("category", ""),
+                "price": content.get("avg_price", 0),
+                "rating": content.get("rating", 0),
+                "lat": content.get("lat", 0),
+                "lng": content.get("lng", 0),
+                "confidence": p.get("confidence", 0),
+            }
+        )
 
     system = """你是行程优化顾问。基于各Agent的提案，分析是否存在冲突或优化空间。
 
@@ -1441,12 +1694,14 @@ async def negotiation_agent(state: TravelState) -> dict:
     if result and result.get("suggestions"):
         msgs = []
         for s in result["suggestions"]:
-            msgs.append({
-                "type": s.get("type", ""),
-                "from": "negotiation",
-                "message": s.get("description", ""),
-                "priority": s.get("priority", "low"),
-            })
+            msgs.append(
+                {
+                    "type": s.get("type", ""),
+                    "from": "negotiation",
+                    "message": s.get("description", ""),
+                    "priority": s.get("priority", "low"),
+                }
+            )
         return {"negotiation_msgs": msgs}
 
     return {"counter_proposals": []}

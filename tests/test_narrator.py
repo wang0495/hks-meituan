@@ -2,17 +2,21 @@
 
 from __future__ import annotations
 
-import asyncio
 from typing import Any
 from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from backend.services.narrator import (CATEGORY_STEP_TEMPLATES,
-                                       CLOSING_TEMPLATES, OPENING_TEMPLATES,
-                                       _extract_emotion_highlights,
-                                       _generate_closing, _generate_opening,
-                                       _generate_step, generate_narrative)
+from backend.services.narrator import (
+    CATEGORY_STEP_TEMPLATES,
+    CLOSING_TEMPLATES,
+    OPENING_TEMPLATES,
+    _extract_emotion_highlights,
+    _generate_closing,
+    _generate_opening,
+    _generate_step,
+    generate_narrative,
+)
 
 
 def _make_poi(
@@ -47,12 +51,14 @@ def _make_poi(
 def _make_route_result(steps: list[dict[str, Any]]) -> dict[str, Any]:
     route = []
     for i, step in enumerate(steps):
-        route.append({
-            "poi": step["poi"],
-            "arrival_time": step.get("arrival_time", f"0{9 + i}:00"),
-            "departure_time": step.get("departure_time", f"0{9 + i}:30"),
-            "travel_from_prev": {"distance_m": 1000, "time_min": 10},
-        })
+        route.append(
+            {
+                "poi": step["poi"],
+                "arrival_time": step.get("arrival_time", f"0{9 + i}:00"),
+                "departure_time": step.get("departure_time", f"0{9 + i}:30"),
+                "travel_from_prev": {"distance_m": 1000, "time_min": 10},
+            }
+        )
     return {"route": route}
 
 
@@ -298,7 +304,7 @@ class TestLLMDescription:
         from backend.services.narrator import _llm_generate_description
 
         with patch("backend.services.llm_service.chat", new_callable=AsyncMock) as mock_chat:
-            mock_chat.side_effect = asyncio.TimeoutError()
+            mock_chat.side_effect = TimeoutError()
             poi = _make_poi("测试点")
             step = {"poi": poi, "arrival_time": "10:00"}
             result = await _llm_generate_description(step, _make_user_intent(), "珠海")

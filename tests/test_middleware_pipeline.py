@@ -10,8 +10,7 @@ from starlette.requests import Request
 from starlette.responses import Response
 
 from backend.middleware.performance import PerformanceMiddleware
-from backend.middleware.pipeline import (ConditionalMiddleware,
-                                         MiddlewarePipeline, MiddlewareStats)
+from backend.middleware.pipeline import ConditionalMiddleware, MiddlewarePipeline, MiddlewareStats
 
 # ---------------------------------------------------------------------------
 # 辅助工厂
@@ -471,9 +470,7 @@ class TestPerformanceMiddleware:
             async def __call__(self, scope, receive, send):
                 pass
 
-        mw = PerformanceMiddleware(
-            FakeApp(), slow_threshold=10.0, request_id_header="X-Trace-ID"
-        )
+        mw = PerformanceMiddleware(FakeApp(), slow_threshold=10.0, request_id_header="X-Trace-ID")
 
         request = _make_request()
         expected_response = Response(content="ok")

@@ -31,9 +31,9 @@ from backend.errors import CityFlowException, ErrorCode
 logger = logging.getLogger(__name__)
 
 __all__ = [
-    "IPRateLimiter",
-    "IPRateLimitResult",
     "IPRateLimitExceededError",
+    "IPRateLimitResult",
+    "IPRateLimiter",
     "get_ip_rate_limiter",
 ]
 
@@ -190,9 +190,7 @@ class _LocalIPRateLimiter:
     def cleanup(self, max_idle_seconds: int = 600) -> int:
         """清理过期记录。"""
         now = time.monotonic()
-        stale = [
-            k for k, w in self._windows.items() if now - w.start_ts > max_idle_seconds
-        ]
+        stale = [k for k, w in self._windows.items() if now - w.start_ts > max_idle_seconds]
         for k in stale:
             del self._windows[k]
 
@@ -205,9 +203,7 @@ class _LocalIPRateLimiter:
         # 清理过期端点追踪
         stale_ips = []
         for ip, tracker in self._endpoint_tracker.items():
-            stale_eps = [
-                ep for ep, ts in tracker.items() if now_wall - ts > _SUSPICIOUS_WINDOW
-            ]
+            stale_eps = [ep for ep, ts in tracker.items() if now_wall - ts > _SUSPICIOUS_WINDOW]
             for ep in stale_eps:
                 del tracker[ep]
             if not tracker:
@@ -321,8 +317,8 @@ class IPRateLimiter:
         self._ban_duration = ban_duration
 
         if redis_client is not None:
-            self._backend: _RedisIPRateLimiter | _LocalIPRateLimiter = (
-                _RedisIPRateLimiter(redis_client)
+            self._backend: _RedisIPRateLimiter | _LocalIPRateLimiter = _RedisIPRateLimiter(
+                redis_client
             )
             self._use_redis = True
             logger.info("IP 限流器已初始化（Redis 模式）")

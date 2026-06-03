@@ -136,9 +136,7 @@ class TemplateEngine:
         )
         self._cache = TemplateCache(max_size=cache_max_size, ttl_seconds=cache_ttl)
         # 字符串模板缓存（内容哈希 -> Template）
-        self._string_cache = TemplateCache(
-            max_size=cache_max_size, ttl_seconds=cache_ttl
-        )
+        self._string_cache = TemplateCache(max_size=cache_max_size, ttl_seconds=cache_ttl)
 
     @property
     def cache(self) -> TemplateCache:
@@ -183,9 +181,7 @@ class TemplateEngine:
                 details={"template": template_name, "error": str(exc)},
             ) from exc
 
-    def render_string(
-        self, template_string: str, context: dict[str, Any] | None = None
-    ) -> str:
+    def render_string(self, template_string: str, context: dict[str, Any] | None = None) -> str:
         """渲染模板字符串（带缓存）。
 
         Args:

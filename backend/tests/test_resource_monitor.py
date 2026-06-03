@@ -8,12 +8,16 @@ from unittest.mock import patch
 
 import pytest
 
-from backend.services.resource_monitor import (AlertEvent, AlertRule,
-                                               AlertSeverity, ResourceMetrics,
-                                               ResourceMonitor,
-                                               collect_metrics,
-                                               get_resource_monitor,
-                                               reset_resource_monitor)
+from backend.services.resource_monitor import (
+    AlertEvent,
+    AlertRule,
+    AlertSeverity,
+    ResourceMetrics,
+    ResourceMonitor,
+    collect_metrics,
+    get_resource_monitor,
+    reset_resource_monitor,
+)
 
 # ---------------------------------------------------------------------------
 # 数据结构测试
@@ -95,9 +99,7 @@ class TestComparisonOperator:
             ("!=", 5.0, 5.0, False),
         ],
     )
-    def test_comparison_operators(
-        self, op: str, a: float, b: float, expected: bool
-    ) -> None:
+    def test_comparison_operators(self, op: str, a: float, b: float, expected: bool) -> None:
         rule = AlertRule(name="test", metric="x", threshold=b, operator=op)
         from backend.services.resource_monitor import _COMPARISON_TABLE
 
@@ -115,9 +117,7 @@ class TestCollectMetrics:
     def test_collect_returns_resource_metrics(self, mock_psutil: object) -> None:
         # mock psutil 返回值
 
-        mock_mem = type(
-            "Mem", (), {"percent": 45.0, "used": 4 * 1024**3, "total": 8 * 1024**3}
-        )()
+        mock_mem = type("Mem", (), {"percent": 45.0, "used": 4 * 1024**3, "total": 8 * 1024**3})()
         mock_disk = type(
             "Disk", (), {"percent": 60.0, "used": 300 * 1024**3, "total": 500 * 1024**3}
         )()
@@ -208,9 +208,7 @@ class TestResourceMonitorEvaluateRules:
 
     @pytest.mark.asyncio
     async def test_rule_triggers_when_threshold_exceeded(self) -> None:
-        rule = AlertRule(
-            name="high_cpu", metric="cpu_percent", threshold=80.0, operator=">"
-        )
+        rule = AlertRule(name="high_cpu", metric="cpu_percent", threshold=80.0, operator=">")
         self.monitor.add_rule(rule)
         self.monitor.add_callback(self._record_callback)
 
@@ -233,9 +231,7 @@ class TestResourceMonitorEvaluateRules:
 
     @pytest.mark.asyncio
     async def test_rule_does_not_trigger_below_threshold(self) -> None:
-        rule = AlertRule(
-            name="high_cpu", metric="cpu_percent", threshold=80.0, operator=">"
-        )
+        rule = AlertRule(name="high_cpu", metric="cpu_percent", threshold=80.0, operator=">")
         self.monitor.add_rule(rule)
         self.monitor.add_callback(self._record_callback)
 
@@ -300,9 +296,7 @@ class TestResourceMonitorEvaluateRules:
         self.monitor.add_callback(failing_callback)
         self.monitor.add_callback(ok_callback)
 
-        rule = AlertRule(
-            name="high_cpu", metric="cpu_percent", threshold=80.0, operator=">"
-        )
+        rule = AlertRule(name="high_cpu", metric="cpu_percent", threshold=80.0, operator=">")
         self.monitor.add_rule(rule)
 
         metrics = ResourceMetrics(

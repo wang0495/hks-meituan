@@ -1,13 +1,11 @@
-from typing import Optional
-
 from pydantic import BaseModel, Field
 
 
 class DataQuery(BaseModel):
     """数据查询请求。"""
 
-    dataset: Optional[str] = Field(None, description="数据集名称")
-    filters: Optional[dict] = Field(None, description="过滤条件")
+    dataset: str | None = Field(None, description="数据集名称")
+    filters: dict | None = Field(None, description="过滤条件")
 
 
 class DataResponse(BaseModel):
@@ -27,7 +25,7 @@ class ChatRequest(BaseModel):
         description="用户消息内容",
         examples=["你好，请介绍一下CityFlow"],
     )
-    model: Optional[str] = Field(
+    model: str | None = Field(
         "openai",
         description="使用的模型名称，默认 openai",
         examples=["openai"],

@@ -10,7 +10,6 @@
 
 from __future__ import annotations
 
-import asyncio
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -97,7 +96,7 @@ class TestParseIntentLLMFallback:
             "backend.services.intent_parser._call_llm",
             new_callable=AsyncMock,
         ) as mock_llm:
-            mock_llm.side_effect = asyncio.TimeoutError("LLM timeout")
+            mock_llm.side_effect = TimeoutError("LLM timeout")
 
             result = await parse_intent("周末想出去走走，不想去人多的地方")
 

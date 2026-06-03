@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import os
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from fastapi import APIRouter, Query
@@ -109,7 +109,7 @@ async def health_check() -> dict:
     """基础健康检查 -- 轻量、快速，适合高频调用。"""
     return {
         "status": "healthy",
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
         "instance_id": os.getenv("INSTANCE_ID", "unknown"),
         "uptime_seconds": round(time.monotonic() - _start_time, 2),
     }
@@ -145,7 +145,7 @@ async def detailed_health() -> dict:
 
     return {
         "status": overall,
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
         "instance_id": os.getenv("INSTANCE_ID", "unknown"),
         "uptime_seconds": round(time.monotonic() - _start_time, 2),
         "system": system_info,
@@ -247,6 +247,7 @@ async def _check_redis() -> str:
         # Fallback: direct connection if session manager unavailable
         try:
             import redis.asyncio as aioredis
+
             from backend.config import settings
 
             r = aioredis.from_url(

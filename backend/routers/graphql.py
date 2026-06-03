@@ -15,8 +15,8 @@ router = APIRouter(tags=["GraphQL"])
 
 # GraphQL安全限制
 _GQL_MAX_QUERY_SIZE = 5000  # 最大查询字符数
-_GQL_MAX_ALIASES = 10       # 最大别名数
-_GQL_MAX_DEPTH = 5          # 最大嵌套深度
+_GQL_MAX_ALIASES = 10  # 最大别名数
+_GQL_MAX_DEPTH = 5  # 最大嵌套深度
 
 graphql_app = GraphQLRouter(schema)
 
@@ -26,10 +26,10 @@ def _check_query_depth(query: str, max_depth: int) -> bool:
     depth = 0
     max_seen = 0
     for ch in query:
-        if ch == '{':
+        if ch == "{":
             depth += 1
             max_seen = max(max_seen, depth)
-        elif ch == '}':
+        elif ch == "}":
             depth -= 1
     return max_seen <= max_depth
 
@@ -43,6 +43,7 @@ async def graphql_endpoint(request: Request) -> dict:
         return {"errors": [{"message": "查询过大"}]}
 
     import json
+
     try:
         data = json.loads(body)
         query = data.get("query", "")

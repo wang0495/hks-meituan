@@ -71,7 +71,9 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         # 检查是否超限
         if len(window) >= limit:
             retry_after = int(window[0] + 60 - now) + 1
-            logger.warning("IP %s 触发速率限制 (%d 请求/分钟, path=%s)", client_ip, len(window), path)
+            logger.warning(
+                "IP %s 触发速率限制 (%d 请求/分钟, path=%s)", client_ip, len(window), path
+            )
             return JSONResponse(
                 status_code=429,
                 content={"detail": "请求过于频繁，请稍后再试"},

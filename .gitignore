@@ -59,3 +59,29 @@ data/
 # CodeGraph / Understand Anything
 .codegraph/
 .understand-anything/
+
+# Claude Code plans
+.claude/plans/
+
+# Tool-specific memory (not source)
+.workbuddy/
+.qoder/
+
+# Backup files
+*.bak
+*.bak2
+
+# Windows artifacts
+nul
+
+# LaTeX build artifacts
+*.aux
+*.out
+*.log
+*.fls
+*.fdb_latexmk
+*.synctex.gz
+paper/ieee_access/main.pdf
+
+# Drawio backups
+*.drawio.bak

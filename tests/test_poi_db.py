@@ -7,16 +7,12 @@
 from __future__ import annotations
 
 from collections.abc import AsyncGenerator
-from typing import Any
 
 import pytest
-from sqlalchemy.ext.asyncio import (AsyncSession, async_sessionmaker,
-                                    create_async_engine)
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from backend.database.base import Base
-from backend.database.models import POI
 from backend.database.poi_repository import POIRepository
-
 
 # ---------------------------------------------------------------------------
 # 数据库 fixtures（使用 aiosqlite 内存数据库，非 PostgreSQL）
@@ -39,9 +35,7 @@ async def db_engine():
 @pytest.fixture
 async def db_session(db_engine) -> AsyncGenerator[AsyncSession, None]:
     """每个测试一个独立事务，测试结束回滚。"""
-    session_factory = async_sessionmaker(
-        db_engine, class_=AsyncSession, expire_on_commit=False
-    )
+    session_factory = async_sessionmaker(db_engine, class_=AsyncSession, expire_on_commit=False)
     async with session_factory() as session:
         yield session
         await session.rollback()
@@ -50,6 +44,7 @@ async def db_session(db_engine) -> AsyncGenerator[AsyncSession, None]:
 @pytest.fixture
 async def poi_repo(db_session: AsyncSession) -> POIRepository:
     return POIRepository(db_session)
+
 
 # ---------------------------------------------------------------------------
 # 样本数据
@@ -277,10 +272,12 @@ async def test_find_filtered_by_max_price(poi_repo: POIRepository) -> None:
 async def test_find_filtered_multiple(poi_repo: POIRepository) -> None:
     """多重筛选组合。"""
     await poi_repo.bulk_upsert([_SAMPLE_POI_A, _SAMPLE_POI_B, _SAMPLE_POI_C])
-    result = await poi_repo.find_filtered({
-        "city": "珠海",
-        "min_rating": 4.0,
-    })
+    result = await poi_repo.find_filtered(
+        {
+            "city": "珠海",
+            "min_rating": 4.0,
+        }
+    )
     assert len(result) == 1
     assert result[0].id == "poi_test_001"
 

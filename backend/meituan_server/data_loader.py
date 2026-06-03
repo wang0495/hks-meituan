@@ -57,24 +57,29 @@ def _build_areas() -> None:
 
     for s_lat, n_lat, w_lng, e_lng, name in _district_map:
         pois_in = [
-            p for p in _pois
+            p
+            for p in _pois
             if s_lat <= p.get("lat", 0) <= n_lat and w_lng <= p.get("lng", 0) <= e_lng
         ]
         if pois_in:
             center_lat = sum(p["lat"] for p in pois_in) / len(pois_in)
             center_lng = sum(p["lng"] for p in pois_in) / len(pois_in)
-            _areas.append({
-                "name": name,
-                "city": "珠海",
-                "center_lat": round(center_lat, 4),
-                "center_lng": round(center_lng, 4),
-                "boundary": {
-                    "south": s_lat, "north": n_lat,
-                    "west": w_lng, "east": e_lng,
-                },
-                "poi_count": len(pois_in),
-                "poi_categories": list({p["category"] for p in pois_in}),
-            })
+            _areas.append(
+                {
+                    "name": name,
+                    "city": "珠海",
+                    "center_lat": round(center_lat, 4),
+                    "center_lng": round(center_lng, 4),
+                    "boundary": {
+                        "south": s_lat,
+                        "north": n_lat,
+                        "west": w_lng,
+                        "east": e_lng,
+                    },
+                    "poi_count": len(pois_in),
+                    "poi_categories": list({p["category"] for p in pois_in}),
+                }
+            )
 
     logger.info("构建 %d 个商圈", len(_areas))
 
@@ -82,6 +87,7 @@ def _build_areas() -> None:
 # ---------------------------------------------------------------------------
 # 查询函数
 # ---------------------------------------------------------------------------
+
 
 def get_all_pois() -> list[dict[str, Any]]:
     return _pois

@@ -210,11 +210,17 @@ def _check_geo_backtrack(route: list[dict], issues: list) -> None:
 
         dist = calc_dist(prev, curr)
         if dist > 10000:  # >10km
-            issues.append({
-                "severity": "warning",
-                "message": f"步骤{i}→{i+1}距离{dist/1000:.1f}km，可能跨区",
-                "detail": {"from": prev.get("name"), "to": curr.get("name"), "distance_m": dist},
-            })
+            issues.append(
+                {
+                    "severity": "warning",
+                    "message": f"步骤{i}→{i+1}距离{dist/1000:.1f}km，可能跨区",
+                    "detail": {
+                        "from": prev.get("name"),
+                        "to": curr.get("name"),
+                        "distance_m": dist,
+                    },
+                }
+            )
 
     # 首尾距离（回路检查）
     if len(route) >= 3:
@@ -223,11 +229,13 @@ def _check_geo_backtrack(route: list[dict], issues: list) -> None:
         if first and last:
             end_dist = calc_dist(first, last)
             if end_dist > 10000:
-                issues.append({
-                    "severity": "warning",
-                    "message": f"末站距首站{end_dist/1000:.1f}km，返程可能较远",
-                    "detail": {"distance_m": end_dist},
-                })
+                issues.append(
+                    {
+                        "severity": "warning",
+                        "message": f"末站距首站{end_dist/1000:.1f}km，返程可能较远",
+                        "detail": {"distance_m": end_dist},
+                    }
+                )
 
 
 def _check_time_order(route: list[dict], issues: list) -> None:
@@ -236,11 +244,13 @@ def _check_time_order(route: list[dict], issues: list) -> None:
         prev_arr = route[i - 1].get("arrival_time", "")
         curr_arr = route[i].get("arrival_time", "")
         if prev_arr and curr_arr and prev_arr >= curr_arr:
-            issues.append({
-                "severity": "error",
-                f"message": f"步骤{i}→{i+1}时间倒流: {prev_arr}→{curr_arr}",
-                "detail": {"index": i},
-            })
+            issues.append(
+                {
+                    "severity": "error",
+                    "message": f"步骤{i}→{i+1}时间倒流: {prev_arr}→{curr_arr}",
+                    "detail": {"index": i},
+                }
+            )
 
 
 def _check_category_repeat(route: list[dict], issues: list) -> None:
@@ -252,11 +262,13 @@ def _check_category_repeat(route: list[dict], issues: list) -> None:
         if cat == last_cat and cat:
             consecutive += 1
             if consecutive >= 3:
-                issues.append({
-                    "severity": "warning",
-                    f"message": f"连续{consecutive+1}个同类景点（{cat}），体验单调",
-                    "detail": {"index": i, "category": cat},
-                })
+                issues.append(
+                    {
+                        "severity": "warning",
+                        "message": f"连续{consecutive+1}个同类景点（{cat}），体验单调",
+                        "detail": {"index": i, "category": cat},
+                    }
+                )
         else:
             consecutive = 0
             last_cat = cat
@@ -270,21 +282,25 @@ def _check_budget(route: list[dict], user_intent: dict, issues: list) -> None:
 
     total = sum(step.get("poi", {}).get("avg_price", 0) for step in route)
     if total > budget_limit * 1.2:
-        issues.append({
-            "severity": "warning",
-            f"message": f"总花费¥{total}超出预算¥{budget_limit}",
-            "detail": {"total": total, "limit": budget_limit},
-        })
+        issues.append(
+            {
+                "severity": "warning",
+                "message": f"总花费¥{total}超出预算¥{budget_limit}",
+                "detail": {"total": total, "limit": budget_limit},
+            }
+        )
 
 
 def _check_pace(route: list[dict], issues: list) -> None:
     """检查节奏合理性。"""
     if len(route) >= 6:
-        issues.append({
-            "severity": "info",
-            f"message": f"路线共{len(route)}站，可能较紧凑",
-            "detail": {"count": len(route)},
-        })
+        issues.append(
+            {
+                "severity": "info",
+                "message": f"路线共{len(route)}站，可能较紧凑",
+                "detail": {"count": len(route)},
+            }
+        )
 
 
 def _check_return_home(route: list[dict], start_location: str, issues: list) -> None:
@@ -296,8 +312,10 @@ def _check_return_home(route: list[dict], start_location: str, issues: list) -> 
         return
 
     # 简单提示：末站不是起点
-    issues.append({
-        "severity": "info",
-        "message": f"起点: {first.get('name','?')} 末站: {last.get('name','?')}，建议规划返程路线",
-        "detail": {"start": start_location},
-    })
+    issues.append(
+        {
+            "severity": "info",
+            "message": f"起点: {first.get('name','?')} 末站: {last.get('name','?')}，建议规划返程路线",
+            "detail": {"start": start_location},
+        }
+    )

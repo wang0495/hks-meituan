@@ -5,31 +5,43 @@ from __future__ import annotations
 import json
 
 from backend.agents_v3.experts.base import (
-    sse_expert,
-    _proposal,
-    _llm_decide,
     _haversine_km,
     _is_likely_macau,
+    _llm_decide,
+    _proposal,
     _sanitize_for_prompt,
+    sse_expert,
 )
 from backend.agents_v3.state import TravelState
 
 # Known destination coordinates
 _DEST_COORDS: dict[str, tuple[float, float]] = {
-    "长隆": (22.11, 113.54), "海洋王国": (22.11, 113.54),
-    "御温泉": (22.17, 113.28), "圆明新园": (22.27, 113.55),
+    "长隆": (22.11, 113.54),
+    "海洋王国": (22.11, 113.54),
+    "御温泉": (22.17, 113.28),
+    "圆明新园": (22.27, 113.55),
     "梦幻水城": (22.27, 113.55),
     # 扩展：覆盖更多核心目的地
-    "海泉湾": (22.10, 113.26), "港珠澳大桥": (22.22, 113.58),
-    "东澳岛": (22.01, 113.72), "外伶仃岛": (22.08, 114.00),
-    "金沙滩": (22.06, 113.32), "创新方": (22.12, 113.52),
-    "景山公园": (22.24, 113.57), "海滨公园": (22.26, 113.58),
-    "海滨泳场": (22.22, 113.57), "梅溪牌坊": (22.28, 113.53),
-    "野狸岛": (22.28, 113.59), "罗西尼": (22.30, 113.52),
-    "唐家湾": (22.36, 113.58), "横琴": (22.12, 113.52),
-    "飞沙滩": (22.04, 113.34), "三板村": (22.10, 113.35),
-    "灯笼沙": (22.18, 113.25), "黄杨山": (22.25, 113.27),
-    "斗门古街": (22.22, 113.29), "接霞庄": (22.20, 113.26),
+    "海泉湾": (22.10, 113.26),
+    "港珠澳大桥": (22.22, 113.58),
+    "东澳岛": (22.01, 113.72),
+    "外伶仃岛": (22.08, 114.00),
+    "金沙滩": (22.06, 113.32),
+    "创新方": (22.12, 113.52),
+    "景山公园": (22.24, 113.57),
+    "海滨公园": (22.26, 113.58),
+    "海滨泳场": (22.22, 113.57),
+    "梅溪牌坊": (22.28, 113.53),
+    "野狸岛": (22.28, 113.59),
+    "罗西尼": (22.30, 113.52),
+    "唐家湾": (22.36, 113.58),
+    "横琴": (22.12, 113.52),
+    "飞沙滩": (22.04, 113.34),
+    "三板村": (22.10, 113.35),
+    "灯笼沙": (22.18, 113.25),
+    "黄杨山": (22.25, 113.27),
+    "斗门古街": (22.22, 113.29),
+    "接霞庄": (22.20, 113.26),
 }
 
 # Default: central Zhuhai
@@ -134,7 +146,7 @@ async def destination_expert(state: TravelState) -> dict:
 2. 选1-2个附近补充景点（公园/文化/购物），让用户在景区之外也有去处
 3. 选1家附近餐厅（游览完景区后用餐）
 4. 不要重复推荐{dest_name}本身
-{f'5. 海岛场景注意：渡轮单程至少60分钟，只选同一个岛或邻近岛的POI，不要选大陆上的' if _is_island else ''}
+{'5. 海岛场景注意：渡轮单程至少60分钟，只选同一个岛或邻近岛的POI，不要选大陆上的' if _is_island else ''}
 {f'6. 群体适配：{group_type}群体的特殊需求' if group_type else ''}
 
 输出JSON: {{"picks":[{{"name":"景点/餐厅名","reason":"推荐理由","confidence":0.8,"type":"景点/餐厅"}}]}}
@@ -165,7 +177,12 @@ async def destination_expert(state: TravelState) -> dict:
                         break
             if content:
                 proposals.append(
-                    _proposal("destination", content, pick.get("confidence", 0.7), pick.get("reason", "LLM推荐"))
+                    _proposal(
+                        "destination",
+                        content,
+                        pick.get("confidence", 0.7),
+                        pick.get("reason", "LLM推荐"),
+                    )
                 )
 
     # Fallback: top-rated nearby
@@ -183,8 +200,8 @@ async def destination_expert(state: TravelState) -> dict:
             for p in proposals
         )
         if not already:
-            proposals.insert(0, _proposal(
-                "destination", core_dest, 1.0, f"核心目的地：{dest_name}"
-            ))
+            proposals.insert(
+                0, _proposal("destination", core_dest, 1.0, f"核心目的地：{dest_name}")
+            )
 
     return {"proposals": proposals, "errors": errors}

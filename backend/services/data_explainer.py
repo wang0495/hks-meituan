@@ -13,7 +13,6 @@ from __future__ import annotations
 
 from typing import Any
 
-
 # ── 需求向量解释 ─────────────────────────────────────────────────────
 
 _DEMAND_LABELS: dict[str, tuple[str, str, str]] = {
@@ -160,6 +159,7 @@ def explain_weights(computed_weights: dict[str, float], mode: str = "normal") ->
 
 # ── 用户增量解释 ─────────────────────────────────────────────────────
 
+
 def explain_user_deltas(user_deltas: dict[str, dict[str, float]], mode: str = "normal") -> str:
     """解释用户个性化偏移量。
 
@@ -206,6 +206,7 @@ def explain_user_deltas(user_deltas: dict[str, dict[str, float]], mode: str = "n
 
 # ── LTM 预测解释 ─────────────────────────────────────────────────────
 
+
 def explain_ltm_prediction(prediction: dict[str, Any], mode: str = "normal") -> str:
     """解释 LTM 预测结果。
 
@@ -251,6 +252,7 @@ def explain_ltm_prediction(prediction: dict[str, Any], mode: str = "normal") -> 
 
 # ── 用户状态解释 ─────────────────────────────────────────────────────
 
+
 def explain_user_status(user_info: dict[str, Any], mode: str = "normal") -> str:
     """解释用户身份状态。
 
@@ -288,6 +290,7 @@ def explain_user_status(user_info: dict[str, Any], mode: str = "normal") -> str:
 
 
 # ── 综合解释 ─────────────────────────────────────────────────────────
+
 
 def explain_weight_mapper_debug(data: dict[str, Any], mode: str = "normal") -> dict[str, str]:
     """综合解释 weight_mapper 调试信息。

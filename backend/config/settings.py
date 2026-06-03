@@ -164,7 +164,10 @@ class Settings(BaseSettings):
     # ---- 数据 ----
     data_dir: str = "backend/data"
     cache_ttl: int = 300
-    use_db: bool = Field(default=False, description="启用数据库模式：POI 数据优先从 PostgreSQL 查询，不可用时回退 JSON")
+    use_db: bool = Field(
+        default=False,
+        description="启用数据库模式：POI 数据优先从 PostgreSQL 查询，不可用时回退 JSON",
+    )
 
     # ---- 子配置（嵌套环境变量前缀由各子类自行定义） ----
     database: DatabaseSettings = Field(default_factory=DatabaseSettings)

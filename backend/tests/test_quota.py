@@ -4,9 +4,14 @@ from __future__ import annotations
 
 import pytest
 
-from backend.services.quota import (QUOTA_LIMITS, QuotaCheckResult,
-                                    QuotaExceededError, QuotaInfo,
-                                    QuotaManager, QuotaPeriod)
+from backend.services.quota import (
+    QUOTA_LIMITS,
+    QuotaCheckResult,
+    QuotaExceededError,
+    QuotaInfo,
+    QuotaManager,
+    QuotaPeriod,
+)
 
 
 class TestQuotaPeriod:
@@ -115,9 +120,7 @@ class TestQuotaExceededError:
         assert err.status_code == 429
 
     def test_custom_details(self) -> None:
-        err = QuotaExceededError(
-            details={"quota_type": "route_planning", "period": "daily"}
-        )
+        err = QuotaExceededError(details={"quota_type": "route_planning", "period": "daily"})
         assert err.details["quota_type"] == "route_planning"
         assert err.to_dict()["error"]["code"] == 1005
 

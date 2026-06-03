@@ -149,15 +149,12 @@ _TAGS_METADATA: list[dict[str, Any]] = [
     {
         "name": "任务",
         "description": (
-            "异步后台任务管理接口。支持提交后台任务、查询任务状态、"
-            "取消任务、列出所有任务。"
+            "异步后台任务管理接口。支持提交后台任务、查询任务状态、" "取消任务、列出所有任务。"
         ),
     },
     {
         "name": "WebSocket",
-        "description": (
-            "WebSocket 实时通信接口。支持路线更新订阅、心跳检测、" "实时消息推送。"
-        ),
+        "description": ("WebSocket 实时通信接口。支持路线更新订阅、心跳检测、" "实时消息推送。"),
     },
     {
         "name": "GraphQL",
@@ -169,8 +166,7 @@ _TAGS_METADATA: list[dict[str, Any]] = [
     {
         "name": "消息队列",
         "description": (
-            "Redis 消息队列接口。支持消息发布（单条/批量）、"
-            "消费者启动、队列状态查询与清空。"
+            "Redis 消息队列接口。支持消息发布（单条/批量）、" "消费者启动、队列状态查询与清空。"
         ),
     },
 ]

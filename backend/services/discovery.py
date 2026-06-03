@@ -64,7 +64,7 @@ class ServiceDiscovery:
 
     async def _discover_remote(self, service_name: str) -> str | None:
         """从远程注册中心发现服务。"""
-        assert self._registry_url is not None  # noqa: S101
+        assert self._registry_url is not None
         url = f"{self._registry_url.rstrip('/')}/api/registry/services/{service_name}"
         try:
             async with httpx.AsyncClient(timeout=5.0) as client:

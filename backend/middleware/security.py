@@ -33,9 +33,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         # 强制 HTTPS — 仅生产环境启用（避免开发环境localhost被锁死）
         env = os.getenv("ENVIRONMENT", "development")
         if env in ("production", "prod", "staging"):
-            response.headers["Strict-Transport-Security"] = (
-                "max-age=31536000; includeSubDomains"
-            )
+            response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
 
         # 内容安全策略：限制资源加载来源
         response.headers["Content-Security-Policy"] = (
@@ -52,8 +50,6 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
 
         # 禁用浏览器特性（按需调整）
-        response.headers["Permissions-Policy"] = (
-            "geolocation=(), microphone=(), camera=()"
-        )
+        response.headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()"
 
         return response

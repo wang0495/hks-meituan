@@ -6,9 +6,7 @@ import json
 from pathlib import Path
 
 import pytest
-
-from backend.tools.code_generator import (CodeGenerator, _capitalize,
-                                          _resolve_type)
+from backend.tools.code_generator import CodeGenerator, _capitalize, _resolve_type
 
 # ---------------------------------------------------------------------------
 # 辅助函数测试
@@ -94,18 +92,12 @@ class TestGenerateApiEndpoint:
         code = generator.generate_api_endpoint("product", sample_fields)
         assert "Optional[float]" in code
 
-    def test_custom_prefix(
-        self, generator: CodeGenerator, sample_fields: list[dict]
-    ) -> None:
+    def test_custom_prefix(self, generator: CodeGenerator, sample_fields: list[dict]) -> None:
         """支持自定义前缀。"""
-        code = generator.generate_api_endpoint(
-            "product", sample_fields, prefix="/v2/products"
-        )
+        code = generator.generate_api_endpoint("product", sample_fields, prefix="/v2/products")
         assert 'prefix="/v2/products"' in code
 
-    def test_custom_tag(
-        self, generator: CodeGenerator, sample_fields: list[dict]
-    ) -> None:
+    def test_custom_tag(self, generator: CodeGenerator, sample_fields: list[dict]) -> None:
         """支持自定义标签。"""
         code = generator.generate_api_endpoint("product", sample_fields, tag="商品管理")
         assert 'tags=["商品管理"]' in code
@@ -137,9 +129,7 @@ class TestGenerateModel:
         code = generator.generate_model("product", sample_fields)
         assert "class Product(BaseModel):" in code
 
-    def test_contains_id_field(
-        self, generator: CodeGenerator, sample_fields: list[dict]
-    ) -> None:
+    def test_contains_id_field(self, generator: CodeGenerator, sample_fields: list[dict]) -> None:
         """生成的代码包含 id 字段。"""
         code = generator.generate_model("product", sample_fields)
         assert "id: str" in code
@@ -152,23 +142,15 @@ class TestGenerateModel:
         assert "created_at: datetime" in code
         assert "updated_at: datetime" in code
 
-    def test_exclude_timestamps(
-        self, generator: CodeGenerator, sample_fields: list[dict]
-    ) -> None:
+    def test_exclude_timestamps(self, generator: CodeGenerator, sample_fields: list[dict]) -> None:
         """可选排除时间戳字段。"""
-        code = generator.generate_model(
-            "product", sample_fields, include_timestamps=False
-        )
+        code = generator.generate_model("product", sample_fields, include_timestamps=False)
         assert "created_at" not in code
         assert "updated_at" not in code
 
-    def test_custom_description(
-        self, generator: CodeGenerator, sample_fields: list[dict]
-    ) -> None:
+    def test_custom_description(self, generator: CodeGenerator, sample_fields: list[dict]) -> None:
         """支持自定义描述。"""
-        code = generator.generate_model(
-            "product", sample_fields, description="商品数据模型"
-        )
+        code = generator.generate_model("product", sample_fields, description="商品数据模型")
         assert "商品数据模型" in code
 
 
@@ -234,16 +216,12 @@ class TestGenerateTest:
             {"name": "price", "type": "float", "description": "价格"},
         ]
 
-    def test_contains_test_class(
-        self, generator: CodeGenerator, sample_fields: list[dict]
-    ) -> None:
+    def test_contains_test_class(self, generator: CodeGenerator, sample_fields: list[dict]) -> None:
         """生成的代码包含测试类。"""
         code = generator.generate_test("product", sample_fields)
         assert "class TestProductCRUD:" in code
 
-    def test_contains_crud_tests(
-        self, generator: CodeGenerator, sample_fields: list[dict]
-    ) -> None:
+    def test_contains_crud_tests(self, generator: CodeGenerator, sample_fields: list[dict]) -> None:
         """生成的代码包含 CRUD 测试方法。"""
         code = generator.generate_test("product", sample_fields)
         assert "def test_create(" in code
@@ -300,16 +278,12 @@ class TestGenerateFull:
             {"name": "value", "type": "float", "optional": True, "description": "值"},
         ]
 
-    def test_returns_four_keys(
-        self, generator: CodeGenerator, sample_fields: list[dict]
-    ) -> None:
+    def test_returns_four_keys(self, generator: CodeGenerator, sample_fields: list[dict]) -> None:
         """返回四个键。"""
         result = generator.generate_full("item", sample_fields)
         assert set(result.keys()) == {"router", "model", "service", "test"}
 
-    def test_save_creates_all_files(
-        self, tmp_path: Path, sample_fields: list[dict]
-    ) -> None:
+    def test_save_creates_all_files(self, tmp_path: Path, sample_fields: list[dict]) -> None:
         """save=True 会创建全部文件。"""
         generator = CodeGenerator(output_dir=str(tmp_path))
         generator.generate_full("item", sample_fields, save=True)
@@ -328,9 +302,7 @@ class TestGenerateFull:
 class TestCLI:
     """CLI 入口测试。"""
 
-    def test_main_with_save(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_main_with_save(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """CLI --save 模式写入文件。"""
         from backend.tools.code_generator import main
 

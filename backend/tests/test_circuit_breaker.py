@@ -4,9 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from backend.services.circuit_breaker import (CircuitBreaker,
-                                              CircuitBreakerOpenError,
-                                              CircuitState)
+from backend.services.circuit_breaker import CircuitBreaker, CircuitBreakerOpenError, CircuitState
 
 
 class TestCircuitState:

@@ -4,17 +4,17 @@ from __future__ import annotations
 
 import asyncio
 import json
-import os
 import sys
 import time
 from datetime import datetime
 
 import httpx
 
-from backend.agents_v3 import get_graph_c, TravelState
+from backend.agents_v3 import TravelState, get_graph_c
 
 # ── LLM评分配置（讯飞 API）──
 from backend.config.settings import get_settings
+
 _s = get_settings()
 API_KEY = _s.llm.api_key
 API_URL = _s.llm.base_url.rstrip("/") + "/chat/completions"
@@ -97,19 +97,25 @@ _SCORE_PREFIX = """你是旅游路线质量评审。请客观公正地评估以�
 async def llm_score(user_input: str, route_text: str) -> dict | None:
     """用DeepSeek给路线打分（前缀缓存优化：固定rubric + 变量数据分离）。"""
     # 固定前缀 + 变量后缀，让DeepSeek缓存命中rubric部分
-    prompt = _SCORE_PREFIX + f"""用户需求: {user_input}
+    prompt = (
+        _SCORE_PREFIX
+        + f"""用户需求: {user_input}
 
 路线:
 {route_text}
 
 输出JSON: {{"scene_type":"美食型/目的地型/特种兵型/休闲型/观光型","scores":{{"intent_match":N,"poi_quality":N,"geo_continuity":N,"scene_diversity":N,"overall":N}},"good_points":["优点1","优点2"],"bad_points":["建议1","建议2"]}}"""
+    )
 
     for attempt in range(3):
         try:
             async with httpx.AsyncClient(timeout=60.0) as c:
                 r = await c.post(
                     API_URL,
-                    headers={"Authorization": f"Bearer {API_KEY}", "Content-Type": "application/json"},
+                    headers={
+                        "Authorization": f"Bearer {API_KEY}",
+                        "Content-Type": "application/json",
+                    },
                     json={
                         "model": MODEL,
                         "max_tokens": 2000,
@@ -132,7 +138,13 @@ async def llm_score(user_input: str, route_text: str) -> dict | None:
                 if "scores" in data:
                     scores = data["scores"]
                 else:
-                    keys = {"intent_match", "poi_quality", "geo_continuity", "scene_diversity", "overall"}
+                    keys = {
+                        "intent_match",
+                        "poi_quality",
+                        "geo_continuity",
+                        "scene_diversity",
+                        "overall",
+                    }
                     scores = {k: data[k] for k in keys if k in data}
 
                 # 验证
@@ -217,7 +229,7 @@ async def run_test(scenario: dict) -> dict:
             "eval": eval_result,
         }
 
-    except asyncio.TimeoutError:
+    except TimeoutError:
         return {"id": scenario["id"], "name": scenario["name"], "success": False, "error": "超时"}
     except Exception as e:
         return {"id": scenario["id"], "name": scenario["name"], "success": False, "error": str(e)}
@@ -226,12 +238,22 @@ async def run_test(scenario: dict) -> dict:
 async def main():
     # ── 启动美团模拟服务器 ──
     import subprocess
+
     import requests
 
     server_proc = subprocess.Popen(
-        [sys.executable, "-m", "uvicorn", "backend.meituan_server.main:app",
-         "--host", "127.0.0.1", "--port", "8001"],
-        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+        [
+            sys.executable,
+            "-m",
+            "uvicorn",
+            "backend.meituan_server.main:app",
+            "--host",
+            "127.0.0.1",
+            "--port",
+            "8001",
+        ],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
     )
     # 等服务器就绪
     for _ in range(20):
@@ -262,18 +284,24 @@ async def main():
         if r["success"]:
             ev = r.get("eval")
             poi_str = " → ".join(r["poi_names"][:5])
-            print(f"\n{'✅' if ev and ev['overall'] >= PASS_THRESHOLD else '❌'} 场景{r['id']}: {r['name']}")
+            print(
+                f"\n{'✅' if ev and ev['overall'] >= PASS_THRESHOLD else '❌'} 场景{r['id']}: {r['name']}"
+            )
             print(f"   路线: {poi_str}")
-            print(f"   步骤:{r['route_steps']} 提案:{r['proposals']} 冲突:{r['conflicts']} ({r['elapsed']}s)")
+            print(
+                f"   步骤:{r['route_steps']} 提案:{r['proposals']} 冲突:{r['conflicts']} ({r['elapsed']}s)"
+            )
             if ev:
                 s = ev["scores"]
-                print(f"   评分: intent={s.get('intent_match','?')} poi={s.get('poi_quality','?')} "
-                      f"geo={s.get('geo_continuity','?')} diverse={s.get('scene_diversity','?')} "
-                      f"overall={ev['overall']}")
+                print(
+                    f"   评分: intent={s.get('intent_match','?')} poi={s.get('poi_quality','?')} "
+                    f"geo={s.get('geo_continuity','?')} diverse={s.get('scene_diversity','?')} "
+                    f"overall={ev['overall']}"
+                )
                 for bp in ev.get("bad_points", [])[:2]:
                     print(f"   ⚠ {bp}")
             else:
-                print(f"   ⚠ LLM评分失败")
+                print("   ⚠ LLM评分失败")
         else:
             print(f"\n❌ 场景{r['id']}: {r['name']} - {r.get('error', '?')}")
 
@@ -289,7 +317,11 @@ async def main():
     if scored:
         avgs = {}
         for dim in ["intent_match", "poi_quality", "geo_continuity", "scene_diversity", "overall"]:
-            vals = [r["eval"]["scores"].get(dim, 0) for r in scored if dim in r["eval"].get("scores", {})]
+            vals = [
+                r["eval"]["scores"].get(dim, 0)
+                for r in scored
+                if dim in r["eval"].get("scores", {})
+            ]
             if vals:
                 avgs[dim] = sum(vals) / len(vals)
                 print(f"  {dim}: {avgs[dim]:.1f}")

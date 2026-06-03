@@ -25,13 +25,15 @@ router = APIRouter(prefix="/api", tags=["meituan-mock"])
 # 工具函数
 # ---------------------------------------------------------------------------
 
+
 def _haversine_km(lat1: float, lng1: float, lat2: float, lng2: float) -> float:
     R = 6371.0
     dlat = math.radians(lat2 - lat1)
     dlng = math.radians(lng2 - lng1)
-    a = (math.sin(dlat / 2) ** 2
-         + math.cos(math.radians(lat1)) * math.cos(math.radians(lat2))
-         * math.sin(dlng / 2) ** 2)
+    a = (
+        math.sin(dlat / 2) ** 2
+        + math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) * math.sin(dlng / 2) ** 2
+    )
     return R * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
 
 
@@ -56,6 +58,7 @@ def _generate_address(poi: dict) -> str:
 # 1. POI 搜索
 # ---------------------------------------------------------------------------
 
+
 @router.get("/poi/search", summary="商户搜索")
 def poi_search(
     keyword: str | None = Query(None, description="搜索关键词"),
@@ -76,9 +79,9 @@ def poi_search(
     if keyword:
         kw = keyword.lower()
         results = [
-            p for p in results
-            if kw in p.get("name", "").lower()
-            or any(kw in t for t in p.get("tags", []))
+            p
+            for p in results
+            if kw in p.get("name", "").lower() or any(kw in t for t in p.get("tags", []))
         ]
 
     # 品类过滤
@@ -112,26 +115,28 @@ def poi_search(
 
     # 截断
     total = len(results)
-    results = results[offset:offset + limit]
+    results = results[offset : offset + limit]
 
     # 统一输出格式（去掉内部字段）
     items = []
     for p in results:
-        items.append({
-            "id": p["id"],
-            "name": p["name"],
-            "category": p.get("category"),
-            "rating": p.get("rating"),
-            "avg_price": p.get("avg_price"),
-            "lat": p.get("lat"),
-            "lng": p.get("lng"),
-            "address": _generate_address(p),
-            "business_hours": p.get("business_hours", ""),
-            "tags": p.get("tags", []),
-            "avg_stay_min": p.get("avg_stay_min"),
-            "queue_prone": p.get("queue_prone", False),
-            "distance_km": p.get("distance_km"),
-        })
+        items.append(
+            {
+                "id": p["id"],
+                "name": p["name"],
+                "category": p.get("category"),
+                "rating": p.get("rating"),
+                "avg_price": p.get("avg_price"),
+                "lat": p.get("lat"),
+                "lng": p.get("lng"),
+                "address": _generate_address(p),
+                "business_hours": p.get("business_hours", ""),
+                "tags": p.get("tags", []),
+                "avg_stay_min": p.get("avg_stay_min"),
+                "queue_prone": p.get("queue_prone", False),
+                "distance_km": p.get("distance_km"),
+            }
+        )
 
     return {"total": total, "count": len(items), "items": items}
 
@@ -139,6 +144,7 @@ def poi_search(
 # ---------------------------------------------------------------------------
 # 2. POI 详情
 # ---------------------------------------------------------------------------
+
 
 @router.get("/poi/{poi_id}", summary="商户详情")
 def poi_detail(poi_id: str) -> dict[str, Any]:
@@ -176,6 +182,7 @@ def poi_detail(poi_id: str) -> dict[str, Any]:
 # 3. POI 评价（UGC）
 # ---------------------------------------------------------------------------
 
+
 @router.get("/poi/{poi_id}/reviews", summary="用户评价")
 def poi_reviews(
     poi_id: str,
@@ -190,11 +197,11 @@ def poi_reviews(
     items = comments[:limit]
 
     # 计算评价摘要
-    avg_rating = (
-        sum(c["rating"] for c in comments) / len(comments) if comments else 0
-    )
+    avg_rating = sum(c["rating"] for c in comments) / len(comments) if comments else 0
     # 高频词提取（简单从tags里取）
-    keywords = list({w for c in items for w in c.get("content", c.get("text", "")) if len(w) >= 2})[:8]
+    keywords = list({w for c in items for w in c.get("content", c.get("text", "")) if len(w) >= 2})[
+        :8
+    ]
 
     return {
         "poi_id": poi_id,
@@ -217,6 +224,7 @@ def poi_reviews(
 # 4. 商户位置
 # ---------------------------------------------------------------------------
 
+
 @router.get("/poi/{poi_id}/location", summary="商户位置")
 def poi_location(poi_id: str) -> dict[str, Any]:
     """获取商户精确位置信息。"""
@@ -235,7 +243,9 @@ def poi_location(poi_id: str) -> dict[str, Any]:
             continue
         d = _haversine_km(lat, lng, other["lat"], other["lng"])
         if d <= 2.0:
-            nearby.append({"name": other["name"], "category": other["category"], "distance_km": round(d, 2)})
+            nearby.append(
+                {"name": other["name"], "category": other["category"], "distance_km": round(d, 2)}
+            )
     nearby.sort(key=lambda x: x["distance_km"])
     nearby = nearby[:5]
 
@@ -245,7 +255,11 @@ def poi_location(poi_id: str) -> dict[str, Any]:
         "lat": lat,
         "lng": lng,
         "address": _generate_address(poi),
-        "district": _generate_address(poi).split("区")[-1].replace(poi["name"], "").replace("附近", "") if "区" in _generate_address(poi) else "",
+        "district": (
+            _generate_address(poi).split("区")[-1].replace(poi["name"], "").replace("附近", "")
+            if "区" in _generate_address(poi)
+            else ""
+        ),
         "nearby_landmarks": nearby,
     }
 
@@ -253,6 +267,7 @@ def poi_location(poi_id: str) -> dict[str, Any]:
 # ---------------------------------------------------------------------------
 # 5. 路线距离
 # ---------------------------------------------------------------------------
+
 
 @router.get("/route/distance", summary="路线距离")
 def route_distance(
@@ -288,6 +303,7 @@ def route_distance(
 # 6. 热门推荐
 # ---------------------------------------------------------------------------
 
+
 @router.get("/hot/trending", summary="热门推荐")
 def hot_trending(
     city: str = Query("珠海", description="城市"),
@@ -312,16 +328,18 @@ def hot_trending(
 
     items = []
     for i, p in enumerate(results):
-        items.append({
-            "rank": i + 1,
-            "id": p["id"],
-            "name": p["name"],
-            "category": p.get("category"),
-            "rating": p.get("rating"),
-            "avg_price": p.get("avg_price"),
-            "hot_score": round(p["_hot_score"], 1),
-            "tags": p.get("tags", []),
-        })
+        items.append(
+            {
+                "rank": i + 1,
+                "id": p["id"],
+                "name": p["name"],
+                "category": p.get("category"),
+                "rating": p.get("rating"),
+                "avg_price": p.get("avg_price"),
+                "hot_score": round(p["_hot_score"], 1),
+                "tags": p.get("tags", []),
+            }
+        )
 
     return {
         "city": city,
@@ -334,6 +352,7 @@ def hot_trending(
 # ---------------------------------------------------------------------------
 # 7. 商圈范围
 # ---------------------------------------------------------------------------
+
 
 @router.get("/area/boundaries", summary="商圈范围")
 def area_boundaries(

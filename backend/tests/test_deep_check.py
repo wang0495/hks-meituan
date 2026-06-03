@@ -14,8 +14,12 @@ from unittest.mock import patch
 
 import pytest
 
-from backend.health.deep_check import (AggregatedStatus, DeepHealthCheck,
-                                       check_disk_space, check_memory)
+from backend.health.deep_check import (
+    AggregatedStatus,
+    DeepHealthCheck,
+    check_disk_space,
+    check_memory,
+)
 from backend.services.health_checker import CheckResult, CheckStatus
 
 # ---------------------------------------------------------------------------
@@ -239,9 +243,7 @@ class TestDeepHealthCheck:
             return True
 
         async def degraded() -> CheckResult:
-            return CheckResult(
-                name="mem", status=CheckStatus.DEGRADED, details={"percent": 90}
-            )
+            return CheckResult(name="mem", status=CheckStatus.DEGRADED, details={"percent": 90})
 
         checker._checker._checks.clear()
         checker._critical.clear()

@@ -123,9 +123,7 @@ class WeightMapper:
         """初始化用户偏移量（全0）。"""
         self._deltas = {}
         for weight_name, dims in _BASE_MAPPING.items():
-            self._deltas[weight_name] = {
-                k: 0.0 for k in dims if not k.startswith("_")
-            }
+            self._deltas[weight_name] = {k: 0.0 for k in dims if not k.startswith("_")}
 
     def compute_weights(self, demand_vector: dict) -> dict[str, float]:
         """将需求向量映射为求解器权重。
@@ -237,7 +235,7 @@ class WeightMapper:
             "deltas": self._deltas,
         }
 
-    def from_dict(self, data: dict | None) -> "WeightMapper":
+    def from_dict(self, data: dict | None) -> WeightMapper:
         """从 LTM 恢复。"""
         if data and "deltas" in data:
             for weight_name in self._deltas:

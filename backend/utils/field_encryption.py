@@ -9,7 +9,8 @@ from __future__ import annotations
 import functools
 import inspect
 import logging
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 from backend.utils.encryption import EncryptionError, get_encryptor
 

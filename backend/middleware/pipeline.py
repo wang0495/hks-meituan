@@ -11,8 +11,9 @@ from __future__ import annotations
 import logging
 import time
 from collections import deque
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Any, Callable, Protocol
+from typing import Any, Protocol
 
 from fastapi import Request, Response
 
@@ -25,9 +26,7 @@ _MAX_LATENCY_SAMPLES = 1000
 class MiddlewareHandler(Protocol):
     """中间件处理函数签名。"""
 
-    async def __call__(
-        self, request: Request, call_next: Callable[..., Any]
-    ) -> Response: ...
+    async def __call__(self, request: Request, call_next: Callable[..., Any]) -> Response: ...
 
 
 @dataclass

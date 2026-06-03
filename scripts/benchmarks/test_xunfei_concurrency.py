@@ -1,6 +1,6 @@
 """探测讯飞API最大并发数 — 逐步加压直到错误率飙升。
 
-用法: python -m backend.agents_v3.test_xunfei_concurrency
+用法: python scripts/benchmarks/test_xunfei_concurrency
 """
 from __future__ import annotations
 
@@ -11,11 +11,11 @@ import sys
 import time
 from pathlib import Path
 
-_project_root = str(Path(__file__).resolve().parent.parent.parent)
+_project_root = str(Path(__file__).resolve().parent.parent)
 if _project_root not in sys.path:
     sys.path.insert(0, _project_root)
 
-_env_file = Path(__file__).resolve().parent.parent.parent / ".env"
+_env_file = Path(__file__).resolve().parent.parent / ".env"
 if _env_file.exists():
     for line in _env_file.read_text(encoding="utf-8").splitlines():
         line = line.strip()

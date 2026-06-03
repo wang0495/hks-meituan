@@ -6,9 +6,12 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from backend.services.alert_notifier import (ALERT_EVENT_TYPE, AlertNotifier,
-                                             get_alert_notifier,
-                                             reset_alert_notifier)
+from backend.services.alert_notifier import (
+    ALERT_EVENT_TYPE,
+    AlertNotifier,
+    get_alert_notifier,
+    reset_alert_notifier,
+)
 from backend.services.resource_monitor import AlertEvent, AlertSeverity
 
 
@@ -82,9 +85,7 @@ class TestConvenienceMethods:
     @pytest.mark.asyncio
     async def test_send_info(self) -> None:
         notifier = AlertNotifier()
-        with patch.object(
-            notifier, "_publish_event", new_callable=AsyncMock
-        ) as mock_pub:
+        with patch.object(notifier, "_publish_event", new_callable=AsyncMock) as mock_pub:
             await notifier.send_info("info message", extra_key="value")
         mock_pub.assert_called_once()
         data = mock_pub.call_args.kwargs["data"]
@@ -95,9 +96,7 @@ class TestConvenienceMethods:
     @pytest.mark.asyncio
     async def test_send_warning(self) -> None:
         notifier = AlertNotifier()
-        with patch.object(
-            notifier, "_publish_event", new_callable=AsyncMock
-        ) as mock_pub:
+        with patch.object(notifier, "_publish_event", new_callable=AsyncMock) as mock_pub:
             await notifier.send_warning("warning message")
         data = mock_pub.call_args.kwargs["data"]
         assert data["level"] == "warning"
@@ -105,9 +104,7 @@ class TestConvenienceMethods:
     @pytest.mark.asyncio
     async def test_send_critical(self) -> None:
         notifier = AlertNotifier()
-        with patch.object(
-            notifier, "_publish_event", new_callable=AsyncMock
-        ) as mock_pub:
+        with patch.object(notifier, "_publish_event", new_callable=AsyncMock) as mock_pub:
             await notifier.send_critical("critical message")
         data = mock_pub.call_args.kwargs["data"]
         assert data["level"] == "critical"
@@ -120,9 +117,7 @@ class TestPublishEvent:
     async def test_publish_event_calls_event_bus(self) -> None:
         notifier = AlertNotifier()
         mock_bus = AsyncMock()
-        with patch(
-            "backend.services.alert_notifier.get_event_bus", return_value=mock_bus
-        ):
+        with patch("backend.services.alert_notifier.get_event_bus", return_value=mock_bus):
             await notifier.send_info("test")
 
         mock_bus.publish_async.assert_called_once()

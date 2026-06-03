@@ -7,10 +7,18 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from backend.services.cache import (MemoryCache, MultiLevelCache, RedisCache,
-                                    cache_key, cached, distance_cache,
-                                    invalidate, poi_cache, profile_cache,
-                                    route_cache)
+from backend.services.cache import (
+    MemoryCache,
+    MultiLevelCache,
+    RedisCache,
+    cache_key,
+    cached,
+    distance_cache,
+    invalidate,
+    poi_cache,
+    profile_cache,
+    route_cache,
+)
 
 # ---------------------------------------------------------------------------
 # MemoryCache 基础测试

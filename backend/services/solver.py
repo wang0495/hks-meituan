@@ -18,26 +18,37 @@ from __future__ import annotations
 
 import logging
 import threading
+from collections.abc import Callable
 from datetime import timedelta
-from typing import Any, Callable
+from typing import Any
 
 from backend.services.cache import distance_cache
 
 logger = logging.getLogger(__name__)
 
 from backend.services.economy import enrich_poi_economics
-from backend.services.emotion import (calculate_emotion_curve,
-                                      chemical_reaction,
-                                      emotion_compatibility, fatigue_penalty,
-                                      sensory_alternation)
+from backend.services.emotion import (
+    calculate_emotion_curve,
+    chemical_reaction,
+    emotion_compatibility,
+    fatigue_penalty,
+    sensory_alternation,
+)
 from backend.services.filters import filter_candidates
-from backend.services.geo import (cache_key_distance, cache_key_travel_time,
-                                  poi_distance, poi_travel_time)
-from backend.services.time_utils import (format_time, get_poi_opening_hours,
-                                         parse_time, parse_hours_to_minutes)
+from backend.services.geo import (
+    cache_key_distance,
+    cache_key_travel_time,
+    poi_distance,
+    poi_travel_time,
+)
 from backend.services.memory.psychology import PsychologyRules
-from backend.services.poi_scenes import tag_poi, audit_route
-
+from backend.services.poi_scenes import audit_route, tag_poi
+from backend.services.time_utils import (
+    format_time,
+    get_poi_opening_hours,
+    parse_hours_to_minutes,
+    parse_time,
+)
 
 # ---------------------------------------------------------------------------
 # 非标体验加载（by 王启龙 2026-05-09: 集成城市特色体验到求解流程）
@@ -54,6 +65,7 @@ def _load_nonstandard_experiences() -> list[dict]:
     try:
         import json
         from pathlib import Path
+
         path = Path(__file__).parent.parent / "data" / "nonstandard_experiences.json"
         if path.exists():
             _NSE_CACHE = json.loads(path.read_text(encoding="utf-8"))
@@ -88,6 +100,7 @@ def _get_nse_for_city(city: str, hour: int) -> list[dict]:
             continue
     return matched
 
+
 # ---------------------------------------------------------------------------
 # 常量
 # ---------------------------------------------------------------------------
@@ -104,7 +117,19 @@ _SENSORY_WEIGHT = 0.2  # 感官交替评分权重
 _SCENE_SYNONYMS: dict[str, list[str]] = {
     "茶馆": ["茶室", "茶楼", "品茶", "茶舍", "茶座", "茶"],
     "街边小店": ["夜市", "小吃街", "小吃", "大排档", "美食街"],
-    "街边小吃": ["夜市", "小吃街", "小吃", "大排档", "美食街", "路边摊", "小吃街", "小吃", "大排档", "路边摊", "美食街"],
+    "街边小吃": [
+        "夜市",
+        "小吃街",
+        "小吃",
+        "大排档",
+        "美食街",
+        "路边摊",
+        "小吃街",
+        "小吃",
+        "大排档",
+        "路边摊",
+        "美食街",
+    ],
     "本地小吃": ["夜市", "小吃", "本地美食", "老字号", "传统美食", "地道"],
     "烧烤": ["BBQ", "烤肉", "烧烤", "烤"],
     "蹦迪": ["酒吧", "夜店", "LiveHouse", "音乐现场", "夜生活", "清吧", "居酒屋"],
@@ -129,6 +154,7 @@ def _get_tl() -> threading.local:
         _tl.progress_callback = None
     return _tl
 
+
 _REST_MINUTES = 30  # 休息停留时间（分钟）
 _EXCITEMENT_THRESHOLD = 0.6  # 高兴奋度阈值
 _TRANQUILITY_THRESHOLD = 0.7  # 高宁静度阈值
@@ -142,56 +168,177 @@ _GEO_GRID_SIZE = 0.05
 
 # 非旅游关键词：这些名称特征的 POI 大概率不是旅游目的地
 _NON_TOURIST_KEYWORDS: list[str] = [
-    "汽配", "修车", "维修", "五金", "建材", "装修",
-    "小卖部", "便利店", "超市", "菜市场", "菜市",
-    "瑜伽", "普拉提",  # 健身工作室，非旅游目的地
-    "Fitness", "fitness", "Gym", "gym",  # 健身房（英文名）
-    "Cyber", "cyber",  # 网吧/电竞
-    "宿舍", "厂房", "仓库", "工业", "物流",
-    "保安", "消防", "宣传", "居委会", "社区", "物业",
-    "学校", "幼儿园", "小学", "中学", "大学", "学院",
-    "医院", "诊所", "药房", "药店",
-    "公司", "集团", "办公", "写字楼",
-    "加油站", "洗车", "轮胎",
-    "配电", "变电站", "环卫",
-    "计算机", "网吧", "网咖", "教育中心", "Centro",  # 非旅游设施
-    "麦当劳", "麥當勞", "McDonald", "McDonald's", "KFC", "肯德基",  # 连锁快餐
-    "永旺", "超级市場", "Supermercado", "7-Eleven", "便利店",  # 超市/便利店
+    "汽配",
+    "修车",
+    "维修",
+    "五金",
+    "建材",
+    "装修",
+    "小卖部",
+    "便利店",
+    "超市",
+    "菜市场",
+    "菜市",
+    "瑜伽",
+    "普拉提",  # 健身工作室，非旅游目的地
+    "Fitness",
+    "fitness",
+    "Gym",
+    "gym",  # 健身房（英文名）
+    "Cyber",
+    "cyber",  # 网吧/电竞
+    "宿舍",
+    "厂房",
+    "仓库",
+    "工业",
+    "物流",
+    "保安",
+    "消防",
+    "宣传",
+    "居委会",
+    "社区",
+    "物业",
+    "学校",
+    "幼儿园",
+    "小学",
+    "中学",
+    "大学",
+    "学院",
+    "医院",
+    "诊所",
+    "药房",
+    "药店",
+    "公司",
+    "集团",
+    "办公",
+    "写字楼",
+    "加油站",
+    "洗车",
+    "轮胎",
+    "配电",
+    "变电站",
+    "环卫",
+    "计算机",
+    "网吧",
+    "网咖",
+    "教育中心",
+    "Centro",  # 非旅游设施
+    "麦当劳",
+    "麥當勞",
+    "McDonald",
+    "McDonald's",
+    "KFC",
+    "肯德基",  # 连锁快餐
+    "永旺",
+    "超级市場",
+    "Supermercado",
+    "7-Eleven",
+    "便利店",  # 超市/便利店
     "UGYM",  # 健身房
     # 澳门地名（坐标在珠海但实际位于澳门）
-    "澳門", "Macau", "沙梨頭", "望德", "氹仔", "路環", "大三巴",
-    "议事亭", "喷水池", "葡文", "Plataforma", "Posto do",
-    "Edifício", "Edif", "Mong Há", "Patane",  # 葡语/澳门地名
+    "澳門",
+    "Macau",
+    "沙梨頭",
+    "望德",
+    "氹仔",
+    "路環",
+    "大三巴",
+    "议事亭",
+    "喷水池",
+    "葡文",
+    "Plataforma",
+    "Posto do",
+    "Edifício",
+    "Edif",
+    "Mong Há",
+    "Patane",  # 葡语/澳门地名
 ]
 
 # 旅游相关关键词：加分
 _TOURIST_KEYWORDS: list[str] = [
-    "公园", "海滩", "沙滩", "海湾", "山", "峰",
-    "博物馆", "美术馆", "展览馆", "纪念馆", "故居",
-    "寺", "庙", "祠", "教堂",
-    "广场", "步行街", "老街", "历史",
-    "景区", "景点", "度假", "温泉",
-    "乐园", "游乐场", "剧场", "影院",
-    "夜市", "美食街", "酒吧街",
-    "塔", "桥", "岛", "灯塔",
-    "艺术区", "创意园", "文化园",
+    "公园",
+    "海滩",
+    "沙滩",
+    "海湾",
+    "山",
+    "峰",
+    "博物馆",
+    "美术馆",
+    "展览馆",
+    "纪念馆",
+    "故居",
+    "寺",
+    "庙",
+    "祠",
+    "教堂",
+    "广场",
+    "步行街",
+    "老街",
+    "历史",
+    "景区",
+    "景点",
+    "度假",
+    "温泉",
+    "乐园",
+    "游乐场",
+    "剧场",
+    "影院",
+    "夜市",
+    "美食街",
+    "酒吧街",
+    "塔",
+    "桥",
+    "岛",
+    "灯塔",
+    "艺术区",
+    "创意园",
+    "文化园",
 ]
 
 # ── 用户输入 → 场景标签直接映射（不走 preference 间接匹配）──
 _INPUT_TO_SCENE_TAGS: dict[str, set[str]] = {
-    "夜景": {"夜景"}, "晚上": {"夜景"}, "夜晚": {"夜景"}, "夜间": {"夜景"},
+    "夜景": {"夜景"},
+    "晚上": {"夜景"},
+    "夜晚": {"夜景"},
+    "夜间": {"夜景"},
     "浪漫": {"情侣", "夜景", "拍照出片"},
-    "情侣": {"情侣"}, "约会": {"情侣"}, "二人": {"情侣"},
-    "亲子": {"亲子"}, "小孩": {"亲子"}, "孩子": {"亲子"}, "儿童": {"亲子"}, "带娃": {"亲子"},
-    "海边": {"海滨"}, "海滩": {"海滨"}, "沙滩": {"海滨"}, "海景": {"海滨"}, "海": {"海滨"},
-    "安静": {"休闲放松", "安静"}, "放松": {"休闲放松"},
-    "爬山": {"运动健身", "山景"}, "运动": {"运动健身"}, "徒步": {"运动健身"},
-    "拍照": {"拍照出片", "出片"}, "摄影": {"拍照出片", "出片"}, "出片": {"拍照出片", "出片"}, "打卡": {"打卡热点", "出片"},
-    "文化": {"文化历史"}, "历史": {"文化历史"}, "博物馆": {"文化历史"},
-    "美食": {"美食"}, "小吃": {"美食"}, "吃": {"美食"}, "餐厅": {"美食"},
-    "购物": {"购物"}, "逛街": {"购物"}, "买东西": {"购物"},
-    "自然": {"自然风光"}, "风景": {"自然风光"},
-    "公园": {"公园"}, "免费": {"经济实惠"}, "省钱": {"经济实惠"},
+    "情侣": {"情侣"},
+    "约会": {"情侣"},
+    "二人": {"情侣"},
+    "亲子": {"亲子"},
+    "小孩": {"亲子"},
+    "孩子": {"亲子"},
+    "儿童": {"亲子"},
+    "带娃": {"亲子"},
+    "海边": {"海滨"},
+    "海滩": {"海滨"},
+    "沙滩": {"海滨"},
+    "海景": {"海滨"},
+    "海": {"海滨"},
+    "安静": {"休闲放松", "安静"},
+    "放松": {"休闲放松"},
+    "爬山": {"运动健身", "山景"},
+    "运动": {"运动健身"},
+    "徒步": {"运动健身"},
+    "拍照": {"拍照出片", "出片"},
+    "摄影": {"拍照出片", "出片"},
+    "出片": {"拍照出片", "出片"},
+    "打卡": {"打卡热点", "出片"},
+    "文化": {"文化历史"},
+    "历史": {"文化历史"},
+    "博物馆": {"文化历史"},
+    "美食": {"美食"},
+    "小吃": {"美食"},
+    "吃": {"美食"},
+    "餐厅": {"美食"},
+    "购物": {"购物"},
+    "逛街": {"购物"},
+    "买东西": {"购物"},
+    "自然": {"自然风光"},
+    "风景": {"自然风光"},
+    "公园": {"公园"},
+    "免费": {"经济实惠"},
+    "省钱": {"经济实惠"},
 }
 _PREF_TO_SCENE_TAGS: dict[str, set[str]] = {
     "nature": {"自然风光", "海滨", "山景", "公园"},
@@ -225,17 +372,50 @@ def _calc_tourist_relevance(poi: dict) -> float:
 
     # 有意义的场景标签 = 真正描述场景/氛围的标签（适配 LLM 生成的标签）
     _MEANINGFUL_TAGS = {
-        "海滨", "山景", "公园", "夜景", "文化历史",
-        "自然风光", "拍照出片", "打卡热点", "品质体验",
-        "运动健身", "休闲放松", "亲子", "情侣",
-        "网红店", "老字号",  # LLM 生成的有特色标签
+        "海滨",
+        "山景",
+        "公园",
+        "夜景",
+        "文化历史",
+        "自然风光",
+        "拍照出片",
+        "打卡热点",
+        "品质体验",
+        "运动健身",
+        "休闲放松",
+        "亲子",
+        "情侣",
+        "网红店",
+        "老字号",  # LLM 生成的有特色标签
     }
     # 弱标签（无额外信息量的通用标签, 适配 LLM）
-    _WEAK_TAGS = {"餐饮", "购物", "美食", "住宿", "运动", "文化", "市区",
-                  "经济", "经典", "出片", "休闲", "其他",
-                  "经济实惠", "适合聚餐", "交通便利", "环境好",
-                  "性价比高", "品牌齐全", "打折", "味道正宗",
-                  "停车方便", "服务好", "排队", "免费", "分量足"}
+    _WEAK_TAGS = {
+        "餐饮",
+        "购物",
+        "美食",
+        "住宿",
+        "运动",
+        "文化",
+        "市区",
+        "经济",
+        "经典",
+        "出片",
+        "休闲",
+        "其他",
+        "经济实惠",
+        "适合聚餐",
+        "交通便利",
+        "环境好",
+        "性价比高",
+        "品牌齐全",
+        "打折",
+        "味道正宗",
+        "停车方便",
+        "服务好",
+        "排队",
+        "免费",
+        "分量足",
+    }
 
     has_meaningful_tag = any(t in scene_tags for t in _MEANINGFUL_TAGS)
     only_weak_tags = scene_tags and all(t in _WEAK_TAGS for t in scene_tags)
@@ -295,9 +475,7 @@ def _assign_area_ids(pois: list[dict]) -> None:
         poi["_area_id"] = f"{gx:.3f},{gy:.3f}"
 
 
-def _area_transition_penalty(
-    route: list[dict], current: dict, next_poi: dict
-) -> float:
+def _area_transition_penalty(route: list[dict], current: dict, next_poi: dict) -> float:
     """区域切换惩罚（正值 = 不好，越低分越好）。
 
     同一区域 0 惩罚，跨区域加分（不好）。
@@ -389,7 +567,18 @@ _OUTDOOR_CATS = {"运动", "景点"}  # 户外类POI类别
 
 # _phase1 场景过滤常量
 _VAGUE_LATE_NIGHT_SCENE_REQS = {"安静", "安全", "街头漫步", "街头", "夜景", "散步"}
-_FOOD_SCENE_REQS = {"宵夜", "美食", "小吃", "烧烤", "火锅", "街边小店", "本地小吃", "街边小吃", "便宜实惠", "夜市"}
+_FOOD_SCENE_REQS = {
+    "宵夜",
+    "美食",
+    "小吃",
+    "烧烤",
+    "火锅",
+    "街边小店",
+    "本地小吃",
+    "街边小吃",
+    "便宜实惠",
+    "夜市",
+}
 _CONVENIENCE_KEYWORDS = ["美宜佳", "7-Eleven", "全家", "便利店", "Circle K", "OK便利店"]
 _DAY_ONLY_KEYWORDS = ["海洋剧场", "海豚剧场", "儿童科技馆", "探险家中心", "动物园"]
 _ACTIVITY_KEYWORDS: dict[str, list[str]] = {
@@ -407,23 +596,76 @@ _ACTIVITY_KEYWORDS: dict[str, list[str]] = {
 
 # 连锁快餐/非旅游品牌黑名单
 _CHAIN_BLACKLIST: set[str] = {
-    "麦当劳", "麥當勞", "mcdonald", "肯德基", "kfc",
-    "星巴克", "starbucks", "瑞幸", "luckin",
-    "必胜客", "必勝客", "pizza hut", "subway",
-    "大家樂", "大家乐", "café de coral",
-    "7-eleven", "全家", "罗森", "lawson",
-    "蜜雪冰城", "茶百道", "古茗", "沪上阿姨",
+    "麦当劳",
+    "麥當勞",
+    "mcdonald",
+    "肯德基",
+    "kfc",
+    "星巴克",
+    "starbucks",
+    "瑞幸",
+    "luckin",
+    "必胜客",
+    "必勝客",
+    "pizza hut",
+    "subway",
+    "大家樂",
+    "大家乐",
+    "café de coral",
+    "7-eleven",
+    "全家",
+    "罗森",
+    "lawson",
+    "蜜雪冰城",
+    "茶百道",
+    "古茗",
+    "沪上阿姨",
 }
 
 # 情绪曲线7阶段（参考产品设计文档表格10成都示例）
 _EMOTION_PHASES: list[dict] = [
-    {"name": "宁静铺垫", "ratio": 0.15, "target": {"tranquility": (0.5, 1.0)}, "cats": ["文化", "运动", "景点"]},
-    {"name": "温暖上升", "ratio": 0.15, "target": {"excitement": (0.3, 0.6)}, "cats": ["景点", "餐饮"]},
-    {"name": "好奇探索", "ratio": 0.15, "target": {"surprise": (0.4, 1.0), "culture_depth": (0.3, 0.7)}, "cats": ["文化", "景点", "其他"]},
-    {"name": "兴奋高潮", "ratio": 0.15, "target": {"excitement": (0.6, 1.0)}, "cats": ["运动", "购物", "景点"]},
-    {"name": "沉淀呼吸", "ratio": 0.10, "target": {"tranquility": (0.5, 1.0)}, "cats": ["文化", "景点"]},
-    {"name": "文化输入", "ratio": 0.15, "target": {"culture_depth": (0.6, 1.0)}, "cats": ["文化", "景点"]},
-    {"name": "社交收尾", "ratio": 0.15, "target": {"excitement": (0.3, 0.7), "sociability": (0.4, 1.0)}, "cats": ["餐饮", "购物", "景点"]},
+    {
+        "name": "宁静铺垫",
+        "ratio": 0.15,
+        "target": {"tranquility": (0.5, 1.0)},
+        "cats": ["文化", "运动", "景点"],
+    },
+    {
+        "name": "温暖上升",
+        "ratio": 0.15,
+        "target": {"excitement": (0.3, 0.6)},
+        "cats": ["景点", "餐饮"],
+    },
+    {
+        "name": "好奇探索",
+        "ratio": 0.15,
+        "target": {"surprise": (0.4, 1.0), "culture_depth": (0.3, 0.7)},
+        "cats": ["文化", "景点", "其他"],
+    },
+    {
+        "name": "兴奋高潮",
+        "ratio": 0.15,
+        "target": {"excitement": (0.6, 1.0)},
+        "cats": ["运动", "购物", "景点"],
+    },
+    {
+        "name": "沉淀呼吸",
+        "ratio": 0.10,
+        "target": {"tranquility": (0.5, 1.0)},
+        "cats": ["文化", "景点"],
+    },
+    {
+        "name": "文化输入",
+        "ratio": 0.15,
+        "target": {"culture_depth": (0.6, 1.0)},
+        "cats": ["文化", "景点"],
+    },
+    {
+        "name": "社交收尾",
+        "ratio": 0.15,
+        "target": {"excitement": (0.3, 0.7), "sociability": (0.4, 1.0)},
+        "cats": ["餐饮", "购物", "景点"],
+    },
 ]
 
 
@@ -450,63 +692,168 @@ def _get_dynamic_phases(user_intent: dict[str, Any]) -> list[dict]:
     _SOCIAL_KW = ["朋友", "聚会", "轰趴", "聚餐", "party", "轰趴"]
     if group == "朋友" or any(kw in raw for kw in _SOCIAL_KW):
         return [
-            {"name": "社交热身", "ratio": 0.3, "target": {"sociability": (0.5, 1.0), "excitement": (0.3, 0.7)}, "cats": _ensure_cats(["餐饮", "购物"])},
-            {"name": "兴奋高潮", "ratio": 0.4, "target": {"excitement": (0.6, 1.0), "sociability": (0.4, 1.0)}, "cats": _ensure_cats(["娱乐", "运动", "购物"])},
-            {"name": "美食收尾", "ratio": 0.3, "target": {"excitement": (0.3, 0.6), "sociability": (0.4, 1.0)}, "cats": _ensure_cats(["餐饮", "购物"])},
+            {
+                "name": "社交热身",
+                "ratio": 0.3,
+                "target": {"sociability": (0.5, 1.0), "excitement": (0.3, 0.7)},
+                "cats": _ensure_cats(["餐饮", "购物"]),
+            },
+            {
+                "name": "兴奋高潮",
+                "ratio": 0.4,
+                "target": {"excitement": (0.6, 1.0), "sociability": (0.4, 1.0)},
+                "cats": _ensure_cats(["娱乐", "运动", "购物"]),
+            },
+            {
+                "name": "美食收尾",
+                "ratio": 0.3,
+                "target": {"excitement": (0.3, 0.6), "sociability": (0.4, 1.0)},
+                "cats": _ensure_cats(["餐饮", "购物"]),
+            },
         ]
 
     # 浪漫约会型
     _ROMANTIC_KW = ["浪漫", "约会", "情侣", "二人"]
     if group == "情侣" or any(kw in raw for kw in _ROMANTIC_KW):
         return [
-            {"name": "浪漫铺垫", "ratio": 0.3, "target": {"tranquility": (0.5, 0.8), "excitement": (0.2, 0.5)}, "cats": _ensure_cats(["景点", "海景咖啡馆", "文化"])},
-            {"name": "探索升温", "ratio": 0.4, "target": {"surprise": (0.3, 0.8), "excitement": (0.4, 0.7)}, "cats": _ensure_cats(["景点", "餐饮", "购物"])},
-            {"name": "甜蜜收尾", "ratio": 0.3, "target": {"excitement": (0.3, 0.6), "sociability": (0.3, 0.7)}, "cats": _ensure_cats(["餐饮", "景点", "海景咖啡馆"])},
+            {
+                "name": "浪漫铺垫",
+                "ratio": 0.3,
+                "target": {"tranquility": (0.5, 0.8), "excitement": (0.2, 0.5)},
+                "cats": _ensure_cats(["景点", "海景咖啡馆", "文化"]),
+            },
+            {
+                "name": "探索升温",
+                "ratio": 0.4,
+                "target": {"surprise": (0.3, 0.8), "excitement": (0.4, 0.7)},
+                "cats": _ensure_cats(["景点", "餐饮", "购物"]),
+            },
+            {
+                "name": "甜蜜收尾",
+                "ratio": 0.3,
+                "target": {"excitement": (0.3, 0.6), "sociability": (0.3, 0.7)},
+                "cats": _ensure_cats(["餐饮", "景点", "海景咖啡馆"]),
+            },
         ]
 
     # 文艺独处型（4阶段，确保路线长度足够）
     _SOLO_KW = ["安静", "独处", "看书", "一个人", "小众", "文艺"]
     if any(kw in raw for kw in _SOLO_KW):
         return [
-            {"name": "宁静铺垫", "ratio": 0.25, "target": {"tranquility": (0.6, 1.0)}, "cats": _ensure_cats(["文化", "咖啡馆", "书店"])},
-            {"name": "文化探索", "ratio": 0.25, "target": {"culture_depth": (0.5, 1.0), "tranquility": (0.3, 0.7)}, "cats": _ensure_cats(["文化", "书店", "景点"])},
-            {"name": "文艺体验", "ratio": 0.25, "target": {"surprise": (0.3, 0.7), "culture_depth": (0.3, 0.7)}, "cats": _ensure_cats(["咖啡馆", "购物", "景点"])},
-            {"name": "安静收尾", "ratio": 0.25, "target": {"tranquility": (0.5, 0.9), "culture_depth": (0.4, 0.8)}, "cats": _ensure_cats(["文化", "咖啡馆", "餐饮"])},
+            {
+                "name": "宁静铺垫",
+                "ratio": 0.25,
+                "target": {"tranquility": (0.6, 1.0)},
+                "cats": _ensure_cats(["文化", "咖啡馆", "书店"]),
+            },
+            {
+                "name": "文化探索",
+                "ratio": 0.25,
+                "target": {"culture_depth": (0.5, 1.0), "tranquility": (0.3, 0.7)},
+                "cats": _ensure_cats(["文化", "书店", "景点"]),
+            },
+            {
+                "name": "文艺体验",
+                "ratio": 0.25,
+                "target": {"surprise": (0.3, 0.7), "culture_depth": (0.3, 0.7)},
+                "cats": _ensure_cats(["咖啡馆", "购物", "景点"]),
+            },
+            {
+                "name": "安静收尾",
+                "ratio": 0.25,
+                "target": {"tranquility": (0.5, 0.9), "culture_depth": (0.4, 0.8)},
+                "cats": _ensure_cats(["文化", "咖啡馆", "餐饮"]),
+            },
         ]
 
     # 亲子刺激型
     _KID_KW = ["带娃", "孩子", "儿童", "亲子", "小孩"]
     if group == "亲子" or any(kw in raw for kw in _KID_KW):
         return [
-            {"name": "兴奋开场", "ratio": 0.3, "target": {"excitement": (0.6, 1.0), "surprise": (0.3, 0.7)}, "cats": _ensure_cats(["运动", "娱乐", "景点"])},
-            {"name": "探索中段", "ratio": 0.4, "target": {"surprise": (0.4, 0.8), "excitement": (0.3, 0.6)}, "cats": _ensure_cats(["景点", "文化", "运动"])},
-            {"name": "轻松收尾", "ratio": 0.3, "target": {"tranquility": (0.4, 0.7), "excitement": (0.2, 0.5)}, "cats": _ensure_cats(["餐饮", "景点"])},
+            {
+                "name": "兴奋开场",
+                "ratio": 0.3,
+                "target": {"excitement": (0.6, 1.0), "surprise": (0.3, 0.7)},
+                "cats": _ensure_cats(["运动", "娱乐", "景点"]),
+            },
+            {
+                "name": "探索中段",
+                "ratio": 0.4,
+                "target": {"surprise": (0.4, 0.8), "excitement": (0.3, 0.6)},
+                "cats": _ensure_cats(["景点", "文化", "运动"]),
+            },
+            {
+                "name": "轻松收尾",
+                "ratio": 0.3,
+                "target": {"tranquility": (0.4, 0.7), "excitement": (0.2, 0.5)},
+                "cats": _ensure_cats(["餐饮", "景点"]),
+            },
         ]
 
     # 深夜觅食型
     _NIGHT_KW = ["凌晨", "深夜", "宵夜", "夜宵", "通宵", "半夜"]
     if any(kw in raw for kw in _NIGHT_KW):
         return [
-            {"name": "觅食探索", "ratio": 0.5, "target": {"excitement": (0.4, 0.8), "surprise": (0.3, 0.7)}, "cats": _ensure_cats(["餐饮", "夜市", "夜市小吃", "景点"])},
-            {"name": "深夜延续", "ratio": 0.5, "target": {"excitement": (0.3, 0.6), "sociability": (0.3, 0.7)}, "cats": _ensure_cats(["餐饮", "夜市", "景点"])},
+            {
+                "name": "觅食探索",
+                "ratio": 0.5,
+                "target": {"excitement": (0.4, 0.8), "surprise": (0.3, 0.7)},
+                "cats": _ensure_cats(["餐饮", "夜市", "夜市小吃", "景点"]),
+            },
+            {
+                "name": "深夜延续",
+                "ratio": 0.5,
+                "target": {"excitement": (0.3, 0.6), "sociability": (0.3, 0.7)},
+                "cats": _ensure_cats(["餐饮", "夜市", "景点"]),
+            },
         ]
 
     # 极速打卡型（3阶段，保证最少3个POI）
     _FAST_KW = ["极速", "快速", "赶时间", "打卡", "2小时"]
     if any(kw in raw for kw in _FAST_KW):
         return [
-            {"name": "高效打卡", "ratio": 0.4, "target": {"excitement": (0.5, 0.8), "surprise": (0.3, 0.7)}, "cats": _ensure_cats(["景点", "文化", "购物"])},
-            {"name": "核心体验", "ratio": 0.3, "target": {"excitement": (0.4, 0.7)}, "cats": _ensure_cats(["景点", "餐饮"])},
-            {"name": "收尾打卡", "ratio": 0.3, "target": {"excitement": (0.3, 0.6)}, "cats": _ensure_cats(["餐饮", "购物"])},
+            {
+                "name": "高效打卡",
+                "ratio": 0.4,
+                "target": {"excitement": (0.5, 0.8), "surprise": (0.3, 0.7)},
+                "cats": _ensure_cats(["景点", "文化", "购物"]),
+            },
+            {
+                "name": "核心体验",
+                "ratio": 0.3,
+                "target": {"excitement": (0.4, 0.7)},
+                "cats": _ensure_cats(["景点", "餐饮"]),
+            },
+            {
+                "name": "收尾打卡",
+                "ratio": 0.3,
+                "target": {"excitement": (0.3, 0.6)},
+                "cats": _ensure_cats(["餐饮", "购物"]),
+            },
         ]
 
     # 退休悠闲型
     _RETIRE_KW = ["退休", "老两口", "慢慢逛", "喝茶"]
     if group == "退休" or any(kw in raw for kw in _RETIRE_KW):
         return [
-            {"name": "悠闲漫步", "ratio": 0.4, "target": {"tranquility": (0.6, 1.0)}, "cats": _ensure_cats(["景点", "文化", "运动"])},
-            {"name": "品茗休憩", "ratio": 0.3, "target": {"tranquility": (0.5, 0.8), "culture_depth": (0.3, 0.6)}, "cats": _ensure_cats(["餐饮", "文化"])},
-            {"name": "文化收尾", "ratio": 0.3, "target": {"culture_depth": (0.5, 0.8)}, "cats": _ensure_cats(["文化", "景点"])},
+            {
+                "name": "悠闲漫步",
+                "ratio": 0.4,
+                "target": {"tranquility": (0.6, 1.0)},
+                "cats": _ensure_cats(["景点", "文化", "运动"]),
+            },
+            {
+                "name": "品茗休憩",
+                "ratio": 0.3,
+                "target": {"tranquility": (0.5, 0.8), "culture_depth": (0.3, 0.6)},
+                "cats": _ensure_cats(["餐饮", "文化"]),
+            },
+            {
+                "name": "文化收尾",
+                "ratio": 0.3,
+                "target": {"culture_depth": (0.5, 0.8)},
+                "cats": _ensure_cats(["文化", "景点"]),
+            },
         ]
 
     # 默认：使用原始7阶段，但确保preferred_categories在cats中
@@ -532,6 +879,7 @@ def _score_poi_for_phase(poi: dict, phase: dict) -> float:
     if poi.get("category") in phase["cats"]:
         score += 0.5
     return score
+
 
 # category偏好映射：用户偏好 → 优先选择的category
 _PREF_TO_CATEGORIES: dict[str, list[str]] = {
@@ -576,9 +924,7 @@ _KEYWORD_CATEGORIES: dict[str, list[str]] = {
 # ---------------------------------------------------------------------------
 
 
-def estimate_distance(
-    poi_a: dict[str, Any] | None, poi_b: dict[str, Any] | None
-) -> float:
+def estimate_distance(poi_a: dict[str, Any] | None, poi_b: dict[str, Any] | None) -> float:
     """估算两点间实际道路距离（米）。None 安全。带缓存。"""
     if not poi_a or not poi_b:
         return 0.0
@@ -591,9 +937,7 @@ def estimate_distance(
     return dist
 
 
-def estimate_travel_time(
-    poi_a: dict[str, Any] | None, poi_b: dict[str, Any] | None
-) -> float:
+def estimate_travel_time(poi_a: dict[str, Any] | None, poi_b: dict[str, Any] | None) -> float:
     """估算两点间旅行时间（分钟）。None 安全。带缓存。"""
     if not poi_a or not poi_b:
         return 0.0
@@ -706,7 +1050,9 @@ def _select_diverse_filter_tourist_quality(
     """预计算旅游相关性，过滤低质量POI。"""
     for poi in all_pois:
         poi["_tourist_relevance"] = _calc_tourist_relevance(poi)
-    quality_pois = [p for p in all_pois if p.get("_tourist_relevance", 0.5) >= _TOURIST_QUALITY_THRESHOLD]
+    quality_pois = [
+        p for p in all_pois if p.get("_tourist_relevance", 0.5) >= _TOURIST_QUALITY_THRESHOLD
+    ]
     if not quality_pois:
         quality_pois = all_pois  # 兜底：如果全过滤掉了就恢复
     return quality_pois
@@ -725,7 +1071,11 @@ def _select_diverse_filter_hard_constraints(
 
     # pet_friendly: 只保留宠物友好POI
     if "pet_friendly" in hard_constraints:
-        pet_pois = [p for p in quality_pois if p.get("constraints", {}).get("pet_friendly") or p.get("pet_friendly")]
+        pet_pois = [
+            p
+            for p in quality_pois
+            if p.get("constraints", {}).get("pet_friendly") or p.get("pet_friendly")
+        ]
         if pet_pois:
             quality_pois = pet_pois
 
@@ -741,13 +1091,23 @@ def _select_diverse_filter_scene_requirements(
     # scene_requirements预过滤（在所有硬约束之后）
     _scene_reqs = user_intent.get("scene_requirements", [])
     _is_late_night_active = "late_night" in hard_constraints
-    if _is_late_night_active and _scene_reqs and all(sr in _VAGUE_LATE_NIGHT_SCENE_REQS for sr in _scene_reqs):
+    if (
+        _is_late_night_active
+        and _scene_reqs
+        and all(sr in _VAGUE_LATE_NIGHT_SCENE_REQS for sr in _scene_reqs)
+    ):
         _scene_reqs = []  # 跳过预过滤，让late_night filter处理
     if _scene_reqs:
 
         def _matches_sr(p: dict) -> bool:
             """ANY-match: 匹配任意一个scene_requirement即可。"""
-            text = p.get("name", "") + " " + " ".join(p.get("tags", [])) + " " + " ".join(p.get("_scene_tags", []))
+            text = (
+                p.get("name", "")
+                + " "
+                + " ".join(p.get("tags", []))
+                + " "
+                + " ".join(p.get("_scene_tags", []))
+            )
             for sr in _scene_reqs:
                 if sr in text:
                     return True
@@ -766,18 +1126,29 @@ def _select_diverse_filter_scene_requirements(
     _is_food_req = bool(set(user_intent.get("scene_requirements", [])) & _FOOD_SCENE_REQS)
     if _is_food_req:
         before = len(quality_pois)
-        quality_pois = [p for p in quality_pois
-                        if not any(kw in p.get("name", "") for kw in _CONVENIENCE_KEYWORDS)]
+        quality_pois = [
+            p
+            for p in quality_pois
+            if not any(kw in p.get("name", "") for kw in _CONVENIENCE_KEYWORDS)
+        ]
         if len(quality_pois) < before:
-            logger.debug("美食场景过滤: 移除便利店%d个, 剩余%d", before - len(quality_pois), len(quality_pois))
+            logger.debug(
+                "美食场景过滤: 移除便利店%d个, 剩余%d",
+                before - len(quality_pois),
+                len(quality_pois),
+            )
 
     # 2. 深夜场景过滤白天专属景点
-    _night_scene = any(kw in str(user_intent.get("scene_requirements", [])) + str(user_intent.get("_raw_input", ""))
-                       for kw in ["深夜", "凌晨", "宵夜", "夜景", "夜晚"])
+    _night_scene = any(
+        kw
+        in str(user_intent.get("scene_requirements", [])) + str(user_intent.get("_raw_input", ""))
+        for kw in ["深夜", "凌晨", "宵夜", "夜景", "夜晚"]
+    )
     if _night_scene:
         before = len(quality_pois)
-        quality_pois = [p for p in quality_pois
-                        if not any(kw in p.get("name", "") for kw in _DAY_ONLY_KEYWORDS)]
+        quality_pois = [
+            p for p in quality_pois if not any(kw in p.get("name", "") for kw in _DAY_ONLY_KEYWORDS)
+        ]
         if len(quality_pois) < before:
             logger.debug("深夜场景过滤: 移除白天专属景点%d个", before - len(quality_pois))
 
@@ -821,7 +1192,7 @@ def _select_diverse_filter_scene_requirements(
                 open_min_val = int(oh) * 60 + int(om)
                 close_min_val = int(ch) * 60 + int(cm)
             except (ValueError, AttributeError, IndexError):
-                tags = ' '.join(p.get("tags", []) + p.get("_scene_tags", []))
+                tags = " ".join(p.get("tags", []) + p.get("_scene_tags", []))
                 if any(kw in tags for kw in ["24小时", "通宵", "深夜", "夜市"]):
                     return True
                 return False
@@ -840,7 +1211,14 @@ def _select_diverse_filter_scene_requirements(
             late_pois = [p for p in quality_pois if _is_open_in_window(p)]
         else:
             late_pois = quality_pois  # 不过滤，让正常时间窗检查处理
-        logger.debug("late_night filter: %d → %d POIs (window=%s-%s, crosses_midnight=%s)", len(quality_pois), len(late_pois), start_str, end_str, _crosses_midnight)
+        logger.debug(
+            "late_night filter: %d → %d POIs (window=%s-%s, crosses_midnight=%s)",
+            len(quality_pois),
+            len(late_pois),
+            start_str,
+            end_str,
+            _crosses_midnight,
+        )
         if late_pois:
             quality_pois = late_pois
 
@@ -869,14 +1247,24 @@ def _select_diverse_build_mixed_scorer(
     _scene_requirements = user_intent.get("scene_requirements", [])
 
     def _mixed_score(p: dict) -> float:
-        score = p.get("_tourist_relevance", 0.5) * _MIXED_SCORE_TOURIST_WEIGHT + (p.get("rating", 0) / 5.0) * _MIXED_SCORE_RATING_WEIGHT + _randmod.uniform(-0.01, 0.01)
+        score = (
+            p.get("_tourist_relevance", 0.5) * _MIXED_SCORE_TOURIST_WEIGHT
+            + (p.get("rating", 0) / 5.0) * _MIXED_SCORE_RATING_WEIGHT
+            + _randmod.uniform(-0.01, 0.01)
+        )
         # 输入意图匹配加分
         if _input_scene_tags:
             poi_tags = set(p.get("_scene_tags", []))
             if poi_tags & _input_scene_tags:
                 score += _INPUT_SCENE_MATCH_BONUS
         # 特定活动需求加分
-        poi_text = p.get("name", "") + " " + " ".join(p.get("tags", [])) + " " + " ".join(p.get("_scene_tags", []))
+        poi_text = (
+            p.get("name", "")
+            + " "
+            + " ".join(p.get("tags", []))
+            + " "
+            + " ".join(p.get("_scene_tags", []))
+        )
         for constraint, keywords in _ACTIVITY_KEYWORDS.items():
             if constraint in hard_constraints:
                 if any(kw in poi_text for kw in keywords):
@@ -952,7 +1340,7 @@ def _select_diverse_select_by_category(
             already = sum(1 for s in selected if s.get("category", "") == cat)
             remaining_quota = max(0, per_cat_max - already)
             pois_in_cat.sort(key=mixed_score, reverse=True)
-            for p in pois_in_cat[:min(2, remaining_quota)]:
+            for p in pois_in_cat[: min(2, remaining_quota)]:
                 if p["id"] not in used_ids and len(selected) < max_candidates:
                     selected.append(p)
                     used_ids.add(p["id"])
@@ -975,8 +1363,7 @@ def _select_diverse_dedup(selected: list[dict[str, Any]]) -> list[dict[str, Any]
     """连锁快餐黑名单过滤 + 名称去重。"""
     # 连锁快餐/非旅游品牌黑名单
     selected = [
-        p for p in selected
-        if not any(bw in p.get("name", "").lower() for bw in _CHAIN_BLACKLIST)
+        p for p in selected if not any(bw in p.get("name", "").lower() for bw in _CHAIN_BLACKLIST)
     ]
 
     # 名称去重：归一化后去重
@@ -984,8 +1371,8 @@ def _select_diverse_dedup(selected: list[dict[str, Any]]) -> list[dict[str, Any]
 
     def _normalize_name(name: str) -> str:
         n = name.strip()
-        n = re.sub(r'\s+[A-Za-z][A-Za-z\s\'\.&]+$', '', n)
-        n = re.sub(r'[（(][^）)]*[）)]', '', n)
+        n = re.sub(r"\s+[A-Za-z][A-Za-z\s\'\.&]+$", "", n)
+        n = re.sub(r"[（(][^）)]*[）)]", "", n)
         return n.strip().lower()
 
     seen_names: dict[str, dict] = {}
@@ -1030,11 +1417,15 @@ def _select_diverse_candidates(
     quality_pois = _select_diverse_filter_hard_constraints(quality_pois, hard_constraints)
 
     # 4. 场景需求 + 场景感知过滤
-    quality_pois = _select_diverse_filter_scene_requirements(quality_pois, user_intent, hard_constraints)
+    quality_pois = _select_diverse_filter_scene_requirements(
+        quality_pois, user_intent, hard_constraints
+    )
 
     # 5. 混合评分 + 按category选择
     mixed_score = _select_diverse_build_mixed_scorer(user_intent, hard_constraints, excluded_cats)
-    selected = _select_diverse_select_by_category(quality_pois, preferred_cats, excluded_cats, max_candidates, mixed_score, user_intent)
+    selected = _select_diverse_select_by_category(
+        quality_pois, preferred_cats, excluded_cats, max_candidates, mixed_score, user_intent
+    )
 
     # 6. 去重
     selected = _select_diverse_dedup(selected)
@@ -1177,6 +1568,7 @@ def _calc_distance_to_point(poi: dict[str, Any], point: dict[str, Any]) -> float
     else:
         # 地名格式，从 filters 中获取坐标
         from backend.services.filters import _extract_user_location
+
         point_lat, point_lng = _extract_user_location({"location": point})
 
     if poi_lat == 0 or poi_lng == 0 or point_lat is None or point_lng is None:
@@ -1184,6 +1576,7 @@ def _calc_distance_to_point(poi: dict[str, Any], point: dict[str, Any]) -> float
 
     # 使用 Haversine 公式计算距离
     from backend.services.filters import _haversine_km
+
     return _haversine_km(poi_lat, poi_lng, point_lat, point_lng)
 
 
@@ -1196,12 +1589,12 @@ def _phase1_prepare_context(
     candidates: list[dict[str, Any]],
     user_intent: dict[str, Any],
 ) -> tuple[
-    set[str],           # _preferred_ids
-    list[str],          # _scene_requirements
-    set[str],           # _scene_matched_ids
-    int,                # max_pois
-    float,              # budget_limit
-    list[dict],         # phases
+    set[str],  # _preferred_ids
+    list[str],  # _scene_requirements
+    set[str],  # _scene_matched_ids
+    int,  # max_pois
+    float,  # budget_limit
+    list[dict],  # phases
 ]:
     """准备Phase1所需上下文：LLM推荐ID、场景匹配、预算、情绪阶段。"""
     # LLM Planner推荐的POI ID集合
@@ -1210,13 +1603,21 @@ def _phase1_prepare_context(
 
     # 场景需求关键词
     _scene_requirements: list[str] = user_intent.get("scene_requirements", [])
-    logger.debug("Phase1 scene_requirements: %s, candidates: %d", _scene_requirements, len(candidates))
+    logger.debug(
+        "Phase1 scene_requirements: %s, candidates: %d", _scene_requirements, len(candidates)
+    )
 
     # 构建scene_requirements匹配集合（ANY-match）
     _scene_matched_ids: set[str] = set()
     if _scene_requirements:
         for p in candidates:
-            text = p.get("name", "") + " " + " ".join(p.get("tags", [])) + " " + " ".join(p.get("_scene_tags", []))
+            text = (
+                p.get("name", "")
+                + " "
+                + " ".join(p.get("tags", []))
+                + " "
+                + " ".join(p.get("_scene_tags", []))
+            )
             for sr in _scene_requirements:
                 if sr in text or any(syn in text for syn in _SCENE_SYNONYMS.get(sr, [])):
                     _scene_matched_ids.add(p.get("id"))
@@ -1246,8 +1647,11 @@ def _phase1_prepare_context(
     _food_scene_reqs = {"宵夜", "街边小店", "本地小吃", "烧烤", "美食"}
     _is_food_req = bool(set(_scene_requirements) & _food_scene_reqs)
     if _is_food_req and _scene_matched_ids:
-        _scene_matched_ids = {pid for pid in _scene_matched_ids
-                             if any(p.get("id") == pid and p.get("category") == "餐饮" for p in candidates)}
+        _scene_matched_ids = {
+            pid
+            for pid in _scene_matched_ids
+            if any(p.get("id") == pid and p.get("category") == "餐饮" for p in candidates)
+        }
 
     return _preferred_ids, _scene_requirements, _scene_matched_ids, max_pois, budget_limit, phases
 
@@ -1423,9 +1827,7 @@ def _phase1_score_candidate(
         reaction_score = chemical_reaction(route[-1]["poi"], poi)
 
     # 感官交替评分
-    sensory_score = sensory_alternation(
-        [*route, {"poi": poi}]
-    )
+    sensory_score = sensory_alternation([*route, {"poi": poi}])
 
     # 区域切换惩罚
     area_penalty = _area_transition_penalty(route, current_poi, poi)
@@ -1454,7 +1856,13 @@ def _phase1_score_candidate(
 
     # 场景需求语义匹配（含同义词扩展）
     if _scene_requirements:
-        poi_text = poi.get("name", "") + " " + " ".join(poi.get("tags", [])) + " " + " ".join(poi.get("_scene_tags", []))
+        poi_text = (
+            poi.get("name", "")
+            + " "
+            + " ".join(poi.get("tags", []))
+            + " "
+            + " ".join(poi.get("_scene_tags", []))
+        )
         matched_scenes = 0
         for sr in _scene_requirements:
             if sr in poi_text:
@@ -1542,7 +1950,9 @@ def _phase1_initialize(
     running_budget = 0
 
     # 准备上下文
-    _preferred_ids, _scene_requirements, _scene_matched_ids, max_pois, budget_limit, phases = _phase1_prepare_context(candidates, user_intent)
+    _preferred_ids, _scene_requirements, _scene_matched_ids, max_pois, budget_limit, phases = (
+        _phase1_prepare_context(candidates, user_intent)
+    )
 
     # 用户结束时间
     end_time_str = user_intent.get("time", {}).get("end")
@@ -1552,7 +1962,12 @@ def _phase1_initialize(
 
     # 两阶段锁定
     _is_food_req = bool(set(_scene_requirements) & {"宵夜", "街边小店", "本地小吃", "烧烤", "美食"})
-    logger.debug("Phase1 _scene_matched_ids: %d, remaining: %d, is_food_req: %s", len(_scene_matched_ids), len(remaining), _is_food_req)
+    logger.debug(
+        "Phase1 _scene_matched_ids: %d, remaining: %d, is_food_req: %s",
+        len(_scene_matched_ids),
+        len(remaining),
+        _is_food_req,
+    )
     if _scene_matched_ids and len(_scene_matched_ids) >= _MIN_SCENE_MATCH_FOR_LOCK:
         scene_remaining = [p for p in remaining if p.get("id") in _scene_matched_ids]
         if len(scene_remaining) >= _MIN_SCENE_MATCH_FOR_LOCK:
@@ -1570,7 +1985,13 @@ def _phase1_initialize(
         for poi in remaining:
             # 时间窗口和预算可行性检查
             tw_result = _phase1_check_time_window(
-                poi, current_poi, current_time, end_time, budget_limit, running_budget, _is_late_night,
+                poi,
+                current_poi,
+                current_time,
+                end_time,
+                budget_limit,
+                running_budget,
+                _is_late_night,
             )
             if tw_result is None:
                 continue
@@ -1580,9 +2001,18 @@ def _phase1_initialize(
 
             # 综合评分
             score = _phase1_score_candidate(
-                poi, travel, wait, route, current_poi, step_count,
-                max_pois, phase, user_intent,
-                _preferred_ids, _scene_matched_ids, _scene_requirements,
+                poi,
+                travel,
+                wait,
+                route,
+                current_poi,
+                step_count,
+                max_pois,
+                phase,
+                user_intent,
+                _preferred_ids,
+                _scene_matched_ids,
+                _scene_requirements,
                 budget_limit,
             )
 
@@ -1595,7 +2025,9 @@ def _phase1_initialize(
             continue
 
         # 计算最终时间并添加到路线
-        current_time, step_dict = _phase1_finalize_step(best, current_poi, current_time, _is_late_night)
+        current_time, step_dict = _phase1_finalize_step(
+            best, current_poi, current_time, _is_late_night
+        )
         route.append(step_dict)
 
         current_poi = best
@@ -1607,9 +2039,7 @@ def _phase1_initialize(
         prev_cat = route[-2]["poi"].get("category", "") if len(route) >= 2 else ""
         curr_cat = best.get("category", "")
         can_add_more = (
-            len(route) < max_pois
-            and phase_idx < len(phases) - 1
-            and curr_cat != prev_cat
+            len(route) < max_pois and phase_idx < len(phases) - 1 and curr_cat != prev_cat
         )
         if can_add_more:
             other_cats = [p for p in remaining if p.get("category", "") != curr_cat]
@@ -1662,10 +2092,7 @@ def _enforce_category_diversity(
             # 如果没有餐饮类，优先选择餐饮类POI
             if not has_food:
                 for c in candidates:
-                    if (
-                        c["id"] not in used_ids
-                        and c.get("category") == "餐饮"
-                    ):
+                    if c["id"] not in used_ids and c.get("category") == "餐饮":
                         replacement = c
                         has_food = True
                         break
@@ -1774,9 +2201,7 @@ def _find_rest_poi(
 
     unused = [p for p in candidates if _is_rest(p) and p["id"] not in used_ids]
     if unused:
-        return max(
-            unused, key=lambda p: p.get("emotion_tags", {}).get("tranquility", 0)
-        )
+        return max(unused, key=lambda p: p.get("emotion_tags", {}).get("tranquility", 0))
 
     # 兜底：生成合成休息节点（继承参考POI的坐标，避免距离计算错误）
     ref_lat = ref_poi.get("lat", 22.26) if ref_poi else 22.26
@@ -1850,8 +2275,7 @@ def _phase3_breathing(
     i = 0
     while i <= len(route) - 3:
         consecutive = all(
-            route[i + j]["poi"].get("emotion_tags", {}).get("excitement", 0)
-            > _EXCITEMENT_THRESHOLD
+            route[i + j]["poi"].get("emotion_tags", {}).get("excitement", 0) > _EXCITEMENT_THRESHOLD
             for j in range(3)
         )
 
@@ -1871,9 +2295,7 @@ def _phase3_breathing(
     # 闲逛型节奏：每 2 个原始 POI 插入一个休息
     if user_intent.get("pace") == "闲逛型" and len(route) >= 3:
         rest_ids = {s["poi"]["id"] for s in breathing_spots}
-        original_indices = [
-            i for i, s in enumerate(route) if s["poi"]["id"] not in rest_ids
-        ]
+        original_indices = [i for i, s in enumerate(route) if s["poi"]["id"] not in rest_ids]
 
         insert_after = [
             original_indices[i]
@@ -2024,7 +2446,9 @@ def _insert_start_point(
     return route
 
 
-def _insert_end_point(route: list[dict[str, Any]], end_point: dict[str, Any]) -> list[dict[str, Any]]:
+def _insert_end_point(
+    route: list[dict[str, Any]], end_point: dict[str, Any]
+) -> list[dict[str, Any]]:
     """插入终点到路线末位。
 
     Args:
@@ -2076,6 +2500,7 @@ def _build_point_poi(point: dict[str, Any] | str, name: str = "位置") -> dict[
     if isinstance(point, str):
         # 地名格式，从 filters 中获取坐标
         from backend.services.filters import _extract_user_location
+
         lat, lng = _extract_user_location({"location": point})
         if lat is None or lng is None:
             lat, lng = 0, 0
@@ -2097,9 +2522,12 @@ def _build_point_poi(point: dict[str, Any] | str, name: str = "位置") -> dict[
         "queue_prone": False,
         "avg_stay_min": 0,
         "emotion_tags": {
-            "excitement": 0, "tranquility": 0,
-            "sociability": 0, "culture_depth": 0,
-            "surprise": 0, "physical_demand": 0,
+            "excitement": 0,
+            "tranquility": 0,
+            "sociability": 0,
+            "culture_depth": 0,
+            "surprise": 0,
+            "physical_demand": 0,
         },
         "_is_point": True,
     }
@@ -2275,7 +2703,6 @@ def solve_route(
     if not candidates:
         return empty_result
 
-    
     # Phase 0: 按意图筛选候选（确保category多样性）
     selected = _select_diverse_candidates(candidates, user_intent, max_candidates=30)
 
@@ -2309,16 +2736,23 @@ def solve_route(
                 "category": nse.get("category", "其他"),
                 "rating": 4.5,
                 "avg_price": nse.get("price", 0),
-                "lat": 0, "lng": 0,  # 无坐标，跟随上一个POI
+                "lat": 0,
+                "lng": 0,  # 无坐标，跟随上一个POI
                 "business_hours": nse.get("best_time", "00:00-23:59"),
                 "tags": nse.get("tags", []),
                 "queue_prone": False,
                 "avg_stay_min": nse.get("duration_min", 60),
-                "emotion_tags": nse.get("emotion_tags", {
-                    "excitement": 0.5, "tranquility": 0.5,
-                    "sociability": 0.5, "culture_depth": 0.5,
-                    "surprise": 0.5, "physical_demand": 0.3,
-                }),
+                "emotion_tags": nse.get(
+                    "emotion_tags",
+                    {
+                        "excitement": 0.5,
+                        "tranquility": 0.5,
+                        "sociability": 0.5,
+                        "culture_depth": 0.5,
+                        "surprise": 0.5,
+                        "physical_demand": 0.3,
+                    },
+                ),
                 "_is_nse": True,
             }
             if not any(p.get("id") == nse_poi["id"] for p in filtered):
@@ -2368,15 +2802,17 @@ def solve_route(
                 arrival = last_departure + timedelta(minutes=travel)
                 stay = poi.get("avg_stay_min", 60)
                 departure = arrival + timedelta(minutes=stay)
-                route.append({
-                    "poi": poi,
-                    "arrival_time": format_time(arrival),
-                    "departure_time": format_time(departure),
-                    "travel_from_prev": {
-                        "distance_m": round(estimate_distance(last, poi)),
-                        "time_min": round(travel),
-                    },
-                })
+                route.append(
+                    {
+                        "poi": poi,
+                        "arrival_time": format_time(arrival),
+                        "departure_time": format_time(departure),
+                        "travel_from_prev": {
+                            "distance_m": round(estimate_distance(last, poi)),
+                            "time_min": round(travel),
+                        },
+                    }
+                )
                 used_ids.add(poi.get("id"))
         logger.debug("最低长度保护: 补充到%d站", len(route))
 
@@ -2393,7 +2829,10 @@ def solve_route(
     # Phase 3: 呼吸空间插入
     route, breathing_spots = _phase3_breathing(route, filtered, user_intent, start_time)
     for spot in breathing_spots:
-        _report_progress("breathing", {"phase": "休息", "spot": spot.get("name", "?"), "found": len(breathing_spots)})
+        _report_progress(
+            "breathing",
+            {"phase": "休息", "spot": spot.get("name", "?"), "found": len(breathing_spots)},
+        )
 
     # Phase 4: 高潮收尾检查（考虑终点距离）
     route = _phase4_finale(route, filtered, end_point)

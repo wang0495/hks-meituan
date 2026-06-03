@@ -65,9 +65,7 @@ async def startup_warmup_with_background(
     warmup = await startup_warmup()
 
     # 启动后台定时预热
-    background_task = asyncio.create_task(
-        warmup.start_background_warmup(interval=interval)
-    )
+    background_task = asyncio.create_task(warmup.start_background_warmup(interval=interval))
 
     logger.info("定时缓存预热已启动，间隔 %ds", interval)
 

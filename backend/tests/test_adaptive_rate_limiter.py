@@ -6,11 +6,13 @@ import asyncio
 
 import pytest
 
-from backend.services.adaptive_rate_limiter import (AdaptiveRateLimiter,
-                                                    LoadLevel,
-                                                    MetricsCollector,
-                                                    SystemMetrics,
-                                                    get_adaptive_limiter)
+from backend.services.adaptive_rate_limiter import (
+    AdaptiveRateLimiter,
+    LoadLevel,
+    MetricsCollector,
+    SystemMetrics,
+    get_adaptive_limiter,
+)
 
 
 class TestSystemMetrics:
@@ -67,9 +69,7 @@ class TestSystemMetrics:
         high_latency = SystemMetrics(avg_response_ms=5000.0)
         low_latency = SystemMetrics(avg_response_ms=500.0)
         # 5000ms 和 2000ms 的 latency_factor 都是 100（封顶）
-        assert (
-            high_latency.load_score == SystemMetrics(avg_response_ms=2000.0).load_score
-        )
+        assert high_latency.load_score == SystemMetrics(avg_response_ms=2000.0).load_score
         # 500ms 的 latency_factor 是 50
         assert low_latency.load_score < high_latency.load_score
 

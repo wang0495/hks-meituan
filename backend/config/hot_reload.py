@@ -33,9 +33,10 @@ import logging
 import threading
 import time
 from collections import defaultdict, deque
+from collections.abc import Callable, Coroutine
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Callable, Coroutine
+from typing import Any
 
 import yaml
 from watchdog.events import FileSystemEvent, FileSystemEventHandler
@@ -439,9 +440,7 @@ class ConfigHotReloader:
                 else:
                     cb(config)
             except Exception:
-                logger.exception(
-                    "观察者回调异常: %s -> %s", config_name, cb.__qualname__
-                )
+                logger.exception("观察者回调异常: %s -> %s", config_name, cb.__qualname__)
 
     def _schedule_async(
         self,
@@ -454,9 +453,7 @@ class ConfigHotReloader:
             try:
                 loop = asyncio.get_running_loop()
             except RuntimeError:
-                logger.warning(
-                    "无法调度异步回调（无运行中的事件循环）: %s", cb.__qualname__
-                )
+                logger.warning("无法调度异步回调（无运行中的事件循环）: %s", cb.__qualname__)
                 return
 
         asyncio.run_coroutine_threadsafe(cb(config), loop)

@@ -20,7 +20,9 @@ logger = logging.getLogger(__name__)
 async def feedback_entry(state: TravelState) -> dict:
     """反馈重入：选择性 expert 重跑 + 缓存提案注入。"""
     await sse_emit(state, "agent_start", {"agent": "feedback_entry"})
-    await sse_emit(state, "agent_thinking", {"agent": "feedback_entry", "text": "选择性重跑专家..."})
+    await sse_emit(
+        state, "agent_thinking", {"agent": "feedback_entry", "text": "选择性重跑专家..."}
+    )
 
     rerun = set(state.get("rerun_experts", []))
     cached = list(state.get("cached_proposals", []))
@@ -31,13 +33,19 @@ async def feedback_entry(state: TravelState) -> dict:
 
     logger.info(
         "feedback_entry: rerun=%s, cached=%d, non_rerun_cached=%d",
-        sorted(rerun), len(cached), len(non_rerun_cached),
+        sorted(rerun),
+        len(cached),
+        len(non_rerun_cached),
     )
 
-    await sse_emit(state, "agent_thinking", {
-        "agent": "feedback_entry",
-        "text": f"重跑 {len(rerun)} 个expert, 注入 {len(non_rerun_cached)} 条缓存提案",
-    })
+    await sse_emit(
+        state,
+        "agent_thinking",
+        {
+            "agent": "feedback_entry",
+            "text": f"重跑 {len(rerun)} 个expert, 注入 {len(non_rerun_cached)} 条缓存提案",
+        },
+    )
 
     return {
         "proposals": non_rerun_cached,

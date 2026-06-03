@@ -13,11 +13,11 @@ from backend.middleware.version import APIVersionMiddleware
 __all__ = [
     "APIVersionMiddleware",
     "ConfigMiddleware",
+    "InputValidationMiddleware",
     "PrometheusMiddleware",
     "RateLimitMiddleware",
-    "ShutdownMiddleware",
-    "InputValidationMiddleware",
     "SecurityHeadersMiddleware",
     "SessionMiddleware",
+    "ShutdownMiddleware",
     "setup_error_handlers",
 ]

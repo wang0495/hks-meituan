@@ -22,6 +22,7 @@ def _get_client() -> AsyncOpenAI:
     global _client
     if _client is None:
         from backend.config.settings import get_settings
+
         s = get_settings()
         _client = AsyncOpenAI(base_url=s.llm.base_url, api_key=s.llm.api_key)
     return _client
@@ -154,9 +155,7 @@ async def plan_route(
 
         # 验证推荐的POI ID在候选列表中
         valid_ids = {p.get("id") for p in candidate_pois}
-        result["recommended_pois"] = [
-            pid for pid in result["recommended_pois"] if pid in valid_ids
-        ]
+        result["recommended_pois"] = [pid for pid in result["recommended_pois"] if pid in valid_ids]
 
         if not result["recommended_pois"]:
             logger.warning("LLM Planner recommended no valid POIs")

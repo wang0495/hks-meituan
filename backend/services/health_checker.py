@@ -25,18 +25,18 @@ import logging
 import time
 from collections import deque
 from collections.abc import Callable, Coroutine
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
 from typing import Any
 
 __all__ = [
-    "CheckStatus",
     "CheckResult",
-    "HealthReport",
+    "CheckStatus",
     "HealthChecker",
+    "HealthReport",
     "check_database",
-    "check_redis",
     "check_llm_service",
+    "check_redis",
 ]
 
 logger = logging.getLogger(__name__)
@@ -59,7 +59,7 @@ class CheckStatus(str, Enum):
 class CheckResult:
     """单个检查项的结果。"""
 
-    __slots__ = ("name", "status", "latency_ms", "error", "details", "timestamp")
+    __slots__ = ("details", "error", "latency_ms", "name", "status", "timestamp")
 
     def __init__(
         self,
@@ -74,7 +74,7 @@ class CheckResult:
         self.latency_ms = latency_ms
         self.error = error
         self.details = details or {}
-        self.timestamp = datetime.now(timezone.utc)
+        self.timestamp = datetime.now(UTC)
 
     def to_dict(self) -> dict[str, Any]:
         result: dict[str, Any] = {
@@ -93,7 +93,7 @@ class CheckResult:
 class HealthReport:
     """一次完整健康检查的汇总报告。"""
 
-    __slots__ = ("results", "overall_status", "timestamp", "duration_ms")
+    __slots__ = ("duration_ms", "overall_status", "results", "timestamp")
 
     def __init__(
         self,
@@ -101,7 +101,7 @@ class HealthReport:
         duration_ms: float = 0.0,
     ) -> None:
         self.results = results
-        self.timestamp = datetime.now(timezone.utc)
+        self.timestamp = datetime.now(UTC)
         self.duration_ms = duration_ms
         self.overall_status = self._compute_overall()
 
@@ -129,9 +129,7 @@ class HealthReport:
     @property
     def unhealthy_names(self) -> list[str]:
         return [
-            r.name
-            for r in self.results
-            if r.status in (CheckStatus.UNHEALTHY, CheckStatus.ERROR)
+            r.name for r in self.results if r.status in (CheckStatus.UNHEALTHY, CheckStatus.ERROR)
         ]
 
 
@@ -163,9 +161,7 @@ class HealthChecker:
         self._running = False
         self._task: asyncio.Task[None] | None = None
         # 可选回调：检测到异常时调用
-        self._on_unhealthy: (
-            Callable[[HealthReport], Coroutine[Any, Any, None]] | None
-        ) = None
+        self._on_unhealthy: Callable[[HealthReport], Coroutine[Any, Any, None]] | None = None
 
     # -- 注册 / 注销 --
 
@@ -235,9 +231,7 @@ class HealthChecker:
         if not self._checks:
             return HealthReport(results=[], duration_ms=0.0)
 
-        tasks = {
-            name: asyncio.create_task(self.run_check(name)) for name in self._checks
-        }
+        tasks = {name: asyncio.create_task(self.run_check(name)) for name in self._checks}
 
         results: list[CheckResult] = []
         for name, task in tasks.items():

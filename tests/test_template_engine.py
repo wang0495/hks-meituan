@@ -7,11 +7,14 @@ from pathlib import Path
 import pytest
 from jinja2 import Environment
 
-from backend.services.template_engine import (TemplateCache, TemplateEngine,
-                                              TemplateRenderError,
-                                              get_template_engine,
-                                              render_string,
-                                              reset_template_engine)
+from backend.services.template_engine import (
+    TemplateCache,
+    TemplateEngine,
+    TemplateRenderError,
+    get_template_engine,
+    render_string,
+    reset_template_engine,
+)
 
 # ---------------------------------------------------------------------------
 # TemplateCache 测试
@@ -104,9 +107,7 @@ class TestTemplateEngineRender:
         """创建指向临时目录的模板引擎。"""
         tpl_dir = tmp_path / "templates"
         tpl_dir.mkdir()
-        (tpl_dir / "hello.html").write_text(
-            "<p>Hello, {{ name }}!</p>", encoding="utf-8"
-        )
+        (tpl_dir / "hello.html").write_text("<p>Hello, {{ name }}!</p>", encoding="utf-8")
         (tpl_dir / "loop.html").write_text(
             "{% for item in items %}<li>{{ item }}</li>{% endfor %}",
             encoding="utf-8",
@@ -132,9 +133,7 @@ class TestTemplateEngineRender:
 
     def test_render_no_context(self, engine: TemplateEngine):
         """不传 context 时使用空字典。"""
-        (engine.template_dir / "static.html").write_text(
-            "static content", encoding="utf-8"
-        )
+        (engine.template_dir / "static.html").write_text("static content", encoding="utf-8")
         result = engine.render("static.html")
         assert result == "static content"
 

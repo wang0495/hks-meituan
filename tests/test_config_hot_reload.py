@@ -21,8 +21,12 @@ from typing import Any
 import pytest
 import yaml
 
-from backend.config.hot_reload import (ConfigHotReloader, ConfigReloadError,
-                                       ConfigRollbackError, ConfigSnapshot)
+from backend.config.hot_reload import (
+    ConfigHotReloader,
+    ConfigReloadError,
+    ConfigRollbackError,
+    ConfigSnapshot,
+)
 from backend.config.manager import ConfigManager, ConfigManagerError
 
 # ---------------------------------------------------------------------------
@@ -41,9 +45,7 @@ def config_dir(tmp_path: Path) -> Path:
         "app": {"name": "CityFlow", "port": 8000},
         "database": {"host": "localhost", "port": 5432},
     }
-    (cfg_dir / "app.yaml").write_text(
-        yaml.dump(app_config, allow_unicode=True), encoding="utf-8"
-    )
+    (cfg_dir / "app.yaml").write_text(yaml.dump(app_config, allow_unicode=True), encoding="utf-8")
 
     # JSON 配置
     feature_flags = {"enable_cache": True, "max_retries": 3}
@@ -359,9 +361,7 @@ class TestConfigHotReloader:
         try:
             # 修改文件
             new_config = {"app": {"name": "auto-reloaded", "port": 8000}}
-            (config_dir / "app.yaml").write_text(
-                yaml.dump(new_config), encoding="utf-8"
-            )
+            (config_dir / "app.yaml").write_text(yaml.dump(new_config), encoding="utf-8")
 
             # 等待 watchdog 检测
             time.sleep(1.5)
@@ -378,9 +378,7 @@ class TestConfigHotReloader:
 
         try:
             new_config = {"option": True}
-            (config_dir / "new_cfg.yaml").write_text(
-                yaml.dump(new_config), encoding="utf-8"
-            )
+            (config_dir / "new_cfg.yaml").write_text(yaml.dump(new_config), encoding="utf-8")
             time.sleep(1.5)
             assert "loaded" in received
         finally:
@@ -398,9 +396,7 @@ class TestConfigHotReloader:
     def test_non_dict_yaml_raises(self, config_dir: Path) -> None:
         """顶层不是 dict 的 YAML 应抛出 ConfigReloadError。"""
         r = ConfigHotReloader(config_dir=config_dir)
-        (config_dir / "list_cfg.yaml").write_text(
-            "- item1\n- item2\n", encoding="utf-8"
-        )
+        (config_dir / "list_cfg.yaml").write_text("- item1\n- item2\n", encoding="utf-8")
         with pytest.raises(ConfigReloadError, match="顶层必须是对象"):
             r.reload("list_cfg")
 

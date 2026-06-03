@@ -12,14 +12,17 @@ import json
 import math
 
 from backend.agents_v3.experts.base import _llm_decide
-from backend.agents_v3.state import TravelState, AGENT_META, sse_emit
+from backend.agents_v3.state import AGENT_META, TravelState, sse_emit
 
 
 def _haversine_km(lat1, lng1, lat2, lng2):
     R = 6371.0
     dlat = math.radians(lat2 - lat1)
     dlng = math.radians(lng2 - lng1)
-    a = math.sin(dlat / 2) ** 2 + math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) * math.sin(dlng / 2) ** 2
+    a = (
+        math.sin(dlat / 2) ** 2
+        + math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) * math.sin(dlng / 2) ** 2
+    )
     return R * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
 
 
@@ -50,12 +53,15 @@ def _rule_geo_check(proposals: list[dict], scene_type: str) -> list[dict]:
         c = p.get("content", {})
         lat, lng = c.get("lat", 0), c.get("lng", 0)
         if lat and lng:
-            pois_with_coord.append({
-                "agent": p.get("agent", ""),
-                "name": c.get("name", ""),
-                "lat": lat, "lng": lng,
-                "area": _get_area(lat, lng),
-            })
+            pois_with_coord.append(
+                {
+                    "agent": p.get("agent", ""),
+                    "name": c.get("name", ""),
+                    "lat": lat,
+                    "lng": lng,
+                    "area": _get_area(lat, lng),
+                }
+            )
 
     if len(pois_with_coord) < 2:
         return []
@@ -66,16 +72,21 @@ def _rule_geo_check(proposals: list[dict], scene_type: str) -> list[dict]:
     for i in range(len(pois_with_coord)):
         for j in range(i + 1, len(pois_with_coord)):
             d = _haversine_km(
-                pois_with_coord[i]["lat"], pois_with_coord[i]["lng"],
-                pois_with_coord[j]["lat"], pois_with_coord[j]["lng"],
+                pois_with_coord[i]["lat"],
+                pois_with_coord[i]["lng"],
+                pois_with_coord[j]["lat"],
+                pois_with_coord[j]["lng"],
             )
             if d > max_dist:
                 max_dist = d
                 pair = (pois_with_coord[i], pois_with_coord[j])
 
     threshold = {
-        "目的地型": 8.0, "特种兵型": 12.0, "美食型": 10.0,
-        "休闲型": 15.0, "观光型": 12.0,
+        "目的地型": 8.0,
+        "特种兵型": 12.0,
+        "美食型": 10.0,
+        "休闲型": 15.0,
+        "观光型": 12.0,
     }.get(scene_type, 15.0)
 
     if max_dist <= threshold:
@@ -114,22 +125,26 @@ def _rule_geo_check(proposals: list[dict], scene_type: str) -> list[dict]:
         return []
 
     kept_names = [p["name"] for p in keep_pois[:5]]
-    bad_desc = ", ".join(f"{p['name']}({p['area']})" for p in pois_with_coord if p["area"] != keep_area)
+    bad_desc = ", ".join(
+        f"{p['name']}({p['area']})" for p in pois_with_coord if p["area"] != keep_area
+    )
 
     feedback = []
     for agent in bad_agents:
-        feedback.append({
-            "agent": agent,
-            "issue": f"跨区跳跃{max_dist:.0f}km：{bad_desc} 距{keep_area}区域过远",
-            "suggestion": f"在{keep_area}区域（中心{center_lat:.3f},{center_lng:.3f}）附近重选，替换{', '.join(bad_names)}。已保留: {', '.join(kept_names)}",
-            "geo_context": {
-                "keep_area": keep_area,
-                "center_lat": round(center_lat, 4),
-                "center_lng": round(center_lng, 4),
-                "max_distance_km": round(max_dist, 1),
-                "bad_names": bad_names,
-            },
-        })
+        feedback.append(
+            {
+                "agent": agent,
+                "issue": f"跨区跳跃{max_dist:.0f}km：{bad_desc} 距{keep_area}区域过远",
+                "suggestion": f"在{keep_area}区域（中心{center_lat:.3f},{center_lng:.3f}）附近重选，替换{', '.join(bad_names)}。已保留: {', '.join(kept_names)}",
+                "geo_context": {
+                    "keep_area": keep_area,
+                    "center_lat": round(center_lat, 4),
+                    "center_lng": round(center_lng, 4),
+                    "max_distance_km": round(max_dist, 1),
+                    "bad_names": bad_names,
+                },
+            }
+        )
 
     return feedback
 
@@ -138,7 +153,11 @@ async def review(state: TravelState) -> dict:
     """审查所有agent提案质量，生成反馈。"""
     meta = AGENT_META.get("review", {})
     await sse_emit(state, "agent_start", {"agent": "review", **meta})
-    await sse_emit(state, "agent_thinking", {"agent": "review", "text": f"审查 {len(state.get('proposals', []))} 个提案质量..."})
+    await sse_emit(
+        state,
+        "agent_thinking",
+        {"agent": "review", "text": f"审查 {len(state.get('proposals', []))} 个提案质量..."},
+    )
 
     proposals = list(state.get("reworked_proposals") or state.get("proposals", []))
     intent = state.get("user_intent", {})
@@ -156,10 +175,14 @@ async def review(state: TravelState) -> dict:
     # ── 1. 规则化地理检查（在LLM之前，精确快速） ──
     rule_feedback = _rule_geo_check(proposals, scene_type)
     if rule_feedback:
-        await sse_emit(state, "agent_result", {
-            "agent": "review",
-            "summary": f"地理检查发现{len(rule_feedback)}个跨区问题，触发rework",
-        })
+        await sse_emit(
+            state,
+            "agent_result",
+            {
+                "agent": "review",
+                "summary": f"地理检查发现{len(rule_feedback)}个跨区问题，触发rework",
+            },
+        )
         return {"review_feedback": rule_feedback, "review_round": round_num + 1}
 
     # ── 2. LLM语义审查（规则检查通过后） ──
@@ -167,14 +190,16 @@ async def review(state: TravelState) -> dict:
     proposal_summary = []
     for p in proposals:
         c = p.get("content", {})
-        proposal_summary.append({
-            "agent": p.get("agent", ""),
-            "name": c.get("name", ""),
-            "category": c.get("category", ""),
-            "lat": c.get("lat"),
-            "lng": c.get("lng"),
-            "rating": c.get("rating"),
-        })
+        proposal_summary.append(
+            {
+                "agent": p.get("agent", ""),
+                "name": c.get("name", ""),
+                "category": c.get("category", ""),
+                "lat": c.get("lat"),
+                "lng": c.get("lng"),
+                "rating": c.get("rating"),
+            }
+        )
 
     scene_reqs = intent.get("scene_requirements", [])
     preferred_cats = intent.get("preferred_categories", [])
@@ -244,13 +269,26 @@ Agent提案({len(proposal_summary)}个):
     # 转换为feedback格式
     feedback = []
     for issue in issues:
-        feedback.append({
-            "agent": issue.get("agent", "poi"),
-            "issue": issue.get("issue", ""),
-            "suggestion": issue.get("suggestion", ""),
-        })
+        feedback.append(
+            {
+                "agent": issue.get("agent", "poi"),
+                "issue": issue.get("issue", ""),
+                "suggestion": issue.get("suggestion", ""),
+            }
+        )
 
-    await sse_emit(state, "agent_result", {"agent": "review", "summary": f"通过，{len(proposals)}个提案有效" if not feedback else f"反馈{len(feedback)}个问题"})
+    await sse_emit(
+        state,
+        "agent_result",
+        {
+            "agent": "review",
+            "summary": (
+                f"通过，{len(proposals)}个提案有效"
+                if not feedback
+                else f"反馈{len(feedback)}个问题"
+            ),
+        },
+    )
 
     return {"review_feedback": feedback, "review_round": round_num + 1}
 
@@ -263,6 +301,7 @@ async def _llm_review(prompt: str) -> dict | None:
 # ---------------------------------------------------------------------------
 # Rework节点：根据review反馈，用LLM替换有问题的proposals
 # ---------------------------------------------------------------------------
+
 
 async def rework(state: TravelState) -> dict:
     """根据review反馈重新选择有问题的POI/餐饮。"""
@@ -278,9 +317,7 @@ async def rework(state: TravelState) -> dict:
     kept_proposals = [p for p in proposals if p.get("agent", "") not in bad_agents]
     bad_old = [p for p in proposals if p.get("agent", "") in bad_agents]
 
-    feedback_text = "; ".join(
-        f"[{f['agent']}] {f['issue']} → {f['suggestion']}" for f in feedback
-    )
+    feedback_text = "; ".join(f"[{f['agent']}] {f['issue']} → {f['suggestion']}" for f in feedback)
 
     # 提取地理上下文（如果有规则检查的反馈）
     geo_ctx = None
@@ -296,28 +333,37 @@ async def rework(state: TravelState) -> dict:
     reworked_agents = set()
 
     if "poi" in bad_agents or "poi_expert" in bad_agents:
-        poi_result = await _rework_poi(candidates, intent, user_input, old_names, feedback_text, geo_ctx)
+        poi_result = await _rework_poi(
+            candidates, intent, user_input, old_names, feedback_text, geo_ctx
+        )
         if poi_result:
             new_proposals.extend(poi_result)
             reworked_agents.add("poi")
 
     if "food" in bad_agents or "food_expert" in bad_agents:
-        food_result = await _rework_food(candidates, intent, user_input, old_names, feedback_text, geo_ctx)
+        food_result = await _rework_food(
+            candidates, intent, user_input, old_names, feedback_text, geo_ctx
+        )
         if food_result:
             new_proposals.extend(food_result)
             reworked_agents.add("food")
 
     # 通用 rework: 处理其他有问题的 expert (hotel/traffic/local_expert/destination/budget_hacker)
     reworkable_generic = {
-        "hotel", "hotel_expert",
-        "traffic", "traffic_expert",
+        "hotel",
+        "hotel_expert",
+        "traffic",
+        "traffic_expert",
         "local_expert",
-        "destination", "destination_expert",
+        "destination",
+        "destination_expert",
         "budget_hacker",
     }
     generic_bad = bad_agents & reworkable_generic
     for agent_name in generic_bad:
-        generic_result = await _rework_generic(agent_name, candidates, intent, user_input, old_names, feedback_text)
+        generic_result = await _rework_generic(
+            agent_name, candidates, intent, user_input, old_names, feedback_text
+        )
         if generic_result:
             new_proposals.extend(generic_result)
             reworked_agents.add(agent_name)
@@ -350,7 +396,8 @@ async def _rework_poi(
 
     # 过滤出景点类POI
     pool = [
-        c for c in candidates
+        c
+        for c in candidates
         if c.get("category", "") not in ["住宿", "酒店", "民宿", "餐饮", "美食"]
         and c.get("rating") is not None
         and c.get("name", "") not in old_names
@@ -371,13 +418,21 @@ async def _rework_poi(
 
         # 按距离中心排序
         if center_lat and center_lng:
-            pool.sort(key=lambda c: _haversine_km(
-                center_lat, center_lng, c.get("lat", 0), c.get("lng", 0)
-            ))
+            pool.sort(
+                key=lambda c: _haversine_km(
+                    center_lat, center_lng, c.get("lat", 0), c.get("lng", 0)
+                )
+            )
 
     summaries = [
-        {"name": c["name"], "category": c["category"], "rating": c.get("rating"),
-         "tags": c.get("tags", [])[:3], "lat": c.get("lat"), "lng": c.get("lng")}
+        {
+            "name": c["name"],
+            "category": c["category"],
+            "rating": c.get("rating"),
+            "tags": c.get("tags", [])[:3],
+            "lat": c.get("lat"),
+            "lng": c.get("lng"),
+        }
         for c in pool[:150]
     ]
 
@@ -410,13 +465,15 @@ async def _rework_poi(
                         content = c
                         break
             if content:
-                proposals.append({
-                    "proposal_id": f"prop_rework_{uuid.uuid4().hex[:6]}",
-                    "agent": "poi",
-                    "content": content,
-                    "confidence": pick.get("confidence", 0.7),
-                    "reasoning": pick.get("reason", "rework重选"),
-                })
+                proposals.append(
+                    {
+                        "proposal_id": f"prop_rework_{uuid.uuid4().hex[:6]}",
+                        "agent": "poi",
+                        "content": content,
+                        "confidence": pick.get("confidence", 0.7),
+                        "reasoning": pick.get("reason", "rework重选"),
+                    }
+                )
     return proposals
 
 
@@ -433,18 +490,24 @@ async def _rework_generic(
 
     if agent_name in ("hotel", "hotel_expert"):
         pool = [
-            c for c in candidates
+            c
+            for c in candidates
             if c.get("category", "") in ("住宿", "酒店", "民宿")
             and c.get("name", "") not in old_names
             and c.get("rating") is not None
         ]
         expert_label = "住宿"
     elif agent_name == "traffic" or agent_name == "traffic_expert":
-        pool = [c for c in candidates if c.get("rating") is not None and c.get("name", "") not in old_names][:15]
+        pool = [
+            c
+            for c in candidates
+            if c.get("rating") is not None and c.get("name", "") not in old_names
+        ][:15]
         expert_label = "交通"
     elif agent_name == "local_expert":
         pool = [
-            c for c in candidates
+            c
+            for c in candidates
             if c.get("rating", 4.0) >= 4.0
             and c.get("name", "") not in old_names
             and c.get("category", "") not in ("住宿", "酒店", "民宿")
@@ -452,7 +515,8 @@ async def _rework_generic(
         expert_label = "本地特色"
     elif agent_name in ("destination", "destination_expert"):
         pool = [
-            c for c in candidates
+            c
+            for c in candidates
             if c.get("category", "") not in ("住宿", "酒店", "民宿", "餐饮")
             and c.get("name", "") not in old_names
             and c.get("rating") is not None
@@ -460,7 +524,8 @@ async def _rework_generic(
         expert_label = "目的地"
     else:
         pool = [
-            c for c in candidates
+            c
+            for c in candidates
             if (c.get("avg_price", 9999) <= 50 or c.get("avg_price") == 0)
             and c.get("name", "") not in old_names
             and c.get("rating") is not None
@@ -468,8 +533,14 @@ async def _rework_generic(
         expert_label = "省钱"
 
     summaries = [
-        {"name": c["name"], "category": c.get("category", ""), "rating": c.get("rating"),
-         "avg_price": c.get("avg_price"), "lat": c.get("lat"), "lng": c.get("lng")}
+        {
+            "name": c["name"],
+            "category": c.get("category", ""),
+            "rating": c.get("rating"),
+            "avg_price": c.get("avg_price"),
+            "lat": c.get("lat"),
+            "lng": c.get("lng"),
+        }
         for c in pool[:80]
     ]
 
@@ -500,13 +571,15 @@ async def _rework_generic(
                         content = c
                         break
             if content:
-                proposals.append({
-                    "proposal_id": f"prop_rework_{uuid.uuid4().hex[:6]}",
-                    "agent": agent_name,
-                    "content": content,
-                    "confidence": pick.get("confidence", 0.7),
-                    "reasoning": pick.get("reason", "rework重选"),
-                })
+                proposals.append(
+                    {
+                        "proposal_id": f"prop_rework_{uuid.uuid4().hex[:6]}",
+                        "agent": agent_name,
+                        "content": content,
+                        "confidence": pick.get("confidence", 0.7),
+                        "reasoning": pick.get("reason", "rework重选"),
+                    }
+                )
     return proposals
 
 
@@ -521,14 +594,50 @@ async def _rework_food(
     """根据反馈重新选餐饮。geo_context 提供地理约束。"""
     import uuid
 
-    food_cats = ["餐饮", "美食", "小吃", "海鲜", "餐厅", "夜市", "茶餐厅", "甜品", "饮品", "酒吧", "咖啡馆"]
-    food_names_kw = ["餐厅", "海鲜", "烧", "煲", "粉", "面", "火锅", "烧烤", "夜市", "粥", "蚝", "排档",
-                     "甜品", "奶茶", "冰", "茶餐厅", "柠檬", "咖啡", "酒吧", "点心", "早茶"]
+    food_cats = [
+        "餐饮",
+        "美食",
+        "小吃",
+        "海鲜",
+        "餐厅",
+        "夜市",
+        "茶餐厅",
+        "甜品",
+        "饮品",
+        "酒吧",
+        "咖啡馆",
+    ]
+    food_names_kw = [
+        "餐厅",
+        "海鲜",
+        "烧",
+        "煲",
+        "粉",
+        "面",
+        "火锅",
+        "烧烤",
+        "夜市",
+        "粥",
+        "蚝",
+        "排档",
+        "甜品",
+        "奶茶",
+        "冰",
+        "茶餐厅",
+        "柠檬",
+        "咖啡",
+        "酒吧",
+        "点心",
+        "早茶",
+    ]
 
     pool = [
-        c for c in candidates
-        if (any(kw in c.get("category", "") for kw in food_cats)
-            or any(kw in c.get("name", "") for kw in food_names_kw))
+        c
+        for c in candidates
+        if (
+            any(kw in c.get("category", "") for kw in food_cats)
+            or any(kw in c.get("name", "") for kw in food_names_kw)
+        )
         and c.get("name", "") not in old_names
         and c.get("rating") is not None
     ]
@@ -540,13 +649,21 @@ async def _rework_food(
         keep_area = geo_context.get("keep_area", "")
         geo_hint = f"\n\n【地理硬约束】新选餐厅必须在{keep_area}区域（中心{center_lat},{center_lng}）附近，确保和景点在同一区域。"
         if center_lat and center_lng:
-            pool.sort(key=lambda c: _haversine_km(
-                center_lat, center_lng, c.get("lat", 0), c.get("lng", 0)
-            ))
+            pool.sort(
+                key=lambda c: _haversine_km(
+                    center_lat, center_lng, c.get("lat", 0), c.get("lng", 0)
+                )
+            )
 
     summaries = [
-        {"name": c["name"], "category": c["category"], "rating": c.get("rating"),
-         "price": c.get("avg_price"), "lat": c.get("lat"), "lng": c.get("lng")}
+        {
+            "name": c["name"],
+            "category": c["category"],
+            "rating": c.get("rating"),
+            "price": c.get("avg_price"),
+            "lat": c.get("lat"),
+            "lng": c.get("lng"),
+        }
         for c in pool[:50]
     ]
 
@@ -578,11 +695,13 @@ async def _rework_food(
                         content = c
                         break
             if content:
-                proposals.append({
-                    "proposal_id": f"prop_rework_{uuid.uuid4().hex[:6]}",
-                    "agent": "food",
-                    "content": content,
-                    "confidence": pick.get("confidence", 0.7),
-                    "reasoning": pick.get("reason", "rework重选"),
-                })
+                proposals.append(
+                    {
+                        "proposal_id": f"prop_rework_{uuid.uuid4().hex[:6]}",
+                        "agent": "food",
+                        "content": content,
+                        "confidence": pick.get("confidence", 0.7),
+                        "reasoning": pick.get("reason", "rework重选"),
+                    }
+                )
     return proposals

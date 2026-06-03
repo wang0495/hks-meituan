@@ -16,9 +16,7 @@ from backend.errors import CityFlowException, ErrorCode
 logger = logging.getLogger(__name__)
 
 
-async def cityflow_exception_handler(
-    request: Request, exc: CityFlowException
-) -> JSONResponse:
+async def cityflow_exception_handler(request: Request, exc: CityFlowException) -> JSONResponse:
     """处理 CityFlowException -- 业务异常。"""
     logger.error(
         "CityFlow error: %s - %s",

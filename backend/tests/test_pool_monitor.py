@@ -6,8 +6,13 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from backend.pool.monitor import (AlertSeverity, AlertThresholds, PoolAlert,
-                                  PoolMonitor, reset_pool_monitor)
+from backend.pool.monitor import (
+    AlertSeverity,
+    AlertThresholds,
+    PoolAlert,
+    PoolMonitor,
+    reset_pool_monitor,
+)
 
 
 @pytest.fixture(autouse=True)

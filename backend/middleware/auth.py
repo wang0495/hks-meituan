@@ -44,10 +44,15 @@ _PUBLIC_PREFIXES: tuple[str, ...] = (
 )
 
 # 完全跳过中间件的路径
-_SKIP_PATHS: frozenset[str] = frozenset({
-    "/", "/docs", "/redoc", "/openapi.json",
-    "/favicon.ico",
-})
+_SKIP_PATHS: frozenset[str] = frozenset(
+    {
+        "/",
+        "/docs",
+        "/redoc",
+        "/openapi.json",
+        "/favicon.ico",
+    }
+)
 
 
 class APIKeyAuthMiddleware(BaseHTTPMiddleware):

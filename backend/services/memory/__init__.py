@@ -66,11 +66,7 @@ class MemoryOrchestrator:
             category = poi.get("category", "unknown")
             price = poi.get("avg_price", 0)
             emotion_tags = poi.get("emotion_tags", {})
-            emotion = (
-                max(emotion_tags, key=emotion_tags.get)
-                if emotion_tags
-                else "default"
-            )
+            emotion = max(emotion_tags, key=emotion_tags.get) if emotion_tags else "default"
             await lt.record_visit(user_id, category, price, emotion)
 
     async def apply_psychology(
@@ -94,9 +90,9 @@ class MemoryOrchestrator:
 
 
 __all__ = [
+    "LongTermMemory",
     "MemoryOrchestrator",
     "PsychologyRules",
     "ShortTermMemory",
-    "LongTermMemory",
     "WorkingMemory",
 ]

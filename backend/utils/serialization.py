@@ -72,9 +72,7 @@ class CompressedJSONSerializer:
     @staticmethod
     def dumps(obj: Any) -> bytes:
         """序列化并压缩。"""
-        json_bytes = json.dumps(obj, ensure_ascii=False, separators=(",", ":")).encode(
-            "utf-8"
-        )
+        json_bytes = json.dumps(obj, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
         return gzip.compress(json_bytes, compresslevel=6)
 
     @staticmethod

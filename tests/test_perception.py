@@ -10,8 +10,6 @@
 
 from __future__ import annotations
 
-from datetime import datetime
-
 import pytest
 
 from backend.services.perception import (

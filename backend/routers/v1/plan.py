@@ -14,7 +14,11 @@ from backend.services.cache import route_cache
 from backend.services.data_service import get_data
 from backend.utils.sse_helpers import (
     generate_simplified_route as _generate_simplified_route,
+)
+from backend.utils.sse_helpers import (
     sse as _sse,
+)
+from backend.utils.sse_helpers import (
     with_timeout as _with_timeout,
 )
 
@@ -81,9 +85,7 @@ async def plan_route_v1(request: PlanRequestV1) -> StreamingResponse:
                 yield _sse("error", {"error": "意图解析超时，请重试"})
                 return
 
-            yield _sse(
-                "phase", {"phase": "searching", "message": "正在为你寻找合适的地方..."}
-            )
+            yield _sse("phase", {"phase": "searching", "message": "正在为你寻找合适的地方..."})
 
             from backend.services.filters import filter_candidates
 
@@ -108,9 +110,7 @@ async def plan_route_v1(request: PlanRequestV1) -> StreamingResponse:
                 logger.warning("路线求解失败/超时，使用简化路线")
                 route_result = _generate_simplified_route(candidates)
 
-            yield _sse(
-                "phase", {"phase": "narrating", "message": "正在为你写一段行程说明..."}
-            )
+            yield _sse("phase", {"phase": "narrating", "message": "正在为你写一段行程说明..."})
 
             from backend.services.narrator import generate_narrative
 

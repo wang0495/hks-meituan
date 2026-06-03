@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
@@ -73,9 +73,7 @@ async def test_create_backup_custom_name(backup: DataBackup) -> None:
 
 
 @pytest.mark.asyncio
-async def test_create_backup_creates_files(
-    backup: DataBackup, backup_dir: Path
-) -> None:
+async def test_create_backup_creates_files(backup: DataBackup, backup_dir: Path) -> None:
     name = await backup.create_backup(name="test_v1")
     backup_path = backup_dir / name
 
@@ -100,9 +98,7 @@ async def test_create_backup_metadata_content(backup: DataBackup) -> None:
 
 
 @pytest.mark.asyncio
-async def test_create_backup_checksum_is_stable(
-    backup: DataBackup, backup_dir: Path
-) -> None:
+async def test_create_backup_checksum_is_stable(backup: DataBackup, backup_dir: Path) -> None:
     """同一数据目录的两次备份应产生相同校验和。"""
     name1 = await backup.create_backup(name="v1")
     name2 = await backup.create_backup(name="v2")
@@ -121,7 +117,7 @@ async def test_create_backup_checksum_is_stable(
 async def test_create_incremental_backup(backup: DataBackup, data_dir: Path) -> None:
     """增量备份只包含修改过的文件。"""
     # 记录当前时间
-    before = datetime.now(timezone.utc)
+    before = datetime.now(UTC)
 
     # 先创建全量备份
     await backup.create_backup(name="full_v1")
@@ -142,15 +138,13 @@ async def test_create_incremental_backup(backup: DataBackup, data_dir: Path) -> 
 
 
 @pytest.mark.asyncio
-async def test_incremental_backup_no_changes(
-    backup: DataBackup, data_dir: Path
-) -> None:
+async def test_incremental_backup_no_changes(backup: DataBackup, data_dir: Path) -> None:
     """没有变更时增量备份应返回最近备份名称。"""
     # 先创建全量备份
     full_name = await backup.create_backup(name="full_v1")
 
     # 使用当前时间作为起始时间（文件在之前创建，不会有变更）
-    since = datetime.now(timezone.utc)
+    since = datetime.now(UTC)
 
     # 没有变更，应返回最近备份名称
     result = await backup.create_incremental_backup(since=since)
@@ -168,12 +162,10 @@ async def test_incremental_backup_no_previous_backup(
 
 
 @pytest.mark.asyncio
-async def test_incremental_backup_with_since(
-    backup: DataBackup, data_dir: Path
-) -> None:
+async def test_incremental_backup_with_since(backup: DataBackup, data_dir: Path) -> None:
     """指定时间的增量备份。"""
     # 记录当前时间
-    before = datetime.now(timezone.utc) - timedelta(seconds=1)
+    before = datetime.now(UTC) - timedelta(seconds=1)
 
     # 创建文件
     (data_dir / "new_file.txt").write_text("new content", encoding="utf-8")
@@ -219,9 +211,7 @@ async def test_verify_backup_valid(backup: DataBackup) -> None:
 
 
 @pytest.mark.asyncio
-async def test_verify_backup_corrupted(
-    backup: DataBackup, backup_dir: Path
-) -> None:
+async def test_verify_backup_corrupted(backup: DataBackup, backup_dir: Path) -> None:
     """篡改数据后验证应失败。"""
     name = await backup.create_backup(name="corrupt_backup")
 
@@ -233,9 +223,7 @@ async def test_verify_backup_corrupted(
 
 
 @pytest.mark.asyncio
-async def test_verify_backup_missing_metadata(
-    backup: DataBackup, backup_dir: Path
-) -> None:
+async def test_verify_backup_missing_metadata(backup: DataBackup, backup_dir: Path) -> None:
     """元数据缺失应验证失败。"""
     name = await backup.create_backup(name="no_meta")
 
@@ -246,9 +234,7 @@ async def test_verify_backup_missing_metadata(
 
 
 @pytest.mark.asyncio
-async def test_verify_backup_missing_data(
-    backup: DataBackup, backup_dir: Path
-) -> None:
+async def test_verify_backup_missing_data(backup: DataBackup, backup_dir: Path) -> None:
     """数据目录缺失应验证失败。"""
     import shutil
 
@@ -348,9 +334,7 @@ async def test_list_backups_sorted(backup: DataBackup) -> None:
 
 
 @pytest.mark.asyncio
-async def test_list_backups_includes_incremental(
-    backup: DataBackup, data_dir: Path
-) -> None:
+async def test_list_backups_includes_incremental(backup: DataBackup, data_dir: Path) -> None:
     """列出备份应包含全量和增量备份。"""
     await backup.create_backup(name="full_v1")
     (data_dir / "test.json").write_text('{"key": "new"}', encoding="utf-8")
@@ -415,9 +399,7 @@ async def test_delete_nonexistent(backup: DataBackup) -> None:
 
 
 @pytest.mark.asyncio
-async def test_backup_includes_config(
-    tmp_path: Path, data_dir: Path, config_file: Path
-) -> None:
+async def test_backup_includes_config(tmp_path: Path, data_dir: Path, config_file: Path) -> None:
     """如果有 .env 文件存在于工作目录，备份应包含它。"""
     import os
 

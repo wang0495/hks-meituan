@@ -4,11 +4,14 @@ from __future__ import annotations
 
 import pytest
 
-from backend.services.fallback import (fallback, fallback_emotion_analysis,
-                                       fallback_llm_chat,
-                                       fallback_narrative_generation,
-                                       fallback_poi_search,
-                                       fallback_route_planning)
+from backend.services.fallback import (
+    fallback,
+    fallback_emotion_analysis,
+    fallback_llm_chat,
+    fallback_narrative_generation,
+    fallback_poi_search,
+    fallback_route_planning,
+)
 
 
 class TestFallbackDecorator:

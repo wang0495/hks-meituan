@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from typing import Optional
-
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
 
@@ -30,14 +28,12 @@ load_pois()
 class SearchRequestV1(BaseModel):
     """V1 POI 搜索请求。"""
 
-    region: Optional[str] = Field(None, description="按城市筛选", examples=["北京"])
-    categories: Optional[list[str]] = Field(
-        None, description="按类别筛选", examples=[["景点"]]
-    )
-    tags: Optional[list[str]] = Field(None, description="按标签筛选（AND逻辑）")
-    keyword: Optional[str] = Field(None, description="按名称模糊搜索")
-    min_rating: Optional[float] = Field(None, ge=0, le=5, description="最低评分")
-    max_price: Optional[int] = Field(None, ge=0, description="最高人均消费")
+    region: str | None = Field(None, description="按城市筛选", examples=["北京"])
+    categories: list[str] | None = Field(None, description="按类别筛选", examples=[["景点"]])
+    tags: list[str] | None = Field(None, description="按标签筛选（AND逻辑）")
+    keyword: str | None = Field(None, description="按名称模糊搜索")
+    min_rating: float | None = Field(None, ge=0, le=5, description="最低评分")
+    max_price: int | None = Field(None, ge=0, description="最高人均消费")
 
 
 class DistanceMatrixRequestV1(BaseModel):
@@ -64,8 +60,8 @@ class DistanceMatrixRequestV1(BaseModel):
 )
 async def search_pois_v1(
     request: SearchRequestV1,
-    lat: Optional[float] = Query(None, ge=-90, le=90, description="中心点纬度"),
-    lng: Optional[float] = Query(None, ge=-180, le=180, description="中心点经度"),
+    lat: float | None = Query(None, ge=-90, le=90, description="中心点纬度"),
+    lng: float | None = Query(None, ge=-180, le=180, description="中心点经度"),
 ) -> dict:
     """V1 版本的 POI 搜索。"""
     results = apply_basic_filters(

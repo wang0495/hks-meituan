@@ -19,9 +19,10 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import Any, Callable, Optional
+from datetime import UTC, datetime
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -41,7 +42,7 @@ class Event:
 
     event_type: str = ""
     data: dict[str, Any] = field(default_factory=dict)
-    timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    timestamp: datetime = field(default_factory=lambda: datetime.now(UTC))
     source: str = ""
 
 
@@ -174,9 +175,7 @@ class EventBus:
 
     def get_subscribers(self, event_type: str) -> list[Callable[..., Any]]:
         """获取指定事件类型的所有订阅者（同步 + 异步）。"""
-        return self._subscribers.get(event_type, []) + self._async_subscribers.get(
-            event_type, []
-        )
+        return self._subscribers.get(event_type, []) + self._async_subscribers.get(event_type, [])
 
     def event_types(self) -> list[str]:
         """返回所有已注册事件类型的列表（去重）。"""
@@ -193,7 +192,7 @@ class EventBus:
 # 全局单例
 # ---------------------------------------------------------------------------
 
-_event_bus: Optional[EventBus] = None
+_event_bus: EventBus | None = None
 
 
 def get_event_bus() -> EventBus:

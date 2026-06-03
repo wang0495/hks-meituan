@@ -205,7 +205,9 @@ class PerceptionService:
     # ---- 数据采集 ----------------------------------------------------------
 
     async def get_context(
-        self, scene: str | None = None, route: list[dict] | None = None,
+        self,
+        scene: str | None = None,
+        route: list[dict] | None = None,
         city: str = "珠海",
     ) -> PerceptionContext:
         """获取感知上下文。
@@ -242,6 +244,7 @@ class PerceptionService:
         try:
             import json
             from pathlib import Path
+
             _cp_path = Path(__file__).parent.parent / "data" / "city_personality.json"
             if _cp_path.exists():
                 cp = json.loads(_cp_path.read_text(encoding="utf-8"))
@@ -317,9 +320,7 @@ class PerceptionService:
 
         # 3) 情绪低谷（需要 emotion_curve 数据）
         if emotion_curve and len(emotion_curve) >= 3:
-            recent_emotions = [
-                s.get("emotion_intensity", 0) for s in emotion_curve[-3:]
-            ]
+            recent_emotions = [s.get("emotion_intensity", 0) for s in emotion_curve[-3:]]
             if all(e < 0.4 for e in recent_emotions):
                 anomalies.append(
                     Anomaly(
@@ -403,9 +404,7 @@ class PerceptionService:
         elif anomaly.type == AnomalyType.FATIGUE_WARNING:
             # 找到路线中间位置插入休息
             mid = len(route_steps) // 2
-            target_ids = (
-                [route_steps[mid]["poi"]["id"]] if route_steps else []
-            )
+            target_ids = [route_steps[mid]["poi"]["id"]] if route_steps else []
             return AdjustmentResult(
                 action_type=AdjustmentAction.REST_INSERTION,
                 target_poi_ids=target_ids,

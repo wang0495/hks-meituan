@@ -6,15 +6,17 @@ import asyncio
 
 import pytest
 
-from backend.services.rate_limiter import (RateLimiter, RateLimitExceededError,
-                                           RateLimitResult, _LocalRateLimiter)
+from backend.services.rate_limiter import (
+    RateLimiter,
+    RateLimitExceededError,
+    RateLimitResult,
+    _LocalRateLimiter,
+)
 
 
 class TestRateLimitResult:
     def test_to_headers(self) -> None:
-        result = RateLimitResult(
-            allowed=True, limit=60, remaining=55, reset_ts=1700000060
-        )
+        result = RateLimitResult(allowed=True, limit=60, remaining=55, reset_ts=1700000060)
         headers = result.to_headers()
         assert headers["X-RateLimit-Limit"] == "60"
         assert headers["X-RateLimit-Remaining"] == "55"

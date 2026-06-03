@@ -12,7 +12,6 @@ from __future__ import annotations
 import json
 
 from backend.agents_v3.experts.base import (
-    sse_expert,
     _FOOD_NAME_KWS,
     _LANDMARK_NAMES,
     _haversine_km,
@@ -21,9 +20,9 @@ from backend.agents_v3.experts.base import (
     _proposal,
     _sanitize_for_prompt,
     _tag_similarity,
+    sse_expert,
 )
 from backend.agents_v3.state import TravelState
-
 
 # ---------------------------------------------------------------------------
 # Prompt builder
@@ -101,7 +100,9 @@ def _build_poi_prompt(intent: dict) -> str:
     # 预算
     budget_extra = ""
     if budget and budget <= 200:
-        budget_extra = "\n- 穷游模式：优先选免费景点（公园、海滩、历史街区），付费景点仅选1-2个高价值"
+        budget_extra = (
+            "\n- 穷游模式：优先选免费景点（公园、海滩、历史街区），付费景点仅选1-2个高价值"
+        )
 
     return f"""你是珠海旅游景点规划专家。根据用户需求从候选列表中挑选最合适的景点组合。
 
@@ -147,8 +148,10 @@ def _geo_cluster_filter(proposals: list[dict], all_candidates: list[dict]) -> li
     for i in range(n):
         for j in range(i + 1, n):
             d = _haversine_km(
-                poi_coords[i][1], poi_coords[i][2],
-                poi_coords[j][1], poi_coords[j][2],
+                poi_coords[i][1],
+                poi_coords[i][2],
+                poi_coords[j][1],
+                poi_coords[j][2],
             )
             dist_matrix[i][j] = d
             dist_matrix[j][i] = d
@@ -323,7 +326,10 @@ def _smart_poi_selection(candidates: list[dict], intent: dict, user_input: str) 
         selected.append((c, s))
         seen_categories.add(cat)
 
-    return [_proposal("poi", c, round(min(0.5 + s, 0.95), 3), f"规则引擎评分{s:.2f}") for c, s in selected]
+    return [
+        _proposal("poi", c, round(min(0.5 + s, 0.95), 3), f"规则引擎评分{s:.2f}")
+        for c, s in selected
+    ]
 
 
 # ---------------------------------------------------------------------------
@@ -383,7 +389,20 @@ async def poi_expert(state: TravelState) -> dict:
         )
 
     # 只做最基本过滤：去掉非景点、澳门、无评分垃圾POI
-    _EXCLUDE_CATS = {"住宿", "酒店", "民宿", "餐饮", "美食", "小吃", "夜市小吃", "海鲜", "茶餐厅", "甜品", "饮品", "酒吧"}
+    _EXCLUDE_CATS = {
+        "住宿",
+        "酒店",
+        "民宿",
+        "餐饮",
+        "美食",
+        "小吃",
+        "夜市小吃",
+        "海鲜",
+        "茶餐厅",
+        "甜品",
+        "饮品",
+        "酒吧",
+    }
     pool = []
     for c in candidates:
         name = c.get("name", "")
@@ -420,19 +439,21 @@ async def poi_expert(state: TravelState) -> dict:
     # 构建LLM摘要
     poi_summaries = []
     for c in sampled:
-        poi_summaries.append({
-            "name": c.get("name", ""),
-            "category": c.get("category", ""),
-            "rating": c.get("rating", 0),
-            "price": c.get("avg_price", 0),
-            "tags": c.get("tags", [])[:5],
-            "scene_tags": c.get("_scene_tags", [])[:3],
-            "avg_stay_min": c.get("avg_stay_min", 60),
-            "lat": c.get("lat", 0),
-            "lng": c.get("lng", 0),
-            "reviews": c.get("_ugc_summary", ""),
-            "suitability": c.get("_suitability", {}),
-        })
+        poi_summaries.append(
+            {
+                "name": c.get("name", ""),
+                "category": c.get("category", ""),
+                "rating": c.get("rating", 0),
+                "price": c.get("avg_price", 0),
+                "tags": c.get("tags", [])[:5],
+                "scene_tags": c.get("_scene_tags", [])[:3],
+                "avg_stay_min": c.get("avg_stay_min", 60),
+                "lat": c.get("lat", 0),
+                "lng": c.get("lng", 0),
+                "reviews": c.get("_ugc_summary", ""),
+                "suitability": c.get("_suitability", {}),
+            }
+        )
 
     # ── Decision: LLM (scene-type-aware prompting) ──
     system = _build_poi_prompt(intent)
@@ -465,9 +486,7 @@ async def poi_expert(state: TravelState) -> dict:
         max_picks = min(max_picks, 3)
 
     # Further adjust for scene_type
-    if scene_type == "美食型":
-        max_picks = min(max_picks, 3)
-    elif scene_type == "目的地型":
+    if scene_type == "美食型" or scene_type == "目的地型":
         max_picks = min(max_picks, 3)
 
     user = f"""用户需求: {_sanitize_for_prompt(user_input)}
@@ -499,12 +518,14 @@ async def poi_expert(state: TravelState) -> dict:
                         content = c
                         break
             if content:
-                proposals.append(_proposal(
-                    "poi",
-                    content,
-                    pick.get("confidence", 0.7),
-                    pick.get("reason", "LLM推荐"),
-                ))
+                proposals.append(
+                    _proposal(
+                        "poi",
+                        content,
+                        pick.get("confidence", 0.7),
+                        pick.get("reason", "LLM推荐"),
+                    )
+                )
 
     # ── 降级：智能规则引擎（非简单fallback） ──
     if not proposals:

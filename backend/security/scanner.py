@@ -194,11 +194,7 @@ class SecurityScanner:
                 output=output,
                 error=result.stderr.strip(),
                 issues=issues,
-                summary=(
-                    f"发现 {len(issues)} 个漏洞"
-                    if has_issues
-                    else "依赖安全，无已知漏洞"
-                ),
+                summary=(f"发现 {len(issues)} 个漏洞" if has_issues else "依赖安全，无已知漏洞"),
             )
 
         except FileNotFoundError:
@@ -270,9 +266,7 @@ class SecurityScanner:
                 output=output,
                 error=result.stderr.strip(),
                 issues=issues,
-                summary=(
-                    f"发现 {len(issues)} 个包存在漏洞" if has_issues else "所有包安全"
-                ),
+                summary=(f"发现 {len(issues)} 个包存在漏洞" if has_issues else "所有包安全"),
             )
 
         except FileNotFoundError:
@@ -307,12 +301,8 @@ class SecurityScanner:
         pip_audit_result = self.run_pip_audit()
 
         # 判断整体状态
-        all_succeeded = all(
-            r.success for r in [bandit_result, safety_result, pip_audit_result]
-        )
-        any_issues = any(
-            r.has_issues for r in [bandit_result, safety_result, pip_audit_result]
-        )
+        all_succeeded = all(r.success for r in [bandit_result, safety_result, pip_audit_result])
+        any_issues = any(r.has_issues for r in [bandit_result, safety_result, pip_audit_result])
 
         if any_issues:
             status = "issues_found"
