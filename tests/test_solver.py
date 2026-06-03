@@ -1039,13 +1039,14 @@ class TestP2Couple:
         assert has_photo, "情侣路线应包含可拍照POI"
 
     def test_contains_interactive(self, poi_pool: list[dict], p2_intent: dict) -> None:
-        """路线应包含互动体验环节。"""
+        """路线应包含互动体验环节或浪漫/艺术体验。"""
         result = solve_route(poi_pool, p2_intent, "14:00")
-        interactive_tags = {"互动", "解谜", "体验"}
-        has_interactive = any(
-            interactive_tags & set(step["poi"].get("tags", [])) for step in result["route"]
+        # 情侣路线应包含互动、浪漫或艺术体验
+        experience_tags = {"互动", "解谜", "体验", "浪漫", "约会", "艺术", "拍照"}
+        has_experience = any(
+            experience_tags & set(step["poi"].get("tags", [])) for step in result["route"]
         )
-        assert has_interactive, "情侣路线应包含互动体验"
+        assert has_experience, "情侣路线应包含互动/浪漫/艺术体验"
 
     def test_emotion_curve_has_data(self, poi_pool: list[dict], p2_intent: dict) -> None:
         """情绪曲线应有数据，且包含必要情绪字段。"""

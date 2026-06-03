@@ -279,7 +279,7 @@ def filter_candidates(
             continue
 
         price = poi.get("avg_price", 0)
-        if price > budget_pp * 1.0:
+        if price > budget_pp * 1.2:
             logger.debug("%s - 价格%d > 预算%d", poi["name"], price, budget_pp)
             continue
 
