@@ -578,12 +578,13 @@ async def plan_route(request: PlanRequest):
             return
         _plan_concurrent += 1
         try:
-            # ── 首token：立刻生成个性化问候（~2s，用户第一眼就有话看） ──
+            # ── 首token：立即返回（0延迟） ──
+            # 个性化问候（规则匹配，0延迟）
             greeting = await _generate_greeting(request.user_input)
             yield _sse("chat", {"text": greeting})
 
-            # Phase 1: 解析意图（由 rule_guard 内部完成，不再重复调用）
-            yield _sse("phase", {"phase": "parsing", "message": "正在理解你的需求..."})
+            # 立即进入C版本主路径
+            yield _sse("phase", {"phase": "agents", "message": "智能体正在并行规划..."})
 
             # user_intent 将从 graph result 中提取
             user_intent = None
@@ -594,8 +595,6 @@ async def plan_route(request: PlanRequest):
             # ══════════════════════════════════════════════════
             try:
                 from backend.agents_v3 import get_graph_c, TravelState
-
-                yield _sse("phase", {"phase": "agents", "message": "7个智能体正在并行规划..."})
 
                 c_graph = get_graph_c()
 

@@ -607,6 +607,10 @@ async def parse_intent(user_input: str) -> dict:
     """
     将用户自然语言输入解析为结构化出行需求。
 
+    优化：规则优先，LLM异步补充（ADR-IP1）。
+    - 规则匹配：0延迟，立即返回基础结果
+    - LLM补充：异步执行，补充需求向量等高级信息
+
     参数:
         user_input: 用户的自然语言出行需求
 
@@ -615,32 +619,27 @@ async def parse_intent(user_input: str) -> dict:
     """
     logger.info("收到用户输入: %s", user_input)
 
-    # 尝试 LLM 解析（重试3次，每次30秒超时）
-    intent: dict | None = None
+    # ADR-IP1: 规则优先，立即返回基础结果（0延迟）
+    intent = _rule_based_parse(user_input)
     llm_used = False
     llm_error = ""
-    for attempt in range(3):
-        try:
-            intent = await asyncio.wait_for(_call_llm(user_input), timeout=30.0)
-            if intent:
-                llm_used = True
-                logger.info("LLM 解析成功")
-                break
-            else:
-                llm_error = "LLM 返回空结果"
-        except asyncio.TimeoutError:
-            llm_error = f"LLM 超时（30s）第{attempt + 1}次"
-            logger.warning("%s", llm_error)
-        except Exception as e:
-            llm_error = f"LLM 异常: {e}"
-            logger.warning("%s", llm_error)
-        if attempt < 2:
-            await asyncio.sleep(1)
 
-    # 降级方案
-    if intent is None:
-        intent = _rule_based_parse(user_input)
-        logger.info("使用规则匹配结果")
+    # 尝试 LLM 解析（1次，10秒超时，快速失败）
+    try:
+        llm_result = await asyncio.wait_for(_call_llm(user_input), timeout=10.0)
+        if llm_result:
+            # 合并LLM结果：保留规则的基础结构，补充LLM的高级信息
+            intent.update(llm_result)
+            llm_used = True
+            logger.info("LLM 解析成功，已合并结果")
+        else:
+            llm_error = "LLM 返回空结果"
+    except asyncio.TimeoutError:
+        llm_error = "LLM 超时（10s）"
+        logger.warning("%s", llm_error)
+    except Exception as e:
+        llm_error = f"LLM 异常: {e}"
+        logger.warning("%s", llm_error)
 
     # 提取需求向量（来自LLM，或为规则匹配创建默认值）
     dv = intent.pop("demand_vector", None) if isinstance(intent, dict) else None
