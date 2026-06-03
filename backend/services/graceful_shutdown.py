@@ -156,7 +156,7 @@ class GracefulShutdown:
         if sys.platform == "win32":
             # Windows: loop.add_signal_handler 不支持 SIGTERM
             # 使用 signal.signal 作为备选
-            def _on_sigint(signum: int, frame: Any) -> None:
+            def _on_sigint(_signum: int, _frame: Any) -> None:
                 logger.info("收到 SIGINT 信号，触发优雅停机")
                 asyncio.ensure_future(self.shutdown())  # noqa: RUF006
 

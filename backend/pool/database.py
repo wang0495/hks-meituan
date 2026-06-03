@@ -184,7 +184,7 @@ class _SessionContextManager:
         self._session = self._factory()
         return self._session
 
-    async def __aexit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
+    async def __aexit__(self, exc_type: Any, _exc_val: Any, _exc_tb: Any) -> None:
         if self._session is None:
             return
         try:

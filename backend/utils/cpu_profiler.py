@@ -291,5 +291,5 @@ class _CPURunContext:
         self._profiler.start()
         return self
 
-    def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
+    def __exit__(self, exc_type: Any, _exc_val: Any, _exc_tb: Any) -> None:
         self._profiler.stop(self._label)
