@@ -2034,6 +2034,69 @@ def _phase1_initialize(
 # ---------------------------------------------------------------------------
 
 
+def _find_replacement_poi(
+    candidates: list[dict[str, Any]],
+    used_ids: set[str],
+    current_cat: str,
+    has_food: bool,
+) -> tuple[dict[str, Any] | None, bool]:
+    """查找替换POI，返回 (replacement, has_food)。"""
+    # 优先选择餐饮类
+    if not has_food:
+        for c in candidates:
+            if c["id"] not in used_ids and c.get("category") == "餐饮":
+                return c, True
+
+    # 选择其他category
+    for c in candidates:
+        if (
+            c["id"] not in used_ids
+            and c.get("category") != current_cat
+            and c.get("category") not in {"酒店", "休息"}
+        ):
+            return c, has_food
+
+    return None, has_food
+
+
+def _try_replace_consecutive(
+    route: list[dict[str, Any]],
+    idx: int,
+    replacement: dict[str, Any],
+    used_ids: set[str],
+) -> bool:
+    """尝试替换route[idx+1]，返回是否成功。"""
+    prev_poi = route[idx]["poi"]
+    _, close_t = get_poi_opening_hours(replacement)
+    travel = estimate_travel_time(prev_poi, replacement)
+    arrival = parse_time(route[idx]["departure_time"]) + timedelta(minutes=travel)
+    open_t, _ = get_poi_opening_hours(replacement)
+    arrival_dt = parse_time(format_time(arrival))
+
+    if arrival_dt < open_t:
+        arrival_dt = open_t
+    if arrival_dt > close_t:
+        return False
+
+    used_ids.discard(route[idx + 1]["poi"]["id"])
+    if arrival_dt < open_t:
+        arrival = parse_time(format_time(open_t))
+    stay = replacement.get("avg_stay_min", 60)
+    departure = arrival + timedelta(minutes=stay)
+
+    route[idx + 1] = {
+        "poi": replacement,
+        "arrival_time": format_time(arrival),
+        "departure_time": format_time(departure),
+        "travel_from_prev": {
+            "distance_m": round(estimate_distance(prev_poi, replacement)),
+            "time_min": round(travel),
+        },
+    }
+    used_ids.add(replacement["id"])
+    return True
+
+
 def _enforce_category_diversity(
     route: list[dict[str, Any]],
     candidates: list[dict[str, Any]],
@@ -2050,75 +2113,21 @@ def _enforce_category_diversity(
         return route
 
     used_ids = {s["poi"]["id"] for s in route}
-    _get_preferred_categories(user_intent)
-
-    # 检查路线中是否包含餐饮类
     has_food = any(s["poi"].get("category") == "餐饮" for s in route)
 
-    # 检查连续同类
     i = 0
     while i <= len(route) - 2:
         cat_i = route[i]["poi"].get("category", "")
         cat_next = route[i + 1]["poi"].get("category", "")
 
         if cat_i == cat_next and cat_i != "休息":
-            # 找一个不同category的候选POI
-            replacement = None
-
-            # 如果没有餐饮类，优先选择餐饮类POI
-            if not has_food:
-                for c in candidates:
-                    if c["id"] not in used_ids and c.get("category") == "餐饮":
-                        replacement = c
-                        has_food = True
-                        break
-
-            # 如果没有找到餐饮类或已有餐饮类，选择其他category
-            if replacement is None:
-                for c in candidates:
-                    if (
-                        c["id"] not in used_ids
-                        and c.get("category") != cat_i
-                        and c.get("category") not in {"酒店", "休息"}
-                    ):
-                        replacement = c
-                        break
-
+            replacement, has_food = _find_replacement_poi(candidates, used_ids, cat_i, has_food)
             if replacement:
-                # 检查替换POI的营业时间
-                _, close_t = get_poi_opening_hours(replacement)
-                travel = estimate_travel_time(route[i]["poi"], replacement)
-                arrival = parse_time(route[i]["departure_time"]) + timedelta(minutes=travel)
-                open_t, _ = get_poi_opening_hours(replacement)
-                arrival_dt = parse_time(format_time(arrival))
-                if arrival_dt < open_t:
-                    arrival_dt = open_t
-                if arrival_dt > close_t:
-                    continue  # 替换POI已关门，尝试下一个
-
-                # 替换route[i+1]
-                used_ids.discard(route[i + 1]["poi"]["id"])
-                if arrival_dt < open_t:
-                    arrival = parse_time(format_time(open_t))
-                stay = replacement.get("avg_stay_min", 60)
-                departure = arrival + timedelta(minutes=stay)
-
-                route[i + 1] = {
-                    "poi": replacement,
-                    "arrival_time": format_time(arrival),
-                    "departure_time": format_time(departure),
-                    "travel_from_prev": {
-                        "distance_m": round(estimate_distance(route[i]["poi"], replacement)),
-                        "time_min": round(travel),
-                    },
-                }
-                used_ids.add(replacement["id"])
+                _try_replace_consecutive(route, i, replacement, used_ids)
         i += 1
 
-    # 重新计算时间
     _is_ln = user_intent.get("_is_late_night", False)
-    route = _recalculate_times(route, start_time, is_late_night=_is_ln)
-    return route
+    return _recalculate_times(route, start_time, is_late_night=_is_ln)
 
 
 # ---------------------------------------------------------------------------
