@@ -611,15 +611,28 @@ class DialogueEngine:
 
     # ---- 时间调整 --------------------------------------------------------
 
+    def _apply_time_offset(self, state: DialogueState, offset_min: int) -> None:
+        """将时间偏移应用到路线中的所有时间点。"""
+        if offset_min == 0 or not state.route.get("route"):
+            return
+
+        for step in state.route["route"]:
+            for key in ["arrival_time", "departure_time"]:
+                if key in step:
+                    try:
+                        h, m = map(int, step[key].split(":"))
+                        total_min = max(0, min(24 * 60 - 1, h * 60 + m + offset_min))
+                        step[key] = f"{total_min // 60:02d}:{total_min % 60:02d}"
+                    except Exception as e:
+                        logger.warning("dialogue error: %s", e)
+
     async def _handle_time(self, state: DialogueState, instruction: str) -> dict[str, Any]:
         """处理时间调整指令（增量调整，不重新规划）。"""
-        # 尝试提取具体时间
         time_match = re.search(r"(\d{1,2})[点时:：](\d{2})?", instruction)
 
         if time_match:
             hour = int(time_match.group(1))
             minute = int(time_match.group(2) or 0)
-            # "下午"/"晚上" + 小时 <= 12 → +12
             if any(kw in instruction for kw in ["下午", "晚上", "晚"]) and hour <= 12:
                 hour += 12
             new_time = f"{hour:02d}:{minute:02d}"
@@ -630,29 +643,24 @@ class DialogueEngine:
             else:
                 state.user_intent.setdefault("time", {})["end"] = new_time
                 reply = f"好的，我确保行程在{new_time}前结束。"
+        elif "早" in instruction:
+            current_start = state.user_intent.get("time", {}).get("start", "09:00")
+            hour = max(6, int(current_start.split(":")[0]) - 1)
+            new_time = f"{hour:02d}:00"
+            state.user_intent.setdefault("time", {})["start"] = new_time
+            reply = f"好的，我把出发时间提前到{new_time}。"
+        elif "晚" in instruction:
+            current_end = state.user_intent.get("time", {}).get("end", "22:00")
+            hour = min(23, int(current_end.split(":")[0]) + 1)
+            new_time = f"{hour:02d}:00"
+            state.user_intent.setdefault("time", {})["end"] = new_time
+            reply = f"好的，我把结束时间推迟到{new_time}。"
         else:
-            # 无具体时间，做相对调整
-            if "早" in instruction:
-                current_start = state.user_intent.get("time", {}).get("start", "09:00")
-                hour = max(6, int(current_start.split(":")[0]) - 1)
-                new_time = f"{hour:02d}:00"
-                state.user_intent.setdefault("time", {})["start"] = new_time
-                reply = f"好的，我把出发时间提前到{new_time}。"
-            elif "晚" in instruction:
-                # 修正：推迟结束时间而非出发时间
-                current_end = state.user_intent.get("time", {}).get("end", "22:00")
-                hour = min(23, int(current_end.split(":")[0]) + 1)
-                new_time = f"{hour:02d}:00"
-                state.user_intent.setdefault("time", {})["end"] = new_time
-                reply = f"好的，我把结束时间推迟到{new_time}。"
-            else:
-                reply = "好的，我会注意时间安排。"
+            reply = "好的，我会注意时间安排。"
 
-        # ── 增量调整：只偏移时间窗，不重新规划 ─────────────────────
-        # 计算时间偏移量
+        # 计算并应用时间偏移
         old_start = state.user_intent.get("time", {}).get("start", "09:00")
         new_start = state.user_intent.get("time", {}).get("start", "09:00")
-
         try:
             old_h, old_m = map(int, old_start.split(":"))
             new_h, new_m = map(int, new_start.split(":"))
@@ -661,20 +669,7 @@ class DialogueEngine:
             logger.warning("dialogue error: %s", e)
             offset_min = 0
 
-        # 如果有偏移，调整路线中所有时间
-        if offset_min != 0 and state.route.get("route"):
-            for step in state.route["route"]:
-                # 偏移 arrival_time 和 departure_time
-                for key in ["arrival_time", "departure_time"]:
-                    if key in step:
-                        try:
-                            h, m = map(int, step[key].split(":"))
-                            new_m = h * 60 + m + offset_min
-                            # 边界检查
-                            new_m = max(0, min(24 * 60 - 1, new_m))
-                            step[key] = f"{new_m // 60:02d}:{new_m % 60:02d}"
-                        except Exception as e:
-                            logger.warning("dialogue error: %s", e)
+        self._apply_time_offset(state, offset_min)
 
         logger.info("[Dialogue] 时间调整（增量） -> %s", state.user_intent.get("time", {}))
         return {
