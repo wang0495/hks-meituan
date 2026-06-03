@@ -531,7 +531,7 @@ def _rule_based_parse(user_input: str) -> dict:
 
     # 推断preferred_categories
     preferred_categories: list[str] = []
-    _CAT_MAP = {
+    _cat_map = {
         "游乐园": ["景点", "娱乐"],
         "乐园": ["景点", "娱乐"],
         "游乐场": ["景点", "娱乐"],
@@ -574,7 +574,7 @@ def _rule_based_parse(user_input: str) -> dict:
         "孩子": ["景点", "运动", "娱乐"],
         "退休": ["文化", "景点", "餐饮"],
     }
-    for kw, cats in _CAT_MAP.items():
+    for kw, cats in _cat_map.items():
         if kw in text:
             for c in cats:
                 if c not in preferred_categories:
@@ -768,9 +768,8 @@ async def parse_intent(user_input: str) -> dict:
     intent["num_days"] = max(1, min(5, nd))
 
     # 后处理: 如果用户提到深夜关键词但LLM没加late_night约束，补上
-    _raw = user_input  # user_input是parse_intent的参数，此时_raw_input还未设置
-    _LATE_NIGHT_KW = ["凌晨", "深夜", "通宵", "宵夜", "夜宵", "半夜"]
-    if any(kw in _raw for kw in _LATE_NIGHT_KW):  # noqa: SIM102
+    _late_night_keywords = {"凌晨", "深夜", "通宵", "宵夜", "夜宵", "半夜"}
+    if any(kw in user_input for kw in _late_night_keywords):  # noqa: SIM102
         if "late_night" not in intent.get("hard_constraints", []):
             intent.setdefault("hard_constraints", []).append("late_night")
             logger.debug("补充late_night约束（检测到深夜关键词）")
@@ -778,13 +777,11 @@ async def parse_intent(user_input: str) -> dict:
     # 后处理: 深夜场景确保时间正确
     # 只在用户明确提到"凌晨/深夜/通宵/宵夜"时才强制设为深夜时段
     # "晚上/夜间/别太早回家"等不算深夜
-    _LATE_NIGHT_KEYWORDS = {"凌晨", "深夜", "通宵", "宵夜", "夜宵", "半夜"}
     if "late_night" in intent.get("hard_constraints", []):
         time_info = intent.get("time", {})
         start = time_info.get("start", "")
-        time_info.get("end", "")
         # 检查用户是否明确提到深夜关键词
-        has_explicit_late = any(kw in _raw for kw in _LATE_NIGHT_KEYWORDS)
+        has_explicit_late = any(kw in user_input for kw in _late_night_keywords)
         if has_explicit_late:
             if start and not _is_late_night_time(start):
                 intent["time"] = {"period": "深夜", "start": "22:00", "end": "06:00"}

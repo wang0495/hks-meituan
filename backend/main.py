@@ -475,6 +475,7 @@ async def _quick_llm(prompt: str, max_tokens: int = 50) -> str:
         )
         return (resp.choices[0].message.content or "").strip()
     except Exception:
+        logger.debug("_quick_llm failed", exc_info=True)
         return ""
 
 
@@ -671,7 +672,7 @@ async def plan_route(request: PlanRequest):
                                 if progress:
                                     await sse_queue.put(("chat", {"text": progress}))
                             except Exception:
-                                pass  # 进度播报失败不影响主流程
+                                logger.debug("进度播报失败", exc_info=True)
 
                 progress_task = asyncio.create_task(_progress_broadcaster())
 
