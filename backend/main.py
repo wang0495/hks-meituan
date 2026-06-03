@@ -608,6 +608,89 @@ async def plan_route(request: PlanRequest):
     `/api/dialogue/{session_id}` 对话调整。
     """
 
+    async def _drain_sse_queue(sse_queue: asyncio.Queue, graph_task: asyncio.Task, agent_summary_ref: list[str]):
+        """从SSE队列中读取事件并yield。"""
+        while not graph_task.done():
+            try:
+                event_type, event_data = await asyncio.wait_for(sse_queue.get(), timeout=0.3)
+                yield _sse(event_type, event_data)
+                if event_type == "agent_start":
+                    agent_summary_ref[0] += f"启动{event_data.get('name', event_data.get('agent', ''))}、"
+                elif event_type == "agent_result":
+                    agent_summary_ref[0] += f"完成{event_data.get('summary', '')}、"
+                await asyncio.sleep(0)
+            except TimeoutError:
+                pass
+
+    async def _stream_multi_day_routes(multi_routes: list[dict], user_intent: dict, num_days: int):
+        """流式输出多日路线。"""
+        for day_info in multi_routes:
+            day_num = day_info.get("day", 1)
+            day_route = day_info.get("route", {})
+            day_steps = day_route.get("route", []) if day_route else []
+            yield _sse("day_start", {"day": day_num, "total_days": len(multi_routes)})
+            for i, step in enumerate(day_steps):
+                yield _sse("step", {
+                    "index": i + 1, "day": day_num,
+                    "poi": step.get("poi", {}),
+                    "arrival_time": step.get("arrival_time"),
+                    "departure_time": step.get("departure_time"),
+                    "narrative": "", "emotion_design": "",
+                })
+                await asyncio.sleep(0.05)
+            yield _sse("day_end", {"day": day_num})
+
+        route_id = uuid.uuid4().hex[:8]
+        yield _sse("done", {
+            "route_id": route_id,
+            "full_route": {"days": multi_routes},
+            "num_days": num_days,
+            "version": "C-分布式智能体",
+        })
+        route_cache.set(route_id, {"days": multi_routes, "user_intent": user_intent})
+
+    async def _stream_single_day_route(c_route: dict, c_narrative: dict, c_steps: list, user_intent: dict, c_result: dict):
+        """流式输出单日路线。"""
+        if settings.debug:
+            proposals = c_result.get("proposals", [])
+            agent_types = list(set(p.get("agent", "?") for p in proposals))
+            yield _sse("debug_agents", {
+                "version": "C", "agent_count": len(proposals),
+                "agents": agent_types, "conflicts": len(c_result.get("conflicts", [])),
+            })
+
+        n_steps = c_narrative.get("steps", []) if c_narrative else []
+        for i, step in enumerate(c_steps):
+            ns = n_steps[i] if i < len(n_steps) else {}
+            yield _sse("step", {
+                "index": i + 1,
+                "poi": step.get("poi", {}),
+                "arrival_time": step.get("arrival_time"),
+                "departure_time": step.get("departure_time"),
+                "narrative": ns.get("description", "") if isinstance(ns, dict) else str(ns),
+                "emotion_design": ns.get("emotion_design", "") if isinstance(ns, dict) else "",
+                "scene_tags": step.get("poi", {}).get("_scene_tags", []),
+            })
+            await asyncio.sleep(0.05)
+
+        route_id = uuid.uuid4().hex[:8]
+        yield _sse("done", {"route_id": route_id, "full_route": c_route, "version": "C-分布式智能体"})
+        c_route["narrative"] = c_narrative
+        c_route["user_intent"] = user_intent
+        route_cache.set(route_id, c_route)
+
+    async def _run_agent_graph(user_input: str, sse_queue: asyncio.Queue):
+        """运行智能体图并返回结果。"""
+        from backend.agents_v3 import TravelState, get_graph_c
+
+        c_graph = get_graph_c()
+        c_state: TravelState = {
+            "user_input": user_input,
+            "proposals": [], "negotiation_msgs": [], "errors": [],
+            "sse_queue": sse_queue,
+        }
+        return await asyncio.wait_for(c_graph.ainvoke(c_state), timeout=120)
+
     async def event_stream():
         global _plan_concurrent
         if _plan_concurrent >= _PLAN_MAX_CONCURRENT:
@@ -615,49 +698,18 @@ async def plan_route(request: PlanRequest):
             return
         _plan_concurrent += 1
         try:
-            # ── 首token：立刻生成个性化问候（~2s，用户第一眼就有话看） ──
             greeting = await _generate_greeting(request.user_input)
             yield _sse("chat", {"text": greeting})
-
-            # Phase 1: 解析意图（由 rule_guard 内部完成，不再重复调用）
             yield _sse("phase", {"phase": "parsing", "message": "正在理解你的需求..."})
 
-            # user_intent 将从 graph result 中提取
-            user_intent = None
-
-            # ══════════════════════════════════════════════════
-            # C版本主路径：分布式智能体网络
-            # （intent 解析、偏好、权重全部在 graph 内 rule_guard 中完成）
-            # ══════════════════════════════════════════════════
             try:
-                from backend.agents_v3 import TravelState, get_graph_c
-
                 yield _sse("phase", {"phase": "agents", "message": "7个智能体正在并行规划..."})
 
-                c_graph = get_graph_c()
-
-                # SSE queue for real-time agent events
                 sse_queue: asyncio.Queue = asyncio.Queue()
-                c_state: TravelState = {
-                    "user_input": request.user_input,
-                    "proposals": [],
-                    "negotiation_msgs": [],
-                    "errors": [],
-                    "sse_queue": sse_queue,
-                }
-
-                # Run graph + drain SSE queue in parallel
-                async def _run_graph():
-                    return await asyncio.wait_for(c_graph.ainvoke(c_state), timeout=120)
-
-                graph_task = asyncio.create_task(_run_graph())
-
-                # Drain SSE events from agents while graph runs
-                # 进度播报改为后台任务，不阻塞SSE drain循环（ADR-PERF）
-                _agent_summary_ref = [""]  # mutable ref for background task
+                graph_task = asyncio.create_task(_run_agent_graph(request.user_input, sse_queue))
+                _agent_summary_ref = [""]
 
                 async def _progress_broadcaster():
-                    """后台进度播报：每8s生成一句，不阻塞主SSE drain。"""
                     while not graph_task.done():
                         await asyncio.sleep(8.0)
                         if graph_task.done():
@@ -666,9 +718,7 @@ async def plan_route(request: PlanRequest):
                         if summary:
                             _agent_summary_ref[0] = ""
                             try:
-                                progress = await _generate_progress(
-                                    "智能体协作规划中", summary[-80:]
-                                )
+                                progress = await _generate_progress("智能体协作规划中", summary[-80:])
                                 if progress:
                                     await sse_queue.put(("chat", {"text": progress}))
                             except Exception:
@@ -676,171 +726,51 @@ async def plan_route(request: PlanRequest):
 
                 progress_task = asyncio.create_task(_progress_broadcaster())
 
-                while not graph_task.done():
-                    try:
-                        event_type, event_data = await asyncio.wait_for(
-                            sse_queue.get(), timeout=0.3
-                        )
-                        yield _sse(event_type, event_data)
-                        # 追踪 agent 状态用于进度播报
-                        if event_type == "agent_start":
-                            _agent_summary_ref[
-                                0
-                            ] += f"启动{event_data.get('name', event_data.get('agent', ''))}、"
-                        elif event_type == "agent_result":
-                            _agent_summary_ref[0] += f"完成{event_data.get('summary', '')}、"
-                        await asyncio.sleep(0)  # yield control → flush to network
-                    except TimeoutError:
-                        pass
+                async for event in _drain_sse_queue(sse_queue, graph_task, _agent_summary_ref):
+                    yield event
 
-                # 取消进度播报任务
                 progress_task.cancel()
                 with suppress(asyncio.CancelledError):
                     await progress_task
 
-                # Drain remaining events after graph completes
                 while not sse_queue.empty():
                     event_type, event_data = sse_queue.get_nowait()
                     yield _sse(event_type, event_data)
                     await asyncio.sleep(0)
 
                 c_result = await graph_task
-
-                # 从 graph result 中提取 user_intent（由 rule_guard 设置）
-                user_intent = c_result.get("user_intent", user_intent or {})
+                user_intent = c_result.get("user_intent", {})
                 c_route = c_result.get("route", {})
                 c_narrative = c_result.get("narrative", {})
                 c_steps = c_route.get("route", []) if c_route else []
-                _steps_streamed = c_result.get("_steps_streamed", False)
-
-                # ── 多日路线支持 ──
                 multi_routes = c_result.get("routes", [])
                 num_days = c_result.get("num_days", 1)
 
-                # 如果 synthesizer 已经流式推送了 step 事件（多日或单日），
-                # 只需要发 done，不用重复发 step
-                if _steps_streamed:
-                    # steps 已由 synthesizer 实时推送，直接发 done
+                if c_result.get("_steps_streamed"):
                     route_id = uuid.uuid4().hex[:8]
                     if multi_routes and len(multi_routes) > 1:
-                        yield _sse(
-                            "done",
-                            {
-                                "route_id": route_id,
-                                "full_route": {"days": multi_routes},
-                                "num_days": num_days,
-                                "version": "C-分布式智能体",
-                            },
-                        )
-                        route_cache.set(
-                            route_id, {"days": multi_routes, "user_intent": user_intent}
-                        )
+                        yield _sse("done", {"route_id": route_id, "full_route": {"days": multi_routes}, "num_days": num_days, "version": "C-分布式智能体"})
+                        route_cache.set(route_id, {"days": multi_routes, "user_intent": user_intent})
                     else:
                         if not c_steps:
-                            logger.warning("C版本返回空路线，降级到原管线")
                             raise RuntimeError("C版本空路线")
-                        yield _sse(
-                            "done",
-                            {
-                                "route_id": route_id,
-                                "full_route": c_route,
-                                "version": "C-分布式智能体",
-                            },
-                        )
+                        yield _sse("done", {"route_id": route_id, "full_route": c_route, "version": "C-分布式智能体"})
                         c_route["narrative"] = c_narrative
                         c_route["user_intent"] = user_intent
                         route_cache.set(route_id, c_route)
                     return
 
-                # ── 兜底：synthesizer 未流式推送时的原有逻辑 ──
                 if multi_routes and len(multi_routes) > 1:
-                    # 多日SSE输出
-                    for day_info in multi_routes:
-                        day_num = day_info.get("day", 1)
-                        day_route = day_info.get("route", {})
-                        day_steps = day_route.get("route", []) if day_route else []
-                        yield _sse("day_start", {"day": day_num, "total_days": len(multi_routes)})
-                        for i, step in enumerate(day_steps):
-                            step_data = {
-                                "index": i + 1,
-                                "day": day_num,
-                                "poi": step.get("poi", {}),
-                                "arrival_time": step.get("arrival_time"),
-                                "departure_time": step.get("departure_time"),
-                                "narrative": "",
-                                "emotion_design": "",
-                            }
-                            yield _sse("step", step_data)
-                            await asyncio.sleep(0.05)
-                        yield _sse("day_end", {"day": day_num})
-
-                    route_id = uuid.uuid4().hex[:8]
-                    yield _sse(
-                        "done",
-                        {
-                            "route_id": route_id,
-                            "full_route": {"days": multi_routes},
-                            "num_days": num_days,
-                            "version": "C-分布式智能体",
-                        },
-                    )
-                    route_cache.set(route_id, {"days": multi_routes, "user_intent": user_intent})
+                    async for event in _stream_multi_day_routes(multi_routes, user_intent, num_days):
+                        yield event
                     return
 
-                # ── 单日（原有逻辑） ──
                 if not c_steps:
-                    logger.warning("C版本返回空路线，降级到原管线")
                     raise RuntimeError("C版本空路线")
 
-                # 发送C版本Agent信息（仅开发环境）
-                if settings.debug:
-                    proposals = c_result.get("proposals", [])
-                    agent_types = list(set(p.get("agent", "?") for p in proposals))
-                    yield _sse(
-                        "debug_agents",
-                        {
-                            "version": "C",
-                            "agent_count": len(proposals),
-                            "agents": agent_types,
-                            "conflicts": len(c_result.get("conflicts", [])),
-                        },
-                    )
-
-                # 逐步返回步骤（兼容前端SSE格式）
-                n_steps = c_narrative.get("steps", []) if c_narrative else []
-                for i, step in enumerate(c_steps):
-                    ns = n_steps[i] if i < len(n_steps) else {}
-                    step_data = {
-                        "index": i + 1,
-                        "poi": step.get("poi", {}),
-                        "arrival_time": step.get("arrival_time"),
-                        "departure_time": step.get("departure_time"),
-                        "narrative": ns.get("description", "") if isinstance(ns, dict) else str(ns),
-                        "emotion_design": (
-                            ns.get("emotion_design", "") if isinstance(ns, dict) else ""
-                        ),
-                        "scene_tags": step.get("poi", {}).get("_scene_tags", []),
-                    }
-                    yield _sse("step", step_data)
-                    await asyncio.sleep(0.05)
-
-                # 完成
-                route_id = uuid.uuid4().hex[:8]
-                yield _sse(
-                    "done",
-                    {
-                        "route_id": route_id,
-                        "full_route": c_route,
-                        "version": "C-分布式智能体",
-                    },
-                )
-
-                # 缓存route用于对话
-                c_route["narrative"] = c_narrative
-                c_route["user_intent"] = user_intent
-                route_cache.set(route_id, c_route)
-
-                return  # C版本路径结束，不走老管线
+                async for event in _stream_single_day_route(c_route, c_narrative, c_steps, user_intent, c_result):
+                    yield event
+                return
 
             except Exception as c_err:
                 logger.error("C版本执行失败: %s", c_err)
@@ -849,7 +779,6 @@ async def plan_route(request: PlanRequest):
 
         except Exception:
             logger.exception("规划路线时出错")
-            # 不向客户端暴露内部错误详情
             yield _sse("error", {"error": "服务器内部错误，请稍后重试"})
         finally:
             _plan_concurrent -= 1
@@ -857,11 +786,7 @@ async def plan_route(request: PlanRequest):
     return StreamingResponse(
         event_stream(),
         media_type="text/event-stream",
-        headers={
-            "Cache-Control": "no-cache",
-            "Connection": "keep-alive",
-            "X-Accel-Buffering": "no",
-        },
+        headers={"Cache-Control": "no-cache", "Connection": "keep-alive", "X-Accel-Buffering": "no"},
     )
 
 
