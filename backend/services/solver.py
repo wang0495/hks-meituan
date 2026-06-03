@@ -359,6 +359,20 @@ _PREF_TO_SCENE_TAGS: dict[str, set[str]] = {
 }
 
 
+_MEANINGFUL_TAGS = {
+    "海滨", "山景", "公园", "夜景", "文化历史", "自然风光",
+    "拍照出片", "打卡热点", "品质体验", "运动健身", "休闲放松",
+    "亲子", "情侣", "网红店", "老字号",
+}
+
+_WEAK_TAGS = {
+    "餐饮", "购物", "美食", "住宿", "运动", "文化", "市区", "经济", "经典",
+    "出片", "休闲", "其他", "经济实惠", "适合聚餐", "交通便利", "环境好",
+    "性价比高", "品牌齐全", "打折", "味道正宗", "停车方便", "服务好",
+    "排队", "免费", "分量足",
+}
+
+
 def _calc_tourist_relevance(poi: dict) -> float:
     """计算 POI 作为旅游目的地的相关性评分 (0~1)。
 
@@ -374,91 +388,29 @@ def _calc_tourist_relevance(poi: dict) -> float:
     rating = poi.get("rating", 0)
     scene_tags = poi.get("_scene_tags", [])
 
-    # 酒店类别排除（住宿不是游玩目的地）
     if category == "酒店":
         return 0.0
-
-    # 有意义的场景标签 = 真正描述场景/氛围的标签（适配 LLM 生成的标签）
-    _MEANINGFUL_TAGS = {
-        "海滨",
-        "山景",
-        "公园",
-        "夜景",
-        "文化历史",
-        "自然风光",
-        "拍照出片",
-        "打卡热点",
-        "品质体验",
-        "运动健身",
-        "休闲放松",
-        "亲子",
-        "情侣",
-        "网红店",
-        "老字号",  # LLM 生成的有特色标签
-    }
-    # 弱标签（无额外信息量的通用标签, 适配 LLM）
-    _WEAK_TAGS = {
-        "餐饮",
-        "购物",
-        "美食",
-        "住宿",
-        "运动",
-        "文化",
-        "市区",
-        "经济",
-        "经典",
-        "出片",
-        "休闲",
-        "其他",
-        "经济实惠",
-        "适合聚餐",
-        "交通便利",
-        "环境好",
-        "性价比高",
-        "品牌齐全",
-        "打折",
-        "味道正宗",
-        "停车方便",
-        "服务好",
-        "排队",
-        "免费",
-        "分量足",
-    }
 
     has_meaningful_tag = any(t in scene_tags for t in _MEANINGFUL_TAGS)
     only_weak_tags = scene_tags and all(t in _WEAK_TAGS for t in scene_tags)
 
-    score = 0.5  # 基准
-
-    # ── 场景标签检查 ──
+    score = 0.5
     if has_meaningful_tag:
-        score += 0.3  # 有真实场景标签的POI更可能是旅游目的地
+        score += 0.3
     elif only_weak_tags:
-        score -= 0.3  # 只有弱标签的POI很可能是generic商家
+        score -= 0.3
 
-    # ── 名称关键词检查（优先级高于场景标签） ──
-    has_non_tourist = False
-    for kw in _NON_TOURIST_KEYWORDS:
-        if kw in name:
-            has_non_tourist = True
-            break
+    if any(kw in name for kw in _NON_TOURIST_KEYWORDS):
+        return 0.3
 
-    if has_non_tourist:
-        return 0.3  # 非旅游关键词匹配 → 直接封顶0.3
+    if any(kw in name for kw in _TOURIST_KEYWORDS):
+        score += 0.2
 
-    # 只有无非旅游关键词时才加旅游关键词分
-    for kw in _TOURIST_KEYWORDS:
-        if kw in name:
-            score += 0.2
-            break
-
-    # ── 评分 ──
     if rating >= 4.5:
         score += 0.15
     elif rating >= 4.0:
         score += 0.1
 
-    # ── 详细 tags ──
     if len(tags) >= 3:
         score += 0.1
 
