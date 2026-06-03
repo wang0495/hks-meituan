@@ -1080,7 +1080,9 @@ def _is_poi_open_in_window(poi: dict, start_min: int, end_min: int) -> bool:
     cat = poi.get("category", "")
     hours = poi.get("business_hours", "")
 
-    if cat in _OUTDOOR_CATS and (not hours or hours == "00:00-23:59" or "24小时" in str(poi.get("tags", []))):
+    if cat in _OUTDOOR_CATS and (
+        not hours or hours == "00:00-23:59" or "24小时" in str(poi.get("tags", []))
+    ):
         return True
     if "00:00" in hours and ("23:59" in hours or hours.endswith("00:00")):
         return True
