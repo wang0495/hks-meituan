@@ -1658,41 +1658,22 @@ async def _tournament_assemble(
         for hint, t in strategies
     ]
 
-    # ADR-PERF: 首个有效结果立即返回，不等全部完成（节省1-4秒）
-    best_score = -1.0
-    best_route = None
-    try:
-        for coro in asyncio.as_completed(tasks):
-            route = await coro
-            if route and isinstance(route, dict) and route.get("route"):
-                score = _score_route_heuristic(route, poi_proposals, food_proposals, intent)
-                if score > best_score:
-                    best_score = score
-                    best_route = route
-                # 高分结果直接返回，不等后续策略
-                if score >= 0.7:
-                    return best_route
-    except Exception:
-        pass
-
-    if best_route:
-        return best_route
-
-    # 降级：收集所有结果取最佳
     results = await asyncio.gather(*tasks, return_exceptions=True)
+
+    scored: list[tuple[float, dict]] = []
     for route in results:
         if route and isinstance(route, dict) and route.get("route"):
             score = _score_route_heuristic(route, poi_proposals, food_proposals, intent)
-            if score > best_score:
-                best_score = score
-                best_route = route
+            scored.append((score, route))
 
-    if best_route:
-        return best_route
-    for route in results:
-        if isinstance(route, dict):
-            return route
-    return None
+    if not scored:
+        for route in results:
+            if isinstance(route, dict):
+                return route
+        return None
+
+    scored.sort(key=lambda x: x[0], reverse=True)
+    return scored[0][1]
 
 
 def _build_fallback_narrative(route: dict) -> dict:

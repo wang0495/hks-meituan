@@ -162,15 +162,7 @@ async def review(state: TravelState) -> dict:
         })
         return {"review_feedback": rule_feedback, "review_round": round_num + 1}
 
-    # ── 1.5. 快速通道：规则检查通过 + 首轮 + 提案充足 → 跳过LLM review（ADR-PERF） ──
-    if round_num == 0 and len(proposals) >= 3:
-        await sse_emit(state, "agent_result", {
-            "agent": "review",
-            "summary": f"地理检查通过，{len(proposals)}个提案有效（快速通道）",
-        })
-        return {"review_feedback": [], "review_round": round_num + 1}
-
-    # ── 2. LLM语义审查（规则检查通过后，仅rework轮次或提案不足时） ──
+    # ── 2. LLM语义审查（规则检查通过后） ──
     # 按agent分类提案
     proposal_summary = []
     for p in proposals:
