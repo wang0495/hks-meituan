@@ -169,26 +169,47 @@ def _category_stay_min(category: str) -> int:
     return _CATEGORY_STAY.get(category, 60)
 
 
-# ── 时间窗口强制修正 ──
-def _enforce_time_windows(steps: list[dict]) -> list[dict]:
-    """后处理：确保餐食和夜间场所在合理时间窗口内。"""
-    if len(steps) <= 1:
-        return steps
+_LUNCH_EARLIEST = datetime.strptime("11:00", "%H:%M")
+_DINNER_EARLIEST = datetime.strptime("17:00", "%H:%M")
+_AFTERNOON_SPLIT = datetime.strptime("15:00", "%H:%M")
+_NIGHT_KEYWORDS = ["夜市", "夜宵", "大排档", "深夜"]
 
+
+def _shift_step_times(steps: list[dict], from_idx: int, shift_min: int) -> None:
+    """从指定索引开始，偏移所有步骤的时间。"""
+    for j in range(from_idx, len(steps)):
+        try:
+            a = datetime.strptime(steps[j]["arrival_time"], "%H:%M")
+            d = datetime.strptime(steps[j]["departure_time"], "%H:%M")
+            steps[j]["arrival_time"] = (a + timedelta(minutes=shift_min)).strftime("%H:%M")
+            steps[j]["departure_time"] = (d + timedelta(minutes=shift_min)).strftime("%H:%M")
+        except ValueError:
+            pass
+
+
+def _get_shift_target(step: dict) -> datetime | None:
+    """获取步骤需要偏移到的目标时间。"""
+    _type = step.get("_type", "")
     try:
-        first_arrival = datetime.strptime(steps[0]["arrival_time"], "%H:%M")
-        if first_arrival >= datetime.strptime(
-            "22:00", "%H:%M"
-        ) or first_arrival < datetime.strptime("06:00", "%H:%M"):
-            return steps
-    except (ValueError, KeyError, IndexError):
-        pass
+        arrival = datetime.strptime(step["arrival_time"], "%H:%M")
+    except ValueError:
+        return None
 
-    LUNCH_EARLIEST = datetime.strptime("11:00", "%H:%M")
-    DINNER_EARLIEST = datetime.strptime("17:00", "%H:%M")
-    AFTERNOON_SPLIT = datetime.strptime("15:00", "%H:%M")
-    NIGHT_KWS = ["夜市", "夜宵", "大排档", "深夜"]
+    if _type == "lunch" and arrival < _LUNCH_EARLIEST:
+        return _LUNCH_EARLIEST
+    if _type == "dinner" and arrival < _DINNER_EARLIEST:
+        return _DINNER_EARLIEST
 
+    poi = step.get("poi", {})
+    text = poi.get("name", "") + poi.get("category", "")
+    if any(kw in text for kw in _NIGHT_KEYWORDS) and arrival < _DINNER_EARLIEST:
+        return _DINNER_EARLIEST
+
+    return None
+
+
+def _fix_meal_types(steps: list[dict]) -> None:
+    """修正lunch/dinner类型。"""
     for s in steps:
         _type = s.get("_type", "")
         if _type not in ("lunch", "dinner"):
@@ -197,54 +218,43 @@ def _enforce_time_windows(steps: list[dict]) -> list[dict]:
             arrival = datetime.strptime(s["arrival_time"], "%H:%M")
         except ValueError:
             continue
-        if _type == "dinner" and arrival < AFTERNOON_SPLIT:
+        if _type == "dinner" and arrival < _AFTERNOON_SPLIT:
             s["_type"] = "lunch"
-        elif _type == "lunch" and arrival >= AFTERNOON_SPLIT:
+        elif _type == "lunch" and arrival >= _AFTERNOON_SPLIT:
             s["_type"] = "dinner"
+
+
+def _enforce_time_windows(steps: list[dict]) -> list[dict]:
+    """后处理：确保餐食和夜间场所在合理时间窗口内。"""
+    if len(steps) <= 1:
+        return steps
+
+    try:
+        first_arrival = datetime.strptime(steps[0]["arrival_time"], "%H:%M")
+        if first_arrival >= datetime.strptime("22:00", "%H:%M") or first_arrival < datetime.strptime("06:00", "%H:%M"):
+            return steps
+    except (ValueError, KeyError, IndexError):
+        pass
+
+    _fix_meal_types(steps)
 
     for _ in range(3):
         shifted = False
         for i, s in enumerate(steps):
-            _type = s.get("_type", "")
+            target = _get_shift_target(s)
+            if target is None:
+                continue
+
             try:
                 arrival = datetime.strptime(s["arrival_time"], "%H:%M")
             except ValueError:
                 continue
 
-            target = None
-            if _type == "lunch" and arrival < LUNCH_EARLIEST:
-                target = LUNCH_EARLIEST
-            elif _type == "dinner" and arrival < DINNER_EARLIEST:
-                target = DINNER_EARLIEST
-            else:
-                poi = s.get("poi", {})
-                text = poi.get("name", "") + poi.get("category", "")
-                if any(kw in text for kw in NIGHT_KWS) and arrival < DINNER_EARLIEST:
-                    target = DINNER_EARLIEST
-
-            if target is None or arrival >= target:
+            if arrival >= target:
                 continue
 
-            shift_min = int((target - arrival).total_seconds() / 60)
-            for j in range(i, len(steps)):
-                try:
-                    a = datetime.strptime(steps[j]["arrival_time"], "%H:%M")
-                    d = datetime.strptime(steps[j]["departure_time"], "%H:%M")
-                    steps[j]["arrival_time"] = (a + timedelta(minutes=shift_min)).strftime("%H:%M")
-                    steps[j]["departure_time"] = (d + timedelta(minutes=shift_min)).strftime(
-                        "%H:%M"
-                    )
-                except ValueError:
-                    pass
-
-            for s2 in steps[i:]:
-                if s2.get("_type") == "lunch":
-                    try:
-                        if datetime.strptime(s2["arrival_time"], "%H:%M") >= AFTERNOON_SPLIT:
-                            s2["_type"] = "dinner"
-                    except ValueError:
-                        pass
-
+            _shift_step_times(steps, i, int((target - arrival).total_seconds() / 60))
+            _fix_meal_types(steps[i:])
             shifted = True
 
         if not shifted:
