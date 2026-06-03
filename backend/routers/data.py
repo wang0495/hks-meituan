@@ -176,6 +176,19 @@ async def get_order(
     response_description="道路拥堵数据列表",
     tags=["数据"],
 )
+def _get_congestion_level(tti: float | None) -> str | None:
+    """根据TTI计算拥堵等级。"""
+    if tti is None:
+        return None
+    if tti < 1.2:
+        return "畅通"
+    if tti < 1.5:
+        return "缓行"
+    if tti < 2.0:
+        return "拥堵"
+    return "严重拥堵"
+
+
 async def get_road_traffic(
     city: str | None = Query(None, description="按城市筛选"),
     road_type: str | None = Query(None, description="按路段类型筛选"),
@@ -185,7 +198,6 @@ async def get_road_traffic(
     """返回道路拥堵指数快照，支持按城市/路段类型筛选。"""
     road_root = data_service.get_data(dataset="road_traffic_data")
 
-    # 计算日期
     _day_idx = (day_of_year - 1) if day_of_year else 0
     _date = date(2026, 1, 1) + timedelta(days=_day_idx)
 
@@ -214,31 +226,16 @@ async def get_road_traffic(
         h_idx = hour if hour is not None and 0 <= hour < 24 else -1
         tti = road_tti_list[_day_idx][h_idx] if h_idx >= 0 else None
 
-        # 计算拥堵等级
-        if tti is not None:
-            if tti < 1.2:
-                level = "畅通"
-            elif tti < 1.5:
-                level = "缓行"
-            elif tti < 2.0:
-                level = "拥堵"
-            else:
-                level = "严重拥堵"
-        else:
-            level = None
-
-        results.append(
-            {
-                "road_id": road["road_id"],
-                "name": road["name"],
-                "city": road["city"],
-                "road_type": road["road_type"],
-                "lng": road["lng"],
-                "lat": road["lat"],
-                "tti": tti,
-                "congestion_level": level,
-            }
-        )
+        results.append({
+            "road_id": road["road_id"],
+            "name": road["name"],
+            "city": road["city"],
+            "road_type": road["road_type"],
+            "lng": road["lng"],
+            "lat": road["lat"],
+            "tti": tti,
+            "congestion_level": _get_congestion_level(tti),
+        })
 
     return {
         "date": _date.isoformat(),
