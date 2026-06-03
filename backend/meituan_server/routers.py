@@ -59,6 +59,37 @@ def _generate_address(poi: dict) -> str:
 # ---------------------------------------------------------------------------
 
 
+def _filter_by_distance(pois: list[dict], lat: float, lng: float, radius_km: float) -> list[dict]:
+    """按距离过滤并排序POI。"""
+    with_dist = []
+    for p in pois:
+        if p.get("lat") and p.get("lng"):
+            d = _haversine_km(lat, lng, p["lat"], p["lng"])
+            p["distance_km"] = round(d, 2)
+            if d <= radius_km:
+                with_dist.append(p)
+    return sorted(with_dist, key=lambda x: x["distance_km"])
+
+
+def _format_poi_output(poi: dict) -> dict:
+    """格式化POI输出，去掉内部字段。"""
+    return {
+        "id": poi["id"],
+        "name": poi["name"],
+        "category": poi.get("category"),
+        "rating": poi.get("rating"),
+        "avg_price": poi.get("avg_price"),
+        "lat": poi.get("lat"),
+        "lng": poi.get("lng"),
+        "address": _generate_address(poi),
+        "business_hours": poi.get("business_hours", ""),
+        "tags": poi.get("tags", []),
+        "avg_stay_min": poi.get("avg_stay_min"),
+        "queue_prone": poi.get("queue_prone", False),
+        "distance_km": poi.get("distance_km"),
+    }
+
+
 @router.get("/poi/search", summary="商户搜索")
 def poi_search(
     keyword: str | None = Query(None, description="搜索关键词"),
@@ -75,68 +106,25 @@ def poi_search(
     """按条件搜索商户，返回POI列表。"""
     results = get_all_pois()
 
-    # 关键词过滤（匹配 name 和 tags）
     if keyword:
         kw = keyword.lower()
-        results = [
-            p
-            for p in results
-            if kw in p.get("name", "").lower() or any(kw in t for t in p.get("tags", []))
-        ]
-
-    # 品类过滤
+        results = [p for p in results if kw in p.get("name", "").lower() or any(kw in t for t in p.get("tags", []))]
     if category:
-        cat = category
-        results = [p for p in results if p.get("category") == cat]
-
-    # 价格过滤
+        results = [p for p in results if p.get("category") == category]
     if price_min is not None:
         results = [p for p in results if p.get("avg_price", 0) >= price_min]
     if price_max is not None:
         results = [p for p in results if p.get("avg_price", 0) <= price_max]
-
-    # 评分过滤
     if rating_min is not None:
         results = [p for p in results if p.get("rating", 0) >= rating_min]
 
-    # 距离过滤 + 排序
     if lat is not None and lng is not None:
-        with_dist = []
-        for p in results:
-            if p.get("lat") and p.get("lng"):
-                d = _haversine_km(lat, lng, p["lat"], p["lng"])
-                p["distance_km"] = round(d, 2)
-                if d <= radius_km:
-                    with_dist.append(p)
-        results = sorted(with_dist, key=lambda x: x["distance_km"])
+        results = _filter_by_distance(results, lat, lng, radius_km)
     else:
-        # 无位置时按评分降序
         results = sorted(results, key=lambda x: x.get("rating", 0), reverse=True)
 
-    # 截断
     total = len(results)
-    results = results[offset : offset + limit]
-
-    # 统一输出格式（去掉内部字段）
-    items = []
-    for p in results:
-        items.append(
-            {
-                "id": p["id"],
-                "name": p["name"],
-                "category": p.get("category"),
-                "rating": p.get("rating"),
-                "avg_price": p.get("avg_price"),
-                "lat": p.get("lat"),
-                "lng": p.get("lng"),
-                "address": _generate_address(p),
-                "business_hours": p.get("business_hours", ""),
-                "tags": p.get("tags", []),
-                "avg_stay_min": p.get("avg_stay_min"),
-                "queue_prone": p.get("queue_prone", False),
-                "distance_km": p.get("distance_km"),
-            }
-        )
+    items = [_format_poi_output(p) for p in results[offset : offset + limit]]
 
     return {"total": total, "count": len(items), "items": items}
 
