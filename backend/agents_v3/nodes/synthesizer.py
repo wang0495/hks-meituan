@@ -1280,39 +1280,32 @@ def _rule_assign_times(
     return new_steps, dropped
 
 
-def _smooth_times(steps: list[dict], start_time: str, end_time: str) -> list[dict]:
-    """后处理：修正LLM时间分配中的空窗、倒流、溢出、异常停留。"""
-    if len(steps) <= 1:
-        return steps
+_MAX_STAY_BY_CATEGORY: dict[str, int] = {
+    "景点": 120, "文化": 90, "公园": 90, "娱乐": 120,
+    "餐饮": 75, "夜市": 60, "小吃": 50, "美食": 75,
+}
 
-    # ── 0. 异常停留压缩 ──
-    _MAX_STAY = {
-        "景点": 120,
-        "文化": 90,
-        "公园": 90,
-        "娱乐": 120,
-        "餐饮": 75,
-        "夜市": 60,
-        "小吃": 50,
-        "美食": 75,
-    }
+
+def _compress_abnormal_stays(steps: list[dict]) -> None:
+    """压缩异常停留时间。"""
     for s in steps:
         stay = s.get("stay_min", 60)
         cat = s.get("poi", s).get("category", "")
-        cap = 90  # 默认上限
-        for ck, limit in _MAX_STAY.items():
+        cap = 90
+        for ck, limit in _MAX_STAY_BY_CATEGORY.items():
             if ck in cat:
                 cap = limit
                 break
         if stay > cap:
             s["stay_min"] = cap
             try:
-                arr = datetime.strptime(s["arrival_time"], "%H:%M")
-                s["departure_time"] = (arr + timedelta(minutes=cap)).strftime("%H:%M")
+                s["departure_time"] = (datetime.strptime(s["arrival_time"], "%H:%M") + timedelta(minutes=cap)).strftime("%H:%M")
             except (ValueError, KeyError):
                 pass
 
-    # ── 1. 检测并修正空窗/倒流 ──
+
+def _fix_gaps_and_reversals(steps: list[dict]) -> None:
+    """修正空窗和倒流。"""
     for i in range(1, len(steps)):
         try:
             prev_dep = datetime.strptime(steps[i - 1]["departure_time"], "%H:%M")
@@ -1321,79 +1314,69 @@ def _smooth_times(steps: list[dict], start_time: str, end_time: str) -> list[dic
         except (ValueError, KeyError):
             gap_min = 15
 
-        # 倒流或空窗>45min：重新计算合理交通时间
         if gap_min < 0 or gap_min > 45:
-            # 按坐标估算交通时间
             prev_poi = steps[i - 1].get("poi", steps[i - 1])
             curr_poi = steps[i].get("poi", steps[i])
             lat1, lng1 = prev_poi.get("lat", 0), prev_poi.get("lng", 0)
             lat2, lng2 = curr_poi.get("lat", 0), curr_poi.get("lng", 0)
-            if lat1 and lat2:
-                dist_km = _haversine_km(lat1, lng1, lat2, lng2)
-                travel_min = max(5, min(45, int(dist_km * 3 + 5)))  # ~3min/km + 5min缓冲
-            else:
-                travel_min = 15
+            travel_min = max(5, min(45, int(_haversine_km(lat1, lng1, lat2, lng2) * 3 + 5))) if lat1 and lat2 else 15
 
-            # 新到达时间 = 前站离开 + 交通
             new_arr = prev_dep + timedelta(minutes=travel_min)
             steps[i]["arrival_time"] = new_arr.strftime("%H:%M")
+            stay = max(1, steps[i].get("stay_min", 60))
+            steps[i]["departure_time"] = (new_arr + timedelta(minutes=stay)).strftime("%H:%M")
 
-            # 停留时间不变，重算离开时间
-            stay = steps[i].get("stay_min", 60)
-            if stay <= 0:
-                stay = 60
-            new_dep = new_arr + timedelta(minutes=stay)
-            steps[i]["departure_time"] = new_dep.strftime("%H:%M")
 
-    # ── 2. 检查总时间是否溢出 ──
+def _compress_overflow(steps: list[dict], start_time: str, end_time: str) -> None:
+    """等比压缩溢出的停留时间。"""
     try:
         last_dep = datetime.strptime(steps[-1]["departure_time"], "%H:%M")
         end_limit = datetime.strptime(end_time, "%H:%M")
     except (ValueError, KeyError):
-        return steps
+        return
 
     if last_dep <= end_limit:
-        return steps  # 没溢出
+        return
 
-    # 溢出了：等比压缩所有停留时间
     overflow_min = int((last_dep - end_limit).total_seconds() / 60)
     total_stay = sum(max(1, s.get("stay_min", 60)) for s in steps)
     if total_stay == 0:
-        return steps
+        return
 
-    # 每站按比例缩短
     ratio = max(0.5, 1 - overflow_min / total_stay)
     try:
-        first_arr = datetime.strptime(steps[0]["arrival_time"], "%H:%M")
+        cursor = datetime.strptime(steps[0]["arrival_time"], "%H:%M")
     except (ValueError, KeyError):
-        first_arr = datetime.strptime(start_time, "%H:%M")
+        cursor = datetime.strptime(start_time, "%H:%M")
 
-    cursor = first_arr
-    for s in steps:
+    for i, s in enumerate(steps):
         s["arrival_time"] = cursor.strftime("%H:%M")
         stay = max(15, int(s.get("stay_min", 60) * ratio))
         s["stay_min"] = stay
-        cursor = cursor + timedelta(minutes=stay)
+        cursor += timedelta(minutes=stay)
         s["departure_time"] = cursor.strftime("%H:%M")
-        # 站间交通
-        if s != steps[-1]:
-            next_poi = steps[steps.index(s) + 1].get("poi", steps[steps.index(s) + 1])
+        if i < len(steps) - 1:
+            next_poi = steps[i + 1].get("poi", steps[i + 1])
             cur_poi = s.get("poi", s)
             lat1, lng1 = cur_poi.get("lat", 0), cur_poi.get("lng", 0)
             lat2, lng2 = next_poi.get("lat", 0), next_poi.get("lng", 0)
-            if lat1 and lat2:
-                dist_km = _haversine_km(lat1, lng1, lat2, lng2)
-                cursor += timedelta(minutes=max(5, min(30, int(dist_km * 3 + 5))))
-            else:
-                cursor += timedelta(minutes=15)
+            cursor += timedelta(minutes=max(5, min(30, int(_haversine_km(lat1, lng1, lat2, lng2) * 3 + 5)))) if lat1 and lat2 else timedelta(minutes=15)
 
-    # 如果压缩后仍溢出，截断到end_time
     try:
-        last_dep2 = datetime.strptime(steps[-1]["departure_time"], "%H:%M")
-        if last_dep2 > end_limit:
+        if datetime.strptime(steps[-1]["departure_time"], "%H:%M") > end_limit:
             steps[-1]["departure_time"] = end_time
     except (ValueError, KeyError):
         pass
+
+
+def _smooth_times(steps: list[dict], start_time: str, end_time: str) -> list[dict]:
+    """后处理：修正LLM时间分配中的空窗、倒流、溢出、异常停留。"""
+    if len(steps) <= 1:
+        return steps
+
+    _compress_abnormal_stays(steps)
+    _fix_gaps_and_reversals(steps)
+    _compress_overflow(steps, start_time, end_time)
 
     return steps
 
