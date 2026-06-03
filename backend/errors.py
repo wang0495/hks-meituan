@@ -91,13 +91,13 @@ class CityFlowException(Exception):  # noqa: N818
         super().__init__(message)
 
     # 不应暴露给客户端的 details key
-    _SENSITIVE_KEYS = {
+    _SENSITIVE_KEYS = {  # noqa: RUF012
         "original_error",
         "stack_trace",
         "traceback",
         "api_key",
         "secret",
-    }  # noqa: RUF012
+    }
 
     def to_dict(self) -> dict[str, Any]:
         """转换为 API 响应字典。自动过滤敏感字段。"""

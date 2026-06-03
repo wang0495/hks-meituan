@@ -153,9 +153,9 @@ class ServiceRegistry:
         while self._running:
             now = datetime.now()
             for service_id, service in list(self._services.items()):
-                if now - service.last_heartbeat > timedelta(
+                if now - service.last_heartbeat > timedelta(  # noqa: SIM102
                     seconds=self._heartbeat_timeout
-                ):  # noqa: SIM102
+                ):
                     if service.status != "unhealthy":
                         service.status = "unhealthy"
                         logger.warning(
