@@ -463,17 +463,70 @@ def _dpp_rerank_route(route: dict, scene_type: str) -> dict:
     return route
 
 
-# ── 补回遗漏 ──
+def _find_must_keep_pois(
+    last_stops: list[str],
+    route_names: set[str],
+    all_proposals: list[dict],
+) -> list[dict]:
+    """找出必须保留但被遗漏的核心POI。"""
+    proposal_map = {}
+    for p in all_proposals:
+        name = p.get("content", {}).get("name", "")
+        if name:
+            proposal_map[name] = p
+
+    must_keep = []
+    for stop_name in last_stops:
+        if any(stop_name in rn or rn in stop_name for rn in route_names):
+            continue
+        matched = proposal_map.get(stop_name)
+        if not matched:
+            for name, p in proposal_map.items():
+                if stop_name in name or name in stop_name:
+                    matched = p
+                    break
+        if matched:
+            must_keep.append(matched)
+    return must_keep
+
+
+def _insert_poi_at_nearest(steps: list[dict], content: dict) -> None:
+    """按地理就近原则将POI插入路线。"""
+    mk_lat = content.get("lat", 0)
+    mk_lng = content.get("lng", 0)
+    best_idx = len(steps)
+    best_dist = float("inf")
+
+    for i, s in enumerate(steps):
+        poi = s.get("poi", {})
+        lat, lng = poi.get("lat", 0), poi.get("lng", 0)
+        if mk_lat and mk_lng and lat and lng:
+            d = _haversine_km(mk_lat, mk_lng, lat, lng)
+            if d < best_dist:
+                best_dist = d
+                best_idx = i + 1
+
+    prev_dep = steps[best_idx - 1].get("departure_time", "10:00") if steps and best_idx > 0 else "10:00"
+    try:
+        arr_t = datetime.strptime(prev_dep, "%H:%M") + timedelta(minutes=15)
+    except ValueError:
+        arr_t = datetime.strptime("10:15", "%H:%M")
+
+    steps.insert(best_idx, {
+        "poi": content,
+        "arrival_time": arr_t.strftime("%H:%M"),
+        "departure_time": (arr_t + timedelta(minutes=60)).strftime("%H:%M"),
+        "travel_from_prev": {"distance_m": int(best_dist * 1000) if best_dist < float("inf") else 2000, "time_min": 15},
+        "_type": "must_keep",
+    })
+
+
 def _must_keep_core_pois(
     route: dict,
     prev_round_context: dict,
     all_proposals: list[dict],
 ) -> dict:
-    """反馈重入时，确保上一轮的核心POI保留在路线中。
-
-    prev_round_context.last_stops 中的 POI 如果在当前 proposals 里能找到，
-    但不在锦标赛产出的 route 中，则强制插入到合适位置。
-    """
+    """反馈重入时，确保上一轮的核心POI保留在路线中。"""
     if not prev_round_context or not route or not route.get("route"):
         return route
 
@@ -482,7 +535,7 @@ def _must_keep_core_pois(
         return route
 
     steps = route["route"]
-    route_names = set()
+    route_names: set[str] = set()
     for s in steps:
         n = s.get("poi", {}).get("name", "")
         route_names.add(n)
@@ -490,70 +543,12 @@ def _must_keep_core_pois(
         if c != n:
             route_names.add(c)
 
-    # 构建 proposal name → proposal 映射
-    proposal_map = {}
-    for p in all_proposals:
-        name = p.get("content", {}).get("name", "")
-        if name:
-            proposal_map[name] = p
-
-    # 找出必须保留但被遗漏的核心 POI
-    must_keep = []
-    for stop_name in last_stops:
-        # 检查是否已在路线中
-        if any(stop_name in rn or rn in stop_name for rn in route_names):
-            continue
-        # 检查是否在当前 proposals 中
-        matched_proposal = proposal_map.get(stop_name)
-        if not matched_proposal:
-            for name, p in proposal_map.items():
-                if stop_name in name or name in stop_name:
-                    matched_proposal = p
-                    break
-        if matched_proposal:
-            must_keep.append(matched_proposal)
-
+    must_keep = _find_must_keep_pois(last_stops, route_names, all_proposals)
     if not must_keep:
         return route
 
-    # 将遗漏的核心 POI 插入到路线中（按地理就近原则插入）
     for mk in must_keep:
-        content = mk.get("content", {})
-        mk_lat = content.get("lat", 0)
-        mk_lng = content.get("lng", 0)
-        best_idx = len(steps)  # 默认追加到末尾
-        best_dist = float("inf")
-
-        for i, s in enumerate(steps):
-            poi = s.get("poi", {})
-            lat = poi.get("lat", 0)
-            lng = poi.get("lng", 0)
-            if mk_lat and mk_lng and lat and lng:
-                d = _haversine_km(mk_lat, mk_lng, lat, lng)
-                if d < best_dist:
-                    best_dist = d
-                    best_idx = i + 1
-
-        prev_dep = "10:00"
-        if steps and best_idx > 0:
-            prev_dep = steps[best_idx - 1].get("departure_time", "10:00")
-        try:
-            arr_t = datetime.strptime(prev_dep, "%H:%M") + timedelta(minutes=15)
-        except ValueError:
-            arr_t = datetime.strptime("10:15", "%H:%M")
-        dep_t = arr_t + timedelta(minutes=60)
-
-        new_step = {
-            "poi": content,
-            "arrival_time": arr_t.strftime("%H:%M"),
-            "departure_time": dep_t.strftime("%H:%M"),
-            "travel_from_prev": {
-                "distance_m": int(best_dist * 1000) if best_dist < float("inf") else 2000,
-                "time_min": 15,
-            },
-            "_type": "must_keep",
-        }
-        steps.insert(best_idx, new_step)
+        _insert_poi_at_nearest(steps, mk.get("content", {}))
 
     route["route"] = _dedup_route(steps)
     return route
