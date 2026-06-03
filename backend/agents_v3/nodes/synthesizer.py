@@ -1398,6 +1398,47 @@ def _smooth_times(steps: list[dict], start_time: str, end_time: str) -> list[dic
     return steps
 
 
+def _build_name_map(proposal_lists: list[list[dict]]) -> dict[str, dict]:
+    """从多个proposal列表构建name→content映射。"""
+    name_map: dict[str, dict] = {}
+    for proposals in proposal_lists:
+        for p in proposals:
+            name = p.get("content", {}).get("name", "")
+            if name:
+                name_map[name] = p.get("content", {})
+    return name_map
+
+
+def _fuzzy_match_name(name: str, name_map: dict[str, dict]) -> dict | None:
+    """模糊匹配名称到content。"""
+    # 精确匹配
+    if name in name_map:
+        return name_map[name]
+
+    # 包含匹配
+    for n, c in name_map.items():
+        if name in n or n in name:
+            return c
+
+    # 清洗后匹配
+    clean = name.replace("（", "(").replace("）", ")").replace(" ", "")
+    for n, c in name_map.items():
+        clean_n = n.replace("（", "(").replace("）", ")").replace(" ", "")
+        if clean in clean_n or clean_n in clean:
+            return c
+
+    return None
+
+
+def _get_pace_params(pace: str) -> tuple[float, int]:
+    """根据节奏返回 (stay_multiplier, travel_base)。"""
+    if "特种兵" in pace:
+        return 0.7, 10
+    if "闲逛" in pace or "慢" in pace:
+        return 1.3, 20
+    return 1.0, 15
+
+
 def _build_route_from_llm_order(
     ordered_stops: list[dict],
     poi_proposals: list[dict],
@@ -1405,13 +1446,8 @@ def _build_route_from_llm_order(
     hotel_proposals: list[dict],
     intent: dict,
 ) -> dict | None:
-    name_map = {}
-    for p in poi_proposals:
-        name_map[p.get("content", {}).get("name", "")] = p.get("content", {})
-    for p in food_proposals:
-        name_map[p.get("content", {}).get("name", "")] = p.get("content", {})
-    for p in hotel_proposals:
-        name_map[p.get("content", {}).get("name", "")] = p.get("content", {})
+    name_map = _build_name_map([poi_proposals, food_proposals, hotel_proposals])
+    stay_mult, travel_base = _get_pace_params(intent.get("pace", "平衡型"))
 
     start_time_str = intent.get("time", {}).get("start", "09:00")
     try:
@@ -1419,100 +1455,56 @@ def _build_route_from_llm_order(
     except ValueError:
         t = datetime.strptime("09:00", "%H:%M")
 
-    pace = intent.get("pace", "平衡型")
-    if "特种兵" in pace:
-        stay_multiplier = 0.7
-        travel_base = 10
-    elif "闲逛" in pace or "慢" in pace:
-        stay_multiplier = 1.3
-        travel_base = 20
-    else:
-        stay_multiplier = 1.0
-        travel_base = 15
-
     steps = []
     prev_stop = None
-    used_names = set()
+    used_names: set[str] = set()
 
     for stop in ordered_stops:
-        name = stop.get("name", "")
-        stop_type = stop.get("type", "poi")
-
-        content = name_map.get(name)
-        if not content:
-            # 模糊匹配：name_map的key包含stop名，或stop名包含key
-            for n, c in name_map.items():
-                if name in n or n in name:
-                    content = c
-                    name = n
-                    break
-        if not content:
-            # 二次模糊：去掉括号/空格后再匹配
-            clean = name.replace("（", "(").replace("）", ")").replace(" ", "")
-            for n, c in name_map.items():
-                clean_n = n.replace("（", "(").replace("）", ")").replace(" ", "")
-                if clean in clean_n or clean_n in clean:
-                    content = c
-                    name = n
-                    break
-        if not content:
-            continue
-
-        canon = _canonical_name(name)
-        if canon in used_names:
-            continue
-        used_names.add(canon)
-
-        if stop_type == "hotel":
-            continue
-        elif stop_type in ("lunch", "dinner"):
-            stay_min = 50
-        else:
-            stay_min = int(content.get("avg_stay_min", 90) * stay_multiplier)
-
-        lat = content.get("lat", 0)
-        lng = content.get("lng", 0)
-        travel_min = travel_base
-        if prev_stop and lat and lng:
-            prev_lat = prev_stop.get("lat", 0)
-            prev_lng = prev_stop.get("lng", 0)
-            if prev_lat and prev_lng:
-                dist = _haversine_km(lat, lng, prev_lat, prev_lng)
-                travel_min = max(5, min(60, int(dist * 8)))
-
-        arrival = t
-        departure = t + timedelta(minutes=stay_min)
-
-        steps.append(
-            {
-                "poi": content,
-                "arrival_time": arrival.strftime("%H:%M"),
-                "departure_time": departure.strftime("%H:%M"),
-                "travel_from_prev": {
-                    "distance_m": int(travel_min * 120),
-                    "time_min": travel_min,
-                },
-                "_type": stop_type if stop_type != "poi" else "",
-            }
-        )
-
-        t = departure + timedelta(minutes=travel_min)
-        prev_stop = content
+        step, t, prev_stop = _process_llm_stop(stop, name_map, used_names, t, prev_stop, stay_mult, travel_base)
+        if step:
+            steps.append(step)
 
     if not steps:
         return None
 
-    end_time_str = intent.get("time", {}).get("end", "21:00")
     try:
-        end_dt = datetime.strptime(end_time_str, "%H:%M")
+        end_dt = datetime.strptime(intent.get("time", {}).get("end", "21:00"), "%H:%M")
     except ValueError:
         end_dt = datetime.strptime("21:00", "%H:%M")
     if end_dt <= datetime.strptime(start_time_str, "%H:%M"):
         end_dt += timedelta(days=1)
 
     steps = [s for s in steps if datetime.strptime(s["arrival_time"], "%H:%M") <= end_dt]
-    steps = _dedup_route(steps)
-    steps = _enforce_time_windows(steps)
+    return {"route": _enforce_time_windows(_dedup_route(steps))}
+
+
+def _process_llm_stop(
+    stop: dict, name_map: dict, used_names: set[str],
+    t: datetime, prev_stop: dict | None, stay_mult: float, travel_base: int,
+) -> tuple[dict | None, datetime, dict | None]:
+    """处理单个LLM stop，返回 (step, new_time, new_prev_stop)。"""
+    content = _fuzzy_match_name(stop.get("name", ""), name_map)
+    if not content:
+        return None, t, prev_stop
+
+    canon = _canonical_name(stop.get("name", ""))
+    if canon in used_names:
+        return None, t, prev_stop
+    used_names.add(canon)
+
+    stop_type = stop.get("type", "poi")
+    if stop_type == "hotel":
+        return None, t, prev_stop
+    stay_min = 50 if stop_type in ("lunch", "dinner") else int(content.get("avg_stay_min", 90) * stay_mult)
+
+    lat, lng = content.get("lat", 0), content.get("lng", 0)
+    travel_min = travel_base
+    if prev_stop and lat and lng and prev_stop.get("lat") and prev_stop.get("lng"):
+        travel_min = max(5, min(60, int(_haversine_km(lat, lng, prev_stop["lat"], prev_stop["lng"]) * 8)))
+
+    departure = t + timedelta(minutes=stay_min)
+    step = {"poi": content, "arrival_time": t.strftime("%H:%M"), "departure_time": departure.strftime("%H:%M"), "travel_from_prev": {"distance_m": int(travel_min * 120), "time_min": travel_min}, "_type": stop_type if stop_type != "poi" else ""}
+    return step, departure + timedelta(minutes=travel_min), content
 
     total_time = 0
     try:
