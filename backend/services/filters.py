@@ -215,7 +215,6 @@ def filter_candidates(
 
     # 解析用户时间窗口（凌晨00:00的hour=0，不是None）
     user_start_h = user_start // 60
-    user_end // 60 if user_end > 0 else None
 
     # 判断是否跨午夜时段（如00:00-06:00）
     _crosses_midnight = user_end < user_start or user_start_h >= 22 or user_start_h <= 6

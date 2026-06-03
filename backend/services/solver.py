@@ -1,11 +1,5 @@
 """CityFlow TSPTW 情绪混合求解器。
 
-⚠️  DEPRECATED — 此模块已被 agents_v3 MoE 多Agent编排架构替代。
-    主入口 /api/plan 已完全切到 agents_v3（见 main.py:655）。
-    当前仍被 sse.py、v1/plan、v2/plan、graphql、dialogue 等旧端点引用，
-    待这些端点迁移后可删除。
-    替代方案：backend.agents_v3.synthesizer
-
 5阶段求解：
 1. 候选筛选（按意图category偏好 + 情绪匹配）
 2. TW-Nearest Neighbor 贪心初始化（含时间窗可行性剪枝）
@@ -2682,10 +2676,8 @@ def solve_route(
     if perception_ctx is not None:
         fatigue = getattr(perception_ctx, "fatigue_level", 0.0)
         if fatigue > 0.7:
-            _GAMMA * 3.0  # 重度疲劳：权重 3 倍
             tl.gamma_multiplier = 3.0
         elif fatigue > 0.5:
-            _GAMMA * 2.0  # 中度疲劳：权重 2 倍
             tl.gamma_multiplier = 2.0
         else:
             tl.gamma_multiplier = 1.0

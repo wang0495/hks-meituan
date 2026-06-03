@@ -239,7 +239,7 @@ def _generate_step(step: dict[str, Any], index: int, total: int, city: str = "")
     poi = step["poi"]
     poi_name = poi["name"]
     category = poi.get("category", "")
-    emotion_tags = poi.get("emotion_tags", {})
+    _emotion_tags = poi.get("emotion_tags", {})
     avg_price = poi.get("avg_price", 0)
     rating = poi.get("rating", 0)
 
@@ -247,7 +247,6 @@ def _generate_step(step: dict[str, Any], index: int, total: int, city: str = "")
     if category in CATEGORY_STEP_TEMPLATES:
         templates = CATEGORY_STEP_TEMPLATES[category]
     else:
-        get_dominant_emotion(emotion_tags)
         templates = [
             "在{poi_name}，感受不一样的体验。",
             "{poi_name}，值得停留的地方。",

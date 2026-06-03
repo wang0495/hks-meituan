@@ -842,7 +842,7 @@ async def plan_route(request: PlanRequest):
                 return  # C版本路径结束，不走老管线
 
             except Exception as c_err:
-                logger.error(f"C版本执行失败: {c_err}")
+                logger.error("C版本执行失败: %s", c_err)
                 yield _sse("error", {"error": "路线规划失败，请重试"})
                 return
 
@@ -1042,7 +1042,7 @@ async def adjust_route(route_id: str, instruction: str):
                 modification_hint=instruction,
             )
         except Exception as fb_err:
-            logger.warning(f"反馈记录失败（不影响主流程）: {fb_err}")
+            logger.warning("反馈记录失败（不影响主流程）: %s", fb_err)
 
     return result
 
@@ -1184,7 +1184,7 @@ async def dialogue(session_id: str, request: AdjustRequest):
                     modification_hint=request.instruction,
                 )
         except Exception as fb_err:
-            logger.warning(f"反馈记录失败（不影响主流程）: {fb_err}")
+            logger.warning("反馈记录失败（不影响主流程）: %s", fb_err)
 
     return result
 
