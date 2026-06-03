@@ -970,65 +970,51 @@ def estimate_steps(poi: dict[str, Any]) -> int:
 # ---------------------------------------------------------------------------
 
 
+_MACRO_CATS = ["文化", "餐饮", "运动", "景点", "购物"]
+
+_GROUP_TYPE_CATEGORIES: dict[str, list[str]] = {
+    "情侣": ["文化", "餐饮", "景点"],
+    "亲子": ["运动", "文化", "景点"],
+    "朋友": ["餐饮", "购物", "运动"],
+    "退休": ["文化", "运动", "景点"],
+}
+
+
 def _get_preferred_categories(user_intent: dict[str, Any]) -> list[str]:
     """根据用户意图获取优先category列表。优先使用LLM推荐的类别。"""
-    # 优先使用LLM推荐的preferred_categories
     llm_cats = user_intent.get("preferred_categories", [])
     if llm_cats:
-        # 保留LLM推荐的类别（按优先级），补充LLM未覆盖的宏观类别
         result = list(llm_cats)
-        _MACRO_CATS = ["文化", "餐饮", "运动", "景点", "购物"]
         for cat in _MACRO_CATS:
             if cat not in result:
                 result.append(cat)
         return result
 
-    # 降级：原有硬编码逻辑
+    seen: set[str] = set()
     preferred: list[str] = []
+
+    def _add(cats: list[str]) -> None:
+        for c in cats:
+            if c not in seen:
+                seen.add(c)
+                preferred.append(c)
+
     prefs = user_intent.get("preferences", {})
+    high_prefs = [k for k, v in prefs.items() if v > 0.5]
+    for pref_key in high_prefs:
+        _add(_PREF_TO_CATEGORIES.get(pref_key, []))
 
-    # 从偏好维度推断
-    for pref_key, pref_val in prefs.items():
-        if pref_val > 0.5:
-            cats = _PREF_TO_CATEGORIES.get(pref_key, [])
-            for c in cats:
-                if c not in preferred:
-                    preferred.append(c)
+    for c in user_intent.get("hard_constraints", []):
+        _add(_KEYWORD_CATEGORIES.get(c, []))
 
-    # 从hard_constraints推断
-    hard_constraints = user_intent.get("hard_constraints", [])
-    for c in hard_constraints:
-        cats = _KEYWORD_CATEGORIES.get(c, [])
-        for cat in cats:
-            if cat not in preferred:
-                preferred.append(cat)
-
-    # 从group_type推断
     group_type = user_intent.get("group", {}).get("type", "")
-    if group_type == "情侣":
-        for cat in ["文化", "餐饮", "景点"]:
-            if cat not in preferred:
-                preferred.append(cat)
-    elif group_type == "亲子":
-        for cat in ["运动", "文化", "景点"]:
-            if cat not in preferred:
-                preferred.append(cat)
-    elif group_type == "朋友":
-        for cat in ["餐饮", "购物", "运动"]:
-            if cat not in preferred:
-                preferred.append(cat)
-    elif group_type == "退休":
-        for cat in ["文化", "运动", "景点"]:
-            if cat not in preferred:
-                preferred.append(cat)
+    _add(_GROUP_TYPE_CATEGORIES.get(group_type, []))
 
-    # 如果没有明确偏好，给一个默认
     if not preferred:
-        preferred = ["文化", "餐饮", "运动", "景点", "购物"]
-    # 确保"景点"始终在偏好列表中（新生成的小众POI多属此类）
-    if "景点" not in preferred:
-        preferred.append("景点")
+        return list(_MACRO_CATS)
 
+    # 确保"景点"始终在偏好列表中
+    _add(["景点"])
     return preferred
 
 
