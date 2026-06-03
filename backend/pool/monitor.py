@@ -216,91 +216,55 @@ class PoolMonitor:
     # 告警
     # ------------------------------------------------------------------
 
+    def _check_db_alerts(self) -> list[PoolAlert]:
+        """检查数据库连接池告警。"""
+        if self._db_pool is None:
+            return []
+
+        try:
+            db_stats = self._db_pool.get_pool_stats()
+            total = db_stats["pool_size"] + db_stats.get("overflow", 0)
+            if total <= 0:
+                return []
+
+            utilization = db_stats["checkedout"] / total
+            if utilization >= self._thresholds.db_utilization_critical:
+                return [PoolAlert(pool_type="database", message=f"数据库连接池使用率严重过高: {utilization:.1%}", severity=AlertSeverity.CRITICAL, metric_name="utilization", metric_value=utilization, threshold=self._thresholds.db_utilization_critical)]
+            if utilization >= self._thresholds.db_utilization_warn:
+                return [PoolAlert(pool_type="database", message=f"数据库连接池使用率偏高: {utilization:.1%}", severity=AlertSeverity.WARNING, metric_name="utilization", metric_value=utilization, threshold=self._thresholds.db_utilization_warn)]
+            return []
+        except Exception:
+            logger.exception("数据库告警检查失败")
+            return []
+
+    def _check_http_alerts(self) -> list[PoolAlert]:
+        """检查HTTP连接池告警。"""
+        if self._http_pool is None:
+            return []
+
+        try:
+            http_stats = self._http_pool.get_pool_stats()
+            max_conn = http_stats.get("max_connections", 0)
+            if max_conn <= 0:
+                return []
+
+            utilization = http_stats.get("active", 0) / max_conn
+            if utilization >= self._thresholds.http_active_critical:
+                return [PoolAlert(pool_type="http", message=f"HTTP 连接池使用率严重过高: {utilization:.1%}", severity=AlertSeverity.CRITICAL, metric_name="utilization", metric_value=utilization, threshold=self._thresholds.http_active_critical)]
+            if utilization >= self._thresholds.http_active_warn:
+                return [PoolAlert(pool_type="http", message=f"HTTP 连接池使用率偏高: {utilization:.1%}", severity=AlertSeverity.WARNING, metric_name="utilization", metric_value=utilization, threshold=self._thresholds.http_active_warn)]
+            return []
+        except Exception:
+            logger.exception("HTTP 告警检查失败")
+            return []
+
     def check_alerts(self) -> list[PoolAlert]:
-        """检查所有连接池是否有指标超过告警阈值。
+        """检查所有连接池是否有指标超过告警阈值。"""
+        alerts = self._check_db_alerts() + self._check_http_alerts()
 
-        Returns:
-            当前活跃的告警列表。
-        """
-        alerts: list[PoolAlert] = []
+        POOL_ALERT_COUNT.labels(severity="warning").set(sum(1 for a in alerts if a.severity == AlertSeverity.WARNING))
+        POOL_ALERT_COUNT.labels(severity="critical").set(sum(1 for a in alerts if a.severity == AlertSeverity.CRITICAL))
 
-        # 数据库连接池告警
-        if self._db_pool is not None:
-            try:
-                db_stats = self._db_pool.get_pool_stats()
-                pool_size = db_stats["pool_size"]
-                checked_out = db_stats["checkedout"]
-                overflow = db_stats.get("overflow", 0)
-                total = pool_size + overflow
-
-                if total > 0:
-                    utilization = checked_out / total
-                    if utilization >= self._thresholds.db_utilization_critical:
-                        alerts.append(
-                            PoolAlert(
-                                pool_type="database",
-                                message=f"数据库连接池使用率严重过高: {utilization:.1%}",
-                                severity=AlertSeverity.CRITICAL,
-                                metric_name="utilization",
-                                metric_value=utilization,
-                                threshold=self._thresholds.db_utilization_critical,
-                            )
-                        )
-                    elif utilization >= self._thresholds.db_utilization_warn:
-                        alerts.append(
-                            PoolAlert(
-                                pool_type="database",
-                                message=f"数据库连接池使用率偏高: {utilization:.1%}",
-                                severity=AlertSeverity.WARNING,
-                                metric_name="utilization",
-                                metric_value=utilization,
-                                threshold=self._thresholds.db_utilization_warn,
-                            )
-                        )
-            except Exception:
-                logger.exception("数据库告警检查失败")
-
-        # HTTP 连接池告警
-        if self._http_pool is not None:
-            try:
-                http_stats = self._http_pool.get_pool_stats()
-                max_conn = http_stats.get("max_connections", 0)
-                active = http_stats.get("active", 0)
-
-                if max_conn > 0:
-                    utilization = active / max_conn
-                    if utilization >= self._thresholds.http_active_critical:
-                        alerts.append(
-                            PoolAlert(
-                                pool_type="http",
-                                message=f"HTTP 连接池使用率严重过高: {utilization:.1%}",
-                                severity=AlertSeverity.CRITICAL,
-                                metric_name="utilization",
-                                metric_value=utilization,
-                                threshold=self._thresholds.http_active_critical,
-                            )
-                        )
-                    elif utilization >= self._thresholds.http_active_warn:
-                        alerts.append(
-                            PoolAlert(
-                                pool_type="http",
-                                message=f"HTTP 连接池使用率偏高: {utilization:.1%}",
-                                severity=AlertSeverity.WARNING,
-                                metric_name="utilization",
-                                metric_value=utilization,
-                                threshold=self._thresholds.http_active_warn,
-                            )
-                        )
-            except Exception:
-                logger.exception("HTTP 告警检查失败")
-
-        # 上报 Prometheus
-        warning_count = sum(1 for a in alerts if a.severity == AlertSeverity.WARNING)
-        critical_count = sum(1 for a in alerts if a.severity == AlertSeverity.CRITICAL)
-        POOL_ALERT_COUNT.labels(severity="warning").set(warning_count)
-        POOL_ALERT_COUNT.labels(severity="critical").set(critical_count)
-
-        # 记录日志
         for alert in alerts:
             if alert.severity == AlertSeverity.CRITICAL:
                 logger.error("[连接池告警] %s", alert.message)
