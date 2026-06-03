@@ -1474,6 +1474,36 @@ def _phase1_prepare_context(
     return _preferred_ids, _scene_requirements, _scene_matched_ids, max_pois, budget_limit, phases
 
 
+def _check_late_night_business_hours(
+    poi: dict[str, Any],
+    open_t: Any,
+    close_t: Any,
+    arrival_as_time: Any,
+) -> tuple[float, Any] | None:
+    """检查深夜场景下的营业时间。返回 (wait, arrival) 或 None(剪枝)。"""
+    if poi.get("category", "") in _OUTDOOR_CATS:
+        hours = poi.get("business_hours", "")
+        if not hours or hours == "00:00-23:59" or "24小时" in str(poi.get("tags", [])):
+            return 0.0, arrival_as_time
+
+    open_min = open_t.hour * 60 + open_t.minute
+    close_min = close_t.hour * 60 + close_t.minute
+    arrival_min = arrival_as_time.hour * 60 + arrival_as_time.minute
+
+    if close_min < open_min:
+        if not (arrival_min >= open_min or arrival_min <= close_min):
+            return None
+        return 0.0, arrival_as_time
+
+    wait = 0.0
+    if arrival_as_time < open_t:
+        wait = (open_t - arrival_as_time).total_seconds() / 60
+        arrival_as_time = open_t
+    if arrival_as_time > close_t:
+        return None
+    return wait, arrival_as_time
+
+
 def _phase1_check_time_window(
     poi: dict[str, Any],
     current_poi: dict[str, Any] | None,
@@ -1496,39 +1526,18 @@ def _phase1_check_time_window(
     arrival_as_time = parse_time(format_time(arrival))
     wait = 0.0
 
-    # 深夜场景营业时间检查（考虑跨午夜）
     if is_late_night:
-        if poi.get("category", "") in _OUTDOOR_CATS:
-            hours = poi.get("business_hours", "")
-            if not hours or hours == "00:00-23:59" or "24小时" in str(poi.get("tags", [])):
-                pass  # 不检查
-            else:
-                pass
-        else:
-            open_min = open_t.hour * 60 + open_t.minute
-            close_min = close_t.hour * 60 + close_t.minute
-            arrival_min = arrival_as_time.hour * 60 + arrival_as_time.minute
-
-            if close_min < open_min:
-                if arrival_min >= open_min or arrival_min <= close_min:
-                    pass  # 在营业时段内
-                else:
-                    return None  # 不在营业时段，剪枝
-            else:
-                if arrival_as_time < open_t:
-                    wait = (open_t - arrival_as_time).total_seconds() / 60
-                    arrival_as_time = open_t
-                if arrival_as_time > close_t:
-                    return None  # 已关门，剪枝
+        result = _check_late_night_business_hours(poi, open_t, close_t, arrival_as_time)
+        if result is None:
+            return None
+        wait, arrival_as_time = result
     else:
-        # 正常时段营业时间检查
         if arrival_as_time < open_t:
             wait = (open_t - arrival_as_time).total_seconds() / 60
             arrival_as_time = open_t
         if arrival_as_time > close_t:
             return None
 
-    # 剪枝：离开时间不超过用户结束时间
     if end_time:
         stay_min = poi.get("avg_stay_min", 60)
         departure_minutes = arrival_as_time.hour * 60 + arrival_as_time.minute + stay_min
@@ -1536,7 +1545,6 @@ def _phase1_check_time_window(
         if departure_minutes - end_minutes > _BUDGET_END_MARGIN_MINUTES:
             return None
 
-    # 预算硬约束
     if budget_limit > 0 and running_budget + poi.get("avg_price", 0) > budget_limit:
         return None
 
