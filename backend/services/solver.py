@@ -1235,7 +1235,13 @@ def _select_diverse_build_mixed_scorer(
         if _input_scene_tags and set(p.get("_scene_tags", [])) & _input_scene_tags:
             score += _INPUT_SCENE_MATCH_BONUS
 
-        poi_text = p.get("name", "") + " " + " ".join(p.get("tags", [])) + " " + " ".join(p.get("_scene_tags", []))
+        poi_text = (
+            p.get("name", "")
+            + " "
+            + " ".join(p.get("tags", []))
+            + " "
+            + " ".join(p.get("_scene_tags", []))
+        )
 
         for constraint, keywords in _ACTIVITY_KEYWORDS.items():
             if constraint in hard_constraints and any(kw in poi_text for kw in keywords):
@@ -1304,12 +1310,32 @@ def _select_diverse_select_by_category(
     used_ids: set[str] = set()
 
     # 从preferred cats中选择
-    _select_from_categories(by_category, preferred_cats, excluded_cats, per_cat_max, max_candidates, mixed_score, selected, used_ids)
+    _select_from_categories(
+        by_category,
+        preferred_cats,
+        excluded_cats,
+        per_cat_max,
+        max_candidates,
+        mixed_score,
+        selected,
+        used_ids,
+    )
 
     # 从other cats中补充
     if len(selected) < max_candidates:
-        other_cats = [cat for cat in by_category if cat not in excluded_cats and cat not in preferred_cats]
-        _select_from_categories(by_category, other_cats, excluded_cats, 2, max_candidates, mixed_score, selected, used_ids)
+        other_cats = [
+            cat for cat in by_category if cat not in excluded_cats and cat not in preferred_cats
+        ]
+        _select_from_categories(
+            by_category,
+            other_cats,
+            excluded_cats,
+            2,
+            max_candidates,
+            mixed_score,
+            selected,
+            used_ids,
+        )
 
     # 确保包含餐饮类POI
     if not any(s.get("category") == "餐饮" for s in selected) and "餐饮" in by_category:
@@ -2645,7 +2671,9 @@ def _init_solver_state(
         tl.gamma_multiplier = 1.0
 
 
-def _inject_nse_pois(filtered: list[dict[str, Any]], user_intent: dict[str, Any], start_time: str) -> None:
+def _inject_nse_pois(
+    filtered: list[dict[str, Any]], user_intent: dict[str, Any], start_time: str
+) -> None:
     """注入非标体验POI。"""
     city = user_intent.get("city", "珠海")
     try:
@@ -2674,10 +2702,17 @@ def _inject_nse_pois(filtered: list[dict[str, Any]], user_intent: dict[str, Any]
             "tags": nse.get("tags", []),
             "queue_prone": False,
             "avg_stay_min": nse.get("duration_min", 60),
-            "emotion_tags": nse.get("emotion_tags", {
-                "excitement": 0.5, "tranquility": 0.5, "sociability": 0.5,
-                "culture_depth": 0.5, "surprise": 0.5, "physical_demand": 0.3,
-            }),
+            "emotion_tags": nse.get(
+                "emotion_tags",
+                {
+                    "excitement": 0.5,
+                    "tranquility": 0.5,
+                    "sociability": 0.5,
+                    "culture_depth": 0.5,
+                    "surprise": 0.5,
+                    "physical_demand": 0.3,
+                },
+            ),
             "_is_nse": True,
         }
         if not any(p.get("id") == nse_poi["id"] for p in filtered):
@@ -2706,15 +2741,17 @@ def _ensure_min_route_length(
             arrival = last_departure + timedelta(minutes=travel)
             stay = poi.get("avg_stay_min", 60)
             departure = arrival + timedelta(minutes=stay)
-            route.append({
-                "poi": poi,
-                "arrival_time": format_time(arrival),
-                "departure_time": format_time(departure),
-                "travel_from_prev": {
-                    "distance_m": round(estimate_distance(last, poi)),
-                    "time_min": round(travel),
-                },
-            })
+            route.append(
+                {
+                    "poi": poi,
+                    "arrival_time": format_time(arrival),
+                    "departure_time": format_time(departure),
+                    "travel_from_prev": {
+                        "distance_m": round(estimate_distance(last, poi)),
+                        "time_min": round(travel),
+                    },
+                }
+            )
             used_ids.add(poi.get("id"))
 
     logger.debug("最低长度保护: 补充到%d站", len(route))
@@ -2776,10 +2813,15 @@ def _run_solver_phases(
 
     route, breathing_spots = _phase3_breathing(route, filtered, user_intent, start_time)
     for spot in breathing_spots:
-        _report_progress("breathing", {"phase": "休息", "spot": spot.get("name", "?"), "found": len(breathing_spots)})
+        _report_progress(
+            "breathing",
+            {"phase": "休息", "spot": spot.get("name", "?"), "found": len(breathing_spots)},
+        )
 
     route = _phase4_finale(route, filtered, end_point)
-    _report_progress("finale", {"phase": "收尾", "last_poi": route[-1]["poi"]["name"] if route else "?"})
+    _report_progress(
+        "finale", {"phase": "收尾", "last_poi": route[-1]["poi"]["name"] if route else "?"}
+    )
 
     if start_point and route:
         route = _insert_start_point(route, start_point, start_time)
@@ -2838,7 +2880,9 @@ def solve_route(
     if filtered is None:
         return empty_result
 
-    route, breathing_spots = _run_solver_phases(filtered, user_intent, start_time, start_point, end_point)
+    route, breathing_spots = _run_solver_phases(
+        filtered, user_intent, start_time, start_point, end_point
+    )
     if not route:
         return empty_result
 
