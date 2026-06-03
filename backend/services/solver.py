@@ -2605,6 +2605,191 @@ def _phase5_assemble(
 # ---------------------------------------------------------------------------
 
 
+def _init_solver_state(
+    user_intent: dict[str, Any],
+    start_time: str,
+    perception_ctx: Any,
+    dynamic_weights: dict[str, float] | None,
+    progress_callback: Callable | None,
+) -> None:
+    """初始化求解器状态。"""
+    tl = _get_thread_state()
+    tl.current_weights = dynamic_weights
+    tl.progress_callback = progress_callback
+
+    # 预计算深夜标志
+    _is_late_night = False
+    if "late_night" in user_intent.get("hard_constraints", []):
+        try:
+            _sh, _sm = start_time.split(":")
+            _start_m = int(_sh) * 60 + int(_sm)
+            _end_str = user_intent.get("time", {}).get("end", "22:00")
+            _eh, _em = _end_str.split(":")
+            _end_m = int(_eh) * 60 + int(_em)
+            _is_late_night = _end_m < _start_m or _start_m >= 22 * 60 or _start_m <= 6 * 60
+        except (ValueError, AttributeError):
+            pass
+    user_intent["_is_late_night"] = _is_late_night
+
+    # 感知上下文 → 动态调整疲劳惩罚权重
+    if perception_ctx is not None:
+        fatigue = getattr(perception_ctx, "fatigue_level", 0.0)
+        if fatigue > 0.7:
+            tl.gamma_multiplier = 3.0
+        elif fatigue > 0.5:
+            tl.gamma_multiplier = 2.0
+        else:
+            tl.gamma_multiplier = 1.0
+    else:
+        tl.gamma_multiplier = 1.0
+
+
+def _inject_nse_pois(filtered: list[dict[str, Any]], user_intent: dict[str, Any], start_time: str) -> None:
+    """注入非标体验POI。"""
+    city = user_intent.get("city", "珠海")
+    try:
+        start_h = int(start_time.split(":")[0])
+    except Exception:
+        start_h = 9
+
+    nse_list = _get_nse_for_city(city, start_h)
+    if not nse_list:
+        return
+
+    added = 0
+    for nse in nse_list:
+        if len(filtered) >= 30 + len(nse_list):
+            break
+        nse_poi = {
+            "id": nse.get("id", f"nse_{len(filtered)}"),
+            "name": nse.get("name", ""),
+            "city": city,
+            "category": nse.get("category", "其他"),
+            "rating": 4.5,
+            "avg_price": nse.get("price", 0),
+            "lat": 0,
+            "lng": 0,
+            "business_hours": nse.get("best_time", "00:00-23:59"),
+            "tags": nse.get("tags", []),
+            "queue_prone": False,
+            "avg_stay_min": nse.get("duration_min", 60),
+            "emotion_tags": nse.get("emotion_tags", {
+                "excitement": 0.5, "tranquility": 0.5, "sociability": 0.5,
+                "culture_depth": 0.5, "surprise": 0.5, "physical_demand": 0.3,
+            }),
+            "_is_nse": True,
+        }
+        if not any(p.get("id") == nse_poi["id"] for p in filtered):
+            filtered.append(nse_poi)
+            added += 1
+
+    if added:
+        _report_progress("nse_injected", {"phase": "非标体验", "count": added})
+
+
+def _ensure_min_route_length(
+    route: list[dict[str, Any]], filtered: list[dict[str, Any]], min_len: int = 3
+) -> list[dict[str, Any]]:
+    """确保路线最少有min_len个POI。"""
+    if len(route) >= min_len:
+        return route
+
+    used_ids = {s["poi"].get("id") for s in route}
+    for poi in filtered:
+        if len(route) >= min_len:
+            break
+        if poi.get("id") not in used_ids:
+            last = route[-1]["poi"]
+            travel = estimate_travel_time(last, poi)
+            last_departure = parse_time(route[-1]["departure_time"])
+            arrival = last_departure + timedelta(minutes=travel)
+            stay = poi.get("avg_stay_min", 60)
+            departure = arrival + timedelta(minutes=stay)
+            route.append({
+                "poi": poi,
+                "arrival_time": format_time(arrival),
+                "departure_time": format_time(departure),
+                "travel_from_prev": {
+                    "distance_m": round(estimate_distance(last, poi)),
+                    "time_min": round(travel),
+                },
+            })
+            used_ids.add(poi.get("id"))
+
+    logger.debug("最低长度保护: 补充到%d站", len(route))
+    return route
+
+
+def _prepare_candidates(
+    candidates: list[dict[str, Any]],
+    user_intent: dict[str, Any],
+    start_time: str,
+    empty_result: dict[str, Any],
+) -> list[dict[str, Any]] | None:
+    """准备候选POI列表，返回None表示应返回空结果。"""
+    selected = _select_diverse_candidates(candidates, user_intent, max_candidates=30)
+    filtered = filter_candidates(selected, user_intent)
+    for poi in filtered:
+        tag_poi(poi)
+    _assign_area_ids(filtered)
+    _inject_nse_pois(filtered, user_intent, start_time)
+
+    if not filtered:
+        if "late_night" in user_intent.get("hard_constraints", []):
+            empty_result["_impossible_hints"] = ["凌晨时段营业的POI较少，建议尝试白天时段"]
+            _report_progress("filtered", {"phase": "筛选", "remaining": 0})
+            return None
+        filtered = filter_candidates(candidates[:100], user_intent)
+        if not filtered:
+            return None
+
+    budget_pp = user_intent.get("budget", {}).get("per_person", 500)
+    if not any(p.get("avg_price", 0) <= budget_pp for p in filtered) and budget_pp < 100:
+        empty_result["_impossible_hints"] = [f"预算{budget_pp}元/人偏低，当前候选中没有此价位的POI"]
+    _report_progress("filtered", {"phase": "筛选", "remaining": len(filtered)})
+
+    return filtered
+
+
+def _run_solver_phases(
+    filtered: list[dict[str, Any]],
+    user_intent: dict[str, Any],
+    start_time: str,
+    start_point: dict[str, Any] | None,
+    end_point: dict[str, Any] | None,
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    """执行求解器各阶段，返回 (route, breathing_spots)。"""
+    route = _phase1_initialize(filtered, user_intent, start_time)
+    _report_progress("initial_route", {"phase": "初排", "length": len(route)})
+
+    if not route:
+        return [], []
+
+    route = _ensure_min_route_length(route, filtered)
+    if not route:
+        return [], []
+
+    route = _enforce_category_diversity(route, filtered, user_intent, start_time)
+    route = _phase2_improve(route, user_intent, start_time)
+    _report_progress("optimizing", {"phase": "优化", "iterations": 50, "length": len(route)})
+
+    route, breathing_spots = _phase3_breathing(route, filtered, user_intent, start_time)
+    for spot in breathing_spots:
+        _report_progress("breathing", {"phase": "休息", "spot": spot.get("name", "?"), "found": len(breathing_spots)})
+
+    route = _phase4_finale(route, filtered, end_point)
+    _report_progress("finale", {"phase": "收尾", "last_poi": route[-1]["poi"]["name"] if route else "?"})
+
+    if start_point and route:
+        route = _insert_start_point(route, start_point, start_time)
+        _report_progress("start_point", {"phase": "起点", "point": start_point})
+    if end_point and route:
+        route = _insert_end_point(route, end_point)
+        _report_progress("end_point", {"phase": "终点", "point": end_point})
+
+    return route, breathing_spots
+
+
 def solve_route(
     candidates: list[dict[str, Any]],
     user_intent: dict[str, Any],
@@ -2630,41 +2815,13 @@ def solve_route(
     Returns:
         包含 route, emotion_curve, total_cost, unused_candidates, breathing_spots 的字典
     """
-    # 从 user_intent 获取起终点（如果参数未提供）
     if start_point is None:
         start_point = user_intent.get("start_point")
     if end_point is None:
         end_point = user_intent.get("end_point")
-    # 设置线程局部状态（替代全局变量，防止并发竞态）
-    tl = _get_thread_state()
-    tl.current_weights = dynamic_weights
-    tl.progress_callback = progress_callback
 
-    # 预计算深夜标志（跨午夜或start在22:00-06:00之间）
-    _is_late_night = False
-    if "late_night" in user_intent.get("hard_constraints", []):
-        try:
-            _sh, _sm = start_time.split(":")
-            _start_m = int(_sh) * 60 + int(_sm)
-            _end_str = user_intent.get("time", {}).get("end", "22:00")
-            _eh, _em = _end_str.split(":")
-            _end_m = int(_eh) * 60 + int(_em)
-            _is_late_night = _end_m < _start_m or _start_m >= 22 * 60 or _start_m <= 6 * 60
-        except (ValueError, AttributeError):
-            pass
-    user_intent["_is_late_night"] = _is_late_night
+    _init_solver_state(user_intent, start_time, perception_ctx, dynamic_weights, progress_callback)
 
-    # 感知上下文 → 动态调整疲劳惩罚权重
-    if perception_ctx is not None:
-        fatigue = getattr(perception_ctx, "fatigue_level", 0.0)
-        if fatigue > 0.7:
-            tl.gamma_multiplier = 3.0
-        elif fatigue > 0.5:
-            tl.gamma_multiplier = 2.0
-        else:
-            tl.gamma_multiplier = 1.0
-    else:
-        tl.gamma_multiplier = 1.0
     empty_result: dict[str, Any] = {
         "route": [],
         "emotion_curve": [],
@@ -2676,151 +2833,12 @@ def solve_route(
     if not candidates:
         return empty_result
 
-    # Phase 0: 按意图筛选候选（确保category多样性）
-    selected = _select_diverse_candidates(candidates, user_intent, max_candidates=30)
+    filtered = _prepare_candidates(candidates, user_intent, start_time, empty_result)
+    if filtered is None:
+        return empty_result
 
-    # 约束过滤
-    filtered = filter_candidates(selected, user_intent)
-
-    # 场景标签：给所有候选 POI 打场景标签
-    for poi in filtered:
-        tag_poi(poi)
-
-    # 地理聚类：给 POI 分配区域 ID，确保路线不走回头路
-    _assign_area_ids(filtered)
-
-    # 集成非标体验（城市特色活动，按时间窗口匹配）
-    city = user_intent.get("city", "珠海")
-    try:
-        start_h = int(start_time.split(":")[0])
-    except Exception:
-        start_h = 9
-    nse_list = _get_nse_for_city(city, start_h)
-    if nse_list:
-        added = 0
-        for nse in nse_list:
-            if len(filtered) >= 30 + len(nse_list):
-                break
-            # 转成类似POI的格式供求解器处理
-            nse_poi = {
-                "id": nse.get("id", f"nse_{len(filtered)}"),
-                "name": nse.get("name", ""),
-                "city": city,
-                "category": nse.get("category", "其他"),
-                "rating": 4.5,
-                "avg_price": nse.get("price", 0),
-                "lat": 0,
-                "lng": 0,  # 无坐标，跟随上一个POI
-                "business_hours": nse.get("best_time", "00:00-23:59"),
-                "tags": nse.get("tags", []),
-                "queue_prone": False,
-                "avg_stay_min": nse.get("duration_min", 60),
-                "emotion_tags": nse.get(
-                    "emotion_tags",
-                    {
-                        "excitement": 0.5,
-                        "tranquility": 0.5,
-                        "sociability": 0.5,
-                        "culture_depth": 0.5,
-                        "surprise": 0.5,
-                        "physical_demand": 0.3,
-                    },
-                ),
-                "_is_nse": True,
-            }
-            if not any(p.get("id") == nse_poi["id"] for p in filtered):
-                filtered.append(nse_poi)
-                added += 1
-        if added:
-            _report_progress("nse_injected", {"phase": "非标体验", "count": added})
-
-    # late_night场景：如果过滤后没有候选，不要fallback放宽约束（会导致白天POI被选中）
-    if not filtered:
-        if "late_night" in user_intent.get("hard_constraints", []):
-            # 深夜场景无候选，返回空路线并提示用户
-            empty_result["_impossible_hints"] = ["凌晨时段营业的POI较少，建议尝试白天时段"]
-            _report_progress("filtered", {"phase": "筛选", "remaining": 0})
-            return empty_result
-        # 其他场景：放宽约束再试
-        filtered = filter_candidates(candidates[:100], user_intent)
-        if not filtered:
-            return empty_result
-
-    # ── 不可解场景检测 ──
-    _impossible_hints = []
-    budget_pp = user_intent.get("budget", {}).get("per_person", 500)
-    affordable = [p for p in filtered if p.get("avg_price", 0) <= budget_pp]
-    if not affordable and budget_pp < 100:
-        _impossible_hints.append(f"预算{budget_pp}元/人偏低，当前候选中没有此价位的POI")
-    if _impossible_hints:
-        empty_result["_impossible_hints"] = _impossible_hints
-
-    _report_progress("filtered", {"phase": "筛选", "remaining": len(filtered)})
-
-    # Phase 1: 贪心初始化
-    route = _phase1_initialize(filtered, user_intent, start_time)
-    _report_progress("initial_route", {"phase": "初排", "length": len(route)})
-
-    # 最低路线长度保护：如果Phase 1选出的POI太少，从候选中补充
-    if 0 < len(route) < 3:
-        used_ids = {s["poi"].get("id") for s in route}
-        for poi in filtered:
-            if len(route) >= 3:
-                break
-            if poi.get("id") not in used_ids:
-                # 简单添加到最后
-                last = route[-1]["poi"]
-                travel = estimate_travel_time(last, poi)
-                last_departure = parse_time(route[-1]["departure_time"])
-                arrival = last_departure + timedelta(minutes=travel)
-                stay = poi.get("avg_stay_min", 60)
-                departure = arrival + timedelta(minutes=stay)
-                route.append(
-                    {
-                        "poi": poi,
-                        "arrival_time": format_time(arrival),
-                        "departure_time": format_time(departure),
-                        "travel_from_prev": {
-                            "distance_m": round(estimate_distance(last, poi)),
-                            "time_min": round(travel),
-                        },
-                    }
-                )
-                used_ids.add(poi.get("id"))
-        logger.debug("最低长度保护: 补充到%d站", len(route))
-
+    route, breathing_spots = _run_solver_phases(filtered, user_intent, start_time, start_point, end_point)
     if not route:
         return empty_result
 
-    # Phase 1.5: 强制category多样性（替换连续同类POI）
-    route = _enforce_category_diversity(route, filtered, user_intent, start_time)
-
-    # Phase 2: 2-opt 局部改进
-    route = _phase2_improve(route, user_intent, start_time)
-    _report_progress("optimizing", {"phase": "优化", "iterations": 50, "length": len(route)})
-
-    # Phase 3: 呼吸空间插入
-    route, breathing_spots = _phase3_breathing(route, filtered, user_intent, start_time)
-    for spot in breathing_spots:
-        _report_progress(
-            "breathing",
-            {"phase": "休息", "spot": spot.get("name", "?"), "found": len(breathing_spots)},
-        )
-
-    # Phase 4: 高潮收尾检查（考虑终点距离）
-    route = _phase4_finale(route, filtered, end_point)
-    last_name = route[-1]["poi"]["name"] if route else "?"
-    _report_progress("finale", {"phase": "收尾", "last_poi": last_name})
-
-    # Phase 4.5: 起终点插入
-    if start_point and route:
-        # 插入起点到路线首位
-        route = _insert_start_point(route, start_point, start_time)
-        _report_progress("start_point", {"phase": "起点", "point": start_point})
-    if end_point and route:
-        # 插入终点到路线末位
-        route = _insert_end_point(route, end_point)
-        _report_progress("end_point", {"phase": "终点", "point": end_point})
-
-    # Phase 5: 输出组装
     return _phase5_assemble(route, filtered, breathing_spots, user_intent)
