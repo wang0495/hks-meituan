@@ -38,6 +38,7 @@ few-shot示例理解这种微妙区别，而关键词匹配永远做不到。
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 
@@ -381,34 +382,23 @@ async def _compute_pools(candidates: list[dict], state: TravelState) -> dict[str
 # Main exported function
 # ---------------------------------------------------------------------------
 async def expert_router(state: TravelState) -> dict:
-    """LLM-based expert router: classify scene, activate experts, compute pools.
-
-    优化：优先使用规则快速路径（ADR-ER1），跳过LLM调用节省2-3秒。
-    """
+    """LLM-based expert router: classify scene, activate experts, compute pools."""
     meta = AGENT_META.get("expert_router", {})
     await sse_emit(state, "agent_start", {"agent": "expert_router", **meta})
+    await sse_emit(state, "agent_thinking", {"agent": "expert_router", "text": "LLM 分析场景类型，决定激活哪些专家..."})
 
     user_input = state.get("user_input", "")
     user_intent = state.get("user_intent", {})
     candidates = state.get("candidates", [])
 
-    # --- ADR-ER1: 规则快速路径（省掉LLM调用，节省2-3秒） ---
-    rule_scene = _rule_precheck(user_input, user_intent)
+    # --- LLM classification + pool computation in parallel (ADR-PERF) ---
+    # _compute_pools only needs candidates + state, not the classification result.
+    # Run both concurrently to save 1-3s (destination LLM detection overlaps with classification).
+    from backend.agents_v3.experts.base import _llm_decide
 
-    if rule_scene:
-        # 规则命中，直接用规则结果
-        await sse_emit(state, "agent_thinking", {"agent": "expert_router", "text": f"规则快速识别: {rule_scene}"})
-        result = _fallback_result(user_input, user_intent)
-        result["scene_type"] = rule_scene
-        logger.info("expert_router: 规则快速路径命中 %s", rule_scene)
-    else:
-        # 规则未命中，走LLM分类
-        await sse_emit(state, "agent_thinking", {"agent": "expert_router", "text": "LLM 分析场景类型，决定激活哪些专家..."})
-        from backend.agents_v3.experts.base import _llm_decide
-
-        result = None
+    async def _classify():
         try:
-            result = await _llm_decide(
+            return await _llm_decide(
                 _SYSTEM_PROMPT,
                 f"用户输入：{user_input}",
                 prefix="LLM",
@@ -416,9 +406,14 @@ async def expert_router(state: TravelState) -> dict:
             )
         except Exception:
             logger.warning("LLM intent enrichment failed, falling back to rules", exc_info=True)
+            return None
 
-        if result is None:
-            result = _fallback_result(user_input, user_intent)
+    classify_task = asyncio.create_task(_classify())
+    pools_task = asyncio.create_task(_compute_pools(candidates, state))
+
+    result = await classify_task
+    if result is None:
+        result = _fallback_result(user_input, user_intent)
 
     # Normalize LLM-returned scene_type to a valid type
     result["scene_type"] = _normalize_scene_type(result.get("scene_type", ""))
@@ -441,7 +436,8 @@ async def expert_router(state: TravelState) -> dict:
         weights["food"] = max(float(weights.get("food", 0)), 0.3)
         if "food" not in active:
             active.append("food")
-    pools = await _compute_pools(candidates, state)
+
+    pools = await pools_task
 
     await sse_emit(state, "agent_result", {"agent": "expert_router", "summary": f"场景: {result['scene_type']}，激活: {', '.join(active)}"})
 
