@@ -1543,6 +1543,14 @@ def _phase1_check_time_window(
     return (True, wait, arrival_as_time)
 
 
+def _check_scene_tag_match(poi_scene_tags: set[str], text: str) -> bool:
+    """检查文本中的关键词是否匹配POI场景标签。"""
+    for keyword, target_tags in _INPUT_TO_SCENE_TAGS.items():
+        if keyword in text and (poi_scene_tags & target_tags):
+            return True
+    return False
+
+
 def _phase1_score_scene_bonus(
     poi: dict[str, Any],
     user_intent: dict[str, Any],
@@ -1553,47 +1561,37 @@ def _phase1_score_scene_bonus(
     poi_scene_tags = set(poi.get("_scene_tags", []))
     raw_input = user_intent.get("_raw_input", "")
 
-    # 1. 用户输入文本 → 场景标签直接匹配
-    input_matched = False
-    for keyword, target_tags in _INPUT_TO_SCENE_TAGS.items():
-        if keyword in raw_input and (poi_scene_tags & target_tags):
-            scene_bonus += _INTENT_SCORE_STRONG
-            input_matched = True
-            break
+    # 1. 用户输入文本直接匹配
+    input_matched = _check_scene_tag_match(poi_scene_tags, raw_input)
 
-    # 1b. hard_constraints → 场景标签匹配
+    # 1b. hard_constraints匹配
     if not input_matched:
-        hard_constraints = user_intent.get("hard_constraints", [])
-        for constraint in hard_constraints:
-            for keyword, target_tags in _INPUT_TO_SCENE_TAGS.items():
-                if keyword in constraint and (poi_scene_tags & target_tags):
-                    scene_bonus += _INTENT_SCORE_STRONG
-                    input_matched = True
-                    break
-            if input_matched:
+        for constraint in user_intent.get("hard_constraints", []):
+            if _check_scene_tag_match(poi_scene_tags, constraint):
+                input_matched = True
                 break
 
-    # 2. 偏好 → 场景标签间接匹配
-    pref_matched = False
-    if not input_matched:
+    if input_matched:
+        scene_bonus += _INTENT_SCORE_STRONG
+    else:
+        # 2. 偏好间接匹配
+        pref_matched = False
         for pref_key, pref_val in preferences.items():
             if pref_val > 0.3:
                 matched_tags = _PREF_TO_SCENE_TAGS.get(pref_key, set())
                 if poi_scene_tags & matched_tags:
                     scene_bonus += _INTENT_SCORE_MEDIUM
                     pref_matched = True
-        has_active_prefs = any(v > 0.3 for v in preferences.values())
-        if has_active_prefs and not pref_matched and not input_matched:
+
+        if any(v > 0.3 for v in preferences.values()) and not pref_matched:
             scene_bonus += 0.5
 
     # 3. preferred_categories匹配
-    _pref_cats = user_intent.get("preferred_categories", [])
-    _cat_bonus = 0.0
-    if _pref_cats and poi.get("category", "") in _pref_cats:
-        _cat_idx = _pref_cats.index(poi.get("category", ""))
-        _cat_bonus += _INTENT_SCORE_WEAK + _cat_idx * 1.0
+    pref_cats = user_intent.get("preferred_categories", [])
+    if pref_cats and poi.get("category", "") in pref_cats:
+        scene_bonus += _INTENT_SCORE_WEAK + pref_cats.index(poi.get("category", "")) * 1.0
 
-    return scene_bonus + _cat_bonus
+    return scene_bonus
 
 
 def _calc_same_type_penalty(poi: dict, route: list[dict[str, Any]]) -> float:
