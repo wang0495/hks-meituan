@@ -1080,9 +1080,8 @@ def _is_poi_open_in_window(poi: dict, start_min: int, end_min: int) -> bool:
     cat = poi.get("category", "")
     hours = poi.get("business_hours", "")
 
-    if cat in _OUTDOOR_CATS:
-        if not hours or hours == "00:00-23:59" or "24小时" in str(poi.get("tags", [])):
-            return True
+    if cat in _OUTDOOR_CATS and (not hours or hours == "00:00-23:59" or "24小时" in str(poi.get("tags", []))):
+        return True
     if "00:00" in hours and ("23:59" in hours or hours.endswith("00:00")):
         return True
 
@@ -1793,9 +1792,7 @@ def _calc_scene_semantic_bonus(poi: dict[str, Any], scene_requirements: list[str
     )
     matched = 0
     for sr in scene_requirements:
-        if sr in poi_text:
-            matched += 1
-        elif any(syn in poi_text for syn in _SCENE_SYNONYMS.get(sr, [])):
+        if sr in poi_text or any(syn in poi_text for syn in _SCENE_SYNONYMS.get(sr, [])):
             matched += 1
 
     return matched * _SCENE_SEMANTIC_PHASE1_BONUS if matched > 0 else 0.0

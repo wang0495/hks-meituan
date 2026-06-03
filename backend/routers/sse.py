@@ -25,6 +25,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter(tags=["SSE"])
 
 _LLM_POLISH_TIMEOUT = 15.0  # LLM 润色超时秒数
+_background_tasks: set[asyncio.Task] = set()  # 防止后台任务被GC回收
 
 
 class SSERequest(BaseModel):
@@ -105,7 +106,9 @@ async def _execute_plan_stream(stream: SSEStream, user_input: str) -> None:
             except Exception:
                 logger.exception("[SSE] LLM 润色异常，保留模板文案")
 
-        asyncio.create_task(_polish_narrative())
+        task = asyncio.create_task(_polish_narrative())
+        _background_tasks.add(task)
+        task.add_done_callback(_background_tasks.discard)
 
     except Exception:
         logger.exception("SSE 流式规划出错")
@@ -124,6 +127,8 @@ async def plan_route_stream(request: Request) -> StreamingResponse:
 
     validated = SSERequest(**body)
     stream = SSEStream()
-    asyncio.create_task(_execute_plan_stream(stream, validated.user_input))
+    task = asyncio.create_task(_execute_plan_stream(stream, validated.user_input))
+    _background_tasks.add(task)
+    task.add_done_callback(_background_tasks.discard)
 
     return create_sse_response(stream)
