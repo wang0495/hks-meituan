@@ -1596,6 +1596,86 @@ def _phase1_score_scene_bonus(
     return scene_bonus + _cat_bonus
 
 
+def _calc_same_type_penalty(poi: dict, route: list[dict[str, Any]]) -> float:
+    """计算同类POI连续访问惩罚。"""
+    if not route:
+        return 0.0
+
+    curr_cat = poi.get("category", "")
+    consecutive = 0
+    for prev_step in reversed(route):
+        if prev_step["poi"].get("category", "") == curr_cat:
+            consecutive += 1
+        else:
+            break
+
+    penalty = 0.5 + consecutive * 1.0 if consecutive > 0 else 0.0
+
+    cat_count = sum(1 for s in route if s["poi"].get("category", "") == curr_cat)
+    cat_ratio = cat_count / len(route)
+    if cat_ratio >= _CAT_RATIO_HIGH:
+        penalty += 3.0
+    elif cat_ratio >= _CAT_RATIO_LOW:
+        penalty += 1.5
+
+    return penalty
+
+
+def _calc_scene_semantic_bonus(
+    poi: dict[str, Any], scene_requirements: list[str]
+) -> float:
+    """计算场景需求语义匹配加分。"""
+    if not scene_requirements:
+        return 0.0
+
+    poi_text = (
+        poi.get("name", "")
+        + " "
+        + " ".join(poi.get("tags", []))
+        + " "
+        + " ".join(poi.get("_scene_tags", []))
+    )
+    matched = 0
+    for sr in scene_requirements:
+        if sr in poi_text:
+            matched += 1
+        elif any(syn in poi_text for syn in _SCENE_SYNONYMS.get(sr, [])):
+            matched += 1
+
+    return matched * _SCENE_SEMANTIC_PHASE1_BONUS if matched > 0 else 0.0
+
+
+def _calc_economy_score(
+    poi: dict[str, Any],
+    route: list[dict[str, Any]],
+    max_pois: int,
+    user_intent: dict[str, Any],
+) -> float:
+    """计算经济引擎评分（杠杆率+预算节奏）。"""
+    enriched = enrich_poi_economics(poi)
+    leverage = enriched.get("experience_leverage", "medium")
+
+    score = 0.0
+    route_pos = len(route) / max_pois if max_pois > 0 else 0
+    if route_pos < 0.25 and poi.get("avg_price", 0) < 50:
+        score -= _BUDGET_RHYTHM_OPENING_BONUS
+    if route_pos > 0.75:
+        ev = enriched.get("experience_value", 5.0)
+        score -= ev * _BUDGET_RHYTHM_CLOSING_FACTOR
+
+    if leverage == "high":
+        score -= _ECONOMY_LEVERAGE_BONUS
+    elif leverage == "low":
+        score += _ECONOMY_LEVERAGE_PENALTY
+
+    budget_per_person = user_intent.get("budget", {}).get("per_person", 500)
+    budget_strictness = _get_weight("budget_strictness", 1.0)
+    if budget_per_person < _BUDGET_TIGHT_THRESHOLD * budget_strictness and leverage == "high":
+        score -= _BUDGET_TIGHT_LEVERAGE_BONUS
+
+    return score
+
+
 def _phase1_score_candidate(
     poi: dict[str, Any],
     travel: float,
@@ -1612,46 +1692,13 @@ def _phase1_score_candidate(
     budget_limit: float,
 ) -> float:
     """为候选POI计算综合评分（越低越好）。"""
-    # 情绪阶段匹配分数
     phase_score = -_score_poi_for_phase(poi, phase)
-
-    # 疲劳惩罚
     fatigue = fatigue_penalty(step_count, len(route))
-
-    # 同类惩罚（累积）
-    same_type = 0.0
-    if route:
-        curr_cat = poi.get("category", "")
-        consecutive = 0
-        for prev_step in reversed(route):
-            if prev_step["poi"].get("category", "") == curr_cat:
-                consecutive += 1
-            else:
-                break
-        if consecutive > 0:
-            same_type = 0.5 + consecutive * 1.0
-
-        # 全局category比例惩罚
-        cat_count = sum(1 for s in route if s["poi"].get("category", "") == curr_cat)
-        cat_ratio = cat_count / len(route)
-        if cat_ratio >= _CAT_RATIO_HIGH:
-            same_type += 3.0
-        elif cat_ratio >= _CAT_RATIO_LOW:
-            same_type += 1.5
-
-    # 化学反应评分
-    reaction_score = 0.0
-    if route:
-        reaction_score = chemical_reaction(route[-1]["poi"], poi)
-
-    # 感官交替评分
+    same_type = _calc_same_type_penalty(poi, route)
+    reaction_score = chemical_reaction(route[-1]["poi"], poi) if route else 0.0
     sensory_score = sensory_alternation([*route, {"poi": poi}])
-
-    # 区域切换惩罚
     area_penalty = _area_transition_penalty(route, current_poi, poi)
-
-    # 场景标签匹配加分
-    scene_and_cat_bonus = _phase1_score_scene_bonus(poi, user_intent)
+    scene_bonus = _phase1_score_scene_bonus(poi, user_intent)
 
     score = (
         _get_weight("alpha", _ALPHA) * (travel + wait)
@@ -1661,60 +1708,16 @@ def _phase1_score_candidate(
         + _get_weight("reaction", _REACTION_WEIGHT) * reaction_score
         + _get_weight("sensory", _SENSORY_WEIGHT) * sensory_score
         + _get_weight("area", 1.0) * area_penalty
-        + scene_and_cat_bonus
+        + scene_bonus
     )
 
-    # LLM Planner推荐加分
     if _preferred_ids and poi.get("id") in _preferred_ids:
         score -= _LLM_PLAN_PHASE1_BONUS
-
-    # scene_requirements匹配加分
     if _scene_matched_ids and poi.get("id") in _scene_matched_ids:
         score -= _SCENE_MATCHED_PHASE1_BONUS
 
-    # 场景需求语义匹配（含同义词扩展）
-    if _scene_requirements:
-        poi_text = (
-            poi.get("name", "")
-            + " "
-            + " ".join(poi.get("tags", []))
-            + " "
-            + " ".join(poi.get("_scene_tags", []))
-        )
-        matched_scenes = 0
-        for sr in _scene_requirements:
-            if sr in poi_text:
-                matched_scenes += 1
-            else:
-                synonyms = _SCENE_SYNONYMS.get(sr, [])
-                if any(syn in poi_text for syn in synonyms):
-                    matched_scenes += 1
-        if matched_scenes > 0:
-            score -= matched_scenes * _SCENE_SEMANTIC_PHASE1_BONUS
-
-    # ---------- 经济引擎评分 ----------
-    enriched = enrich_poi_economics(poi)
-    leverage = enriched.get("experience_leverage", "medium")
-
-    # 预算节奏
-    route_pos = len(route) / max_pois if max_pois > 0 else 0
-    if route_pos < 0.25 and poi.get("avg_price", 0) < 50:
-        score -= _BUDGET_RHYTHM_OPENING_BONUS
-    if route_pos > 0.75:
-        ev = enriched.get("experience_value", 5.0)
-        score -= ev * _BUDGET_RHYTHM_CLOSING_FACTOR
-
-    # 体验杠杆率
-    if leverage == "high":
-        score -= _ECONOMY_LEVERAGE_BONUS
-    elif leverage == "low":
-        score += _ECONOMY_LEVERAGE_PENALTY
-
-    # 预算紧张时高杠杆POI额外奖励
-    budget_per_person = user_intent.get("budget", {}).get("per_person", 500)
-    budget_strictness = _get_weight("budget_strictness", 1.0)
-    if budget_per_person < _BUDGET_TIGHT_THRESHOLD * budget_strictness and leverage == "high":
-        score -= _BUDGET_TIGHT_LEVERAGE_BONUS
+    score -= _calc_scene_semantic_bonus(poi, _scene_requirements)
+    score += _calc_economy_score(poi, route, max_pois, user_intent)
 
     return score
 
