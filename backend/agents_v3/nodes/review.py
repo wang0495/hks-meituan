@@ -43,82 +43,65 @@ def _get_area(lat, lng):
     return "其他"
 
 
+_GEO_THRESHOLD_BY_SCENE: dict[str, float] = {
+    "目的地型": 8.0, "特种兵型": 12.0, "美食型": 10.0, "休闲型": 15.0, "观光型": 12.0,
+}
+
+
+def _calc_max_distance(pois: list[dict]) -> float:
+    """计算POI列表中最大站间距。"""
+    max_dist = 0.0
+    for i in range(len(pois)):
+        for j in range(i + 1, len(pois)):
+            d = _haversine_km(pois[i]["lat"], pois[i]["lng"], pois[j]["lat"], pois[j]["lng"])
+            if d > max_dist:
+                max_dist = d
+    return max_dist
+
+
+def _extract_pois_with_coords(proposals: list[dict]) -> list[dict]:
+    """提取有坐标的POI。"""
+    pois = []
+    for p in proposals:
+        c = p.get("content", {})
+        lat, lng = c.get("lat", 0), c.get("lng", 0)
+        if lat and lng:
+            pois.append({"agent": p.get("agent", ""), "name": c.get("name", ""), "lat": lat, "lng": lng, "area": _get_area(lat, lng)})
+    return pois
+
+
+def _determine_keep_area(pois: list[dict], scene_type: str) -> str:
+    """确定保留区域。"""
+    if scene_type == "目的地型":
+        for p in pois:
+            if p["agent"] in ("destination", "destination_expert"):
+                return p["area"]
+    area_counts: dict[str, int] = {}
+    for p in pois:
+        area_counts[p["area"]] = area_counts.get(p["area"], 0) + 1
+    return max(area_counts, key=area_counts.get)
+
+
 def _rule_geo_check(proposals: list[dict], scene_type: str) -> list[dict]:
     """规则化地理检查：检测跨区POI，返回带坐标和区域信息的精确反馈。"""
     if len(proposals) < 2:
         return []
 
-    pois_with_coord = []
-    for p in proposals:
-        c = p.get("content", {})
-        lat, lng = c.get("lat", 0), c.get("lng", 0)
-        if lat and lng:
-            pois_with_coord.append(
-                {
-                    "agent": p.get("agent", ""),
-                    "name": c.get("name", ""),
-                    "lat": lat,
-                    "lng": lng,
-                    "area": _get_area(lat, lng),
-                }
-            )
-
-    if len(pois_with_coord) < 2:
+    pois = _extract_pois_with_coords(proposals)
+    if len(pois) < 2:
         return []
 
-    # 最大站间距
-    max_dist = 0
-    for i in range(len(pois_with_coord)):
-        for j in range(i + 1, len(pois_with_coord)):
-            d = _haversine_km(
-                pois_with_coord[i]["lat"],
-                pois_with_coord[i]["lng"],
-                pois_with_coord[j]["lat"],
-                pois_with_coord[j]["lng"],
-            )
-            if d > max_dist:
-                max_dist = d
-                (pois_with_coord[i], pois_with_coord[j])
-
-    threshold = {
-        "目的地型": 8.0,
-        "特种兵型": 12.0,
-        "美食型": 10.0,
-        "休闲型": 15.0,
-        "观光型": 12.0,
-    }.get(scene_type, 15.0)
-
-    if max_dist <= threshold:
+    max_dist = _calc_max_distance(pois)
+    if max_dist <= _GEO_THRESHOLD_BY_SCENE.get(scene_type, 15.0):
         return []
 
-    # 区域分桶
-    area_counts = {}
-    for p in pois_with_coord:
-        area_counts[p["area"]] = area_counts.get(p["area"], 0) + 1
-
-    # 目的地型：以 destination_expert 选的POI所在区域为准（核心目的地）
-    keep_area = None
-    if scene_type == "目的地型":
-        for p in pois_with_coord:
-            if p["agent"] in ("destination", "destination_expert"):
-                keep_area = p["area"]
-                break
-
-    # 其他类型：保留POI最多的区域
-    if not keep_area:
-        keep_area = max(area_counts, key=area_counts.get)
-
-    keep_pois = [p for p in pois_with_coord if p["area"] == keep_area]
+    keep_area = _determine_keep_area(pois, scene_type)
+    keep_pois = [p for p in pois if p["area"] == keep_area]
     center_lat = sum(p["lat"] for p in keep_pois) / len(keep_pois)
     center_lng = sum(p["lng"] for p in keep_pois) / len(keep_pois)
 
-    # 需要重选的agent
-    bad_agents = set()
-    bad_names = []
-    for p in pois_with_coord:
-        if p["area"] != keep_area:
-            bad_agents.add(p["agent"])
-            bad_names.append(p["name"])
+    bad_agents = {p["agent"] for p in pois if p["area"] != keep_area}
+    bad_names = [p["name"] for p in pois if p["area"] != keep_area]
 
     if not bad_agents:
         return []
