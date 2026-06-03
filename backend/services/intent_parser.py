@@ -153,20 +153,43 @@ _GENERIC_TOOLS = [
 _GENERIC_TOOL_CHOICE = {"type": "function", "function": {"name": "submit_result"}}
 
 
-async def _call_llm(user_input: str) -> dict | None:
-    """调用 LLM 解析意图，返回解析结果或 None（失败时）。带缓存+重试。"""
-    # Check cache
-    import hashlib
+def _get_cached_intent(cache_key: str) -> dict | None:
+    """从缓存获取意图解析结果。"""
     import time as _time
 
-    cache_key = hashlib.md5(user_input.encode()).hexdigest()
     entry = _intent_cache.get(cache_key)
     if entry is not None:
         result, ts = entry
         if _time.monotonic() - ts < _INTENT_CACHE_TTL:
             logger.debug("intent cache hit")
-            return {**result}  # shallow copy to avoid mutation
+            return {**result}
         del _intent_cache[cache_key]
+    return None
+
+
+def _cache_intent_result(cache_key: str, result: dict) -> None:
+    """缓存意图解析结果。"""
+    import time as _time
+
+    if len(_intent_cache) >= _INTENT_CACHE_MAX:
+        now_mono = _time.monotonic()
+        expired = [k for k, (_, ts) in _intent_cache.items() if now_mono - ts > _INTENT_CACHE_TTL]
+        for k in expired:
+            del _intent_cache[k]
+        if len(_intent_cache) >= _INTENT_CACHE_MAX:
+            oldest_key = min(_intent_cache, key=lambda k: _intent_cache[k][1])
+            del _intent_cache[oldest_key]
+    _intent_cache[cache_key] = (result.copy(), _time.monotonic())
+
+
+async def _call_llm(user_input: str) -> dict | None:
+    """调用 LLM 解析意图，返回解析结果或 None（失败时）。带缓存+重试。"""
+    import hashlib
+
+    cache_key = hashlib.md5(user_input.encode()).hexdigest()
+    cached = _get_cached_intent(cache_key)
+    if cached is not None:
+        return cached
 
     client = _get_client()
     cfg = get_settings().intent_llm
@@ -186,7 +209,6 @@ async def _call_llm(user_input: str) -> dict | None:
         kwargs["response_format"] = {"type": "json_object"}
         kwargs["extra_body"] = {"thinking": {"type": "disabled"}}
     elif "qwen" in _get_llm_model().lower():
-        # Qwen: 用 tools 替代 response_format，避免 NotEnoughCvError
         use_tools = True
         kwargs["tools"] = _GENERIC_TOOLS
         kwargs["tool_choice"] = _GENERIC_TOOL_CHOICE
@@ -195,30 +217,13 @@ async def _call_llm(user_input: str) -> dict | None:
         try:
             resp = await client.chat.completions.create(**kwargs)
             msg = resp.choices[0].message
-            if use_tools and msg.tool_calls:
-                raw = msg.tool_calls[0].function.arguments or ""
-            else:
-                raw = msg.content or ""
-            # 提取 JSON（兼容 markdown 代码块）
+            raw = (msg.tool_calls[0].function.arguments if use_tools and msg.tool_calls else msg.content) or ""
             json_match = re.search(r"\{[\s\S]*\}", raw)
             if json_match:
                 result = json.loads(json_match.group())
                 result["_llm_raw_response"] = raw[:200]
                 result["_llm_model"] = _get_llm_model()
-                # Cache the result
-                if len(_intent_cache) >= _INTENT_CACHE_MAX:
-                    now_mono = _time.monotonic()
-                    expired = [
-                        k
-                        for k, (_, ts) in _intent_cache.items()
-                        if now_mono - ts > _INTENT_CACHE_TTL
-                    ]
-                    for k in expired:
-                        del _intent_cache[k]
-                    if len(_intent_cache) >= _INTENT_CACHE_MAX:
-                        oldest_key = min(_intent_cache, key=lambda k: _intent_cache[k][1])
-                        del _intent_cache[oldest_key]
-                _intent_cache[cache_key] = (result.copy(), _time.monotonic())
+                _cache_intent_result(cache_key, result)
                 return result
         except Exception as e:
             if attempt < 4:
