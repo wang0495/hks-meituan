@@ -9,6 +9,14 @@ from __future__ import annotations
 from typing import Any
 
 # ---------------------------------------------------------------------------
+# 疲劳阈值常量
+# ---------------------------------------------------------------------------
+_FATIGUE_FORCE_REST_STEPS = 15000  # 超过此步数强制休息
+_FATIGUE_HIGH_PENALTY_STEPS = 10000  # 高疲劳惩罚阈值
+_FATIGUE_LOW_PENALTY_STEPS = 5000  # 低疲劳惩罚阈值
+_FATIGUE_CONSECUTIVE_POIS = 3  # 连续POI疲劳阈值
+
+# ---------------------------------------------------------------------------
 # 主导情绪
 # ---------------------------------------------------------------------------
 
@@ -269,17 +277,17 @@ def fatigue_penalty(step_count: int, consecutive_pois: int) -> float:
     Returns:
         疲劳惩罚系数（0 表示无惩罚，-999 表示强制休息）
     """
-    if step_count > 15000:
+    if step_count > _FATIGUE_FORCE_REST_STEPS:
         return -999
 
     penalty = 0.0
 
-    if step_count >= 10000:
+    if step_count >= _FATIGUE_HIGH_PENALTY_STEPS:
         penalty -= 0.5
-    elif step_count >= 5000:
+    elif step_count >= _FATIGUE_LOW_PENALTY_STEPS:
         penalty -= 0.2
 
-    if consecutive_pois >= 3:
+    if consecutive_pois >= _FATIGUE_CONSECUTIVE_POIS:
         penalty -= 0.2
 
     return penalty

@@ -16,6 +16,14 @@ from typing import Any
 from backend.services.economy import enrich_poi_economics
 from backend.services.emotion import get_dominant_emotion
 
+# ---------------------------------------------------------------------------
+# 体验杠杆率价格阈值
+# ---------------------------------------------------------------------------
+_LEVERAGE_PRICE_LOW = 30  # 低价位阈值（元）
+_LEVERAGE_PRICE_MID = 100  # 中价位阈值（元）
+_LEVERAGE_PRICE_HIGH = 200  # 高价位阈值（元）
+_LEVERAGE_RATING_HIGH = 4.0  # 高评分阈值
+
 # 内容引擎（可选引入，无则降级）
 try:
     from backend.services.city_personality import (
@@ -79,11 +87,11 @@ def _get_leverage(avg_price: float, rating: float, category: str) -> str:
     """判断POI的体验杠杆率。"""
     if avg_price == 0:
         return "高"  # 免费体验
-    if avg_price <= 30 and rating >= 4.0:
+    if avg_price <= _LEVERAGE_PRICE_LOW and rating >= _LEVERAGE_RATING_HIGH:
         return "高"  # 花小钱获大体验
-    if avg_price <= 100 and rating >= 4.0:
+    if avg_price <= _LEVERAGE_PRICE_MID and rating >= _LEVERAGE_RATING_HIGH:
         return "中"  # 花钱与体验成正比
-    if avg_price > 200 and rating < 4.0:
+    if avg_price > _LEVERAGE_PRICE_HIGH and rating < _LEVERAGE_RATING_HIGH:
         return "低"  # 花大钱体验增量小
     return "中"
 

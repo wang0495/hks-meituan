@@ -358,18 +358,16 @@ def _extract_location(text: str) -> str | None:
     return None
 
 
-def _rule_based_parse(user_input: str) -> dict:
-    """基于关键词的降级解析。"""
-    text = user_input.lower()
+def _parse_city(text: str) -> str:
+    """从文本提取城市。"""
+    for city in ["珠海", "广州", "湛江"]:
+        if city in text:
+            return city
+    return "珠海"
 
-    # 城市
-    city = "珠海"
-    for c in ["珠海", "广州", "湛江"]:
-        if c in text:
-            city = c
-            break
 
-    # 时间
+def _parse_time(text: str) -> tuple[str, str, str]:
+    """从文本提取时间段。返回 (period, start, end)。"""
     period, start, end = "全天", "08:00", "22:00"
     if any(w in text for w in ["上午", "早上", "早晨"]):
         period, start, end = "上午", "08:00", "12:00"
@@ -377,228 +375,235 @@ def _rule_based_parse(user_input: str) -> dict:
         period, start, end = "下午", "13:00", "18:00"
     elif any(w in text for w in ["晚上", "夜间", "夜"]):
         period, start, end = "晚上", "18:00", "22:00"
-    # 凌晨/深夜
     if any(w in text for w in ["凌晨", "深夜", "半夜"]):
         period, start, end = "深夜", "00:00", "06:00"
 
-    # 时长约束："3小时"、"半天"、"2小时搞定"
+    # 时长约束
     duration_match = re.search(r"(\d+)\s*[个]?\s*小时", text)
-    if duration_match:
-        hours = int(duration_match.group(1))
-        # 计算 end = start + hours
+    hours = int(duration_match.group(1)) if duration_match else (4 if "半天" in text else 0)
+    if hours > 0:
         sh, sm = start.split(":")
         end_min = int(sh) * 60 + int(sm) + hours * 60
-        end_h = (end_min // 60) % 24
-        end_m = end_min % 60
-        end = f"{end_h:02d}:{end_m:02d}"
-    elif "半天" in text:
-        # 半天 = 4小时
-        sh, sm = start.split(":")
-        end_min = int(sh) * 60 + int(sm) + 4 * 60
-        end_h = (end_min // 60) % 24
-        end_m = end_min % 60
-        end = f"{end_h:02d}:{end_m:02d}"
+        end = f"{(end_min // 60) % 24:02d}:{end_min % 60:02d}"
 
-    # 预算
-    budget_per_person, budget_type = 500, "弹性"
+    return period, start, end
+
+
+def _parse_budget(text: str) -> tuple[int, str]:
+    """从文本提取预算。返回 (per_person, type)。"""
     budget_match = re.search(r"(\d+)\s*[元块]", text)
     if budget_match:
-        budget_per_person = int(budget_match.group(1))
-        budget_type = "硬约束"
+        return int(budget_match.group(1)), "硬约束"
+    return 500, "弹性"
 
-    # 群体
-    group_size, group_type = 1, "独居"
+
+def _parse_group(text: str) -> tuple[int, str]:
+    """从文本提取群体信息。返回 (size, type)。"""
     if any(w in text for w in ["情侣", "女朋友", "男朋友", "对象", "约会", "老伴"]):
-        group_size, group_type = 2, "情侣"
-    elif any(w in text for w in ["亲子", "带娃", "孩子", "小孩", "宝宝", "娃", "孙子"]):
-        group_size, group_type = 3, "亲子"
-    elif any(w in text for w in ["朋友", "一起", "聚会", "团建", "室友", "同学", "兄弟"]):
-        group_size, group_type = 4, "朋友"
-    elif any(w in text for w in ["退休", "老年", "爸妈", "父母"]):
-        group_size, group_type = 2, "退休"
+        return 2, "情侣"
+    if any(w in text for w in ["亲子", "带娃", "孩子", "小孩", "宝宝", "娃", "孙子"]):
+        return 3, "亲子"
+    if any(w in text for w in ["朋友", "一起", "聚会", "团建", "室友", "同学", "兄弟"]):
+        return 4, "朋友"
+    if any(w in text for w in ["退休", "老年", "爸妈", "父母"]):
+        return 2, "退休"
+    return 1, "独居"
 
-    # 偏好
-    culture = 0.3
-    if any(w in text for w in ["文化", "历史", "博物馆", "艺术", "展览", "看展"]):
-        culture = 0.8
 
-    food = 0.4
-    if any(w in text for w in ["美食", "吃", "餐厅", "小吃", "探店", "好吃", "咖啡"]):
-        food = 0.8
+def _parse_preferences(text: str) -> dict[str, float]:
+    """从文本提取偏好分数。"""
+    culture = 0.8 if any(w in text for w in ["文化", "历史", "博物馆", "艺术", "展览", "看展"]) else 0.3
+    food = 0.8 if any(w in text for w in ["美食", "吃", "餐厅", "小吃", "探店", "好吃", "咖啡"]) else 0.4
+    nature = 0.8 if any(w in text for w in ["自然", "公园", "爬山", "户外", "山", "湖", "散步"]) else 0.3
 
-    nature = 0.3
-    if any(w in text for w in ["自然", "公园", "爬山", "户外", "山", "湖", "散步"]):
-        nature = 0.8
-
-    social = 0.5
-    # 否定模式优先：不想/不要/不去 + 人多/热闹 → 低社交
-    _neg_crowd = re.search(r"(不想|不要|不去|不愿|害怕|怕).{0,4}(人多|热闹|拥挤|排队)", text)
-    if _neg_crowd or any(w in text for w in ["社恐", "安静", "独处", "一个人"]):
+    neg_crowd = re.search(r"(不想|不要|不去|不愿|害怕|怕).{0,4}(人多|热闹|拥挤|排队)", text)
+    if neg_crowd or any(w in text for w in ["社恐", "安静", "独处", "一个人"]):
         social = 0.1
     elif any(w in text for w in ["热闹", "人多", "聚会", "嗨"]):
         social = 0.9
+    else:
+        social = 0.5
 
-    # 节奏
-    pace = "平衡型"
+    return {"culture": culture, "food": food, "nature": nature, "social": social}
+
+
+def _parse_pace(text: str) -> str:
+    """从文本提取节奏偏好。"""
     if any(w in text for w in ["特种兵", "打卡", "赶场", "效率"]):
-        pace = "特种兵型"
-    elif any(w in text for w in ["闲逛", "慢慢", "放松", "不想赶", "悠闲", "松口气"]):
-        pace = "闲逛型"
+        return "特种兵型"
+    if any(w in text for w in ["闲逛", "慢慢", "放松", "不想赶", "悠闲", "松口气"]):
+        return "闲逛型"
+    return "平衡型"
 
-    # 硬约束
-    hard_constraints: list[str] = []
-    if _neg_crowd or any(w in text for w in ["社恐", "不想人多", "不要人多", "不想去人多"]):
-        hard_constraints.append("低人流")
+
+_ACTIVITY_CONSTRAINT_MAP: dict[str, str] = {
+    "游乐园": "needs_entertainment",
+    "乐园": "needs_entertainment",
+    "游乐场": "needs_entertainment",
+    "海洋馆": "needs_entertainment",
+    "海洋王国": "needs_entertainment",
+    "水族馆": "needs_entertainment",
+    "动物园": "needs_entertainment",
+    "烧烤": "needs_bbq",
+    "火锅": "needs_dining",
+    "茶馆": "needs_teahouse",
+    "茶室": "needs_teahouse",
+    "品茶": "needs_teahouse",
+    "书店": "needs_bookstore",
+    "书吧": "needs_bookstore",
+    "游泳": "needs_swimming",
+    "泳池": "needs_swimming",
+    "踢球": "needs_sports",
+    "打球": "needs_sports",
+    "爬山": "needs_hiking",
+    "画画": "needs_art",
+    "写生": "needs_art",
+    "书法": "needs_calligraphy",
+}
+
+_SCENE_MAP: dict[str, list[str]] = {
+    "喝茶": ["茶馆", "品茶"],
+    "听曲": ["曲艺表演", "传统文化"],
+    "茶馆": ["茶馆"],
+    "街边小吃": ["街边小店", "本地小吃"],
+    "小吃街": ["小吃街", "夜市"],
+    "拍照": ["拍照打卡", "网红景点"],
+    "出片": ["出片", "拍照打卡"],
+    "游乐园": ["游乐园", "儿童游乐"],
+    "海洋馆": ["海洋馆", "水族馆"],
+    "喝酒": ["酒吧", "清吧"],
+    "烧烤": ["烧烤", "聚餐"],
+    "火锅": ["火锅"],
+    "书店": ["书店", "阅读空间"],
+    "咖啡馆": ["咖啡馆"],
+    "书法": ["书法", "传统文化"],
+    "画画": ["安静画画", "艺术", "写生"],
+    "日出": ["日出观景", "海边观景"],
+    "日落": ["日落观景"],
+    "夜景": ["夜景观景", "城市夜景"],
+    "游泳": ["游泳", "水上运动"],
+    "攀岩": ["攀岩"],
+    "密室": ["密室逃脱", "剧本杀"],
+    "长隆": ["长隆", "海洋王国", "游乐园"],
+    "安静画画": ["安静画画", "艺术"],
+    "蹦迪": ["蹦迪", "酒吧", "夜店"],
+}
+
+_CATEGORY_MAP: dict[str, list[str]] = {
+    "游乐园": ["景点", "娱乐"],
+    "乐园": ["景点", "娱乐"],
+    "游乐场": ["景点", "娱乐"],
+    "海洋馆": ["景点", "娱乐"],
+    "水族馆": ["景点", "娱乐"],
+    "蹦迪": ["娱乐", "餐饮"],
+    "酒吧": ["娱乐", "餐饮"],
+    "夜店": ["娱乐"],
+    "KTV": ["娱乐"],
+    "密室": ["娱乐", "密室逃脱"],
+    "剧本杀": ["娱乐", "剧本杀"],
+    "烧烤": ["餐饮"],
+    "火锅": ["餐饮"],
+    "美食": ["餐饮"],
+    "小吃": ["餐饮", "夜市小吃"],
+    "宵夜": ["餐饮", "夜市", "夜市小吃"],
+    "博物馆": ["文化"],
+    "美术馆": ["文化"],
+    "展览": ["文化"],
+    "书法": ["文化"],
+    "画画": ["文化", "文艺", "咖啡馆"],
+    "安静画画": ["文化", "文艺", "咖啡馆"],
+    "书店": ["书店", "文化"],
+    "咖啡馆": ["咖啡馆", "海景咖啡馆"],
+    "公园": ["景点", "运动"],
+    "爬山": ["运动", "自然风光"],
+    "运动": ["运动"],
+    "海边": ["景点", "自然风光"],
+    "沙滩": ["景点", "自然风光"],
+    "购物": ["购物"],
+    "逛街": ["购物"],
+    "拍照": ["景点", "文化"],
+    "打卡": ["景点", "文化"],
+    "温泉": ["温泉SPA"],
+    "游泳": ["水上运动场所"],
+    "聚会": ["餐饮", "娱乐", "购物"],
+    "朋友": ["餐饮", "娱乐", "购物"],
+    "情侣": ["餐饮", "文化", "景点", "海景咖啡馆"],
+    "亲子": ["景点", "运动", "娱乐"],
+    "孩子": ["景点", "运动", "娱乐"],
+    "退休": ["文化", "景点", "餐饮"],
+}
+
+
+def _parse_hard_constraints(text: str) -> list[str]:
+    """从文本提取硬约束。"""
+    constraints: list[str] = []
+    neg_crowd = re.search(r"(不想|不要|不去|不愿|害怕|怕).{0,4}(人多|热闹|拥挤|排队)", text)
+
+    if neg_crowd or any(w in text for w in ["社恐", "不想人多", "不要人多", "不想去人多"]):
+        constraints.append("低人流")
     if any(w in text for w in ["宠物", "狗", "猫", "狗子", "毛孩子"]):
-        hard_constraints.append("pet_friendly")
+        constraints.append("pet_friendly")
     if any(w in text for w in ["婴儿车", "轮椅", "无障碍"]):
-        hard_constraints.append("accessible")
+        constraints.append("accessible")
     if any(w in text for w in ["排队", "不要排队"]):
-        hard_constraints.append("排队容忍度<10min")
+        constraints.append("排队容忍度<10min")
     if any(w in text for w in ["孩子", "小孩", "儿童", "娃", "宝宝"]):
-        hard_constraints.append("儿童友好")
-    # 室内/室外约束
+        constraints.append("儿童友好")
     if any(w in text for w in ["室内", "空调", "下雨", "雨天", "别中暑", "别淋", "别晒"]):
-        hard_constraints.append("indoor_only")
+        constraints.append("indoor_only")
     if any(w in text for w in ["海边", "户外", "露天", "草地", "沙滩"]):
-        hard_constraints.append("outdoor_preferred")
-    # 深夜/凌晨
+        constraints.append("outdoor_preferred")
     if any(w in text for w in ["凌晨", "深夜", "宵夜", "夜宵", "通宵", "半夜"]):
-        hard_constraints.append("late_night")
-    # 具体活动需求
-    activity_map = {
-        "游乐园": "needs_entertainment",
-        "乐园": "needs_entertainment",
-        "游乐场": "needs_entertainment",
-        "海洋馆": "needs_entertainment",
-        "海洋王国": "needs_entertainment",
-        "水族馆": "needs_entertainment",
-        "动物园": "needs_entertainment",
-        "烧烤": "needs_bbq",
-        "火锅": "needs_dining",
-        "茶馆": "needs_teahouse",
-        "茶室": "needs_teahouse",
-        "品茶": "needs_teahouse",
-        "书店": "needs_bookstore",
-        "书吧": "needs_bookstore",
-        "游泳": "needs_swimming",
-        "泳池": "needs_swimming",
-        "踢球": "needs_sports",
-        "打球": "needs_sports",
-        "爬山": "needs_hiking",
-        "画画": "needs_art",
-        "写生": "needs_art",
-        "书法": "needs_calligraphy",
-    }
-    for kw, constraint in activity_map.items():
-        if kw in text and constraint not in hard_constraints:
-            hard_constraints.append(constraint)
+        constraints.append("late_night")
 
-    # 场景需求提取
-    scene_requirements: list[str] = []
-    scene_map = {
-        "喝茶": ["茶馆", "品茶"],
-        "听曲": ["曲艺表演", "传统文化"],
-        "茶馆": ["茶馆"],
-        "街边小吃": ["街边小店", "本地小吃"],
-        "小吃街": ["小吃街", "夜市"],
-        "拍照": ["拍照打卡", "网红景点"],
-        "出片": ["出片", "拍照打卡"],
-        "游乐园": ["游乐园", "儿童游乐"],
-        "海洋馆": ["海洋馆", "水族馆"],
-        "喝酒": ["酒吧", "清吧"],
-        "烧烤": ["烧烤", "聚餐"],
-        "火锅": ["火锅"],
-        "书店": ["书店", "阅读空间"],
-        "咖啡馆": ["咖啡馆"],
-        "书法": ["书法", "传统文化"],
-        "画画": ["安静画画", "艺术", "写生"],
-        "日出": ["日出观景", "海边观景"],
-        "日落": ["日落观景"],
-        "夜景": ["夜景观景", "城市夜景"],
-        "游泳": ["游泳", "水上运动"],
-        "攀岩": ["攀岩"],
-        "密室": ["密室逃脱", "剧本杀"],
-        "长隆": ["长隆", "海洋王国", "游乐园"],
-        "安静画画": ["安静画画", "艺术"],
-        "蹦迪": ["蹦迪", "酒吧", "夜店"],
-    }
-    for kw, scenes in scene_map.items():
+    for kw, constraint in _ACTIVITY_CONSTRAINT_MAP.items():
+        if kw in text and constraint not in constraints:
+            constraints.append(constraint)
+
+    return constraints
+
+
+def _parse_scene_requirements(text: str) -> list[str]:
+    """从文本提取场景需求。"""
+    requirements: list[str] = []
+    for kw, scenes in _SCENE_MAP.items():
         if kw in text:
             for s in scenes:
-                if s not in scene_requirements:
-                    scene_requirements.append(s)
+                if s not in requirements:
+                    requirements.append(s)
+    return requirements
 
-    # 推断preferred_categories
-    preferred_categories: list[str] = []
-    _cat_map = {
-        "游乐园": ["景点", "娱乐"],
-        "乐园": ["景点", "娱乐"],
-        "游乐场": ["景点", "娱乐"],
-        "海洋馆": ["景点", "娱乐"],
-        "水族馆": ["景点", "娱乐"],
-        "蹦迪": ["娱乐", "餐饮"],
-        "酒吧": ["娱乐", "餐饮"],
-        "夜店": ["娱乐"],
-        "KTV": ["娱乐"],
-        "密室": ["娱乐", "密室逃脱"],
-        "剧本杀": ["娱乐", "剧本杀"],
-        "烧烤": ["餐饮"],
-        "火锅": ["餐饮"],
-        "美食": ["餐饮"],
-        "小吃": ["餐饮", "夜市小吃"],
-        "宵夜": ["餐饮", "夜市", "夜市小吃"],
-        "博物馆": ["文化"],
-        "美术馆": ["文化"],
-        "展览": ["文化"],
-        "书法": ["文化"],
-        "画画": ["文化", "文艺", "咖啡馆"],
-        "安静画画": ["文化", "文艺", "咖啡馆"],
-        "书店": ["书店", "文化"],
-        "咖啡馆": ["咖啡馆", "海景咖啡馆"],
-        "公园": ["景点", "运动"],
-        "爬山": ["运动", "自然风光"],
-        "运动": ["运动"],
-        "海边": ["景点", "自然风光"],
-        "沙滩": ["景点", "自然风光"],
-        "购物": ["购物"],
-        "逛街": ["购物"],
-        "拍照": ["景点", "文化"],
-        "打卡": ["景点", "文化"],
-        "温泉": ["温泉SPA"],
-        "游泳": ["水上运动场所"],
-        "聚会": ["餐饮", "娱乐", "购物"],
-        "朋友": ["餐饮", "娱乐", "购物"],
-        "情侣": ["餐饮", "文化", "景点", "海景咖啡馆"],
-        "亲子": ["景点", "运动", "娱乐"],
-        "孩子": ["景点", "运动", "娱乐"],
-        "退休": ["文化", "景点", "餐饮"],
-    }
-    for kw, cats in _cat_map.items():
+
+def _parse_preferred_categories(text: str) -> list[str]:
+    """从文本推断偏好分类。"""
+    categories: list[str] = []
+    for kw, cats in _CATEGORY_MAP.items():
         if kw in text:
             for c in cats:
-                if c not in preferred_categories:
-                    preferred_categories.append(c)
-    if not preferred_categories:
-        preferred_categories = ["文化", "餐饮", "运动", "景点", "购物"]
-    if "景点" not in preferred_categories:
-        preferred_categories.append("景点")
+                if c not in categories:
+                    categories.append(c)
+    if not categories:
+        categories = ["文化", "餐饮", "运动", "景点", "购物"]
+    if "景点" not in categories:
+        categories.append("景点")
+    return categories
+
+
+def _rule_based_parse(user_input: str) -> dict:
+    """基于关键词的降级解析。"""
+    text = user_input.lower()
+    period, start, end = _parse_time(text)
 
     return {
-        "city": city,
+        "city": _parse_city(text),
         "time": {"period": period, "start": start, "end": end},
-        "budget": {"per_person": budget_per_person, "type": budget_type},
-        "group": {"size": group_size, "type": group_type},
-        "preferences": {
-            "culture": culture,
-            "food": food,
-            "nature": nature,
-            "social": social,
-        },
-        "pace": pace,
-        "hard_constraints": hard_constraints,
-        "scene_requirements": scene_requirements,
-        "preferred_categories": preferred_categories,
+        "budget": {"per_person": _parse_budget(text)[0], "type": _parse_budget(text)[1]},
+        "group": {"size": _parse_group(text)[0], "type": _parse_group(text)[1]},
+        "preferences": _parse_preferences(text),
+        "pace": _parse_pace(text),
+        "hard_constraints": _parse_hard_constraints(text),
+        "scene_requirements": _parse_scene_requirements(text),
+        "preferred_categories": _parse_preferred_categories(text),
         "emotion_need": detect_emotion_need(text),
         "location": _extract_location(text),
         "num_days": _extract_num_days(text),
