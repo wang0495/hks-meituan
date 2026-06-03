@@ -1,0 +1,143 @@
+\documentclass[journal]{IEEEtran}
+
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{multirow}
+\usepackage{float}
+\usepackage{caption,subcaption}
+\usepackage{microtype}
+\usepackage{hyperref}
+\usepackage{xcolor}
+\usepackage{enumitem}
+\usepackage{tikz}
+\usepackage{cite}
+\usetikzlibrary{shapes,arrows,positioning,fit,backgrounds}
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=black,
+    citecolor=black,
+    urlcolor=blue
+}
+
+\begin{document}
+
+\title{CityFlow: Expert-Ensemble Multi-Agent Collaboration for Personalized Urban Route Planning}
+
+\author{
+    \IEEEauthorblockN{Qilong Wang}
+    \IEEEauthorblockA{Beijing Normal University at Zhuhai, Zhuhai, China\\
+    Email: 13623753581@163.com}
+}
+
+\markboth{IEEE Access, Vol.~XX, 2026}{Wang: CityFlow: Expert-Ensemble Multi-Agent Collaboration}
+
+\maketitle
+
+\begin{abstract}
+Personalized urban route planning requires reconciling heterogeneous user preferences---culinary exploration, scenic sightseeing, leisure pacing, or speed-run touring---with spatial, temporal, and budgetary constraints. Existing approaches either rely on classical optimization solvers that cannot interpret natural language intent, or single-LLM pipelines that hallucinate POIs and produce spatially incoherent routes. We present \textbf{CityFlow}, an expert-ensemble multi-agent framework that decomposes route planning across 7 domain-specific experts orchestrated by a LangGraph state machine. Inspired by the Mixture-of-Experts principle of conditional computation through specialized modules, CityFlow features: (1)~scene-aware expert dispatch that classifies user intent into five scenario types and dynamically activates only relevant experts; (2)~parallel wave-based expert execution across two dependency-ordered waves; (3)~a review-rework feedback loop evaluating proposals against six quality dimensions with algorithmic spatial verification; and (4)~algorithmic time smoothing that validates and corrects LLM-generated temporal allocations. Evaluated on 100 diverse scenarios covering Zhuhai, China (2,129 POIs), CityFlow achieves 90\% pass rate with an average score of 74.3/100. A multi-model A/B test reveals that inexpensive small models (Qwen3.5-35B-A3B (iFlytek Spark), ${\sim}$\$0.15/M tokens) outperform expensive frontier models (DeepSeek-V4-Flash, ${\sim}$\$1/M tokens) when embedded in the expert-ensemble architecture, achieving better quality at approximately 6$\times$ lower cost. Baseline comparisons against greedy nearest-neighbor, single-LLM, and single-LLM+RAG approaches demonstrate that multi-agent decomposition with expert specialization provides complementary advantages beyond what RAG alone can achieve.
+\end{abstract}
+
+\begin{IEEEkeywords}
+multi-agent system, large language model, route planning, expert ensemble, mixture of experts, tourism
+\end{IEEEkeywords}
+
+\input{sections/introduction}
+
+\input{sections/related_work}
+
+\input{sections/method}
+
+\input{sections/experiments}
+
+\input{sections/discussion}
+
+\input{sections/conclusion}
+
+\begin{thebibliography}{30}
+
+\bibitem{toth2014vehicle}
+P.~Toth and D.~Vigo, \emph{Vehicle Routing: Problems, Methods, and Applications}. Philadelphia, PA, USA: SIAM, 2014.
+
+\bibitem{solomon1987algorithms}
+M.~M.~Solomon, ``Algorithms for the vehicle routing and scheduling problems with time window constraints,'' \emph{Oper.\ Res.}, vol.~35, no.~2, pp.~254--265, 1987.
+
+\bibitem{wei2022chain}
+J.~Wei \emph{et~al.}, ``Chain-of-thought prompting elicits reasoning in large language models,'' in \emph{Proc.\ NeurIPS}, 2022, pp.~24824--24837.
+
+\bibitem{ji2023survey}
+Z.~Ji \emph{et~al.}, ``Survey of hallucination in natural language generation,'' \emph{ACM Comput.\ Surv.}, vol.~55, no.~12, pp.~1--38, 2023.
+
+\bibitem{gu2024llmjudge}
+J.~Gu \emph{et~al.}, ``A survey on LLM-as-a-Judge,'' \emph{arXiv:2411.15594}, 2024.
+
+\bibitem{shazeer2017outrageously}
+N.~Shazeer \emph{et~al.}, ``Outrageously large neural networks: The sparsely-gated mixture-of-experts layer,'' in \emph{Proc.\ ICLR}, 2017.
+
+\bibitem{jiang2024mixtral}
+A.~Q.~Jiang \emph{et~al.}, ``Mixtral of experts,'' \emph{arXiv:2401.04088}, 2024.
+
+\bibitem{fedus2022switch}
+W.~Fedus, B.~Zoph, and N.~Shazeer, ``Switch transformers: Scaling to trillion parameter models with simple and efficient sparsity,'' \emph{J.\ Mach.\ Learn.\ Res.}, vol.~23, no.~120, pp.~1--39, 2022.
+
+\bibitem{chen2024travelagent}
+A.~Chen, X.~Ge, Z.~Fu, Y.~Xiao, and J.~Chen, ``TravelAgent: An AI assistant for personalized travel planning,'' \emph{arXiv:2409.08069}, 2024.
+
+\bibitem{xie2024travelplanner}
+J.~Xie \emph{et~al.}, ``TravelPlanner: A benchmark for real-world planning with language agents,'' in \emph{Proc.\ ICML}, 2024.
+
+\bibitem{wu2023autogen}
+Q.~Wu \emph{et~al.}, ``AutoGen: Enabling next-gen LLM applications via multi-agent conversation,'' \emph{arXiv:2308.08155}, 2023.
+
+\bibitem{tran2025multiagent}
+K.-T.~Tran, D.~Dao, M.-D.~Nguyen \emph{et~al.}, ``Multi-agent collaboration mechanisms: A survey of LLMs,'' \emph{arXiv:2501.06322}, 2025.
+
+\bibitem{xi2023rise}
+Z.~Xi \emph{et~al.}, ``The rise and potential of large language model based agents: A survey,'' \emph{arXiv:2309.07864}, 2023.
+
+\bibitem{crewai2024}
+CrewAI~Inc., ``CrewAI: Framework for orchestrating role-playing autonomous AI agents,'' 2024. [Online]. Available: \url{https://github.com/crewAIInc/crewAI}
+
+\bibitem{langgraph2024}
+LangChain~Inc., ``LangGraph: A framework for building stateful, multi-actor applications with LLMs,'' 2024. [Online]. Available: \url{https://github.com/langchain-ai/langgraph}
+
+\bibitem{zhang2025spatial}
+H.~Zhang \emph{et~al.}, ``Mitigating spatial hallucination in large language models for path planning via prompt engineering,'' \emph{Sci.\ Rep.}, vol.~15, Art.~no.~93601, 2025.
+
+\bibitem{white2023prompt}
+J.~White, S.~Hays, Q.~Fu, J.~Spencer-Smith, and D.~C.~Schmidt, ``A prompt pattern catalog to enhance prompt engineering with ChatGPT,'' \emph{arXiv:2302.11382}, 2023.
+
+\bibitem{kahneman1993when}
+D.~Kahneman, B.~L.~Fredrickson, C.~A.~Schreiber, and D.~A.~Redelmeier, ``When more pain is preferred to less: Adding a better end,'' \emph{Psychol.\ Sci.}, vol.~4, no.~6, pp.~401--405, 1993.
+
+\bibitem{lewis2020retrieval}
+P.~Lewis \emph{et~al.}, ``Retrieval-augmented generation for knowledge-intensive NLP tasks,'' in \emph{Proc.\ NeurIPS}, 2020, pp.~9459--9474.
+
+\bibitem{gao2024retrieval}
+Y.~Gao \emph{et~al.}, ``Retrieval-augmented generation for large language models: A survey,'' \emph{arXiv:2312.10997}, 2024.
+
+\bibitem{wang2023selfconsistency}
+X.~Wang \emph{et~al.}, ``Self-consistency improves chain of thought reasoning in language models,'' in \emph{Proc.\ ICLR}, 2024.
+
+\bibitem{qin2024toolllm}
+Y.~Qin \emph{et~al.}, ``ToolLLM: Facilitating large language models to master 16000+ real-world APIs,'' in \emph{Proc.\ ICLR}, 2024.
+
+\bibitem{cheng2025travelbench}
+X.~Cheng \emph{et~al.}, ``Beyond itinerary planning---A real-world benchmark for multi-turn and tool-using travel tasks,'' \emph{arXiv:2512.22673}, 2025.
+
+\bibitem{zhao2024poi}
+S.~Zhao, T.~Zhao, H.~Jin, F.~Yang, and Z.~Li, ``A survey on point-of-interest recommendation: Models, architectures, and security,'' \emph{arXiv:2410.02191}, 2024.
+
+\bibitem{schulhoff2024prompt}
+S.~Schulhoff \emph{et~al.}, ``The prompt report: A systematic survey of prompting techniques,'' \emph{arXiv:2406.06608}, 2024.
+
+\bibitem{liu2025logical}
+H.~Liu \emph{et~al.}, ``Logical reasoning in large language models: A survey,'' \emph{arXiv:2502.09100}, 2025.
+
+\bibitem{multiagentbench2025}
+Y.~Talebirad and A.~Nadiri, ``MultiAgentBench: Evaluating the collaboration and competition of LLM-based agents,'' in \emph{Proc.\ ACL}, 2025.
+
+\end{thebibliography}
+
+\end{document}

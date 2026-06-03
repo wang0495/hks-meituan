@@ -1,0 +1,187 @@
+\section{System Architecture}
+\label{sec:method}
+
+\subsection{Overview}
+
+CityFlow follows a five-phase pipeline architecture (Figure~\ref{fig:architecture}):
+
+\begin{enumerate}[leftmargin=*]
+    \item \textbf{Intent Parsing}: The \textit{rule\_guard} module parses natural language input into a structured intent representation, loads candidate POIs from the database, and generates meta-rules for downstream constraints.
+    \item \textbf{Scene Classification}: The \textit{expert\_router} classifies user intent into one of five scenario types using LLM-based classification with structured output, then computes expert activation weights.
+    \item \textbf{Parallel Expert Dispatch}: Domain experts execute in two waves---Wave~1 contains data-independent experts (POI, food, weather, destination) that run concurrently; Wave~2 contains dependency-aware experts (traffic, hotel, local guide) that require Wave~1 results.
+    \item \textbf{Review \& Rework}: The \textit{review} module evaluates proposals against six quality dimensions using both algorithmic checks and LLM judgment; if the score falls below threshold, targeted rework is triggered.
+    \item \textbf{Route Synthesis}: The \textit{synthesizer} assembles the final route via TSPTW constraint satisfaction, followed by algorithmic time smoothing and narrative generation.
+\end{enumerate}
+
+\begin{figure}[t]
+\centering
+\resizebox{\columnwidth}{!}{\begin{tikzpicture}[
+    node distance=0.8cm and 0.5cm,
+    box/.style={rectangle, rounded corners, draw=black!40, fill=black!5, minimum width=2.2cm, minimum height=0.8cm, font=\small\bfseries, align=center},
+    wave/.style={rectangle, rounded corners, draw=black!60, fill=black!8, minimum width=1.8cm, minimum height=0.7cm, font=\small, align=center},
+    arrow/.style={->, thick, black!50},
+    label/.style={font=\footnotesize\bfseries, text=black!60}
+]
+% Row 1: rule_guard → expert_router
+\node[box] (guard) {rule\_guard};
+\node[box, right=2cm of guard] (router) {expert\_router};
+\draw[arrow] (guard) -- (router);
+
+% Row 2: Wave 1 experts
+\node[wave, below left=1.2cm and 0.5cm of router] (poi) {POI};
+\node[wave, right=0.6cm of poi] (food) {Food};
+\node[wave, right=0.6cm of food] (weather) {Weather};
+\node[wave, right=0.6cm of weather] (dest) {Dest.};
+\node[label, left=0.2cm of poi] {Wave 1};
+
+% Row 3: Wave 2 experts
+\node[wave, below left=1.2cm and 0.5cm of food] (traffic) {Traffic};
+\node[wave, right=0.6cm of traffic] (hotel) {Hotel};
+\node[wave, right=0.6cm of hotel] (local) {Local};
+\node[label, left=0.2cm of traffic] {Wave 2};
+
+% Row 4: Review → Synthesizer
+\node[box, below left=1.2cm and 2cm of local] (review) {Review};
+\node[box, right=2cm of review] (rework) {Rework};
+\node[box, right=2cm of rework] (synth) {Synthesizer};
+
+% Router → Wave 1
+\draw[arrow] (router.south) -- ++(0,-0.4) -| (poi.north);
+\draw[arrow] (router.south) -- ++(0,-0.4) -| (food.north);
+\draw[arrow] (router.south) -- ++(0,-0.4) -| (weather.north);
+\draw[arrow] (router.south) -- ++(0,-0.4) -| (dest.north);
+
+% Router → Wave 2
+\draw[arrow] (router.south) -- ++(0,-0.8) -| (traffic.north);
+\draw[arrow] (router.south) -- ++(0,-0.8) -| (hotel.north);
+\draw[arrow] (router.south) -- ++(0,-0.8) -| (local.north);
+
+% Wave 1 → Review
+\draw[arrow] (poi.south) -- ++(0,-0.3) -| (review.north);
+\draw[arrow] (food.south) -- ++(0,-0.3) -| (review.north);
+\draw[arrow] (weather.south) -- ++(0,-0.3) -| (review.north);
+\draw[arrow] (dest.south) -- ++(0,-0.3) -| (review.north);
+
+% Wave 2 → Review
+\draw[arrow] (traffic.south) -- ++(0,-0.3) -| (review.north);
+\draw[arrow] (hotel.south) -- ++(0,-0.3) -| (review.north);
+\draw[arrow] (local.south) -- ++(0,-0.3) -| (review.north);
+
+% Review loop
+\draw[arrow] (review) -- node[above, font=\tiny] {pass} (synth);
+\draw[arrow] (review.east) -- (rework.west);
+\draw[arrow] (rework.north) |- ++(0.3,0.5) -| ([xshift=0.3cm]review.north);
+
+\end{tikzpicture}}
+\caption{CityFlow expert-ensemble architecture. User input flows through rule\_guard and expert\_router, then dispatches to parallel expert waves. The review-rework loop iterates until quality threshold is met.}
+\label{fig:architecture}
+\end{figure}
+
+\subsection{Scene-Aware Expert Dispatch}
+
+The \textit{expert\_router} classifies user input into one of five scenario types using LLM-based classification with structured output. Table~\ref{tab:scenarios} shows the scenario types and their activated expert sets.
+
+\begin{table}[!t]
+\centering
+\caption{Scenario types and their activated expert sets.}
+\label{tab:scenarios}
+\resizebox{\columnwidth}{!}{\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{Scenario} & \textbf{Description} & \textbf{Primary Experts} \\
+\midrule
+Food Exploration & Culinary-focused & Food, Local, POI \\
+Destination-Focused & Single major attraction & Destination, POI, Traffic \\
+Speed-Run Touring & Dense checkpoint visiting & POI, Traffic, Hotel \\
+Leisure & Slow-paced, few stops & POI, Weather, Local \\
+Sightseeing & General tourism & POI, Food, Weather, Traffic \\
+\bottomrule
+\end{tabular}}
+\end{table}
+
+The router computes activation weights for each expert based on scenario relevance. For food exploration, the Food Expert receives weight 1.0 while the Hotel Expert receives 0.2; for destination-focused scenarios, the Destination Expert receives 1.0 with relaxed geographic constraints.
+
+\subsection{Expert Network}
+
+\begin{table}[!t]
+\centering
+\caption{Expert modules organized by execution wave.}
+\label{tab:experts}
+\resizebox{\columnwidth}{!}{\begin{tabular}{@{}llll@{}}
+\toprule
+\textbf{Wave} & \textbf{Expert} & \textbf{Domain} & \textbf{Output} \\
+\midrule
+\multirow{4}{*}{Wave 1} & POI Expert & Scenic spots & Ranked candidate POIs by category \\
+ & Food Expert & Restaurants & Sub-categorized dining (5 sub-types) \\
+ & Weather Expert & Climate & Activity feasibility scores \\
+ & Destination Expert & Named locations & Core destination + radius POIs \\
+\midrule
+\multirow{3}{*}{Wave 2} & Traffic Expert & Transportation & Inter-POI travel time estimates \\
+ & Hotel Expert & Accommodation & Rest stop suggestions \\
+ & Local Expert & Hidden gems & Non-mainstream high-rated places \\
+\midrule
+Wave 3 & Review & Quality control & 6-dimension scoring + feedback \\
+Wave 4 & Synthesizer & Route assembly & TSPTW-optimized final route \\
+\bottomrule
+\end{tabular}}
+\end{table}
+
+\paragraph{Execution model.}
+Wave~1 experts execute in parallel with no inter-expert communication; each receives the same shared state (user intent, candidate POIs, scene type) and produces independent proposals. Table~\ref{tab:experts} lists the expert modules by execution wave. Wave~2 experts read the \textit{merged} Wave~1 proposals from shared state---for example, the Traffic Expert computes distance matrices over Wave~1's candidate POIs, and the Local Expert avoids recommending places already selected by the POI Expert. This is \textit{data-flow dependency}, not direct negotiation: experts do not exchange messages or iterate toward consensus.
+
+The Food Expert, for instance, categorizes restaurants into sub-types (seafood, dim sum, street food, dessert, tea houses) and selects the top-3 from each sub-type based on ratings, ensuring internal diversity. Note that we also implemented a \texttt{negotiation\_agent} for expert-to-expert conflict resolution, but it is not activated in the current production pipeline; expert coordination is achieved entirely through the review-rework loop described below.
+
+\subsection{Review-Rework Feedback Loop}
+
+The Review module evaluates proposals against six dimensions, each scored 0--10:
+
+\begin{enumerate}[leftmargin=*]
+    \item \textbf{Intent Match}: Does the route fulfill the user's stated goal?
+    \item \textbf{POI Quality}: Are the recommended places worth visiting?
+    \item \textbf{Geographic Continuity}: Is the route spatially efficient (no unnecessary backtracking)?
+    \item \textbf{Scene Diversity}: Does the route offer varied experiences?
+    \item \textbf{Time Feasibility}: Can all activities fit within the time budget?
+    \item \textbf{Category Match}: Do POI types align with the scenario?
+\end{enumerate}
+
+When the overall score falls below 6.5/10, the system triggers a \textit{rework} cycle: the review feedback (e.g., ``geographic discontinuity between stops 3 and 4'') is injected as additional constraints, and specific experts are re-activated. This loop runs at most twice to prevent infinite cycling.
+
+A critical design decision: the Review module uses \textbf{algorithmic geographic checks} (computing actual haversine distances between consecutive stops) rather than relying solely on LLM judgment. This prevents the ``spatial blindness'' failure mode where LLMs guess distances from POI names.
+
+\subsection{Route Synthesis and Time Smoothing}
+
+The Synthesizer assembles the final route using a \textit{tournament} strategy: three candidate routes are generated in parallel---one prioritizing geographic proximity, one prioritizing category diversity, and one prioritizing experiential richness---and a heuristic scorer selects the best candidate based on weighted geo-coverage (40\%), diversity (25\%), category coverage (20\%), and time feasibility (15\%). This approach outperformed five alternative synthesizer architectures in our experiments (Table~\ref{tab:synthesizer_ablation}).
+
+\begin{table}[!t]
+\centering
+\caption{Synthesizer architecture comparison on 5 scenarios. Tournament (A4) was selected as production mode.}
+\label{tab:synthesizer_ablation}
+\resizebox{\columnwidth}{!}{\begin{tabular}{@{}llcc@{}}
+\toprule
+\textbf{ID} & \textbf{Strategy} & \textbf{Pass Rate} & \textbf{Overall} \\
+\midrule
+A1 & Best-of-N (multi-temperature) & 3/5 & 6.4 \\
+A2 & Geo-Cluster + TSP & 2/5 & 6.4 \\
+A3 & Self-Refine (critique loop) & 4/5 & 6.6 \\
+\textbf{A4} & \textbf{Tournament (3 strategies)} & \textbf{5/5} & \textbf{7.0} \\
+A5 & Constraint-first (anchor + NN) & 3/5 & 6.4 \\
+\midrule
+A6 & PTS (LLM select + algorithm sort) & 3/5 & 6.4 \\
+A7 & Tournament + Geo-merge (GoT) & 2/5 & 6.4 \\
+\bottomrule
+\end{tabular}}
+\end{table}
+
+Given the winning candidate, the Synthesizer applies post-processing: greedy nearest-neighbor reordering for geographic coherence, breathing-space insertion for slack, and a climax-stage finishing heuristic~\cite{kahneman1993when} that prioritizes high-excitement POIs near the route's end.
+
+\paragraph{\_smooth\_times(): Algorithmic Time Validation.}
+
+LLM-generated time allocations frequently contain anomalies: gaps of 2+ hours between consecutive stops, temporal inversions (arrival before departure), and total duration exceeding the user's time window. We introduce \texttt{\_smooth\_times()}, a post-processing function that:
+
+\begin{enumerate}[leftmargin=*]
+    \item \textbf{Detects gaps}: If inter-stop travel time exceeds 45 minutes, re-estimates from haversine distance ($\sim$3~min/km + 5~min buffer).
+    \item \textbf{Fixes inversions}: If a stop's arrival precedes the previous stop's departure, recalculates from the previous departure + travel time.
+    \item \textbf{Handles overflow}: If total duration exceeds \texttt{end\_time}, proportionally compresses stay durations (minimum 50\% of original).
+    \item \textbf{Enforces hard limits}: As a final safeguard, truncates the route at \texttt{end\_time}.
+\end{enumerate}
+
+This ``LLM proposes, algorithm validates'' pattern is a key architectural principle: we leverage LLM semantic understanding while relying on deterministic code for physical constraints.
