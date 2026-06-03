@@ -131,15 +131,39 @@ def _rule_geo_check(proposals: list[dict], scene_type: str) -> list[dict]:
     return feedback
 
 
+_CHECK_RULES_BY_SCENE: dict[str, str] = {
+    "美食型": """请检查以下问题（每个问题必须指明是哪个agent的问题）：
+1. food_expert: 餐饮子类型是否多样？（不应全是海鲜排档/全是夜市/全是同一种类，应覆盖海鲜+小吃+甜品/饮品+正餐）
+2. food_expert: 是否选了太多综合性场所？（夜市+美食街+海鲜街最多选1个，它们内部已有多种）
+3. poi_expert: 美食路线不需要太多景点，1-2个散步点即可，选多了反而是问题
+4. 整体：路线是否以餐饮为主线？不应为了多样性硬塞景点""",
+    "目的地型": """请检查以下问题：
+1. poi_expert: 是否包含了用户指定的核心目的地？
+2. food_expert: 餐厅是否在目的地附近？（不应选很远的地方）
+3. 整体：POI是否集中在目的地周围？（不应大范围跨区域）""",
+    "特种兵型": """请检查以下问题：
+1. poi_expert: 是否选了足够多的地标景点？（特种兵应覆盖5-8个）
+2. poi_expert: 景点类型是否多样？（自然+文化+娱乐+地标，不应全是一种）
+3. food_expert: 餐厅是否快节奏？（不应选需要久坐的正餐）
+4. 整体：路线是否紧凑无空隙？""",
+}
+
+
+def _get_check_rules(scene_type: str) -> str:
+    """获取场景对应的检查规则。"""
+    if scene_type in _CHECK_RULES_BY_SCENE:
+        return _CHECK_RULES_BY_SCENE[scene_type]
+    return """请检查以下问题：
+1. 景点是否多样？（不应全是同类型）
+2. 餐厅选择是否合理？
+3. 整体节奏是否合适？"""
+
+
 async def review(state: TravelState) -> dict:
     """审查所有agent提案质量，生成反馈。"""
     meta = AGENT_META.get("review", {})
     await sse_emit(state, "agent_start", {"agent": "review", **meta})
-    await sse_emit(
-        state,
-        "agent_thinking",
-        {"agent": "review", "text": f"审查 {len(state.get('proposals', []))} 个提案质量..."},
-    )
+    await sse_emit(state, "agent_thinking", {"agent": "review", "text": f"审查 {len(state.get('proposals', []))} 个提案质量..."})
 
     proposals = list(state.get("reworked_proposals") or state.get("proposals", []))
     intent = state.get("user_intent", {})
@@ -147,76 +171,24 @@ async def review(state: TravelState) -> dict:
     scene_type = state.get("scene_type", "观光型")
     round_num = state.get("review_round", 0)
 
-    # 超过2轮强制通过
-    if round_num >= 2:
+    if round_num >= 2 or not proposals:
         return {"review_feedback": [], "review_round": round_num + 1}
 
-    if not proposals:
-        return {"review_feedback": [], "review_round": round_num + 1}
-
-    # ── 1. 规则化地理检查（在LLM之前，精确快速） ──
+    # 规则化地理检查
     rule_feedback = _rule_geo_check(proposals, scene_type)
     if rule_feedback:
-        await sse_emit(
-            state,
-            "agent_result",
-            {
-                "agent": "review",
-                "summary": f"地理检查发现{len(rule_feedback)}个跨区问题，触发rework",
-            },
-        )
+        await sse_emit(state, "agent_result", {"agent": "review", "summary": f"地理检查发现{len(rule_feedback)}个跨区问题，触发rework"})
         return {"review_feedback": rule_feedback, "review_round": round_num + 1}
 
-    # ── 2. LLM语义审查（规则检查通过后） ──
-    # 按agent分类提案
-    proposal_summary = []
-    for p in proposals:
-        c = p.get("content", {})
-        proposal_summary.append(
-            {
-                "agent": p.get("agent", ""),
-                "name": c.get("name", ""),
-                "category": c.get("category", ""),
-                "lat": c.get("lat"),
-                "lng": c.get("lng"),
-                "rating": c.get("rating"),
-            }
-        )
+    # LLM语义审查
+    proposal_summary = [{"agent": p.get("agent", ""), "name": p.get("content", {}).get("name", ""), "category": p.get("content", {}).get("category", ""), "lat": p.get("content", {}).get("lat"), "lng": p.get("content", {}).get("lng"), "rating": p.get("content", {}).get("rating")} for p in proposals]
 
     scene_reqs = intent.get("scene_requirements", [])
     preferred_cats = intent.get("preferred_categories", [])
     group_type = intent.get("group", {}).get("type", "")
     pace = intent.get("pace", "平衡型")
 
-    # 按scene_type分化检查规则
-    if scene_type == "美食型":
-        check_rules = """请检查以下问题（每个问题必须指明是哪个agent的问题）：
-1. food_expert: 餐饮子类型是否多样？（不应全是海鲜排档/全是夜市/全是同一种类，应覆盖海鲜+小吃+甜品/饮品+正餐）
-2. food_expert: 是否选了太多综合性场所？（夜市+美食街+海鲜街最多选1个，它们内部已有多种）
-3. poi_expert: 美食路线不需要太多景点，1-2个散步点即可，选多了反而是问题
-4. 整体：路线是否以餐饮为主线？不应为了多样性硬塞景点"""
-    elif scene_type == "目的地型":
-        check_rules = """请检查以下问题：
-1. poi_expert: 是否包含了用户指定的核心目的地？
-2. food_expert: 餐厅是否在目的地附近？（不应选很远的地方）
-3. 整体：POI是否集中在目的地周围？（不应大范围跨区域）"""
-    elif scene_type == "特种兵型":
-        check_rules = """请检查以下问题：
-1. poi_expert: 是否选了足够多的地标景点？（特种兵应覆盖5-8个）
-2. poi_expert: 景点类型是否多样？（自然+文化+娱乐+地标，不应全是一种）
-3. food_expert: 餐厅是否快节奏？（不应选需要久坐的正餐）
-4. 整体：路线是否紧凑无空隙？"""
-    elif scene_type == "休闲型":
-        check_rules = """请检查以下问题：
-1. poi_expert: 景点是否太多？（休闲应3-4个，不应超过5个）
-2. food_expert: 餐厅是否环境好、适合久坐？
-3. 整体：路线节奏是否舒缓？"""
-    else:
-        check_rules = """请检查以下问题：
-1. poi_expert: 是否选了与主题无关的POI？
-2. food_expert: 餐厅位置是否和景点地理接近？菜系/类型是否多样？
-3. poi_expert: 是否覆盖了用户提到的核心需求？
-4. 整体：路线中POI类型是否过于单一？"""
+    check_rules = _get_check_rules(scene_type)
 
     prompt = f"""你是旅行路线质量审查员。检查各Agent的提案是否匹配用户意图，找出明显问题。
 
