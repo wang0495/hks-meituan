@@ -1957,28 +1957,39 @@ async def synthesizer(state: TravelState) -> dict:
     _steps_streamed = False
 
     if num_days > 1 and len(poi_proposals) + len(food_proposals) > num_days:
-        # ── 多日循环 ──
+        # ── 多日并行组装（ADR-PERF：所有天同时构建，节省5-20秒） ──
         day_pools = _split_pois_by_area(poi_proposals, food_proposals, num_days)
         base_start = intent.get("time", {}).get("start", "09:00")
         base_end = intent.get("time", {}).get("end", "21:00")
 
-        for day_idx in range(num_days):
-            day_poi, day_food = day_pools[day_idx]
+        async def _build_day(day_idx: int, day_poi: list, day_food: list):
+            """构建单日路线（供并行调用）。"""
             if not day_poi and not day_food:
-                continue
-
-            # 每日时间窗口
+                return day_idx, None
             day_intent = dict(intent)
             if day_idx == 0:
                 day_intent["time"] = {"period": "全天", "start": base_start, "end": base_end}
             else:
                 day_intent["time"] = {"period": "全天", "start": "09:00", "end": base_end}
-
             day_route = await _build_single_day_route(
                 day_poi, day_food, hotel_proposals,
                 traffic_proposal, day_intent, state.get("user_input", ""),
                 scene_type, expert_weights, pace, errors,
             )
+            return day_idx, day_route
+
+        # 并行构建所有天
+        day_tasks = [
+            _build_day(day_idx, day_pools[day_idx][0], day_pools[day_idx][1])
+            for day_idx in range(num_days)
+        ]
+        day_results = await asyncio.gather(*day_tasks, return_exceptions=True)
+
+        # 按天序组装 + 流式推送
+        for result in day_results:
+            if isinstance(result, Exception):
+                continue
+            day_idx, day_route = result
             if day_route and day_route.get("route"):
                 multi_routes.append({"day": day_idx + 1, "route": day_route})
                 if route is None:
@@ -1999,6 +2010,9 @@ async def synthesizer(state: TravelState) -> dict:
                     })
                 await sse_emit(state, "day_end", {"day": day_idx + 1})
                 _steps_streamed = True
+
+        # 按day排序
+        multi_routes.sort(key=lambda r: r.get("day", 0))
 
         total_steps = sum(len(dr.get("route", {}).get("route", [])) for dr in multi_routes)
         await sse_emit(state, "agent_result", {
