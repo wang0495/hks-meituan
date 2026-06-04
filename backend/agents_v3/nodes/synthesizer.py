@@ -1664,73 +1664,54 @@ def _build_fallback_narrative(route: dict) -> dict:
     return {"opening": "为您规划了以下行程：", "steps": steps, "closing": "祝您旅途愉快！"}
 
 
+def _filter_fallback_proposals(proposals: list[dict], agent_types: tuple[str, ...]) -> list[dict]:
+    """过滤兜底提案。"""
+    return [p for p in proposals if p.get("agent") in agent_types and p.get("content", {}).get("name") and not _is_likely_macau(p.get("content", {}).get("name", ""))]
+
+
+def _nearest_neighbor_sort(contents: list[dict]) -> list[dict]:
+    """最近邻排序。"""
+    if not contents:
+        return contents
+
+    ordered = [contents[0]]
+    remaining = contents[1:]
+    while remaining:
+        cur = ordered[-1]
+        best = None
+        best_d = float("inf")
+        for r in remaining:
+            d = _haversine_km(cur["lat"], cur["lng"], r["lat"], r["lng"]) if cur.get("lat") and r.get("lat") else 999
+            if d < best_d:
+                best_d = d
+                best = r
+        if best:
+            ordered.append(best)
+            remaining.remove(best)
+        else:
+            break
+    return ordered
+
+
 # ── 规则兜底 ──
 def _fallback_assemble(proposals: list[dict], intent: dict) -> dict | None:
-    poi_proposals = [
-        p
-        for p in proposals
-        if p.get("agent") in ("poi", "poi_expert") and p.get("content", {}).get("name")
-    ]
-    food_proposals = [
-        p
-        for p in proposals
-        if p.get("agent") in ("food", "food_expert") and p.get("content", {}).get("name")
-    ]
-    hotel_proposals = [
-        p
-        for p in proposals
-        if p.get("agent") in ("hotel", "hotel_expert") and p.get("content", {}).get("name")
-    ]
-
-    poi_proposals = [
-        p for p in poi_proposals if not _is_likely_macau(p.get("content", {}).get("name", ""))
-    ]
-    food_proposals = [
-        p for p in food_proposals if not _is_likely_macau(p.get("content", {}).get("name", ""))
-    ]
-    hotel_proposals = [
-        p for p in hotel_proposals if not _is_likely_macau(p.get("content", {}).get("name", ""))
-    ]
+    poi_proposals = _filter_fallback_proposals(proposals, ("poi", "poi_expert"))
+    food_proposals = _filter_fallback_proposals(proposals, ("food", "food_expert"))
+    hotel_proposals = _filter_fallback_proposals(proposals, ("hotel", "hotel_expert"))
 
     if not poi_proposals and not food_proposals:
         return None
 
-    # 简单最近邻排序
-    all_contents = []
-    for p in poi_proposals:
-        c = p.get("content", {})
-        all_contents.append(c)
+    all_contents = [p.get("content", {}) for p in poi_proposals]
     for p in food_proposals:
         c = p.get("content", {})
         c["_food_flag"] = True
         all_contents.append(c)
 
-    # 最近邻排序
-    if all_contents:
-        ordered = [all_contents[0]]
-        remaining = all_contents[1:]
-        while remaining:
-            cur = ordered[-1]
-            best = None
-            best_d = float("inf")
-            for r in remaining:
-                if cur.get("lat") and r.get("lat"):
-                    d = _haversine_km(cur["lat"], cur["lng"], r["lat"], r["lng"])
-                else:
-                    d = 999
-                if d < best_d:
-                    best_d = d
-                    best = r
-            if best:
-                ordered.append(best)
-                remaining.remove(best)
-            else:
-                break
-        all_contents = ordered
+    all_contents = _nearest_neighbor_sort(all_contents)
 
-    start_time_str = intent.get("time", {}).get("start", "09:00")
     try:
-        t = datetime.strptime(start_time_str, "%H:%M")
+        t = datetime.strptime(intent.get("time", {}).get("start", "09:00"), "%H:%M")
     except ValueError:
         t = datetime.strptime("09:00", "%H:%M")
 
@@ -1738,10 +1719,7 @@ def _fallback_assemble(proposals: list[dict], intent: dict) -> dict | None:
     prev = None
     for c in all_contents:
         is_food = c.pop("_food_flag", False)
-        if is_food:
-            stay_min = 50
-        else:
-            stay_min = int(c.get("avg_stay_min", 0)) or _category_stay_min(c.get("category", ""))
+        stay_min = 50 if is_food else int(c.get("avg_stay_min", 0)) or _category_stay_min(c.get("category", ""))
         travel_min = 15
         if prev and c.get("lat") and prev.get("lat"):
             dist = _haversine_km(c["lat"], c["lng"], prev["lat"], prev["lng"])
