@@ -858,6 +858,69 @@ def _ensure_min_food_in_route(route: dict, food_proposals: list[dict], intent: d
     return route
 
 
+def _build_poi_list_for_llm(poi_proposals: list[dict]) -> list[dict]:
+    """构建POI列表供LLM使用。"""
+    return [{"name": p.get("content", {}).get("name", ""), "category": p.get("content", {}).get("category", ""), "lat": round(p.get("content", {}).get("lat", 0), 3), "lng": round(p.get("content", {}).get("lng", 0), 3), "price": p.get("content", {}).get("avg_price", 0), "stay_min": p.get("content", {}).get("avg_stay_min", 90), "tags": p.get("content", {}).get("tags", [])[:3], "confidence": p.get("confidence", 0.5), "expert": p.get("agent", "poi")} for p in poi_proposals]
+
+
+def _build_food_list_for_llm(food_proposals: list[dict]) -> list[dict]:
+    """构建餐饮列表供LLM使用。"""
+    return [{"name": p.get("content", {}).get("name", ""), "category": p.get("content", {}).get("category", ""), "price": p.get("content", {}).get("avg_price", 0), "rating": p.get("content", {}).get("rating", 0), "tags": p.get("content", {}).get("tags", [])[:3], "lat": round(p.get("content", {}).get("lat", 0), 3), "lng": round(p.get("content", {}).get("lng", 0), 3), "meal_time": p.get("content", {}).get("meal_time", ""), "business_hours": p.get("content", {}).get("business_hours", p.get("content", {}).get("opening_hours", "")), "reason": p.get("reasoning", "")} for p in food_proposals]
+
+
+def _build_hotel_list_for_llm(hotel_proposals: list[dict]) -> list[dict]:
+    """构建酒店列表供LLM使用。"""
+    return [{"name": p.get("content", {}).get("name", ""), "lat": round(p.get("content", {}).get("lat", 0), 3), "lng": round(p.get("content", {}).get("lng", 0), 3)} for p in hotel_proposals]
+
+
+def _calc_distances_for_llm(poi_list: list[dict]) -> list[dict]:
+    """计算距离矩阵供LLM使用。"""
+    distances = []
+    for i, p1 in enumerate(poi_list):
+        for j, p2 in enumerate(poi_list):
+            if i < j and p1.get("lat") and p2.get("lat"):
+                d = _haversine_km(p1["lat"], p1["lng"], p2["lat"], p2["lng"])
+                entry = {"from": p1["name"], "to": p2["name"], "km": round(d, 1)}
+                if d > 15:
+                    entry["warning"] = "⚠️跨区不推荐"
+                distances.append(entry)
+    return distances
+
+
+_LOCATION_COORDS: dict[str, tuple[float, float]] = {
+    "横琴": (22.12, 113.53), "金湾": (22.08, 113.38), "金湾机场": (22.05, 113.38),
+    "斗门": (22.22, 113.29), "唐家湾": (22.36, 113.58), "拱北": (22.23, 113.55),
+    "香洲": (22.27, 113.57), "吉大": (22.25, 113.57), "湾仔": (22.20, 113.53),
+    "华发": (22.24, 113.53), "井岸": (22.20, 113.30), "三灶": (22.08, 113.37),
+}
+
+
+def _calc_available_minutes(start_time: str, end_time: str) -> float:
+    """计算可用时间（分钟）。"""
+    try:
+        return (datetime.strptime(end_time, "%H:%M") - datetime.strptime(start_time, "%H:%M")).total_seconds() / 60
+    except ValueError:
+        return 720
+
+
+def _get_short_trip_hint(avail_min: float) -> str:
+    """获取短途提示。"""
+    if avail_min >= 240:
+        return ""
+    max_stops = min(5, max(3, int(avail_min / 60)))
+    return f"\n9. 【短途硬约束】可用时间仅{int(avail_min/60)}小时，安排{max_stops}站左右（含1-2站餐饮），每站停留30-45分钟即可，不用每站都深度体验"
+
+
+def _get_location_coords(location: str) -> tuple[float, float] | None:
+    """获取位置坐标。"""
+    if not location:
+        return None
+    for name, coords in _LOCATION_COORDS.items():
+        if name in location:
+            return coords
+    return None
+
+
 # ── LLM路线编排 ──
 async def _llm_assemble_route(
     poi_proposals: list[dict],
@@ -873,66 +936,11 @@ async def _llm_assemble_route(
     strategy_hint: str = "",
 ) -> dict | None:
     """LLM编排路线，感知expert_weights影响推荐优先级。"""
-    poi_list = []
-    for p in poi_proposals:
-        c = p.get("content", {})
-        poi_list.append(
-            {
-                "name": c.get("name", ""),
-                "category": c.get("category", ""),
-                "lat": round(c.get("lat", 0), 3),
-                "lng": round(c.get("lng", 0), 3),
-                "price": c.get("avg_price", 0),
-                "stay_min": c.get("avg_stay_min", 90),
-                "tags": c.get("tags", [])[:3],
-                "confidence": p.get("confidence", 0.5),
-                "expert": p.get("agent", "poi"),
-            }
-        )
-
-    food_list = []
-    for p in food_proposals:
-        c = p.get("content", {})
-        food_list.append(
-            {
-                "name": c.get("name", ""),
-                "category": c.get("category", ""),
-                "price": c.get("avg_price", 0),
-                "rating": c.get("rating", 0),
-                "tags": c.get("tags", [])[:3],
-                "lat": round(c.get("lat", 0), 3),
-                "lng": round(c.get("lng", 0), 3),
-                "meal_time": p.get("content", {}).get("meal_time", ""),
-                "business_hours": c.get("business_hours", c.get("opening_hours", "")),
-                "reason": p.get("reasoning", ""),
-            }
-        )
-
-    hotel_list = []
-    for p in hotel_proposals:
-        c = p.get("content", {})
-        hotel_list.append(
-            {
-                "name": c.get("name", ""),
-                "lat": round(c.get("lat", 0), 3),
-                "lng": round(c.get("lng", 0), 3),
-            }
-        )
-
-    traffic_order = []
-    if traffic_proposal:
-        traffic_order = traffic_proposal.get("content", {}).get("suggested_order", [])
-
-    # 距离矩阵
-    distances = []
-    for i, p1 in enumerate(poi_list):
-        for j, p2 in enumerate(poi_list):
-            if i < j and p1.get("lat") and p2.get("lat"):
-                d = _haversine_km(p1["lat"], p1["lng"], p2["lat"], p2["lng"])
-                entry = {"from": p1["name"], "to": p2["name"], "km": round(d, 1)}
-                if d > 15:
-                    entry["warning"] = "⚠️跨区不推荐"
-                distances.append(entry)
+    poi_list = _build_poi_list_for_llm(poi_proposals)
+    food_list = _build_food_list_for_llm(food_proposals)
+    hotel_list = _build_hotel_list_for_llm(hotel_proposals)
+    traffic_order = traffic_proposal.get("content", {}).get("suggested_order", []) if traffic_proposal else []
+    distances = _calc_distances_for_llm(poi_list)
 
     group_type = intent.get("group", {}).get("type", "")
     pace = intent.get("pace", "平衡型")
@@ -940,37 +948,10 @@ async def _llm_assemble_route(
     end_time = intent.get("time", {}).get("end", "21:00")
     budget = intent.get("budget", {}).get("per_person", 0)
 
-    # ── 短途/位置感知 ──
-    try:
-        _start_dt = datetime.strptime(start_time, "%H:%M")
-        _end_dt = datetime.strptime(end_time, "%H:%M")
-        _avail_min = (_end_dt - _start_dt).total_seconds() / 60
-    except ValueError:
-        _avail_min = 720  # 默认12小时
-
-    _short_trip = _avail_min < 240  # <4小时 = 短途
-    _max_stops_hint = ""
-    if _short_trip:
-        _max_stops_for_short = min(5, max(3, int(_avail_min / 60)))
-        _max_stops_hint = f"\n9. 【短途硬约束】可用时间仅{int(_avail_min/60)}小时，安排{_max_stops_for_short}站左右（含1-2站餐饮），每站停留30-45分钟即可，不用每站都深度体验"
-
-    # 位置感知：如果用户指定了区域，按坐标过滤/优先
-    _location = intent.get("location") or ""
-    _location_coords: tuple[float, float] | None = None
-    _LOCATION_COORDS = {
-        "横琴": (22.12, 113.53),
-        "金湾": (22.08, 113.38),
-        "金湾机场": (22.05, 113.38),
-        "斗门": (22.22, 113.29),
-        "唐家湾": (22.36, 113.58),
-        "拱北": (22.23, 113.55),
-        "香洲": (22.27, 113.57),
-        "吉大": (22.25, 113.57),
-        "湾仔": (22.20, 113.53),
-        "华发": (22.24, 113.53),
-        "井岸": (22.20, 113.30),
-        "三灶": (22.08, 113.37),
-    }
+    avail_min = _calc_available_minutes(start_time, end_time)
+    max_stops_hint = _get_short_trip_hint(avail_min)
+    location = intent.get("location") or ""
+    location_coords = _get_location_coords(location)
     for loc_name, loc_coords in _LOCATION_COORDS.items():
         if loc_name in _location:
             _location_coords = loc_coords
