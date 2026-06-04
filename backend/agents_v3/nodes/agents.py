@@ -512,7 +512,7 @@ def _find_largest_cluster(dist_matrix: list[list[float]], threshold: float = 10.
     return best_cluster
 
 
-def _find_replacement(outlier_name: str, selected_names: set[str], all_candidates: list[dict], center_lat: float, center_lng: float, max_dist: float) -> dict | None:
+def _find_replacement(outlier_name: str, selected_names: set[str], all_candidates: list[dict], center_lat: float, center_lng: float, max_dist: float = 10.0) -> dict | None:
     """为离群POI寻找替换。"""
     best_replacement = None
     best_score = -1.0
@@ -529,6 +529,37 @@ def _find_replacement(outlier_name: str, selected_names: set[str], all_candidate
             continue
 
         dist = _haversine_km(lat, lng, center_lat, center_lng)
+        if dist > max_dist:
+            continue
+
+        score = (c.get("rating") or 4.0) * 0.3
+        if c.get("_llm_quality", {}).get("is_tourist"):
+            score += 1.5
+        if any(lm in name for lm in _LANDMARK_NAMES):
+            score += 3.0
+        if score > best_score:
+            best_replacement = c
+            best_score = score
+
+    return best_replacement
+
+
+def _apply_replacements(result: list[dict], outlier_indices: set[int], poi_coords: list[tuple], selected_names: set[str], all_candidates: list[dict], center_lat: float, center_lng: float) -> list[dict]:
+    """应用离群POI替换。"""
+    for idx in outlier_indices:
+        outlier_prop = poi_coords[idx][0]
+        outlier_name = outlier_prop.get("content", {}).get("name", "")
+
+        replacement = _find_replacement(outlier_name, selected_names, all_candidates, center_lat, center_lng)
+        if replacement:
+            for i, p in enumerate(result):
+                if p.get("content", {}).get("name", "") == outlier_name:
+                    result[i] = _proposal("poi", replacement, 0.65, f"地理聚类替换（原{outlier_name}距簇中心过远，替换为{replacement.get('name', '')}）")
+                    selected_names.discard(outlier_name)
+                    selected_names.add(replacement.get("name", ""))
+                    break
+
+    return result
 
 
 def _geo_cluster_filter(proposals: list[dict], all_candidates: list[dict]) -> list[dict]:
@@ -557,55 +588,7 @@ def _geo_cluster_filter(proposals: list[dict], all_candidates: list[dict]) -> li
     outlier_indices = set(range(len(poi_coords))) - best_cluster
     selected_names = {p.get("content", {}).get("name", "") for p in proposals}
 
-    result = list(proposals)
-    for idx in outlier_indices:
-        outlier_prop = poi_coords[idx][0]
-        outlier_name = outlier_prop.get("content", {}).get("name", "")
-
-        best_replacement = None
-        best_score = -1.0
-
-        for c in all_candidates:
-            name = c.get("name", "")
-            cat = c.get("category", "")
-            if name in selected_names or name == outlier_name:
-                continue
-            if cat in _EXCLUDED_POI_CATEGORIES or _is_likely_macau(name) or c.get("rating") is None:
-                continue
-            lat, lng = c.get("lat", 0), c.get("lng", 0)
-            if not lat or not lng:
-                continue
-
-            dist = _haversine_km(lat, lng, center_lat, center_lng)
-            if dist > 10:
-                continue  # 只选簇中心10km范围内的
-
-            score = (c.get("rating") or 4.0) * 0.3
-            llm_q = c.get("_llm_quality", {})
-            if llm_q.get("is_tourist"):
-                score += 1.5
-            for lm in _LANDMARK_NAMES:
-                if lm in name:
-                    score += 3.0
-                    break
-            if score > best_score:
-                best_replacement = c
-                best_score = score
-
-        if best_replacement:
-            for i, p in enumerate(result):
-                if p.get("content", {}).get("name", "") == outlier_name:
-                    result[i] = _proposal(
-                        "poi",
-                        best_replacement,
-                        0.65,
-                        f"地理聚类替换（原{outlier_name}距簇中心过远，替换为{best_replacement.get('name', '')}）",
-                    )
-                    selected_names.discard(outlier_name)
-                    selected_names.add(best_replacement.get("name", ""))
-                    break
-
-    return result
+    return _apply_replacements(list(proposals), outlier_indices, poi_coords, selected_names, all_candidates, center_lat, center_lng)
 
 
 _EXCLUDED_POI_CATEGORIES = ["住宿", "酒店", "民宿", "餐饮", "美食"]
