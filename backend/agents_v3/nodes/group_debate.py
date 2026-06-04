@@ -195,7 +195,7 @@ async def _llm_debate_round(
 
 请检查是否还有其他跨Agent冲突。"""
 
-    from backend.agents_v3.nodes.agents import _llm_decide
+    from backend.agents_v3.experts.base import _llm_decide
 
     result = await _llm_decide(system, user)
     if result and "debate_results" in result:

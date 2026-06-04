@@ -75,6 +75,10 @@ from datetime import datetime, timedelta
 import numpy as np
 
 from backend.agents_v3.experts.base import (
+    _FOOD_CATEGORIES,
+    _FOOD_KEYWORDS,
+    _FOOD_SUBCATS,
+    _LIANGCHA_KEYWORDS,
     _haversine_km,
     _is_likely_macau,
     _llm_decide,
@@ -1587,19 +1591,6 @@ def _process_llm_stop(
 # ═══════════════════════════════════════════════════════════
 # 启发式路线评分（不调LLM，用于多候选比较）
 # ═══════════════════════════════════════════════════════════
-
-
-_FOOD_SUBCATS: dict[str, list[str]] = {
-    "海鲜": ["海鲜", "蚝", "鱼排", "渔港"],
-    "正餐": ["餐厅", "烧", "煲", "火锅", "烧烤"],
-    "小吃": ["粉", "面", "粥", "小吃", "排档"],
-    "茶餐厅/甜品": ["茶餐厅", "甜品", "奶茶", "冰", "柠檬"],
-    "综合美食街": ["夜市", "美食街", "海鲜街", "老街"],
-    "饮品/凉茶": ["凉茶", "草本", "龟苓膏"],
-}
-_LIANGCHA_KEYWORDS = {"凉茶", "草本", "龟苓膏"}
-_FOOD_KEYWORDS = ["餐厅", "海鲜", "粉", "面", "粥", "甜品", "茶餐厅", "烧烤", "火锅", "夜市"]
-_FOOD_CATEGORIES = {"餐饮", "美食", "小吃", "夜市"}
 
 
 def _calc_geo_score(steps: list[dict]) -> float:
