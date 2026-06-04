@@ -615,30 +615,27 @@ def _ensure_poi_in_route(route: dict, poi_proposals: list[dict], intent: dict) -
     return route
 
 
+def _find_missing_food(food_proposals: list[dict], route_names: set[str]) -> list[dict]:
+    """找出路线中缺失的餐饮提案。"""
+    missing = []
+    for fp in food_proposals:
+        name = fp.get("content", {}).get("name", "")
+        if name in route_names:
+            continue
+        if any(name in rn or rn in name for rn in route_names):
+            continue
+        missing.append(fp)
+    return missing
+
+
 def _ensure_food_in_route(route: dict, food_proposals: list[dict], intent: dict) -> dict:
+    """确保路线中包含餐饮POI。"""
     if not route or not route.get("route") or not food_proposals:
         return route
 
     steps = route["route"]
-    route_names = set()
-    for s in steps:
-        n = s.get("poi", {}).get("name", "")
-        route_names.add(n)
-        canon = _canonical_name(n)
-        if canon != n:
-            route_names.add(canon)
-
-    missing = []
-    for fp in food_proposals:
-        name = fp.get("content", {}).get("name", "")
-        found = name in route_names
-        if not found:
-            for rn in route_names:
-                if name in rn or rn in name:
-                    found = True
-                    break
-        if not found:
-            missing.append(fp)
+    route_names = _get_route_name_set(steps)
+    missing = _find_missing_food(food_proposals, route_names)
 
     if not missing:
         return route
@@ -648,40 +645,24 @@ def _ensure_food_in_route(route: dict, food_proposals: list[dict], intent: dict)
     except ValueError:
         t = datetime.strptime("18:00", "%H:%M")
 
-    end_time_str = intent.get("time", {}).get("end", "21:00")
     try:
-        end_dt = datetime.strptime(end_time_str, "%H:%M")
+        end_dt = datetime.strptime(intent.get("time", {}).get("end", "21:00"), "%H:%M")
     except ValueError:
         end_dt = datetime.strptime("21:00", "%H:%M")
 
     for fp in missing:
         content = fp.get("content", {})
-        arrival = t
         departure = t + timedelta(minutes=50)
-        if departure > end_dt:
-            break
-        # 站数上限保护
-        if len(steps) >= 10:
+        if departure > end_dt or len(steps) >= 10:
             break
 
         meal_type = "dinner" if t >= datetime.strptime("15:00", "%H:%M") else "lunch"
-        steps.append(
-            {
-                "poi": content,
-                "arrival_time": arrival.strftime("%H:%M"),
-                "departure_time": departure.strftime("%H:%M"),
-                "travel_from_prev": {"distance_m": 1800, "time_min": 15},
-                "_type": meal_type,
-            }
-        )
+        steps.append({"poi": content, "arrival_time": t.strftime("%H:%M"), "departure_time": departure.strftime("%H:%M"), "travel_from_prev": {"distance_m": 1800, "time_min": 15}, "_type": meal_type})
         t = departure + timedelta(minutes=15)
 
     steps = _dedup_route(steps)
     route["route"] = steps
-    route["total_cost"] = {
-        "time_min": route.get("total_cost", {}).get("time_min", 0),
-        "budget_used": sum(s.get("poi", {}).get("avg_price", 0) for s in steps),
-    }
+    route["total_cost"] = {"time_min": route.get("total_cost", {}).get("time_min", 0), "budget_used": sum(s.get("poi", {}).get("avg_price", 0) for s in steps)}
     return route
 
 
