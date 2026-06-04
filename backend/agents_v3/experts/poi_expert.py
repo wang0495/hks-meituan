@@ -324,41 +324,39 @@ def _smart_poi_selection(candidates: list[dict], intent: dict, user_input: str) 
 # ---------------------------------------------------------------------------
 
 
-@sse_expert("poi")
-async def poi_expert(state: TravelState) -> dict:
-    """POI expert: LLM selects attractions from candidate pool, with rule fallback.
+_POI_EXPERT_EXCLUDE_CATS = {
+    "住宿", "酒店", "民宿", "餐饮", "美食", "小吃", "夜市小吃",
+    "海鲜", "茶餐厅", "甜品", "饮品", "酒吧",
+}
 
-    Reads expert_weights and expert_candidates from MoE state.  When
-    expert_candidates["poi"] is empty, falls back to state["candidates"]
-    with the same filtering logic as the original poi_agent.
-    """
-    weight = state.get("expert_weights", {}).get("poi", 0)
-    if weight < 0.3:
-        return {"proposals": []}
 
-    # ── Resolve candidate pool ──
-    candidates = state.get("expert_candidates", {}).get("poi", [])
-    if not candidates:
-        candidates = state.get("candidates", [])
+def _build_expert_poi_pool(candidates: list[dict]) -> list[dict]:
+    """构建专家POI候选池。"""
+    pool = []
+    for c in candidates:
+        name = c.get("name", "")
+        cat = c.get("category", "")
+        if cat in _POI_EXPERT_EXCLUDE_CATS:
+            continue
+        if any(kw in name for kw in _FOOD_NAME_KWS):
+            continue
+        if _is_likely_macau(name):
+            continue
+        if c.get("rating") is None:
+            continue
+        pool.append(c)
+    return pool
 
-    intent = state.get("user_intent", {})
-    user_input = state.get("user_input", "")
-    scene_type = state.get("scene_type", "观光型")
-    errors: list[str] = []
 
-    # ── Read review feedback (for rework rounds) ──
+def _build_expert_feedback_hints(state: dict) -> tuple[str, str]:
+    """构建反馈提示。"""
     feedback = state.get("review_feedback", [])
     poi_feedback = [f for f in feedback if f.get("agent") == "poi"]
     feedback_hint = ""
     if poi_feedback:
         hints = "; ".join(f"{f['issue']} → {f['suggestion']}" for f in poi_feedback)
-        feedback_hint = (
-            "\n\n【上一轮审查反馈，必须据此调整】\n"
-            f"{hints}\n"
-            "请严格按照反馈要求重新选择，不要重复之前的错误。"
-        )
+        feedback_hint = f"\n\n【上一轮审查反馈，必须据此调整】\n{hints}\n请严格按照反馈要求重新选择，不要重复之前的错误。"
 
-    # ── Read prev_round_context (for feedback re-entry) ──
     prev_ctx = state.get("prev_round_context", {})
     context_hint = ""
     if prev_ctx:
@@ -367,43 +365,26 @@ async def poi_expert(state: TravelState) -> dict:
         last_stops = prev_ctx.get("last_stops", [])
         reject_reason = prev_ctx.get("reject_reason", "")
         dims_str = "; ".join(f"{k}={v}" for k, v in score_dims.items() if v)
-        context_hint = (
-            f"\n\n【上一轮路线评分（反馈重入），请参考并改进】\n"
-            f"总分: {last_score} | 分项: {dims_str}\n"
-            f"上一轮路线: {' → '.join(last_stops[:8])}\n"
-            f"用户不满意原因: {reject_reason}\n"
-            f"要求: 保持上一轮高分维度不退化，重点改进低分维度。"
-        )
+        context_hint = f"\n\n【上一轮路线评分（反馈重入），请参考并改进】\n总分: {last_score} | 分项: {dims_str}\n上一轮路线: {' → '.join(last_stops[:8])}\n用户不满意原因: {reject_reason}\n要求: 保持上一轮高分维度不退化，重点改进低分维度。"
 
-    # 只做最基本过滤：去掉非景点、澳门、无评分垃圾POI
-    _EXCLUDE_CATS = {
-        "住宿",
-        "酒店",
-        "民宿",
-        "餐饮",
-        "美食",
-        "小吃",
-        "夜市小吃",
-        "海鲜",
-        "茶餐厅",
-        "甜品",
-        "饮品",
-        "酒吧",
-    }
-    pool = []
-    for c in candidates:
-        name = c.get("name", "")
-        cat = c.get("category", "")
-        if cat in _EXCLUDE_CATS:
-            continue
-        # 名称包含餐饮关键词的也排除（防止美食街/海鲜街等被误选为景点）
-        if any(kw in name for kw in _FOOD_NAME_KWS):
-            continue
-        if _is_likely_macau(name):
-            continue
-        if c.get("rating") is None:
-            continue
-        pool.append(c)
+    return feedback_hint, context_hint
+
+
+@sse_expert("poi")
+async def poi_expert(state: TravelState) -> dict:
+    """POI expert: LLM selects attractions from candidate pool, with rule fallback."""
+    weight = state.get("expert_weights", {}).get("poi", 0)
+    if weight < 0.3:
+        return {"proposals": []}
+
+    candidates = state.get("expert_candidates", {}).get("poi", []) or state.get("candidates", [])
+    intent = state.get("user_intent", {})
+    user_input = state.get("user_input", "")
+    scene_type = state.get("scene_type", "观光型")
+    errors: list[str] = []
+
+    feedback_hint, context_hint = _build_expert_feedback_hints(state)
+    pool = _build_expert_poi_pool(candidates)
 
     # 按category分层抽样，确保LLM看到各类POI
     cat_groups: dict[str, list[dict]] = {}
