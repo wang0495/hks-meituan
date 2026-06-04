@@ -351,38 +351,17 @@ def _build_poi_prompt(intent: dict) -> str:
 # ═══════════════════════════════════════════════════════════
 
 
-async def poi_agent(state: TravelState) -> dict:
-    """景点Agent：LLM直接从候选池选景点，不做算法预排序。"""
-    # ── SSE: Agent启动 ──
-    meta = AGENT_META.get("poi", {})
-    await sse_emit(state, "agent_start", {"agent": "poi", **meta})
-    await sse_emit(
-        state, "agent_thinking", {"agent": "poi", "text": "加载候选景点，按分类分层抽样..."}
-    )
+_EXCLUDED_POI_CATS = ["住宿", "酒店", "民宿", "餐饮", "美食"]
 
-    # ── 感知 ──
-    candidates = state.get("candidates", [])
-    intent = state.get("user_intent", {})
-    user_input = state.get("user_input", "")
-    scene_type = state.get("scene_type", "观光型")
-    errors = []
 
-    # ── 读取review反馈（如果有） ──
-    feedback = state.get("review_feedback", [])
-    poi_feedback = [f for f in feedback if f.get("agent") == "poi"]
-    feedback_hint = ""
-    if poi_feedback:
-        hints = "; ".join(f"{f['issue']} → {f['suggestion']}" for f in poi_feedback)
-        feedback_hint = f"\n\n【上一轮审查反馈，必须据此调整】\n{hints}\n请严格按照反馈要求重新选择，不要重复之前的错误。"
-
-    # 只做最基本过滤：去掉非景点、澳门、无评分垃圾POI
+def _build_poi_pool(candidates: list[dict]) -> list[dict]:
+    """构建景点候选池。"""
     pool = []
     for c in candidates:
         name = c.get("name", "")
         cat = c.get("category", "")
-        if cat in ["住宿", "酒店", "民宿", "餐饮", "美食"]:
+        if cat in _EXCLUDED_POI_CATS:
             continue
-        # 名称包含餐饮关键词的也排除（防止美食街/海鲜街等被误选为景点）
         if any(kw in name for kw in _FOOD_NAME_KWS):
             continue
         if _is_likely_macau(name):
@@ -390,43 +369,55 @@ async def poi_agent(state: TravelState) -> dict:
         if c.get("rating") is None:
             continue
         pool.append(c)
+    return pool
 
-    # 按category分层抽样，确保LLM看到各类POI
-    cat_groups = {}
+
+def _stratified_sample_pois(pool: list[dict], max_total: int = 250) -> list[dict]:
+    """按category分层抽样。"""
+    cat_groups: dict[str, list[dict]] = {}
     for c in pool:
-        cat = c.get("category", "其他")
-        cat_groups.setdefault(cat, []).append(c)
+        cat_groups.setdefault(c.get("category", "其他"), []).append(c)
 
-    # 每个category按rating排序后取前N个，总共控制在~200个
     sampled = []
     per_cat = max(3, 200 // max(len(cat_groups), 1))
-    for _cat, items in cat_groups.items():
+    for items in cat_groups.values():
         items.sort(key=lambda x: x.get("rating", 0), reverse=True)
         sampled.extend(items[:per_cat])
 
-    # 如果总量还是太大，按rating截断
-    if len(sampled) > 250:
+    if len(sampled) > max_total:
         sampled.sort(key=lambda x: x.get("rating", 0), reverse=True)
-        sampled = sampled[:250]
+        sampled = sampled[:max_total]
 
-    # 构建LLM摘要
-    poi_summaries = []
-    for c in sampled:
-        poi_summaries.append(
-            {
-                "name": c.get("name", ""),
-                "category": c.get("category", ""),
-                "rating": c.get("rating", 0),
-                "price": c.get("avg_price", 0),
-                "tags": c.get("tags", [])[:5],
-                "scene_tags": c.get("_scene_tags", [])[:3],
-                "avg_stay_min": c.get("avg_stay_min", 60),
-                "lat": c.get("lat", 0),
-                "lng": c.get("lng", 0),
-                "reviews": c.get("_ugc_summary", ""),
-                "suitability": c.get("_suitability", {}),
-            }
-        )
+    return sampled
+
+
+def _build_poi_summaries(sampled: list[dict]) -> list[dict]:
+    """构建LLM摘要。"""
+    return [{"name": c.get("name", ""), "category": c.get("category", ""), "rating": c.get("rating", 0), "price": c.get("avg_price", 0), "tags": c.get("tags", [])[:5], "scene_tags": c.get("_scene_tags", [])[:3], "avg_stay_min": c.get("avg_stay_min", 60), "lat": c.get("lat", 0), "lng": c.get("lng", 0), "reviews": c.get("_ugc_summary", ""), "suitability": c.get("_suitability", {})} for c in sampled]
+
+
+async def poi_agent(state: TravelState) -> dict:
+    """景点Agent：LLM直接从候选池选景点，不做算法预排序。"""
+    meta = AGENT_META.get("poi", {})
+    await sse_emit(state, "agent_start", {"agent": "poi", **meta})
+    await sse_emit(state, "agent_thinking", {"agent": "poi", "text": "加载候选景点，按分类分层抽样..."})
+
+    candidates = state.get("candidates", [])
+    intent = state.get("user_intent", {})
+    user_input = state.get("user_input", "")
+    scene_type = state.get("scene_type", "观光型")
+    errors = []
+
+    feedback = state.get("review_feedback", [])
+    poi_feedback = [f for f in feedback if f.get("agent") == "poi"]
+    feedback_hint = ""
+    if poi_feedback:
+        hints = "; ".join(f"{f['issue']} → {f['suggestion']}" for f in poi_feedback)
+        feedback_hint = f"\n\n【上一轮审查反馈，必须据此调整】\n{hints}\n请严格按照反馈要求重新选择，不要重复之前的错误。"
+
+    pool = _build_poi_pool(candidates)
+    sampled = _stratified_sample_pois(pool)
+    poi_summaries = _build_poi_summaries(sampled)
 
     # ── 决策：LLM（按场景类型分化prompt） ──
     system = _build_poi_prompt(intent)
