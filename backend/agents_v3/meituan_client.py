@@ -65,81 +65,75 @@ def _normalize(poi: dict) -> dict:
     }
 
 
+async def _fetch_all_pages(client: httpx.AsyncClient, category: str | None, price_max: float | None, rating_min: float | None) -> list[dict]:
+    """分页获取全部POI。"""
+    items: list[dict] = []
+    page_size = 200
+    offset = 0
+    while True:
+        params: dict[str, Any] = {"limit": page_size, "offset": offset}
+        if category:
+            params["category"] = category
+        if price_max is not None:
+            params["price_max"] = price_max
+        if rating_min is not None:
+            params["rating_min"] = rating_min
+
+        resp = await client.get("/poi/search", params=params)
+        resp.raise_for_status()
+        data = resp.json()
+        batch = data.get("items", [])
+        items.extend(batch)
+        total = data.get("total", 0)
+        offset += page_size
+        if offset >= total or not batch:
+            break
+    return items
+
+
+async def _enrich_top_pois(client: httpx.AsyncClient, items: list[dict], top_n: int = 200) -> dict[str, dict]:
+    """批量获取top POI的详情。"""
+    top_ids = [it["id"] for it in items[:top_n]]
+    detail_map: dict[str, dict] = {}
+    sem = asyncio.Semaphore(50)
+
+    async def _fetch_detail(poi_id: str) -> None:
+        async with sem:
+            try:
+                r = await client.get(f"/poi/{poi_id}")
+                if r.status_code == 200:
+                    detail_map[poi_id] = r.json()
+            except Exception:
+                logger.debug("individual POI detail fetch failed for %s", poi_id, exc_info=True)
+
+    await asyncio.gather(*[_fetch_detail(pid) for pid in top_ids])
+    return detail_map
+
+
 async def fetch_pois(
     category: str | None = None,
     price_max: float | None = None,
     rating_min: float | None = None,
 ) -> list[dict[str, Any]]:
-    """从美团API获取POI列表，高评分的自动enrich详情。
-
-    Args:
-        category: 品类过滤
-        price_max: 最高人均价
-        rating_min: 最低评分
-
-    Returns:
-        规范化后的POI列表
-    """
+    """从美团API获取POI列表，高评分的自动enrich详情。"""
     global _cache, _cache_key
 
-    # 简单缓存：同参数只请求一次
     key = f"{category}-{price_max}-{rating_min}"
     if _cache is not None and _cache_key == key:
         return _cache  # type: ignore
 
     async with httpx.AsyncClient(base_url=BASE, timeout=15.0) as client:
-        # 1. 分页获取全部POI（API限制limit最大200）
-        items: list[dict] = []
-        page_size = 200
-        offset = 0
-        while True:
-            params: dict[str, Any] = {"limit": page_size, "offset": offset}
-            if category:
-                params["category"] = category
-            if price_max is not None:
-                params["price_max"] = price_max
-            if rating_min is not None:
-                params["rating_min"] = rating_min
-
-            resp = await client.get("/poi/search", params=params)
-            resp.raise_for_status()
-            data = resp.json()
-            batch = data.get("items", [])
-            items.extend(batch)
-            total = data.get("total", 0)
-            offset += page_size
-            if offset >= total or not batch:
-                break
+        items = await _fetch_all_pages(client, category, price_max, rating_min)
 
         if not items:
             _cache = []
             _cache_key = key
             return []
 
-        # 2. 按rating排序，top 200 enrich详情（获取scene_tags/suitability等）
         items.sort(key=lambda x: x.get("rating", 0), reverse=True)
-        top_ids = [it["id"] for it in items[:200]]
+        detail_map = await _enrich_top_pois(client, items)
 
-        detail_map: dict[str, dict] = {}
-        sem = asyncio.Semaphore(50)
-
-        async def _fetch_detail(poi_id: str) -> None:
-            async with sem:
-                try:
-                    r = await client.get(f"/poi/{poi_id}")
-                    if r.status_code == 200:
-                        detail_map[poi_id] = r.json()
-                except Exception:
-                    logger.debug("individual POI detail fetch failed for %s", poi_id, exc_info=True)
-
-        await asyncio.gather(*[_fetch_detail(pid) for pid in top_ids])
-
-        # 3. 合并：有详情用详情，没有用搜索结果
-        result = []
-        for it in items:
-            raw = detail_map.get(it["id"], it)
-            result.append(_normalize(raw))
-
+        result = [_normalize(detail_map.get(it["id"], it)) for it in items]
         logger.info("从美团API获取 %d 条POI（%d 条enriched）", len(result), len(detail_map))
         _cache = result
         _cache_key = key
