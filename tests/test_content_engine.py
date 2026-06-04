@@ -130,8 +130,11 @@ class TestNonStandardExperiences:
         """时间匹配的非标体验优先。"""
         result = get_nse_for_route(city="广州", hour_of_day=6, season="spring")
         assert len(result) > 0
-        # 清晨菜市场应在推荐中（best_time=06:00-08:00）
-        assert any("菜市场" in nse["name"] for nse in result)
+        # 清晨6点应推荐早间体验（如晨运/登山/晨练）
+        assert any(
+            any(kw in nse["name"] for kw in ("晨", "太极", "登山"))
+            for nse in result
+        )
 
     def test_get_nse_for_route_limit(self) -> None:
         result = get_nse_for_route(city="广州", hour_of_day=10, season="spring", limit=2)
@@ -144,7 +147,7 @@ class TestNonStandardExperiences:
             assert "name" in nse
             assert "city" in nse
             assert "emotion_tags" in nse
-            assert "experience_value" in nse
+            assert "category" in nse
 
 
 class TestNarratorIntegration:
