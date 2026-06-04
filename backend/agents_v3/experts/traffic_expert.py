@@ -44,6 +44,44 @@ def _nearest_neighbor_order(poi_locs: list[dict]) -> list[str]:
     return order
 
 
+_TRAFFIC_EXPERT_SCENE_HINTS: dict[str, str] = {
+    "亲子": """
+【亲子路线设计】
+- 上午精力好，安排主要景点（如海洋公园、动物园）
+- 午后孩子易疲倦，安排室内/轻松项目
+- 景点间距要短（带小孩不宜>5km/次）
+- 避开交通高峰时段""",
+    "情侣": """
+【情侣路线设计】
+- 安排水畔/海滨漫步路线（情侣路沿线最佳）
+- 下午安排咖啡厅或艺术区（轻松浪漫氛围）
+- 傍晚安排观景台/海边看日落
+- 晚上安排夜景好的地点""",
+    "朋友": """
+【朋友路线设计】
+- 可安排较紧凑的打卡路线
+- 午餐和晚餐穿插不同特色街区
+- 可以走主题路线（美食街、文创区）""",
+}
+
+
+def _extract_traffic_expert_poi_locs(candidates: list[dict], max_count: int = 30) -> list[dict]:
+    """提取交通专家用的POI位置信息。"""
+    return [{"name": c.get("name", ""), "lat": c.get("lat", 0), "lng": c.get("lng", 0), "category": c.get("category", ""), "tags": c.get("tags", [])[:3]} for c in candidates[:max_count] if c.get("category", "") not in ["住宿", "酒店", "民宿"]]
+
+
+def _calc_traffic_expert_distances(poi_locs: list[dict], max_count: int = 12) -> list[dict]:
+    """计算POI之间的距离矩阵。"""
+    distances = []
+    for i, p1 in enumerate(poi_locs[:max_count]):
+        for j, p2 in enumerate(poi_locs[:max_count]):
+            if i < j and p1.get("lat") and p2.get("lat"):
+                d = _haversine_km(p1["lat"], p1["lng"], p2["lat"], p2["lng"])
+                if d > 0.5:
+                    distances.append({"from": p1["name"], "to": p2["name"], "km": round(d, 1)})
+    return distances
+
+
 @sse_expert("traffic")
 async def traffic_expert(state: TravelState) -> dict:
     """Analyze POI distribution and plan transport + route ordering."""
@@ -55,56 +93,11 @@ async def traffic_expert(state: TravelState) -> dict:
     intent = state.get("user_intent", {})
     user_input = str(state.get("user_input", ""))
 
-    # Extract non-hotel POI locations
-    poi_locs: list[dict] = []
-    for c in candidates[:30]:
-        if c.get("category", "") not in ["住宿", "酒店", "民宿"]:
-            poi_locs.append(
-                {
-                    "name": c.get("name", ""),
-                    "lat": c.get("lat", 0),
-                    "lng": c.get("lng", 0),
-                    "category": c.get("category", ""),
-                    "tags": c.get("tags", [])[:3],
-                }
-            )
+    poi_locs = _extract_traffic_expert_poi_locs(candidates)
+    distances = _calc_traffic_expert_distances(poi_locs)
 
-    # Compute distance matrix (top 12 POIs, only meaningful distances > 0.5km)
-    distances: list[dict] = []
-    for i, p1 in enumerate(poi_locs[:12]):
-        for j, p2 in enumerate(poi_locs[:12]):
-            if i < j and p1.get("lat") and p2.get("lat"):
-                d = _haversine_km(p1["lat"], p1["lng"], p2["lat"], p2["lng"])
-                if d > 0.5:
-                    distances.append({"from": p1["name"], "to": p2["name"], "km": round(d, 1)})
-
-    # Scene-aware prompt
     group_type = intent.get("group", {}).get("type", "")
-    pace = intent.get("pace", "平衡型")
-    scene_reqs = intent.get("scene_requirements", [])
-
-    if group_type == "亲子":
-        scene_hint = """
-【亲子路线设计】
-- 上午精力好，安排主要景点（如海洋公园、动物园）
-- 午后孩子易疲倦，安排室内/轻松项目
-- 景点间距要短（带小孩不宜>5km/次）
-- 避开交通高峰时段"""
-    elif group_type == "情侣":
-        scene_hint = """
-【情侣路线设计】
-- 安排水畔/海滨漫步路线（情侣路沿线最佳）
-- 下午安排咖啡厅或艺术区（轻松浪漫氛围）
-- 傍晚安排观景台/海边看日落
-- 晚上安排夜景好的地点"""
-    elif group_type == "朋友":
-        scene_hint = """
-【朋友路线设计】
-- 可安排较紧凑的打卡路线
-- 午餐和晚餐穿插不同特色街区
-- 可以走主题路线（美食街、文创区）"""
-    else:
-        scene_hint = "\n- 平衡地理效率和游览体验"
+    scene_hint = _TRAFFIC_EXPERT_SCENE_HINTS.get(group_type, "\n- 平衡地理效率和游览体验")
 
     system = f"""你是城市旅行路线规划专家。你需要设计一条高质量的一日游路线。
 
