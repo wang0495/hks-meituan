@@ -9,7 +9,8 @@
 from __future__ import annotations
 
 import uuid
-from typing import TYPE_CHECKING, Any
+from datetime import datetime  # noqa: TC003 — runtime needed
+from typing import Any
 
 from sqlalchemy import (
     JSON,
@@ -27,9 +28,6 @@ from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from backend.database.base import Base
-
-if TYPE_CHECKING:
-    from datetime import datetime
 
 # JSON 类型：PostgreSQL 用 JSONB，其他数据库（SQLite 等）用普通 JSON
 _JSONCol = JSON().with_variant(JSONB(), "postgresql")

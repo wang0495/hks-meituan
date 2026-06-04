@@ -5,12 +5,9 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from datetime import datetime  # noqa: TC003 — runtime needed
 
 import strawberry
-
-if TYPE_CHECKING:
-    from datetime import datetime
 
 # ---------------------------------------------------------------------------
 # 标量类型

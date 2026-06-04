@@ -5,15 +5,13 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Literal
+from datetime import datetime  # noqa: TC003 — runtime needed
+from typing import Literal
 
 from fastapi import APIRouter, Query
 from fastapi.responses import PlainTextResponse, Response
 
 from backend.services.audit_logger import AuditAction, get_audit_logger
-
-if TYPE_CHECKING:
-    from datetime import datetime
 
 router = APIRouter(prefix="/api/audit", tags=["审计日志"])
 

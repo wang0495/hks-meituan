@@ -525,78 +525,10 @@ async def _generate_progress(current_phase: str, agent_summary: str) -> str:
 
 
 # ---------------------------------------------------------------------------
-# POST /api/plan -- 流式路线规划
+# POST /api/plan -- 流式路线规划（辅助函数）
 # ---------------------------------------------------------------------------
 
 
-@app.post(
-    "/api/plan",
-    summary="流式规划路线",
-    description=(
-        "根据用户自然语言描述，以SSE（Server-Sent Events）流式返回规划结果。\n\n"
-        "## 处理流程\n\n"
-        "1. **解析意图** (`phase: parsing`) - 理解用户需求，匹配用户画像\n"
-        "2. **搜索候选** (`phase: searching`) - 根据意图筛选合适POI\n"
-        "3. **求解路线** (`phase: solving`) - TSPTW算法优化路线顺序与时间\n"
-        "4. **生成文案** (`phase: narrating`) - 为每个站点生成描述文案\n"
-        "5. **逐步返回** (`step`) - 逐个返回路线步骤\n"
-        "6. **完成** (`done`) - 返回路线ID和完整数据\n\n"
-        "## SSE 事件类型\n\n"
-        "| 事件 | data 字段 | 说明 |\n"
-        "|------|-----------|------|\n"
-        "| `phase` | `{phase, message}` | 当前处理阶段 |\n"
-        "| `step` | `{index, poi, arrival_time, departure_time, narrative}` | 单个路线步骤 |\n"
-        "| `done` | `{route_id, full_route}` | 规划完成，route_id 可用于后续对话 |\n"
-        "| `error` | `{error}` | 错误信息 |\n\n"
-        "## 阶段标识\n\n"
-        "| phase 值 | 含义 |\n"
-        "|-----------|------|\n"
-        "| `parsing` | 正在解析用户意图 |\n"
-        "| `searching` | 正在搜索候选POI |\n"
-        "| `solving` | 正在求解最优路线 |\n"
-        "| `narrating` | 正在生成文案 |\n\n"
-        "## 超时与兜底\n\n"
-        "- 意图解析超时（8s）→ 返回错误\n"
-        "- 候选为空 → 返回错误\n"
-        "- 路线求解超时（10s）→ 使用简化路线兜底\n"
-        "- 文案生成超时（5s）→ 使用空白文案兜底"
-    ),
-    response_description="SSE 事件流（text/event-stream），事件格式为 `event: <type>\\ndata: <json>\\n\\n`",
-    responses={
-        200: {
-            "description": "SSE事件流",
-            "content": {
-                "text/event-stream": {
-                    "schema": {"type": "string"},
-                    "examples": {
-                        "phase": {
-                            "summary": "阶段事件",
-                            "value": 'event: phase\ndata: {"phase":"parsing","message":"正在理解你的需求..."}\n\n',
-                        },
-                        "step": {
-                            "summary": "步骤事件",
-                            "value": (
-                                'event: step\ndata: {"index":1,"poi":{"id":"poi_001",'
-                                '"name":"故宫","category":"景点"},'
-                                '"arrival_time":"09:00","departure_time":"11:00",'
-                                '"narrative":"走进六百年的紫禁城..."}\n\n'
-                            ),
-                        },
-                        "done": {
-                            "summary": "完成事件",
-                            "value": 'event: done\ndata: {"route_id":"a1b2c3d4","full_route":{...}}\n\n',
-                        },
-                        "error": {
-                            "summary": "错误事件",
-                            "value": 'event: error\ndata: {"error":"意图解析超时，请重试"}\n\n',
-                        },
-                    },
-                }
-            },
-        }
-    },
-    tags=["路线规划"],
-)
 async def _drain_sse_queue(
     sse_queue: asyncio.Queue, graph_task: asyncio.Task, agent_summary_ref: list[str]
 ):
@@ -795,6 +727,79 @@ async def _handle_graph_result(c_result: dict):
         yield event
 
 
+# ---------------------------------------------------------------------------
+# POST /api/plan -- 流式路线规划（路由）
+# ---------------------------------------------------------------------------
+
+
+@app.post(
+    "/api/plan",
+    summary="流式规划路线",
+    description=(
+        "根据用户自然语言描述，以SSE（Server-Sent Events）流式返回规划结果。\n\n"
+        "## 处理流程\n\n"
+        "1. **解析意图** (`phase: parsing`) - 理解用户需求，匹配用户画像\n"
+        "2. **搜索候选** (`phase: searching`) - 根据意图筛选合适POI\n"
+        "3. **求解路线** (`phase: solving`) - TSPTW算法优化路线顺序与时间\n"
+        "4. **生成文案** (`phase: narrating`) - 为每个站点生成描述文案\n"
+        "5. **逐步返回** (`step`) - 逐个返回路线步骤\n"
+        "6. **完成** (`done`) - 返回路线ID和完整数据\n\n"
+        "## SSE 事件类型\n\n"
+        "| 事件 | data 字段 | 说明 |\n"
+        "|------|-----------|------|\n"
+        "| `phase` | `{phase, message}` | 当前处理阶段 |\n"
+        "| `step` | `{index, poi, arrival_time, departure_time, narrative}` | 单个路线步骤 |\n"
+        "| `done` | `{route_id, full_route}` | 规划完成，route_id 可用于后续对话 |\n"
+        "| `error` | `{error}` | 错误信息 |\n\n"
+        "## 阶段标识\n\n"
+        "| phase 值 | 含义 |\n"
+        "|-----------|------|\n"
+        "| `parsing` | 正在解析用户意图 |\n"
+        "| `searching` | 正在搜索候选POI |\n"
+        "| `solving` | 正在求解最优路线 |\n"
+        "| `narrating` | 正在生成文案 |\n\n"
+        "## 超时与兜底\n\n"
+        "- 意图解析超时（8s）→ 返回错误\n"
+        "- 候选为空 → 返回错误\n"
+        "- 路线求解超时（10s）→ 使用简化路线兜底\n"
+        "- 文案生成超时（5s）→ 使用空白文案兜底"
+    ),
+    response_description="SSE 事件流（text/event-stream），事件格式为 `event: <type>\\ndata: <json>\\n\\n`",
+    responses={
+        200: {
+            "description": "SSE事件流",
+            "content": {
+                "text/event-stream": {
+                    "schema": {"type": "string"},
+                    "examples": {
+                        "phase": {
+                            "summary": "阶段事件",
+                            "value": 'event: phase\ndata: {"phase":"parsing","message":"正在理解你的需求..."}\n\n',
+                        },
+                        "step": {
+                            "summary": "步骤事件",
+                            "value": (
+                                'event: step\ndata: {"index":1,"poi":{"id":"poi_001",'
+                                '"name":"故宫","category":"景点"},'
+                                '"arrival_time":"09:00","departure_time":"11:00",'
+                                '"narrative":"走进六百年的紫禁城..."}\n\n'
+                            ),
+                        },
+                        "done": {
+                            "summary": "完成事件",
+                            "value": 'event: done\ndata: {"route_id":"a1b2c3d4","full_route":{...}}\n\n',
+                        },
+                        "error": {
+                            "summary": "错误事件",
+                            "value": 'event: error\ndata: {"error":"意图解析超时，请重试"}\n\n',
+                        },
+                    },
+                }
+            },
+        }
+    },
+    tags=["路线规划"],
+)
 async def plan_route(request: PlanRequest):
     """
     流式规划路线。

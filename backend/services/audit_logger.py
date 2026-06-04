@@ -10,17 +10,15 @@ import csv
 import io
 import json
 import logging
+from datetime import datetime  # noqa: TC003 — runtime needed
 from enum import StrEnum
 from functools import wraps
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from sqlalchemy import and_, func, select
 
 from backend.database.base import async_session_factory
 from backend.database.models import AuditLog
-
-if TYPE_CHECKING:
-    from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
