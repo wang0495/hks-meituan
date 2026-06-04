@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import logging
-import math
 from typing import Any
 
 from backend.services.economy import enrich_poi_economics
@@ -21,7 +20,7 @@ _CAT_RATIO_LOW = 0.3
 
 def _calc_tourist_relevance(poi: dict) -> float:
     """计算 POI 作为旅游目的地的相关性评分 (0~1)。"""
-    from backend.services.solver import _TOURIST_KEYWORDS, _NON_TOURIST_KEYWORDS
+    from backend.services.solver import _NON_TOURIST_KEYWORDS, _TOURIST_KEYWORDS
 
     name = poi.get("name", "")
     category = poi.get("category", "")
@@ -33,15 +32,48 @@ def _calc_tourist_relevance(poi: dict) -> float:
         return 0.0
 
     _MEANINGFUL_TAGS = {
-        "海滨", "山景", "公园", "夜景", "文化历史", "自然风光",
-        "拍照出片", "打卡热点", "品质体验", "运动健身", "休闲放松",
-        "亲子", "情侣", "网红店", "老字号",
+        "海滨",
+        "山景",
+        "公园",
+        "夜景",
+        "文化历史",
+        "自然风光",
+        "拍照出片",
+        "打卡热点",
+        "品质体验",
+        "运动健身",
+        "休闲放松",
+        "亲子",
+        "情侣",
+        "网红店",
+        "老字号",
     }
     _WEAK_TAGS = {
-        "餐饮", "购物", "美食", "住宿", "运动", "文化", "市区", "经济", "经典",
-        "出片", "休闲", "其他", "经济实惠", "适合聚餐", "交通便利", "环境好",
-        "性价比高", "品牌齐全", "打折", "味道正宗", "停车方便", "服务好",
-        "排队", "免费", "分量足",
+        "餐饮",
+        "购物",
+        "美食",
+        "住宿",
+        "运动",
+        "文化",
+        "市区",
+        "经济",
+        "经典",
+        "出片",
+        "休闲",
+        "其他",
+        "经济实惠",
+        "适合聚餐",
+        "交通便利",
+        "环境好",
+        "性价比高",
+        "品牌齐全",
+        "打折",
+        "味道正宗",
+        "停车方便",
+        "服务好",
+        "排队",
+        "免费",
+        "分量足",
     }
 
     has_meaningful_tag = any(t in scene_tags for t in _MEANINGFUL_TAGS)
@@ -110,9 +142,7 @@ def _calc_same_type_penalty(poi: dict, route: list[dict[str, Any]]) -> float:
     return penalty
 
 
-def _calc_scene_semantic_bonus(
-    poi: dict[str, Any], scene_requirements: list[str]
-) -> float:
+def _calc_scene_semantic_bonus(poi: dict[str, Any], scene_requirements: list[str]) -> float:
     """计算场景需求语义匹配加分。"""
     if not scene_requirements:
         return 0.0
@@ -128,12 +158,11 @@ def _calc_scene_semantic_bonus(
     )
     matched = 0
     for sr in scene_requirements:
-        if sr in poi_text:
-            matched += 1
-        elif any(syn in poi_text for syn in _SCENE_SYNONYMS.get(sr, [])):
+        if sr in poi_text or any(syn in poi_text for syn in _SCENE_SYNONYMS.get(sr, [])):
             matched += 1
 
     from backend.services.solver import _SCENE_SEMANTIC_PHASE1_BONUS
+
     return matched * _SCENE_SEMANTIC_PHASE1_BONUS if matched > 0 else 0.0
 
 
@@ -151,20 +180,28 @@ def _calc_economy_score(
     route_pos = len(route) / max_pois if max_pois > 0 else 0
     if route_pos < 0.25 and poi.get("avg_price", 0) < 50:
         from backend.services.solver import _BUDGET_RHYTHM_OPENING_BONUS
+
         score -= _BUDGET_RHYTHM_OPENING_BONUS
     if route_pos > 0.75:
         from backend.services.solver import _BUDGET_RHYTHM_CLOSING_FACTOR
+
         ev = enriched.get("experience_value", 5.0)
         score -= ev * _BUDGET_RHYTHM_CLOSING_FACTOR
 
     from backend.services.solver import _ECONOMY_LEVERAGE_BONUS, _ECONOMY_LEVERAGE_PENALTY
+
     if leverage == "high":
         score -= _ECONOMY_LEVERAGE_BONUS
     elif leverage == "low":
         score += _ECONOMY_LEVERAGE_PENALTY
 
     budget_per_person = user_intent.get("budget", {}).get("per_person", 500)
-    from backend.services.solver import _get_weight, _BUDGET_TIGHT_THRESHOLD, _BUDGET_TIGHT_LEVERAGE_BONUS
+    from backend.services.solver import (
+        _BUDGET_TIGHT_LEVERAGE_BONUS,
+        _BUDGET_TIGHT_THRESHOLD,
+        _get_weight,
+    )
+
     budget_strictness = _get_weight("budget_strictness", 1.0)
     if budget_per_person < _BUDGET_TIGHT_THRESHOLD * budget_strictness and leverage == "high":
         score -= _BUDGET_TIGHT_LEVERAGE_BONUS

@@ -19,18 +19,17 @@ from backend.services.cache import distance_cache
 from backend.services.solver_scoring import (
     _ALPHA,
     _BETA,
+    _DELTA,
+    _GAMMA,
     _calc_economy_score,
     _calc_same_type_penalty,
     _calc_scene_semantic_bonus,
     _calc_tourist_relevance,
-    _DELTA,
-    _GAMMA,
     _score_poi_for_phase,
 )
 
 logger = logging.getLogger(__name__)
 
-from backend.services.economy import enrich_poi_economics  # noqa: E402
 from backend.services.emotion import (  # noqa: E402
     calculate_emotion_curve,
     chemical_reaction,
@@ -109,13 +108,9 @@ def _get_nse_for_city(city: str, hour: int) -> list[dict]:
 
 
 # ---------------------------------------------------------------------------
-# 常量
+# 常量 - scoring constants imported from solver_scoring.py
 # ---------------------------------------------------------------------------
 
-_ALPHA = 1.0  # 旅行时间权重
-_BETA = 0.5  # 情绪评分权重（提高）
-_GAMMA = 0.2  # 疲劳惩罚权重（可通过 solve_route 的 perception_ctx 动态调整）
-_DELTA = 2.0  # 同类惩罚权重（强制多样性，避免连续同类POI）
 _EPSILON = 0.5  # category多样性权重
 _REACTION_WEIGHT = 0.3  # 化学反应评分权重
 
