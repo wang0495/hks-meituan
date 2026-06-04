@@ -14,7 +14,6 @@ from __future__ import annotations
 
 import json
 import logging
-import math
 from typing import TYPE_CHECKING
 
 from backend.agents_v3.experts.base import _haversine_km

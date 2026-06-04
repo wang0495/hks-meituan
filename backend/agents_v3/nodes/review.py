@@ -9,12 +9,13 @@
 from __future__ import annotations
 
 import json
-import math
-from collections.abc import Callable
+from typing import TYPE_CHECKING
 
 from backend.agents_v3.experts.base import _haversine_km, _llm_decide
 from backend.agents_v3.state import AGENT_META, TravelState, sse_emit
 
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 # ── 珠海区域分桶 ──
 _AREA_BOUNDS = {

@@ -41,7 +41,6 @@ from __future__ import annotations
 
 import json
 import logging
-import math
 import uuid
 
 from backend.agents_v3.state import AGENT_META, TravelState, sse_emit
