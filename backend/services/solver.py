@@ -16,6 +16,17 @@ from datetime import timedelta
 from typing import TYPE_CHECKING, Any
 
 from backend.services.cache import distance_cache
+from backend.services.solver_scoring import (
+    _ALPHA,
+    _BETA,
+    _calc_economy_score,
+    _calc_same_type_penalty,
+    _calc_scene_semantic_bonus,
+    _calc_tourist_relevance,
+    _DELTA,
+    _GAMMA,
+    _score_poi_for_phase,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -406,48 +417,8 @@ _WEAK_TAGS = {
 }
 
 
-def _calc_tourist_relevance(poi: dict) -> float:
-    """计算 POI 作为旅游目的地的相关性评分 (0~1)。
-
-    核心逻辑：
-    1. 只有类别派生标签(餐饮/购物/住宿)的POI → 低分（generic）
-    2. 有有意义场景标签(海滨/山景/文化等)的POI → 高分
-    3. 名称含非旅游关键词(汽配/社区/消防等) → 直接过滤
-    4. 酒店 → 排除（住宿不是游玩目的地）
-    """
-    name = poi.get("name", "")
-    category = poi.get("category", "")
-    tags = poi.get("tags", [])
-    rating = poi.get("rating", 0)
-    scene_tags = poi.get("_scene_tags", [])
-
-    if category == "酒店":
-        return 0.0
-
-    has_meaningful_tag = any(t in scene_tags for t in _MEANINGFUL_TAGS)
-    only_weak_tags = scene_tags and all(t in _WEAK_TAGS for t in scene_tags)
-
-    score = 0.5
-    if has_meaningful_tag:
-        score += 0.3
-    elif only_weak_tags:
-        score -= 0.3
-
-    if any(kw in name for kw in _NON_TOURIST_KEYWORDS):
-        return 0.3
-
-    if any(kw in name for kw in _TOURIST_KEYWORDS):
-        score += 0.2
-
-    if rating >= 4.5:
-        score += 0.15
-    elif rating >= 4.0:
-        score += 0.1
-
-    if len(tags) >= 3:
-        score += 0.1
-
-    return max(0.0, min(1.0, score))
+# _calc_tourist_relevance, _score_poi_for_phase, _calc_same_type_penalty,
+# _calc_scene_semantic_bonus, _calc_economy_score - imported from solver_scoring.py
 
 
 def _assign_area_ids(pois: list[dict]) -> None:
@@ -852,22 +823,6 @@ def _get_dynamic_phases(user_intent: dict[str, Any]) -> list[dict]:
 
     # 默认：使用原始7阶段
     return [{**p, "cats": _ensure_cats(p["cats"])} for p in _EMOTION_PHASES]
-
-
-def _score_poi_for_phase(poi: dict, phase: dict) -> float:
-    """计算POI对某情绪阶段的匹配分数。"""
-    et = poi.get("emotion_tags", {})
-    score = 0.0
-    for dim, (lo, hi) in phase["target"].items():
-        val = et.get(dim, 0.5)
-        if lo <= val <= hi:
-            score += 1.0
-        else:
-            score -= abs(val - (lo + hi) / 2)
-    # category匹配加分
-    if poi.get("category") in phase["cats"]:
-        score += 0.5
-    return score
 
 
 # category偏好映射：用户偏好 → 优先选择的category
@@ -1769,82 +1724,6 @@ def _phase1_score_scene_bonus(
         scene_bonus += _INTENT_SCORE_WEAK + pref_cats.index(poi.get("category", "")) * 1.0
 
     return scene_bonus
-
-
-def _calc_same_type_penalty(poi: dict, route: list[dict[str, Any]]) -> float:
-    """计算同类POI连续访问惩罚。"""
-    if not route:
-        return 0.0
-
-    curr_cat = poi.get("category", "")
-    consecutive = 0
-    for prev_step in reversed(route):
-        if prev_step["poi"].get("category", "") == curr_cat:
-            consecutive += 1
-        else:
-            break
-
-    penalty = 0.5 + consecutive * 1.0 if consecutive > 0 else 0.0
-
-    cat_count = sum(1 for s in route if s["poi"].get("category", "") == curr_cat)
-    cat_ratio = cat_count / len(route)
-    if cat_ratio >= _CAT_RATIO_HIGH:
-        penalty += 3.0
-    elif cat_ratio >= _CAT_RATIO_LOW:
-        penalty += 1.5
-
-    return penalty
-
-
-def _calc_scene_semantic_bonus(poi: dict[str, Any], scene_requirements: list[str]) -> float:
-    """计算场景需求语义匹配加分。"""
-    if not scene_requirements:
-        return 0.0
-
-    poi_text = (
-        poi.get("name", "")
-        + " "
-        + " ".join(poi.get("tags", []))
-        + " "
-        + " ".join(poi.get("_scene_tags", []))
-    )
-    matched = 0
-    for sr in scene_requirements:
-        if sr in poi_text or any(syn in poi_text for syn in _SCENE_SYNONYMS.get(sr, [])):
-            matched += 1
-
-    return matched * _SCENE_SEMANTIC_PHASE1_BONUS if matched > 0 else 0.0
-
-
-def _calc_economy_score(
-    poi: dict[str, Any],
-    route: list[dict[str, Any]],
-    max_pois: int,
-    user_intent: dict[str, Any],
-) -> float:
-    """计算经济引擎评分（杠杆率+预算节奏）。"""
-    enriched = enrich_poi_economics(poi)
-    leverage = enriched.get("experience_leverage", "medium")
-
-    score = 0.0
-    route_pos = len(route) / max_pois if max_pois > 0 else 0
-    if route_pos < 0.25 and poi.get("avg_price", 0) < 50:
-        score -= _BUDGET_RHYTHM_OPENING_BONUS
-    if route_pos > 0.75:
-        ev = enriched.get("experience_value", 5.0)
-        score -= ev * _BUDGET_RHYTHM_CLOSING_FACTOR
-
-    if leverage == "high":
-        score -= _ECONOMY_LEVERAGE_BONUS
-    elif leverage == "low":
-        score += _ECONOMY_LEVERAGE_PENALTY
-
-    budget_per_person = user_intent.get("budget", {}).get("per_person", 500)
-    budget_strictness = _get_weight("budget_strictness", 1.0)
-    if budget_per_person < _BUDGET_TIGHT_THRESHOLD * budget_strictness and leverage == "high":
-        score -= _BUDGET_TIGHT_LEVERAGE_BONUS
-
-    return score
 
 
 def _phase1_score_candidate(
