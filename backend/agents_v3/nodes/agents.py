@@ -1043,7 +1043,6 @@ async def hotel_agent(state: TravelState) -> dict:
     elif group_type == "商务":
         group_hint = "优先选交通便利、靠近商业区的酒店。"
 
-    # ── 决策：LLM ──
     system = f"""你是住宿推荐专家。根据用户需求从候选酒店中挑选最合适的。
 
 考虑因素：
@@ -1068,32 +1067,30 @@ async def hotel_agent(state: TravelState) -> dict:
 请根据酒店与景点的坐标距离推荐。"""
 
     result = await _llm_decide(system, user)
+    proposals = _match_hotel_picks(result.get("picks", []) if result else [], hotels) if result and "picks" in result else []
 
-    proposals = []
-    if result and "picks" in result:
-        name_map = {h.get("name", ""): h for h in hotels}
-        for pick in result["picks"]:
-            name = pick.get("name", "")
-            content = name_map.get(name)
-            if not content:
-                for h in hotels:
-                    if name in h.get("name", "") or h.get("name", "") in name:
-                        content = h
-                        break
-            if content:
-                proposals.append(
-                    _proposal(
-                        "hotel", content, pick.get("confidence", 0.7), pick.get("reason", "LLM推荐")
-                    )
-                )
-
-    # 降级
     if not proposals and hotels:
-        scored = sorted(hotels, key=lambda h: h.get("rating", 4.0), reverse=True)
-        for h in scored[:2]:
+        for h in sorted(hotels, key=lambda h: h.get("rating", 4.0), reverse=True)[:2]:
             proposals.append(_proposal("hotel", h, 0.5, "规则引擎：评分排序"))
 
     return {"proposals": proposals}
+
+
+def _match_hotel_picks(picks: list[dict], hotels: list[dict]) -> list[dict]:
+    """匹配LLM picks到酒店。"""
+    proposals = []
+    name_map = {h.get("name", ""): h for h in hotels}
+    for pick in picks:
+        name = pick.get("name", "")
+        content = name_map.get(name)
+        if not content:
+            for h in hotels:
+                if name in h.get("name", "") or h.get("name", "") in name:
+                    content = h
+                    break
+        if content:
+            proposals.append(_proposal("hotel", content, pick.get("confidence", 0.7), pick.get("reason", "LLM推荐")))
+    return proposals
 
 
 # ═══════════════════════════════════════════════════════════
