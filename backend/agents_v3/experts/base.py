@@ -124,8 +124,7 @@ _FOOD_SUBCATS: dict[str, list[str]] = {
 _FOOD_CATEGORIES = {"餐饮", "美食", "小吃", "夜市"}
 _FOOD_KEYWORDS = ["餐厅", "海鲜", "粉", "面", "粥", "甜品", "茶餐厅", "烧烤", "火锅", "夜市"]
 _LIANGCHA_KEYWORDS = {"凉茶", "草本", "龟苓膏"}
-    "奶茶",
-]
+
 
 # ---------------------------------------------------------------------------
 # Prompt injection sanitization
