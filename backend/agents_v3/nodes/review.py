@@ -10,20 +10,10 @@ from __future__ import annotations
 
 import json
 import math
+from collections.abc import Callable
 
-from backend.agents_v3.experts.base import _llm_decide
+from backend.agents_v3.experts.base import _haversine_km, _llm_decide
 from backend.agents_v3.state import AGENT_META, TravelState, sse_emit
-
-
-def _haversine_km(lat1, lng1, lat2, lng2):
-    R = 6371.0
-    dlat = math.radians(lat2 - lat1)
-    dlng = math.radians(lng2 - lng1)
-    a = (
-        math.sin(dlat / 2) ** 2
-        + math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) * math.sin(dlng / 2) ** 2
-    )
-    return R * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
 
 
 # ── 珠海区域分桶 ──
@@ -462,7 +452,7 @@ async def _rework_poi(
     return proposals
 
 
-_AGENT_POOL_FILTERS: dict[str, tuple[str, callable]] = {
+_AGENT_POOL_FILTERS: dict[str, tuple[str, Callable]] = {
     "hotel": (
         "住宿",
         lambda c, old: c.get("category") in ("住宿", "酒店", "民宿")

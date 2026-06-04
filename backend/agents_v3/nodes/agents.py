@@ -135,19 +135,7 @@ async def _load_all_pois() -> list[dict]:
 
 
 # LLM调用统一委托给experts/base.py
-from backend.agents_v3.experts.base import _get_llm_client, _llm_decide  # noqa: F401, E402
-
-
-def _haversine_km(lat1: float, lng1: float, lat2: float, lng2: float) -> float:
-    """计算两点间距离(km)。"""
-    R = 6371
-    dlat = math.radians(lat2 - lat1)
-    dlng = math.radians(lng2 - lng1)
-    a = (
-        math.sin(dlat / 2) ** 2
-        + math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) * math.sin(dlng / 2) ** 2
-    )
-    return R * 2 * math.asin(math.sqrt(a))
+from backend.agents_v3.experts.base import _haversine_km, _llm_decide  # noqa: E402
 
 
 def _is_likely_macau(name: str) -> bool:
@@ -522,6 +510,7 @@ def _find_replacement(
     max_dist: float = 10.0,
 ) -> dict | None:
     """为离群POI寻找替换。"""
+    _EXCLUDED_CATS = ["住宿", "酒店", "民宿", "餐饮", "美食"]
     best_replacement = None
     best_score = -1.0
 
@@ -530,7 +519,7 @@ def _find_replacement(
         cat = c.get("category", "")
         if name in selected_names or name == outlier_name:
             continue
-        if cat in _EXCLUDED_POI_CATEGORIES or _is_likely_macau(name) or c.get("rating") is None:
+        if cat in _EXCLUDED_CATS or _is_likely_macau(name) or c.get("rating") is None:
             continue
         lat, lng = c.get("lat", 0), c.get("lng", 0)
         if not lat or not lng:
@@ -1451,7 +1440,6 @@ async def weather_agent(state: TravelState) -> dict:
     await sse_emit(state, "agent_start", {"agent": "weather", **meta})
     await sse_emit(state, "agent_thinking", {"agent": "weather", "text": "评估天气对行程影响..."})
     # ── 感知 ──
-    state.get("user_intent", {})
     user_input = state.get("user_input", "")
     candidates = state.get("candidates", [])
 
