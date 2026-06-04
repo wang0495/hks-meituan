@@ -396,6 +396,23 @@ def _build_poi_summaries(sampled: list[dict]) -> list[dict]:
     return [{"name": c.get("name", ""), "category": c.get("category", ""), "rating": c.get("rating", 0), "price": c.get("avg_price", 0), "tags": c.get("tags", [])[:5], "scene_tags": c.get("_scene_tags", [])[:3], "avg_stay_min": c.get("avg_stay_min", 60), "lat": c.get("lat", 0), "lng": c.get("lng", 0), "reviews": c.get("_ugc_summary", ""), "suitability": c.get("_suitability", {})} for c in sampled]
 
 
+def _match_poi_picks(picks: list[dict], candidates: list[dict]) -> list[dict]:
+    """匹配LLM picks到POI候选。"""
+    proposals = []
+    name_map = {c.get("name", ""): c for c in candidates}
+    for pick in picks:
+        name = pick.get("name", "")
+        content = name_map.get(name)
+        if not content:
+            for c in candidates:
+                if name in c.get("name", "") or c.get("name", "") in name:
+                    content = c
+                    break
+        if content:
+            proposals.append(_proposal("poi", content, pick.get("confidence", 0.7), pick.get("reason", "LLM推荐")))
+    return proposals
+
+
 async def poi_agent(state: TravelState) -> dict:
     """景点Agent：LLM直接从候选池选景点，不做算法预排序。"""
     meta = AGENT_META.get("poi", {})
@@ -419,13 +436,9 @@ async def poi_agent(state: TravelState) -> dict:
     sampled = _stratified_sample_pois(pool)
     poi_summaries = _build_poi_summaries(sampled)
 
-    # ── 决策：LLM（按场景类型分化prompt） ──
     system = _build_poi_prompt(intent)
-
-    # 场景覆盖：不同scene_type调整POI数量和策略
     pace = intent.get("pace", "平衡型")
     if scene_type == "美食型":
-        # 美食场景：POI是散步消食用，选2-3个轻松地点（公园/海边/文化街区）
         max_picks = 3
         system += "\n\n【美食场景覆盖】用户主要目的是吃，但路线也需要穿插1-2个散步消食的轻松地点（公园、海边、文化街区），让行程不只是吃。选2-3个即可，不要选需要长时间游览的景点。"
     elif scene_type == "目的地型":
@@ -450,27 +463,7 @@ async def poi_agent(state: TravelState) -> dict:
 请选出{max_picks}个最合适的景点。"""
 
     result = await _llm_decide(system, user)
-
-    proposals = []
-    name_map = {c.get("name", ""): c for c in candidates}
-    if result and "picks" in result:
-        for pick in result["picks"]:
-            name = pick.get("name", "")
-            content = name_map.get(name)
-            if not content:
-                for c in candidates:
-                    if name in c.get("name", "") or c.get("name", "") in name:
-                        content = c
-                        break
-            if content:
-                proposals.append(
-                    _proposal(
-                        "poi",
-                        content,
-                        pick.get("confidence", 0.7),
-                        pick.get("reason", "LLM推荐"),
-                    )
-                )
+    proposals = _match_poi_picks(result.get("picks", []) if result else [], candidates) if result and "picks" in result else []
 
     # ── 降级：智能规则引擎（非简单fallback） ──
     if not proposals:
