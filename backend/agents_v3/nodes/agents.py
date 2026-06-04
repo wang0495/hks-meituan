@@ -254,52 +254,38 @@ def _tag_similarity(poi: dict, keywords: list[str]) -> float:
     return score
 
 
-# ═══════════════════════════════════════════════════════════
-def _build_poi_prompt(intent: dict) -> str:
-    """根据用户意图动态生成POI Agent的system prompt。"""
-    group_type = intent.get("group", {}).get("type", "")
-    pace = intent.get("pace", "平衡型")
-    constraints = intent.get("hard_constraints", [])
-    budget = intent.get("budget", {}).get("per_person", 0)
-
-    # ── 场景特化指令 ──
-    scene_extra = ""
-    if group_type == "亲子":
-        scene_extra = """
+_GROUP_SCENE_EXTRA: dict[str, str] = {
+    "亲子": """
 【亲子场景特化】
 - 优先选有儿童游乐设施、海洋馆、动物园、科技馆类POI
 - 排除夜生活、酒吧、高海拔/危险景点
 - 每个景点停留时间要宽松（儿童体力有限）
 - 选择有遮荫/室内备选的景点（防天气突变）
-- 景点间距要小（带小孩不宜长途奔波）"""
-    elif group_type == "情侣":
-        scene_extra = """
+- 景点间距要小（带小孩不宜长途奔波）""",
+    "情侣": """
 【情侣场景特化】
 - 优先选浪漫氛围的海滨、观景台、艺术区、特色咖啡厅
 - 关注拍照打卡点（日落、夜景、特色建筑）
 - 可以选有文化底蕴的景点（博物馆、历史街区）
-- 避开过于拥挤的商业景点"""
-    elif group_type == "朋友":
-        scene_extra = """
+- 避开过于拥挤的商业景点""",
+    "朋友": """
 【朋友聚会场景特化】
 - 优先选互动性强的POI（密室、卡丁车、游乐园）
 - 可以选热闹的街区、夜市
-- 注意团队活动的适用性"""
-    elif group_type == "退休":
-        scene_extra = """
+- 注意团队活动的适用性""",
+    "退休": """
 【银发场景特化】
 - 优先选平缓、有休息设施的公园、文化场馆
 - 排除需要大量步行/爬山的景点
 - 选择有遮挡、有座椅的景点
-- 景点间距离要短，移动方式优先公共交通"""
-    elif group_type == "独居":
-        scene_extra = """
+- 景点间距离要短，移动方式优先公共交通""",
+    "独居": """
 【独游场景特化】
 - 优先选适合独处的安静景点（书店、美术馆、公园）
 - 可以选有文化深度的场所（博物馆、历史遗迹）
-- 注意安全性（避开偏僻区域）"""
-    elif group_type in ("团建", "团队", "公司"):
-        scene_extra = """
+- 注意安全性（避开偏僻区域）""",
+}
+_GROUP_SCENE_EXTRA["团建"] = _GROUP_SCENE_EXTRA["团队"] = _GROUP_SCENE_EXTRA["公司"] = """
 【团建/大团队场景特化】
 - 优先选适合团队互动的POI（拓展基地、沙滩、游乐园、卡丁车）
 - 选择能容纳大群体的场所（公园、广场、大型景区）
@@ -307,14 +293,17 @@ def _build_poi_prompt(intent: dict) -> str:
 - 考虑团建常见需求：破冰、协作、合影
 - 优先选有团建设施或集体活动空间的场所"""
 
-    # 特种兵/闲逛
-    pace_extra = ""
-    if "特种兵" in pace:
-        pace_extra = "\n- 特种兵模式：多选地标性景点（6-8个），追求覆盖面，但地理仍需紧凑"
-    elif "闲逛" in pace:
-        pace_extra = "\n- 闲逛模式：少选精（3-4个），每个景点停留时间充裕"
 
-    # 硬约束
+def _build_poi_prompt(intent: dict) -> str:
+    """根据用户意图动态生成POI Agent的system prompt。"""
+    group_type = intent.get("group", {}).get("type", "")
+    pace = intent.get("pace", "平衡型")
+    constraints = intent.get("hard_constraints", [])
+    budget = intent.get("budget", {}).get("per_person", 0)
+
+    scene_extra = _GROUP_SCENE_EXTRA.get(group_type, "")
+    pace_extra = "\n- 特种兵模式：多选地标性景点（6-8个），追求覆盖面，但地理仍需紧凑" if "特种兵" in pace else ("\n- 闲逛模式：少选精（3-4个），每个景点停留时间充裕" if "闲逛" in pace else "")
+
     constraint_extra = ""
     if "late_night" in constraints:
         constraint_extra += "\n- 深夜场景：优先选24小时营业或有夜景的景点，注意安全"
@@ -323,12 +312,7 @@ def _build_poi_prompt(intent: dict) -> str:
     if "pet_friendly" in constraints:
         constraint_extra += "\n- 宠物友好：优先选允许宠物入内的公园、广场"
 
-    # 预算
-    budget_extra = ""
-    if budget and budget <= 200:
-        budget_extra = (
-            "\n- 穷游模式：优先选免费景点（公园、海滩、历史街区），付费景点仅选1-2个高价值"
-        )
+    budget_extra = "\n- 穷游模式：优先选免费景点（公园、海滩、历史街区），付费景点仅选1-2个高价值" if budget and budget <= 200 else ""
 
     return f"""你是珠海旅游景点规划专家。根据用户需求从候选列表中挑选最合适的景点组合。
 
