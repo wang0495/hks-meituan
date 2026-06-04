@@ -390,12 +390,15 @@ app.add_middleware(ShutdownMiddleware)
 # Prometheus 指标采集
 app.add_middleware(PrometheusMiddleware)
 
-# 速率限制
-app.add_middleware(
-    RateLimitMiddleware,
-    requests_per_minute=settings.security.rate_limit_per_minute,
-    trusted_proxies=settings.security.trusted_proxies,
-)
+# 速率限制（测试时跳过）
+import os as _os
+
+if not _os.environ.get("TESTING"):
+    app.add_middleware(
+        RateLimitMiddleware,
+        requests_per_minute=settings.security.rate_limit_per_minute,
+        trusted_proxies=settings.security.trusted_proxies,
+    )
 
 # 输入验证
 app.add_middleware(

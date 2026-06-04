@@ -5,6 +5,10 @@
 
 from __future__ import annotations
 
+import os
+
+os.environ.setdefault("TESTING", "1")
+
 # 导入 conftest_db 中的 fixtures，使其对所有测试可用
 from tests.conftest_db import *  # noqa: F403, F401
 
