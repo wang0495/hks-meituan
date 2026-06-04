@@ -367,6 +367,90 @@ def _build_expert_feedback_hints(state: dict) -> tuple[str, str]:
     return feedback_hint, context_hint
 
 
+def _stratified_sample_expert(pool: list[dict], max_total: int = 250) -> list[dict]:
+    """按category分层抽样。"""
+    cat_groups: dict[str, list[dict]] = {}
+    for c in pool:
+        cat_groups.setdefault(c.get("category", "其他"), []).append(c)
+
+    sampled = []
+    per_cat = max(3, 200 // max(len(cat_groups), 1))
+    for items in cat_groups.values():
+        items.sort(key=lambda x: x.get("rating", 0), reverse=True)
+        sampled.extend(items[:per_cat])
+
+    if len(sampled) > max_total:
+        sampled.sort(key=lambda x: x.get("rating", 0), reverse=True)
+        sampled = sampled[:max_total]
+
+    return sampled
+
+
+def _build_expert_summaries(sampled: list[dict]) -> list[dict]:
+    """构建LLM摘要。"""
+    return [{"name": c.get("name", ""), "category": c.get("category", ""), "rating": c.get("rating", 0), "price": c.get("avg_price", 0), "tags": c.get("tags", [])[:5], "scene_tags": c.get("_scene_tags", [])[:3], "avg_stay_min": c.get("avg_stay_min", 60), "lat": c.get("lat", 0), "lng": c.get("lng", 0), "reviews": c.get("_ugc_summary", ""), "suitability": c.get("_suitability", {})} for c in sampled]
+
+
+def _get_max_picks(scene_type: str, pace: str, weight: float) -> int:
+    """获取最大选择数。"""
+    if scene_type == "美食型":
+        max_picks = 3
+    elif scene_type == "目的地型":
+        max_picks = 3
+    else:
+        max_picks = 8 if "特种兵" in pace else (4 if "闲逛" in pace else 5)
+
+    max_picks = min(max_picks, 6 if weight >= 0.8 else 4 if weight >= 0.5 else 3)
+    if scene_type in ("美食型", "目的地型"):
+        max_picks = min(max_picks, 3)
+
+    return max_picks
+
+
+def _build_expert_system_prompt(system: str, scene_type: str) -> str:
+    """构建场景特化系统提示。"""
+    if scene_type == "美食型":
+        return system + "\n\n【美食场景覆盖】用户主要目的是吃，但路线也需要穿插1-2个散步消食的轻松地点（公园、海边、文化街区），让行程不只是吃。选2-3个即可，不要选需要长时间游览的景点。"
+    if scene_type == "目的地型":
+        return system + "\n\n【目的地型覆盖】用户指定了大景区，会在那里待大半天。选1-2个附近的补充景点即可，不要远距离选点。"
+    return system
+
+
+def _match_expert_poi_picks(picks: list[dict], candidates: list[dict]) -> list[dict]:
+    """匹配LLM picks到POI候选。"""
+    proposals = []
+    name_map = {c.get("name", ""): c for c in candidates}
+    for pick in picks:
+        name = pick.get("name", "")
+        content = name_map.get(name)
+        if not content:
+            for c in candidates:
+                if name in c.get("name", "") or c.get("name", "") in name:
+                    content = c
+                    break
+        if content:
+            proposals.append(_proposal("poi", content, pick.get("confidence", 0.7), pick.get("reason", "LLM推荐")))
+    return proposals
+
+
+def _build_expert_user_prompt(user_input: str, intent: dict, pace: str, sampled: list[dict], poi_summaries: list[dict], feedback_hint: str, context_hint: str, max_picks: int) -> str:
+    """构建用户提示。"""
+    return f"""用户需求: {_sanitize_for_prompt(user_input)}
+意图分析:
+- 偏好类别: {_sanitize_for_prompt(json.dumps(intent.get('preferred_categories', []), ensure_ascii=False))}
+- 场景关键词: {_sanitize_for_prompt(json.dumps(intent.get('scene_requirements', []), ensure_ascii=False))}
+- 预算: {intent.get('budget', {}).get('per_person', '不限')}元/人
+- 节奏: {pace}
+- 群体: {intent.get('group', {}).get('type', '未知')}
+- 人数: {intent.get('group', {}).get('size', 2)}
+- 时间: {json.dumps(intent.get('time', {}), ensure_ascii=False)}
+
+候选POI（{len(sampled)}个，按类别分层抽样）:
+{json.dumps(poi_summaries, ensure_ascii=False)}
+{feedback_hint}{context_hint}
+请选出{max_picks}个最合适的景点。"""
+
+
 @sse_expert("poi")
 async def poi_expert(state: TravelState) -> dict:
     """POI expert: LLM selects attractions from candidate pool, with rule fallback."""
@@ -382,121 +466,20 @@ async def poi_expert(state: TravelState) -> dict:
 
     feedback_hint, context_hint = _build_expert_feedback_hints(state)
     pool = _build_expert_poi_pool(candidates)
+    sampled = _stratified_sample_expert(pool)
+    poi_summaries = _build_expert_summaries(sampled)
 
-    # 按category分层抽样，确保LLM看到各类POI
-    cat_groups: dict[str, list[dict]] = {}
-    for c in pool:
-        cat = c.get("category", "其他")
-        cat_groups.setdefault(cat, []).append(c)
-
-    # 每个category按rating排序后取前N个，总共控制在~200个
-    sampled: list[dict] = []
-    per_cat = max(3, 200 // max(len(cat_groups), 1))
-    for _cat, items in cat_groups.items():
-        items.sort(key=lambda x: x.get("rating", 0), reverse=True)
-        sampled.extend(items[:per_cat])
-
-    # 如果总量还是太大，按rating截断
-    if len(sampled) > 250:
-        sampled.sort(key=lambda x: x.get("rating", 0), reverse=True)
-        sampled = sampled[:250]
-
-    # 构建LLM摘要
-    poi_summaries = []
-    for c in sampled:
-        poi_summaries.append(
-            {
-                "name": c.get("name", ""),
-                "category": c.get("category", ""),
-                "rating": c.get("rating", 0),
-                "price": c.get("avg_price", 0),
-                "tags": c.get("tags", [])[:5],
-                "scene_tags": c.get("_scene_tags", [])[:3],
-                "avg_stay_min": c.get("avg_stay_min", 60),
-                "lat": c.get("lat", 0),
-                "lng": c.get("lng", 0),
-                "reviews": c.get("_ugc_summary", ""),
-                "suitability": c.get("_suitability", {}),
-            }
-        )
-
-    # ── Decision: LLM (scene-type-aware prompting) ──
-    system = _build_poi_prompt(intent)
-
-    # 场景覆盖：不同scene_type调整POI数量和策略
+    system = _build_expert_system_prompt(_build_poi_prompt(intent), scene_type)
     pace = intent.get("pace", "平衡型")
-    if scene_type == "美食型":
-        # 美食场景：POI是散步消食用，选2-3个轻松地点（公园/海边/文化街区）
-        max_picks = 3
-        system += (
-            "\n\n【美食场景覆盖】用户主要目的是吃，但路线也需要穿插1-2个散步消食的轻松地点"
-            "（公园、海边、文化街区），让行程不只是吃。选2-3个即可，"
-            "不要选需要长时间游览的景点。"
-        )
-    elif scene_type == "目的地型":
-        max_picks = 3
-        system += (
-            "\n\n【目的地型覆盖】用户指定了大景区，会在那里待大半天。"
-            "选1-2个附近的补充景点即可，不要远距离选点。"
-        )
-    else:
-        max_picks = 8 if "特种兵" in pace else (4 if "闲逛" in pace else 5)
+    max_picks = _get_max_picks(scene_type, pace, weight)
 
-    # Adjust max_picks by weight
-    if weight >= 0.8:
-        max_picks = min(max_picks, 6)
-    elif weight >= 0.5:
-        max_picks = min(max_picks, 4)
-    else:
-        max_picks = min(max_picks, 3)
-
-    # Further adjust for scene_type
-    if scene_type == "美食型" or scene_type == "目的地型":
-        max_picks = min(max_picks, 3)
-
-    user = f"""用户需求: {_sanitize_for_prompt(user_input)}
-意图分析:
-- 偏好类别: {_sanitize_for_prompt(json.dumps(intent.get('preferred_categories', []), ensure_ascii=False))}
-- 场景关键词: {_sanitize_for_prompt(json.dumps(intent.get('scene_requirements', []), ensure_ascii=False))}
-- 预算: {intent.get('budget', {}).get('per_person', '不限')}元/人
-- 节奏: {pace}
-- 群体: {intent.get('group', {}).get('type', '未知')}
-- 人数: {intent.get('group', {}).get('size', 2)}
-- 时间: {json.dumps(intent.get('time', {}), ensure_ascii=False)}
-
-候选POI（{len(sampled)}个，按类别分层抽样）:
-{json.dumps(poi_summaries, ensure_ascii=False)}
-{feedback_hint}{context_hint}
-请选出{max_picks}个最合适的景点。"""
-
+    user = _build_expert_user_prompt(user_input, intent, pace, sampled, poi_summaries, feedback_hint, context_hint, max_picks)
     result = await _llm_decide(system, user)
+    proposals = _match_expert_poi_picks(result.get("picks", []) if result else [], candidates) if result and "picks" in result else []
 
-    proposals = []
-    name_map = {c.get("name", ""): c for c in candidates}
-    if result and "picks" in result:
-        for pick in result["picks"]:
-            name = pick.get("name", "")
-            content = name_map.get(name)
-            if not content:
-                for c in candidates:
-                    if name in c.get("name", "") or c.get("name", "") in name:
-                        content = c
-                        break
-            if content:
-                proposals.append(
-                    _proposal(
-                        "poi",
-                        content,
-                        pick.get("confidence", 0.7),
-                        pick.get("reason", "LLM推荐"),
-                    )
-                )
-
-    # ── 降级：智能规则引擎（非简单fallback） ──
     if not proposals:
         proposals = _smart_poi_selection(candidates, intent, user_input)
 
-    # ── 地理聚类：替换离群POI，确保路线紧凑 ──
     if proposals and len(proposals) >= 2:
         proposals = _geo_cluster_filter(proposals, pool)
 
