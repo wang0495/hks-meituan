@@ -18,6 +18,7 @@ try:
     )
 except ValueError:
     from prometheus_client import REGISTRY
+
     REQUEST_COUNT = REGISTRY._names_to_collectors["cityflow_requests_total"]
 
 # 请求延迟
@@ -27,6 +28,7 @@ try:
     )
 except ValueError:
     from prometheus_client import REGISTRY
+
     REQUEST_LATENCY = REGISTRY._names_to_collectors["cityflow_request_duration_seconds"]
 
 # 活跃会话数
@@ -34,6 +36,7 @@ try:
     ACTIVE_SESSIONS = Gauge("cityflow_active_sessions", "Number of active dialogue sessions")
 except ValueError:
     from prometheus_client import REGISTRY
+
     ACTIVE_SESSIONS = REGISTRY._names_to_collectors["cityflow_active_sessions"]
 
 # 路线规划计数
@@ -41,6 +44,7 @@ try:
     ROUTE_COUNT = Counter("cityflow_routes_total", "Total routes planned", ["user_type"])
 except ValueError:
     from prometheus_client import REGISTRY
+
     ROUTE_COUNT = REGISTRY._names_to_collectors["cityflow_routes_total"]
 
 # POI查询计数
@@ -48,6 +52,7 @@ try:
     POI_QUERY_COUNT = Counter("cityflow_poi_queries_total", "Total POI queries")
 except ValueError:
     from prometheus_client import REGISTRY
+
     POI_QUERY_COUNT = REGISTRY._names_to_collectors["cityflow_poi_queries_total"]
 
 

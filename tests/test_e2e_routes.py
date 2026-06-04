@@ -8,6 +8,8 @@ import sys
 import time
 from pathlib import Path
 
+import pytest
+
 sys.path.insert(0, str(Path(__file__).parent))
 
 import httpx
@@ -44,6 +46,7 @@ BLACKLIST_KEYWORDS = ["消防", "社区", "瑜伽", "普拉提", "汽配", "五�
 BAD_CATEGORIES = {"酒店"}
 
 
+@pytest.mark.skip(reason="E2E test requires running server - run manually with: python test_e2e_routes.py")
 def test_plan(scenario: dict) -> dict:
     """测试单个场景。"""
     print(f"\n{'='*60}")

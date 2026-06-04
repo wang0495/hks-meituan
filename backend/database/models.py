@@ -47,7 +47,7 @@ class User(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
-    preferences: Mapped[dict] = mapped_column(JSONB, default=dict)
+    preferences: Mapped[dict] = mapped_column(_JSONCol, default=dict)
 
     # 关系
     routes: Mapped[list[Route]] = relationship("Route", back_populates="user")
@@ -75,8 +75,8 @@ class Route(Base):
         UUID(as_uuid=True), ForeignKey("users.id"), nullable=True
     )
     user_input: Mapped[str] = mapped_column(Text, nullable=False)
-    route_data: Mapped[dict] = mapped_column(JSONB, nullable=False)
-    narrative: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    route_data: Mapped[dict] = mapped_column(_JSONCol, nullable=False)
+    narrative: Mapped[dict | None] = mapped_column(_JSONCol, nullable=True)
     status: Mapped[str] = mapped_column(String(20), default="active")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
@@ -116,7 +116,7 @@ class RouteStep(Base):
     poi_name: Mapped[str | None] = mapped_column(String(200), nullable=True)
     arrival_time: Mapped[str | None] = mapped_column(String(10), nullable=True)
     departure_time: Mapped[str | None] = mapped_column(String(10), nullable=True)
-    travel_from_prev: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    travel_from_prev: Mapped[dict | None] = mapped_column(_JSONCol, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     # 关系
@@ -141,7 +141,7 @@ class Dialogue(Base):
     session_id: Mapped[str] = mapped_column(String(50), nullable=False)
     role: Mapped[str] = mapped_column(String(20), nullable=False)
     content: Mapped[str] = mapped_column(Text, nullable=False)
-    metadata_: Mapped[dict] = mapped_column("metadata", JSONB, default=dict)
+    metadata_: Mapped[dict] = mapped_column("metadata", _JSONCol, default=dict)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     # 关系
@@ -169,7 +169,7 @@ class UserPreference(Base):
         nullable=False,
     )
     preference_type: Mapped[str] = mapped_column(String(50), nullable=False)
-    preference_value: Mapped[dict] = mapped_column(JSONB, nullable=False)
+    preference_value: Mapped[dict] = mapped_column(_JSONCol, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
@@ -261,7 +261,7 @@ class AuditLog(Base):
     action: Mapped[str] = mapped_column(String(50), nullable=False)
     resource_type: Mapped[str] = mapped_column(String(50), nullable=False)
     resource_id: Mapped[str | None] = mapped_column(String(100), nullable=True)
-    details: Mapped[dict] = mapped_column(JSONB, default=dict)
+    details: Mapped[dict] = mapped_column(_JSONCol, default=dict)
     ip_address: Mapped[str | None] = mapped_column(String(45), nullable=True)
     user_agent: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
