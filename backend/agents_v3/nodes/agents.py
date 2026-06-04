@@ -846,6 +846,29 @@ async def _reselect_food(system: str, proposals: list[dict], issues: list[str], 
     return proposals
 
 
+def _extract_poi_locations(candidates: list[dict], max_count: int = 20) -> list[dict]:
+    """提取景点位置信息。"""
+    locations = []
+    for c in candidates[:max_count]:
+        if c.get("category", "") not in ["住宿", "酒店", "民宿", "餐饮", "美食"]:
+            lat, lng = c.get("lat", 0), c.get("lng", 0)
+            if lat and lng:
+                locations.append({"name": c.get("name", ""), "lat": round(lat, 3), "lng": round(lng, 3), "category": c.get("category", "")})
+    return locations
+
+
+def _make_food_rule_score(poi_center: tuple[float, float] | None):
+    """创建餐饮规则评分函数。"""
+    def _score(f: dict) -> float:
+        s = f.get("rating", 0)
+        if poi_center:
+            lat, lng = f.get("lat", 0), f.get("lng", 0)
+            if lat and lng:
+                s -= _haversine_km(lat, lng, poi_center[0], poi_center[1]) * 0.05
+        return s
+    return _score
+
+
 async def food_agent(state: TravelState) -> dict:
     """餐饮Agent：独立加载全部餐饮数据 → LLM选餐厅 → 提案。"""
     meta = AGENT_META.get("food", {})
@@ -866,45 +889,17 @@ async def food_agent(state: TravelState) -> dict:
 
     all_pois = await _load_all_pois()
     target_city = intent.get("city", "珠海")
-    all_pois = [p for p in all_pois if p.get("city", "") == target_city or not p.get("city")]
-    foods = [c for c in all_pois if _is_food_poi(c)]
+    foods = [c for c in all_pois if (c.get("city", "") == target_city or not c.get("city")) and _is_food_poi(c)]
 
     if len(foods) < 3:
         for c in candidates:
             if any(kw in c.get("name", "") for kw in _FOOD_NAME_KEYWORDS) and c not in foods:
                 foods.append(c)
 
-    poi_locations = []
-    for c in candidates[:20]:
-        if c.get("category", "") not in ["住宿", "酒店", "民宿", "餐饮", "美食"]:
-            lat, lng = c.get("lat", 0), c.get("lng", 0)
-            if lat and lng:
-                poi_locations.append({
-                        "name": c.get("name", ""),
-                        "lat": round(lat, 3),
-                        "lng": round(lng, 3),
-                        "category": c.get("category", ""),
-                    }
-                )
+    poi_locations = _extract_poi_locations(candidates)
+    poi_center = (sum(p["lat"] for p in poi_locations) / len(poi_locations), sum(p["lng"] for p in poi_locations) / len(poi_locations)) if poi_locations else None
 
-    # 计算景点簇中心（供规则预排用）
-    _poi_center = None
-    if poi_locations:
-        _poi_center = (
-            sum(p["lat"] for p in poi_locations) / len(poi_locations),
-            sum(p["lng"] for p in poi_locations) / len(poi_locations),
-        )
-
-    def _food_rule_score(f):
-        s = f.get("rating", 0)
-        if _poi_center:
-            lat, lng = f.get("lat", 0), f.get("lng", 0)
-            if lat and lng:
-                dist = _haversine_km(lat, lng, _poi_center[0], _poi_center[1])
-                s -= dist * 0.05
-        return s
-
-    stratified, subcat_map = _stratified_sample(foods, _food_rule_score)
+    stratified, subcat_map = _stratified_sample(foods, _make_food_rule_score(poi_center))
     summaries = _build_food_summaries(stratified, subcat_map)
     group_type = intent.get("group", {}).get("type", "")
 
