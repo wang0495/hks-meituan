@@ -67,7 +67,6 @@ ADR-S8: 不引入外部搜索API做"攻略专家"
 from __future__ import annotations
 
 import asyncio
-import contextlib
 import json
 import math
 from datetime import datetime, timedelta
@@ -75,13 +74,26 @@ from datetime import datetime, timedelta
 import numpy as np
 
 from backend.agents_v3.experts.base import (
-    _FOOD_CATEGORIES,
-    _FOOD_KEYWORDS,
-    _FOOD_SUBCATS,
-    _LIANGCHA_KEYWORDS,
     _haversine_km,
     _is_likely_macau,
     _llm_decide,
+)
+from backend.agents_v3.nodes.synthesizer_food import (
+    _ensure_food_in_route,
+    _ensure_food_scene_food_count,
+    _ensure_min_food_in_route,
+)
+from backend.agents_v3.nodes.synthesizer_scoring import (
+    _get_route_name_set,
+    _score_route_heuristic,
+)
+from backend.agents_v3.nodes.synthesizer_time import (
+    _calc_available_minutes,
+    _category_stay_min,
+    _enforce_time_windows,
+    _recalc_route_times,
+    _rule_assign_times,
+    _smooth_times,
 )
 from backend.agents_v3.state import AGENT_META, TravelState, sse_emit
 
@@ -145,145 +157,15 @@ def _dedup_route(steps: list[dict]) -> list[dict]:
     return result
 
 
-# ── 按类别的默认停留时间 ──
-_CATEGORY_STAY: dict[str, int] = {
-    "景点": 90,
-    "文化": 90,
-    "运动": 80,
-    "自然风光": 75,
-    "餐饮": 50,
-    "美食": 50,
-    "小吃": 35,
-    "夜市小吃": 50,
-    "咖啡馆": 35,
-    "海景咖啡馆": 40,
-    "甜品": 30,
-    "酒吧": 75,
-    "娱乐": 90,
-    "购物": 60,
-    "温泉SPA": 120,
-    "水上运动场所": 90,
-    "住宿": 0,
-    "酒店": 0,
-    "民宿": 0,
-}
-
-
-def _category_stay_min(category: str) -> int:
-    """Return default stay minutes for a POI category."""
-    return _CATEGORY_STAY.get(category, 60)
-
-
-_LUNCH_EARLIEST = datetime.strptime("11:00", "%H:%M")
-_DINNER_EARLIEST = datetime.strptime("17:00", "%H:%M")
-_AFTERNOON_SPLIT = datetime.strptime("15:00", "%H:%M")
-_NIGHT_KEYWORDS = ["夜市", "夜宵", "大排档", "深夜"]
-
-
-def _shift_step_times(steps: list[dict], from_idx: int, shift_min: int) -> None:
-    """从指定索引开始，偏移所有步骤的时间。"""
-    for j in range(from_idx, len(steps)):
-        try:
-            a = datetime.strptime(steps[j]["arrival_time"], "%H:%M")
-            d = datetime.strptime(steps[j]["departure_time"], "%H:%M")
-            steps[j]["arrival_time"] = (a + timedelta(minutes=shift_min)).strftime("%H:%M")
-            steps[j]["departure_time"] = (d + timedelta(minutes=shift_min)).strftime("%H:%M")
-        except ValueError:
-            pass
-
-
-def _get_shift_target(step: dict) -> datetime | None:
-    """获取步骤需要偏移到的目标时间。"""
-    _type = step.get("_type", "")
-    try:
-        arrival = datetime.strptime(step["arrival_time"], "%H:%M")
-    except ValueError:
-        return None
-
-    if _type == "lunch" and arrival < _LUNCH_EARLIEST:
-        return _LUNCH_EARLIEST
-    if _type == "dinner" and arrival < _DINNER_EARLIEST:
-        return _DINNER_EARLIEST
-
-    poi = step.get("poi", {})
-    text = poi.get("name", "") + poi.get("category", "")
-    if any(kw in text for kw in _NIGHT_KEYWORDS) and arrival < _DINNER_EARLIEST:
-        return _DINNER_EARLIEST
-
-    return None
-
-
-def _fix_meal_types(steps: list[dict]) -> None:
-    """修正lunch/dinner类型。"""
-    for s in steps:
-        _type = s.get("_type", "")
-        if _type not in ("lunch", "dinner"):
-            continue
-        try:
-            arrival = datetime.strptime(s["arrival_time"], "%H:%M")
-        except ValueError:
-            continue
-        if _type == "dinner" and arrival < _AFTERNOON_SPLIT:
-            s["_type"] = "lunch"
-        elif _type == "lunch" and arrival >= _AFTERNOON_SPLIT:
-            s["_type"] = "dinner"
-
-
-def _enforce_time_windows(steps: list[dict]) -> list[dict]:
-    """后处理：确保餐食和夜间场所在合理时间窗口内。"""
-    if len(steps) <= 1:
-        return steps
-
-    try:
-        first_arrival = datetime.strptime(steps[0]["arrival_time"], "%H:%M")
-        if first_arrival >= datetime.strptime(
-            "22:00", "%H:%M"
-        ) or first_arrival < datetime.strptime("06:00", "%H:%M"):
-            return steps
-    except (ValueError, KeyError, IndexError):
-        pass
-
-    _fix_meal_types(steps)
-
-    for _ in range(3):
-        shifted = False
-        for i, s in enumerate(steps):
-            target = _get_shift_target(s)
-            if target is None:
-                continue
-
-            try:
-                arrival = datetime.strptime(s["arrival_time"], "%H:%M")
-            except ValueError:
-                continue
-
-            if arrival >= target:
-                continue
-
-            _shift_step_times(steps, i, int((target - arrival).total_seconds() / 60))
-            _fix_meal_types(steps[i:])
-            shifted = True
-
-        if not shifted:
-            break
-
-    return steps
-
-
 # ── 地理重排：消除跨区跳跃 ──
-_MAX_LEG_KM = 15.0  # 单段最大允许距离
+_MAX_LEG_KM = 15.0
 
 
 def _geo_reroute(steps: list[dict], max_leg_km: float = _MAX_LEG_KM) -> list[dict]:
-    """后处理：全路线贪心最近邻重排，消除折返。
-
-    从第一站开始，每次选距离当前站最近的未访问站。
-    保留第一站不变（通常是起点/核心POI）。
-    """
+    """后处理：全路线贪心最近邻重排，消除折返。"""
     if len(steps) <= 2:
         return steps
 
-    # 先检查是否需要重排：如果所有段距离<=max_leg_km，保留原始顺序
     needs_reroute = False
     for i in range(1, len(steps)):
         prev_poi = steps[i - 1].get("poi", {})
@@ -297,10 +179,9 @@ def _geo_reroute(steps: list[dict], max_leg_km: float = _MAX_LEG_KM) -> list[dic
                 break
 
     if not needs_reroute:
-        return steps  # 路线已经足够紧凑
+        return steps
 
-    # 全路线最近邻重排
-    fixed = [steps[0]]  # 保留第一站
+    fixed = [steps[0]]
     remaining = list(steps[1:])
 
     while remaining:
@@ -353,7 +234,7 @@ def _cap_route_stops(route: dict, scene_type: str, intent: dict) -> dict:
     return route
 
 
-# ── DPP多样性重排 (参考 github.com/laming-chen/fast-map-dpp) ──
+# ── DPP多样性重排 ──
 
 
 def _dpp_select(kernel_matrix: np.ndarray, max_length: int, epsilon: float = 1e-10) -> list[int]:
@@ -385,26 +266,21 @@ def _dpp_select(kernel_matrix: np.ndarray, max_length: int, epsilon: float = 1e-
 def _build_category_vector(cat: str) -> float:
     """把category映射成数值，同类型=相似值。"""
     _GROUPS = {
-        # 自然/海滨类（组内相似度高）
         "自然风光": 0.0,
         "海滨景点": 0.05,
         "水上运动场所": 0.1,
-        # 文化/地标类
         "文化景点": 0.2,
         "文化": 0.2,
         "地标景点": 0.25,
         "夜景地标": 0.3,
-        # 运动/亲子类
         "运动": 0.4,
         "亲子游乐": 0.45,
-        # 餐饮类（子类也要区分）
         "正餐": 0.55,
         "海鲜餐饮": 0.6,
         "地方小吃": 0.65,
         "夜市小吃": 0.7,
         "甜品饮品": 0.75,
         "茶餐厅": 0.8,
-        # 休闲/购物类
         "购物": 0.85,
         "海景咖啡馆": 0.9,
         "温泉SPA": 0.92,
@@ -412,40 +288,7 @@ def _build_category_vector(cat: str) -> float:
         "密室逃脱": 0.95,
         "攀岩": 0.95,
     }
-    # _display_category优先
     return _GROUPS.get(cat, 0.5)
-
-
-def _recalc_route_times(steps: list[dict]) -> list[dict]:
-    """重新计算路线中各步骤的到达/离开时间。"""
-    if not steps:
-        return steps
-
-    start_time_str = steps[0].get("arrival_time", "09:00")
-    try:
-        t = datetime.strptime(start_time_str, "%H:%M")
-    except ValueError:
-        t = datetime.strptime("09:00", "%H:%M")
-
-    prev_lat, prev_lng = 0.0, 0.0
-    for step in steps:
-        poi = step.get("poi", {})
-        lat, lng = poi.get("lat", 0), poi.get("lng", 0)
-        travel = (
-            max(5, min(60, int(_haversine_km(prev_lat, prev_lng, lat, lng) * 8)))
-            if prev_lat and lat
-            else 15
-        )
-
-        t = t + timedelta(minutes=travel)
-        stay = 50 if step.get("_type") in ("lunch", "dinner") else int(poi.get("avg_stay_min", 90))
-        step["arrival_time"] = t.strftime("%H:%M")
-        step["departure_time"] = (t + timedelta(minutes=stay)).strftime("%H:%M")
-        step["travel_from_prev"] = {"distance_m": travel * 120, "time_min": travel}
-        t = t + timedelta(minutes=stay)
-        prev_lat, prev_lng = lat, lng
-
-    return steps
 
 
 def _dpp_rerank_route(route: dict, scene_type: str) -> dict:
@@ -587,18 +430,6 @@ def _must_keep_core_pois(
     return route
 
 
-def _get_route_name_set(steps: list[dict]) -> set[str]:
-    """获取路线中所有POI名称集合（含canonical名）。"""
-    names: set[str] = set()
-    for s in steps:
-        n = s.get("poi", {}).get("name", "")
-        names.add(n)
-        c = _canonical_name(n)
-        if c != n:
-            names.add(c)
-    return names
-
-
 def _ensure_poi_in_route(route: dict, poi_proposals: list[dict], intent: dict) -> dict:
     """确保路线中包含指定POI。"""
     if not route or not route.get("route") or not poi_proposals:
@@ -657,302 +488,7 @@ def _ensure_poi_in_route(route: dict, poi_proposals: list[dict], intent: dict) -
     return route
 
 
-def _find_missing_food(food_proposals: list[dict], route_names: set[str]) -> list[dict]:
-    """找出路线中缺失的餐饮提案。"""
-    missing = []
-    for fp in food_proposals:
-        name = fp.get("content", {}).get("name", "")
-        if name in route_names:
-            continue
-        if any(name in rn or rn in name for rn in route_names):
-            continue
-        missing.append(fp)
-    return missing
-
-
-def _ensure_food_in_route(route: dict, food_proposals: list[dict], intent: dict) -> dict:
-    """确保路线中包含餐饮POI。"""
-    if not route or not route.get("route") or not food_proposals:
-        return route
-
-    steps = route["route"]
-    route_names = _get_route_name_set(steps)
-    missing = _find_missing_food(food_proposals, route_names)
-
-    if not missing:
-        return route
-
-    try:
-        t = datetime.strptime(steps[-1].get("departure_time", "18:00"), "%H:%M")
-    except ValueError:
-        t = datetime.strptime("18:00", "%H:%M")
-
-    try:
-        end_dt = datetime.strptime(intent.get("time", {}).get("end", "21:00"), "%H:%M")
-    except ValueError:
-        end_dt = datetime.strptime("21:00", "%H:%M")
-
-    for fp in missing:
-        content = fp.get("content", {})
-        departure = t + timedelta(minutes=50)
-        if departure > end_dt or len(steps) >= 10:
-            break
-
-        meal_type = "dinner" if t >= datetime.strptime("15:00", "%H:%M") else "lunch"
-        steps.append(
-            {
-                "poi": content,
-                "arrival_time": t.strftime("%H:%M"),
-                "departure_time": departure.strftime("%H:%M"),
-                "travel_from_prev": {"distance_m": 1800, "time_min": 15},
-                "_type": meal_type,
-            }
-        )
-        t = departure + timedelta(minutes=15)
-
-    steps = _dedup_route(steps)
-    route["route"] = steps
-    route["total_cost"] = {
-        "time_min": route.get("total_cost", {}).get("time_min", 0),
-        "budget_used": sum(s.get("poi", {}).get("avg_price", 0) for s in steps),
-    }
-    return route
-
-
-_FOOD_SCENE_SUBCATS: dict[str, list[str]] = {
-    "海鲜": ["海鲜", "蚝", "鱼排", "渔港"],
-    "正餐": ["餐厅", "烧", "煲", "火锅", "烧烤"],
-    "小吃": ["粉", "面", "粥", "小吃", "排档"],
-    "茶餐厅/甜品": ["茶餐厅", "甜品", "奶茶", "冰", "柠檬", "饮品"],
-    "综合美食街": ["夜市", "美食街", "海鲜街", "老街"],
-}
-_FOOD_STOP_KEYWORDS = [
-    "餐厅",
-    "海鲜",
-    "粉",
-    "面",
-    "粥",
-    "甜品",
-    "茶餐厅",
-    "烧烤",
-    "火锅",
-    "夜市",
-    "小吃",
-    "排档",
-    "肠粉",
-]
-_FOOD_STOP_CATEGORIES = {"餐饮", "美食", "小吃", "海鲜", "夜市", "夜市小吃"}
-
-
-def _is_food_stop(step: dict) -> bool:
-    """判断是否为餐饮站点。"""
-    cat = step.get("poi", {}).get("category", "")
-    if cat in _FOOD_STOP_CATEGORIES:
-        return True
-    return any(kw in step.get("poi", {}).get("name", "") for kw in _FOOD_STOP_KEYWORDS)
-
-
-def _get_food_subcat(name: str) -> str:
-    """获取餐饮子类型。"""
-    for sub, kws in _FOOD_SCENE_SUBCATS.items():
-        if any(kw in name for kw in kws):
-            return sub
-    return "其他"
-
-
-def _find_extra_food(
-    food_proposals: list[dict],
-    route_names: set[str],
-    food_subcats: set[str],
-    food_steps_count: int,
-    max_total: int,
-) -> list[dict]:
-    """找出需要补充的餐饮候选。"""
-    extra = []
-    for fp in food_proposals:
-        if len(extra) >= 3 or max_total + len(extra) >= 8:
-            break
-        name = fp.get("content", {}).get("name", "")
-        if name in route_names:
-            continue
-        sub = _get_food_subcat(name)
-        if sub in food_subcats and len(extra) >= max(0, 2 - food_steps_count):
-            continue
-        extra.append(fp)
-        food_subcats.add(sub)
-    return extra
-
-
-def _ensure_food_scene_food_count(
-    route: dict,
-    food_proposals: list[dict],
-    scene_type: str,
-) -> dict:
-    """美食型专用：确保路线至少含2个不同子类型的餐饮。"""
-    if not route or not route.get("route") or not food_proposals or scene_type != "美食型":
-        return route
-
-    steps = route["route"]
-    food_steps = [s for s in steps if _is_food_stop(s)]
-    food_subcats = {_get_food_subcat(s.get("poi", {}).get("name", "")) for s in food_steps}
-
-    if len(food_steps) >= 2 and len(food_subcats) >= 2:
-        return route
-
-    route_names = _get_route_name_set(steps)
-    extra = _find_extra_food(food_proposals, route_names, food_subcats, len(food_steps), len(steps))
-
-    if not extra:
-        return route
-
-    # 插入到路线中合适的位置
-    end_time_str = "21:00"
-    try:
-        end_dt = datetime.strptime(end_time_str, "%H:%M")
-    except ValueError:
-        end_dt = datetime.strptime("21:00", "%H:%M")
-
-    # 找最后一个站点的离开时间
-    try:
-        t = datetime.strptime(steps[-1].get("departure_time", "18:00"), "%H:%M")
-    except ValueError:
-        t = datetime.strptime("18:00", "%H:%M")
-
-    for fp in extra:
-        content = fp.get("content", {})
-        arrival = t + timedelta(minutes=15)
-        departure = arrival + timedelta(minutes=50)
-        if departure > end_dt:
-            break
-        meal_type = "dinner" if arrival >= datetime.strptime("15:00", "%H:%M") else "lunch"
-        steps.append(
-            {
-                "poi": content,
-                "arrival_time": arrival.strftime("%H:%M"),
-                "departure_time": departure.strftime("%H:%M"),
-                "travel_from_prev": {"distance_m": 1800, "time_min": 15},
-                "_type": meal_type,
-            }
-        )
-        t = departure
-
-    route["route"] = steps
-    return route
-
-
-_MIN_FOOD_KEYWORDS = [
-    "餐厅",
-    "海鲜",
-    "烧",
-    "煲",
-    "粉",
-    "面",
-    "粥",
-    "甜品",
-    "奶茶",
-    "茶餐厅",
-    "排档",
-    "咖啡",
-]
-_MIN_FOOD_CATEGORIES = {"餐饮", "美食", "小吃", "海鲜", "夜市", "夜市小吃"}
-
-
-def _has_food_in_route(steps: list[dict]) -> bool:
-    """检查路线中是否已有餐饮。"""
-    for s in steps:
-        poi = s.get("poi", {})
-        if (
-            s.get("_type", "") in ("lunch", "dinner")
-            or poi.get("category", "") in _MIN_FOOD_CATEGORIES
-        ):
-            return True
-        if any(kw in poi.get("name", "") for kw in _MIN_FOOD_KEYWORDS):
-            return True
-    return False
-
-
-def _find_best_food(
-    food_proposals: list[dict], center_lat: float, center_lng: float
-) -> dict | None:
-    """找到最佳餐饮候选。"""
-    best_food = None
-    best_score = -1.0
-
-    for fp in food_proposals:
-        content = fp.get("content", {})
-        if not content.get("rating") or content.get("category", "") in ("酒店", "住宿"):
-            continue
-        score = content.get("rating", 0)
-        lat, lng = content.get("lat", 0), content.get("lng", 0)
-        if lat and lng:
-            dist = _haversine_km(lat, lng, center_lat, center_lng)
-            if dist > 15:
-                continue
-            score -= dist * 0.1
-        if score > best_score:
-            best_score = score
-            best_food = content
-
-    return best_food
-
-
-def _ensure_min_food_in_route(route: dict, food_proposals: list[dict], intent: dict) -> dict:
-    """安全网：确保路线至少含1个餐饮。"""
-    if not route or not route.get("route") or not food_proposals:
-        return route
-
-    steps = route["route"]
-    if _has_food_in_route(steps):
-        return route
-
-    poi_coords = [
-        (s["poi"].get("lat", 0), s["poi"].get("lng", 0))
-        for s in steps
-        if s.get("poi", {}).get("lat") and s.get("poi", {}).get("lng")
-    ]
-    if poi_coords:
-        center_lat = sum(la for la, _ in poi_coords) / len(poi_coords)
-        center_lng = sum(ln for _, ln in poi_coords) / len(poi_coords)
-    else:
-        center_lat, center_lng = 22.27, 113.58
-
-    best_food = _find_best_food(food_proposals, center_lat, center_lng) or food_proposals[0].get(
-        "content", {}
-    )
-
-    insert_idx = min(2, len(steps))
-    if insert_idx > 0 and insert_idx < len(steps):
-        prev = steps[insert_idx - 1]
-        arrival = prev.get("departure_time", "12:00")
-        try:
-            t = datetime.strptime(arrival, "%H:%M") + timedelta(minutes=15)
-        except ValueError:
-            t = datetime.strptime("12:00", "%H:%M")
-    elif insert_idx == 0 and steps:
-        t_str = steps[0].get("arrival_time", "09:00")
-        try:
-            t = datetime.strptime(t_str, "%H:%M") + timedelta(minutes=120)
-        except ValueError:
-            t = datetime.strptime("12:00", "%H:%M")
-    else:
-        t = datetime.strptime("12:00", "%H:%M")
-
-    meal_type = "dinner" if t >= datetime.strptime("15:00", "%H:%M") else "lunch"
-    food_step = {
-        "poi": best_food,
-        "arrival_time": t.strftime("%H:%M"),
-        "departure_time": (t + timedelta(minutes=50)).strftime("%H:%M"),
-        "travel_from_prev": {"distance_m": 1500, "time_min": 15},
-        "_type": meal_type,
-    }
-    steps.insert(insert_idx, food_step)
-    steps = _dedup_route(steps)
-    route["route"] = steps
-    route["total_cost"] = {
-        "time_min": route.get("total_cost", {}).get("time_min", 0),
-        "budget_used": sum(s.get("poi", {}).get("avg_price", 0) for s in steps),
-    }
-    return route
+# ── LLM路线编排 ──
 
 
 def _build_poi_list_for_llm(poi_proposals: list[dict]) -> list[dict]:
@@ -1036,16 +572,6 @@ _LOCATION_COORDS: dict[str, tuple[float, float]] = {
 }
 
 
-def _calc_available_minutes(start_time: str, end_time: str) -> float:
-    """计算可用时间（分钟）。"""
-    try:
-        return (
-            datetime.strptime(end_time, "%H:%M") - datetime.strptime(start_time, "%H:%M")
-        ).total_seconds() / 60
-    except ValueError:
-        return 720
-
-
 def _get_short_trip_hint(avail_min: float) -> str:
     """获取短途提示。"""
     if avail_min >= 240:
@@ -1064,7 +590,6 @@ def _get_location_coords(location: str) -> tuple[float, float] | None:
     return None
 
 
-# ── LLM路线编排 ──
 async def _llm_assemble_route(
     poi_proposals: list[dict],
     food_proposals: list[dict],
@@ -1116,7 +641,6 @@ async def _llm_assemble_route(
    - 海景咖啡馆不是餐厅！除非用户明确要咖啡馆，否则不要放进美食路线
    - 中间最多穿插1个散步点，不需要为了"多样性"硬塞景点/购物/文化"""
     elif scene_type == "目的地型":
-        # 目的地中心坐标（从 expert_router 传入）
         dest_center = intent.get("destination_center")
         dest_name = intent.get("destination_name", "")
         geo_rule = ""
@@ -1147,7 +671,6 @@ async def _llm_assemble_route(
    - 禁止为了多样性硬塞无关POI
    - VR馆/密室逃脱/攀岩等室内娱乐只在用户明确提及时才选，否则不选"""
 
-    # 专家权重摘要（让LLM知道哪些专家权重高）
     weight_desc = ", ".join(
         f"{k}={v:.1f}" for k, v in sorted(expert_weights.items(), key=lambda x: -x[1]) if v >= 0.3
     )
@@ -1227,239 +750,7 @@ async def _llm_assemble_route(
     return route
 
 
-# ═══════════════════════════════════════════════════════════
-# 规则化时间分配：替代 _llm_fix_times 的 LLM 调用
-# ═══════════════════════════════════════════════════════════
-
-_THEME_PARK_KW = ("长隆", "海洋王国", "游乐园", "主题公园", "乐园", "海洋科学馆", "水城")
-_LANDMARK_KW = ("渔女", "灯塔", "观景台", "牌坊", "雕塑", "打卡", "地标", "邮局", "书店")
-
-
-def _compute_stay_min(step: dict, scene_type: str, pace: str) -> int:
-    """规则化计算单站停留时间。优先用POI自身的avg_stay_min，按节奏调节。"""
-    poi = step.get("poi", step)
-    _type = step.get("_type", "")
-    name = poi.get("name", "")
-
-    # 1. 餐饮固定
-    if _type in ("lunch", "dinner"):
-        return 55
-
-    # 2. 主题公园 / 大型目的地
-    if scene_type == "目的地型" and any(kw in name for kw in _THEME_PARK_KW):
-        return 240  # 核心目的地4小时
-
-    if any(kw in name for kw in _THEME_PARK_KW):
-        return 180  # 非目的地型遇到主题公园3小时
-
-    # 3. 地标打卡 — 短停留
-    if any(kw in name for kw in _LANDMARK_KW):
-        base = 30
-        if "特种兵" in pace:
-            return 15
-        return base
-
-    # 4. 用POI自身的avg_stay_min（100%覆盖）
-    base_stay = int(poi.get("avg_stay_min", 60))
-    if base_stay <= 0:
-        base_stay = 60
-
-    # 5. 节奏调节
-    if "特种兵" in pace:
-        return max(15, int(base_stay * 0.6))
-    elif "闲逛" in pace or "慢" in pace:
-        return int(base_stay * 1.2)
-
-    return base_stay
-
-
-def _compute_travel_min(prev_poi: dict, curr_poi: dict) -> int:
-    """基于haversine距离计算站间交通时间。"""
-    lat1, lng1 = prev_poi.get("lat", 0), prev_poi.get("lng", 0)
-    lat2, lng2 = curr_poi.get("lat", 0), curr_poi.get("lng", 0)
-    if lat1 and lng1 and lat2 and lng2:
-        dist_km = _haversine_km(lat1, lng1, lat2, lng2)
-        return max(5, min(45, int(dist_km * 3 + 5)))
-    return 15
-
-
-def _rule_assign_times(
-    steps: list[dict],
-    intent: dict,
-    scene_type: str,
-    pace: str = "平衡型",
-) -> tuple[list[dict], list[dict]]:
-    """纯规则时间分配。返回 (new_steps, dropped)。
-
-    LLM决定站序，算法决定时间。省一次LLM调用。
-    """
-    if not steps:
-        return [], []
-
-    start_time_str = intent.get("time", {}).get("start", "09:00")
-    end_time_str = intent.get("time", {}).get("end", "21:00")
-
-    try:
-        cursor = datetime.strptime(start_time_str, "%H:%M")
-        end_limit = datetime.strptime(end_time_str, "%H:%M")
-    except ValueError:
-        cursor = datetime.strptime("09:00", "%H:%M")
-        end_limit = datetime.strptime("21:00", "%H:%M")
-
-    new_steps: list[dict] = []
-    dropped: list[dict] = []
-
-    for i, step in enumerate(steps):
-        stay = _compute_stay_min(step, scene_type, pace)
-
-        # 旅行时间（第一站无前站）
-        if i > 0 and new_steps:
-            prev_poi = new_steps[-1].get("poi", new_steps[-1])
-            curr_poi = step.get("poi", step)
-            travel = _compute_travel_min(prev_poi, curr_poi)
-            cursor += timedelta(minutes=travel)
-        else:
-            travel = 0
-
-        arrival = cursor
-        departure = cursor + timedelta(minutes=stay)
-
-        # 超时砍站
-        if departure > end_limit + timedelta(minutes=15):
-            dropped.append(
-                {
-                    "name": step.get("poi", step).get("name", ""),
-                    "reason": f"超出时间范围 (预计{departure.strftime('%H:%M')}>{end_time_str})",
-                }
-            )
-            continue
-
-        new_step = dict(step)
-        new_step["arrival_time"] = arrival.strftime("%H:%M")
-        new_step["departure_time"] = departure.strftime("%H:%M")
-        new_step["stay_min"] = stay
-        new_step["travel_from_prev"] = {"distance_m": travel * 120, "time_min": travel}
-        new_steps.append(new_step)
-        cursor = departure
-
-    return new_steps, dropped
-
-
-_MAX_STAY_BY_CATEGORY: dict[str, int] = {
-    "景点": 120,
-    "文化": 90,
-    "公园": 90,
-    "娱乐": 120,
-    "餐饮": 75,
-    "夜市": 60,
-    "小吃": 50,
-    "美食": 75,
-}
-
-
-def _compress_abnormal_stays(steps: list[dict]) -> None:
-    """压缩异常停留时间。"""
-    for s in steps:
-        stay = s.get("stay_min", 60)
-        cat = s.get("poi", s).get("category", "")
-        cap = 90
-        for ck, limit in _MAX_STAY_BY_CATEGORY.items():
-            if ck in cat:
-                cap = limit
-                break
-        if stay > cap:
-            s["stay_min"] = cap
-            with contextlib.suppress(ValueError, KeyError):
-                s["departure_time"] = (
-                    datetime.strptime(s["arrival_time"], "%H:%M") + timedelta(minutes=cap)
-                ).strftime("%H:%M")
-
-
-def _fix_gaps_and_reversals(steps: list[dict]) -> None:
-    """修正空窗和倒流。"""
-    for i in range(1, len(steps)):
-        try:
-            prev_dep = datetime.strptime(steps[i - 1]["departure_time"], "%H:%M")
-            curr_arr = datetime.strptime(steps[i]["arrival_time"], "%H:%M")
-            gap_min = int((curr_arr - prev_dep).total_seconds() / 60)
-        except (ValueError, KeyError):
-            gap_min = 15
-
-        if gap_min < 0 or gap_min > 45:
-            prev_poi = steps[i - 1].get("poi", steps[i - 1])
-            curr_poi = steps[i].get("poi", steps[i])
-            lat1, lng1 = prev_poi.get("lat", 0), prev_poi.get("lng", 0)
-            lat2, lng2 = curr_poi.get("lat", 0), curr_poi.get("lng", 0)
-            travel_min = (
-                max(5, min(45, int(_haversine_km(lat1, lng1, lat2, lng2) * 3 + 5)))
-                if lat1 and lat2
-                else 15
-            )
-
-            new_arr = prev_dep + timedelta(minutes=travel_min)
-            steps[i]["arrival_time"] = new_arr.strftime("%H:%M")
-            stay = max(1, steps[i].get("stay_min", 60))
-            steps[i]["departure_time"] = (new_arr + timedelta(minutes=stay)).strftime("%H:%M")
-
-
-def _compress_overflow(steps: list[dict], start_time: str, end_time: str) -> None:
-    """等比压缩溢出的停留时间。"""
-    try:
-        last_dep = datetime.strptime(steps[-1]["departure_time"], "%H:%M")
-        end_limit = datetime.strptime(end_time, "%H:%M")
-    except (ValueError, KeyError):
-        return
-
-    if last_dep <= end_limit:
-        return
-
-    overflow_min = int((last_dep - end_limit).total_seconds() / 60)
-    total_stay = sum(max(1, s.get("stay_min", 60)) for s in steps)
-    if total_stay == 0:
-        return
-
-    ratio = max(0.5, 1 - overflow_min / total_stay)
-    try:
-        cursor = datetime.strptime(steps[0]["arrival_time"], "%H:%M")
-    except (ValueError, KeyError):
-        cursor = datetime.strptime(start_time, "%H:%M")
-
-    for i, s in enumerate(steps):
-        s["arrival_time"] = cursor.strftime("%H:%M")
-        stay = max(15, int(s.get("stay_min", 60) * ratio))
-        s["stay_min"] = stay
-        cursor += timedelta(minutes=stay)
-        s["departure_time"] = cursor.strftime("%H:%M")
-        if i < len(steps) - 1:
-            next_poi = steps[i + 1].get("poi", steps[i + 1])
-            cur_poi = s.get("poi", s)
-            lat1, lng1 = cur_poi.get("lat", 0), cur_poi.get("lng", 0)
-            lat2, lng2 = next_poi.get("lat", 0), next_poi.get("lng", 0)
-            cursor += (
-                timedelta(
-                    minutes=max(5, min(30, int(_haversine_km(lat1, lng1, lat2, lng2) * 3 + 5)))
-                )
-                if lat1 and lat2
-                else timedelta(minutes=15)
-            )
-
-    try:
-        if datetime.strptime(steps[-1]["departure_time"], "%H:%M") > end_limit:
-            steps[-1]["departure_time"] = end_time
-    except (ValueError, KeyError):
-        pass
-
-
-def _smooth_times(steps: list[dict], start_time: str, end_time: str) -> list[dict]:
-    """后处理：修正LLM时间分配中的空窗、倒流、溢出、异常停留。"""
-    if len(steps) <= 1:
-        return steps
-
-    _compress_abnormal_stays(steps)
-    _fix_gaps_and_reversals(steps)
-    _compress_overflow(steps, start_time, end_time)
-
-    return steps
+# ── LLM stop处理 ──
 
 
 def _build_name_map(proposal_lists: list[list[dict]]) -> dict[str, dict]:
@@ -1475,16 +766,13 @@ def _build_name_map(proposal_lists: list[list[dict]]) -> dict[str, dict]:
 
 def _fuzzy_match_name(name: str, name_map: dict[str, dict]) -> dict | None:
     """模糊匹配名称到content。"""
-    # 精确匹配
     if name in name_map:
         return name_map[name]
 
-    # 包含匹配
     for n, c in name_map.items():
         if name in n or n in name:
             return c
 
-    # 清洗后匹配
     clean = name.replace("（", "(").replace("）", ")").replace(" ", "")
     for n, c in name_map.items():
         clean_n = n.replace("（", "(").replace("）", ")").replace(" ", "")
@@ -1588,166 +876,7 @@ def _process_llm_stop(
     return step, departure + timedelta(minutes=travel_min), content
 
 
-# ═══════════════════════════════════════════════════════════
-# 启发式路线评分（不调LLM，用于多候选比较）
-# ═══════════════════════════════════════════════════════════
-
-
-def _calc_geo_score(steps: list[dict]) -> float:
-    """计算地理连续性分数 (0-25)。"""
-    total_dist = 0.0
-    max_segment = 0.0
-    long_segments = 0
-
-    for i in range(1, len(steps)):
-        prev = steps[i - 1].get("poi", {})
-        cur = steps[i].get("poi", {})
-        lat1, lng1 = prev.get("lat", 0), prev.get("lng", 0)
-        lat2, lng2 = cur.get("lat", 0), cur.get("lng", 0)
-        if lat1 and lat2:
-            d = _haversine_km(lat1, lng1, lat2, lng2)
-            total_dist += d
-            max_segment = max(max_segment, d)
-            if d > 15:
-                long_segments += 1
-
-    score = max(0, 25 - total_dist * 0.5)
-    if max_segment > 15:
-        score -= (max_segment - 15) * 3
-    if long_segments > 1:
-        score -= (long_segments - 1) * 5
-    return score
-
-
-def _calc_diversity_score(steps: list[dict]) -> float:
-    """计算类别多样性分数 (0-25)。"""
-    categories = {
-        s.get("poi", {}).get("category", "") for s in steps if s.get("poi", {}).get("category")
-    }
-    meal_types = {s.get("_type", "") for s in steps if s.get("_type")}
-    score = min(25, (len(categories) + len(meal_types)) * 5)
-
-    # 美食子类重复惩罚
-    from collections import Counter as _Counter
-
-    food_subcats = []
-    for s in steps:
-        name = s.get("poi", {}).get("name", "")
-        cat = s.get("poi", {}).get("category", "")
-        if cat in _FOOD_CATEGORIES or any(kw in name for kw in _FOOD_KEYWORDS):
-            if any(kw in name for kw in _LIANGCHA_KEYWORDS):
-                food_subcats.append("饮品/凉茶")
-                continue
-            for sub, kws in _FOOD_SUBCATS.items():
-                if any(kw in name for kw in kws):
-                    food_subcats.append(sub)
-                    break
-            else:
-                food_subcats.append("其他餐饮")
-
-    for cnt in _Counter(food_subcats).values():
-        if cnt > 1:
-            score -= (cnt - 1) * 2
-    return score
-
-
-def _calc_coverage_score(
-    steps: list[dict], poi_proposals: list[dict], food_proposals: list[dict]
-) -> float:
-    """计算覆盖率分数 (0-20)。"""
-    route_names = _get_route_name_set(steps)
-    covered = sum(
-        1
-        for p in poi_proposals + food_proposals
-        if any(
-            p.get("content", {}).get("name", "") in rn or rn in p.get("content", {}).get("name", "")
-            for rn in route_names
-        )
-    )
-    total = len(poi_proposals) + len(food_proposals)
-    return (covered / total * 20) if total > 0 else 0
-
-
-def _calc_time_score(steps: list[dict], intent: dict) -> float:
-    """计算时间利用率分数 (0-15)。"""
-    try:
-        first = datetime.strptime(steps[0]["arrival_time"], "%H:%M")
-        last = datetime.strptime(steps[-1]["departure_time"], "%H:%M")
-        route_min = (last - first).total_seconds() / 60
-        available = (
-            datetime.strptime(intent.get("time", {}).get("end", "21:00"), "%H:%M")
-            - datetime.strptime(intent.get("time", {}).get("start", "09:00"), "%H:%M")
-        ).total_seconds() / 60
-        if available > 0:
-            ratio = route_min / available
-            if 0.8 <= ratio <= 1.0:
-                return 15
-            if 0.5 <= ratio < 0.8:
-                return ratio * 15
-            if ratio > 1.0:
-                return max(0, 15 - (ratio - 1.0) * 30)
-            return ratio * 10
-        return 7
-    except (ValueError, KeyError):
-        return 7
-
-
-def _calc_steps_score(steps: list[dict]) -> float:
-    """计算步数合理性分数 (0-15)。"""
-    n = len(steps)
-    if 4 <= n <= 7:
-        return 15
-    if 3 <= n <= 8:
-        return 10
-    if n <= 10:
-        return 5
-    return max(-10, 5 - (n - 10) * 3)
-
-
-def _score_route_heuristic(
-    route: dict,
-    poi_proposals: list[dict],
-    food_proposals: list[dict],
-    intent: dict,
-) -> float:
-    """启发式评分路线质量(0-100)，越高越好。不调LLM，纯规则。"""
-    steps = route.get("route", [])
-    if not steps:
-        return -1.0
-
-    return (
-        _calc_geo_score(steps)
-        + _calc_diversity_score(steps)
-        + _calc_coverage_score(steps, poi_proposals, food_proposals)
-        + _calc_time_score(steps, intent)
-        + _calc_steps_score(steps)
-    )
-
-
-# ═══════════════════════════════════════════════════════════
-# 锦标赛：并行3策略竞争，启发式评分选最优
-# ═══════════════════════════════════════════════════════════
-#
-# 动机：不同场景适合不同"策略偏好"。
-#       美食型应该"类型优先"，亲子型应该"地理优先"，特种兵应该"体验优先"。
-#       与其让LLM自己平衡，不如并行跑3种策略让它们竞争。
-#
-# 方法：
-#   1. 并行运行3个LLM组装，分别注入不同策略提示：
-#      - 地理优先："最小化总路程，绝不折返"
-#      - 类型优先："最大化类别多样性，4种以上大类"
-#      - 体验优先："只选高评分POI(>=4.5)，宁缺毋滥"
-#   2. 用启发式评分选最优
-#
-# 预期：
-#   - 每种策略会在某个维度特别强
-#   - 最优策略自动适配场景
-#   - 3次LLM调用并行，不增加延迟
-#
-# 风险：
-#   - 3倍token消耗
-#   - 启发式评分可能偏向某一种策略
-# ═══════════════════════════════════════════════════════════
+# ── 锦标赛：并行3策略竞争，启发式评分选最优 ──
 
 
 async def _tournament_assemble(
@@ -1810,6 +939,9 @@ async def _tournament_assemble(
     return scored[0][1]
 
 
+# ── 兜底 ──
+
+
 def _build_fallback_narrative(route: dict) -> dict:
     steps = []
     for s in route.get("route", []):
@@ -1862,8 +994,8 @@ def _nearest_neighbor_sort(contents: list[dict]) -> list[dict]:
     return ordered
 
 
-# ── 规则兜底 ──
 def _fallback_assemble(proposals: list[dict], intent: dict) -> dict | None:
+    """规则兜底组装。"""
     poi_proposals = _filter_fallback_proposals(proposals, ("poi", "poi_expert"))
     food_proposals = _filter_fallback_proposals(proposals, ("food", "food_expert"))
     _filter_fallback_proposals(proposals, ("hotel", "hotel_expert"))
@@ -1938,6 +1070,8 @@ def _fallback_assemble(proposals: list[dict], intent: dict) -> dict | None:
 # ═══════════════════════════════════════════════════════════
 # 主入口
 # ═══════════════════════════════════════════════════════════
+
+
 def _split_pois_by_area(
     poi_props: list[dict], food_props: list[dict], num_days: int
 ) -> list[tuple[list[dict], list[dict]]]:
@@ -1945,7 +1079,6 @@ def _split_pois_by_area(
     if num_days <= 1:
         return [(poi_props, food_props)]
 
-    # 收集有坐标的POI
     coords_poi = []
     for p in poi_props:
         c = p.get("content", {})
@@ -1962,7 +1095,6 @@ def _split_pois_by_area(
     if len(coords_poi) < num_days:
         return [(poi_props, food_props)] + [([], []) for _ in range(num_days - 1)]
 
-    # 简单k-means：按lat排序取num_days等分点作为初始中心
     sorted_poi = sorted(coords_poi, key=lambda x: x[0])
     step = len(sorted_poi) // num_days
     centers = [
@@ -2002,7 +1134,7 @@ async def _build_single_day_route(
     pace: str,
     errors: list[str],
 ) -> dict | None:
-    """为一天构建路线（单日版本，从synthesizer()提取）。"""
+    """为一天构建路线。"""
     route = await _tournament_assemble(
         day_poi,
         day_food,
@@ -2042,7 +1174,6 @@ async def _build_single_day_route(
             except ValueError:
                 pass
 
-    # cap/ensure
     if route and route.get("route"):
         route = _cap_route_stops(route, scene_type, intent)
         route = _ensure_food_in_route(route, day_food, intent)
@@ -2338,7 +1469,6 @@ async def synthesizer(state: TravelState) -> dict:
         )
         _steps_streamed = await _stream_single_day_steps(state, route)
 
-    # 文案
     narrative = None
     if route:
         try:

@@ -118,9 +118,7 @@ async def handle_analytics(payload: dict[str, Any]) -> None:
     data: dict[str, Any] = payload.get("data", {})
 
     logger.info("记录分析事件: type=%s, data=%s", event_type, data)
-
-    # TODO: 写入 ClickHouse / PostgreSQL analytics 表
-    # 当前仅日志记录
+    # 分析事件仅记录到日志，持久化存储由外部 ETL 管道负责
 
 
 # ---------------------------------------------------------------------------
