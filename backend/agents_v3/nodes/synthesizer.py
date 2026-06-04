@@ -666,86 +666,68 @@ def _ensure_food_in_route(route: dict, food_proposals: list[dict], intent: dict)
     return route
 
 
+_FOOD_SCENE_SUBCATS: dict[str, list[str]] = {
+    "海鲜": ["海鲜", "蚝", "鱼排", "渔港"],
+    "正餐": ["餐厅", "烧", "煲", "火锅", "烧烤"],
+    "小吃": ["粉", "面", "粥", "小吃", "排档"],
+    "茶餐厅/甜品": ["茶餐厅", "甜品", "奶茶", "冰", "柠檬", "饮品"],
+    "综合美食街": ["夜市", "美食街", "海鲜街", "老街"],
+}
+_FOOD_STOP_KEYWORDS = ["餐厅", "海鲜", "粉", "面", "粥", "甜品", "茶餐厅", "烧烤", "火锅", "夜市", "小吃", "排档", "肠粉"]
+_FOOD_STOP_CATEGORIES = {"餐饮", "美食", "小吃", "海鲜", "夜市", "夜市小吃"}
+
+
+def _is_food_stop(step: dict) -> bool:
+    """判断是否为餐饮站点。"""
+    cat = step.get("poi", {}).get("category", "")
+    if cat in _FOOD_STOP_CATEGORIES:
+        return True
+    return any(kw in step.get("poi", {}).get("name", "") for kw in _FOOD_STOP_KEYWORDS)
+
+
+def _get_food_subcat(name: str) -> str:
+    """获取餐饮子类型。"""
+    for sub, kws in _FOOD_SCENE_SUBCATS.items():
+        if any(kw in name for kw in kws):
+            return sub
+    return "其他"
+
+
+def _find_extra_food(food_proposals: list[dict], route_names: set[str], food_subcats: set[str], food_steps_count: int, max_total: int) -> list[dict]:
+    """找出需要补充的餐饮候选。"""
+    extra = []
+    for fp in food_proposals:
+        if len(extra) >= 3 or max_total + len(extra) >= 8:
+            break
+        name = fp.get("content", {}).get("name", "")
+        if name in route_names:
+            continue
+        sub = _get_food_subcat(name)
+        if sub in food_subcats and len(extra) >= max(0, 2 - food_steps_count):
+            continue
+        extra.append(fp)
+        food_subcats.add(sub)
+    return extra
+
+
 def _ensure_food_scene_food_count(
     route: dict,
     food_proposals: list[dict],
     scene_type: str,
 ) -> dict:
     """美食型专用：确保路线至少含2个不同子类型的餐饮。"""
-    if not route or not route.get("route") or not food_proposals:
+    if not route or not route.get("route") or not food_proposals or scene_type != "美食型":
         return route
-    if scene_type != "美食型":
-        return route
-
-    _FOOD_SUBCATS_LOCAL = {
-        "海鲜": ["海鲜", "蚝", "鱼排", "渔港"],
-        "正餐": ["餐厅", "烧", "煲", "火锅", "烧烤"],
-        "小吃": ["粉", "面", "粥", "小吃", "排档"],
-        "茶餐厅/甜品": ["茶餐厅", "甜品", "奶茶", "冰", "柠檬", "饮品"],
-        "综合美食街": ["夜市", "美食街", "海鲜街", "老街"],
-    }
-
-    def _is_food_stop(s: dict) -> bool:
-        cat = s.get("poi", {}).get("category", "")
-        if cat in ("餐饮", "美食", "小吃", "海鲜", "夜市", "夜市小吃"):
-            return True
-        name = s.get("poi", {}).get("name", "")
-        return any(
-            kw in name
-            for kw in [
-                "餐厅",
-                "海鲜",
-                "粉",
-                "面",
-                "粥",
-                "甜品",
-                "茶餐厅",
-                "烧烤",
-                "火锅",
-                "夜市",
-                "小吃",
-                "排档",
-                "肠粉",
-            ]
-        )
-
-    def _get_subcat(name: str) -> str:
-        for sub, kws in _FOOD_SUBCATS_LOCAL.items():
-            if any(kw in name for kw in kws):
-                return sub
-        return "其他"
 
     steps = route["route"]
     food_steps = [s for s in steps if _is_food_stop(s)]
-    food_subcats = set(_get_subcat(s.get("poi", {}).get("name", "")) for s in food_steps)
+    food_subcats = {_get_food_subcat(s.get("poi", {}).get("name", "")) for s in food_steps}
 
-    # 美食型需要 >=2 个餐饮 + >=2 种子类型
     if len(food_steps) >= 2 and len(food_subcats) >= 2:
         return route
 
-    # 找出路线中已有的名字（避免重复插入）
-    route_names = set()
-    for s in steps:
-        n = s.get("poi", {}).get("name", "")
-        route_names.add(n)
-        cn = _canonical_name(n)
-        if cn != n:
-            route_names.add(cn)
-
-    # 从 food_proposals 中找未占用的、不同子类型的候选
-    [s for s in _FOOD_SUBCATS_LOCAL if s not in food_subcats]
-    extra = []
-    for fp in food_proposals:
-        if len(extra) >= 3 or len(steps) + len(extra) >= 8:
-            break
-        name = fp.get("content", {}).get("name", "")
-        if name in route_names:
-            continue
-        sub = _get_subcat(name)
-        if sub in food_subcats and len(extra) >= max(0, 2 - len(food_steps)):
-            continue  # 已有该子类，只在数量不够时补充
-        extra.append(fp)
-        food_subcats.add(sub)
+    route_names = _get_route_name_set(steps)
+    extra = _find_extra_food(food_proposals, route_names, food_subcats, len(food_steps), len(steps))
 
     if not extra:
         return route
