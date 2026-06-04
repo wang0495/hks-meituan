@@ -828,8 +828,13 @@ async def plan_route(request: PlanRequest):
             try:
                 yield _sse("phase", {"phase": "agents", "message": "7个智能体正在并行规划..."})
 
+                # 把 start_location 合并到用户输入
+                user_input = request.user_input
+                if request.start_location:
+                    user_input = f"从{request.start_location}出发，{user_input}"
+
                 sse_queue: asyncio.Queue = asyncio.Queue()
-                graph_task = asyncio.create_task(_run_agent_graph(request.user_input, sse_queue))
+                graph_task = asyncio.create_task(_run_agent_graph(user_input, sse_queue))
                 _agent_summary_ref = [""]
 
                 async for event in _run_and_drain_graph(sse_queue, graph_task, _agent_summary_ref):
