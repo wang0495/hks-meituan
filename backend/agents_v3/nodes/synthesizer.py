@@ -767,67 +767,29 @@ def _ensure_food_scene_food_count(
     return route
 
 
-def _ensure_min_food_in_route(route: dict, food_proposals: list[dict], intent: dict) -> dict:
-    """安全网：确保路线至少含1个餐饮。"""
-    if not route or not route.get("route") or not food_proposals:
-        return route
+_MIN_FOOD_KEYWORDS = ["餐厅", "海鲜", "烧", "煲", "粉", "面", "粥", "甜品", "奶茶", "茶餐厅", "排档", "咖啡"]
+_MIN_FOOD_CATEGORIES = {"餐饮", "美食", "小吃", "海鲜", "夜市", "夜市小吃"}
 
-    steps = route["route"]
-    has_food = False
+
+def _has_food_in_route(steps: list[dict]) -> bool:
+    """检查路线中是否已有餐饮。"""
     for s in steps:
         poi = s.get("poi", {})
-        cat = poi.get("category", "")
-        _type = s.get("_type", "")
-        if _type in ("lunch", "dinner") or cat in (
-            "餐饮",
-            "美食",
-            "小吃",
-            "海鲜",
-            "夜市",
-            "夜市小吃",
-        ):
-            has_food = True
-            break
-        name = poi.get("name", "")
-        food_kws = [
-            "餐厅",
-            "海鲜",
-            "烧",
-            "煲",
-            "粉",
-            "面",
-            "粥",
-            "甜品",
-            "奶茶",
-            "茶餐厅",
-            "排档",
-            "咖啡",
-        ]
-        if any(kw in name for kw in food_kws):
-            has_food = True
-            break
+        if s.get("_type", "") in ("lunch", "dinner") or poi.get("category", "") in _MIN_FOOD_CATEGORIES:
+            return True
+        if any(kw in poi.get("name", "") for kw in _MIN_FOOD_KEYWORDS):
+            return True
+    return False
 
-    if has_food:
-        return route
 
-    poi_coords = [
-        (s["poi"].get("lat", 0), s["poi"].get("lng", 0))
-        for s in steps
-        if s.get("poi", {}).get("lat") and s.get("poi", {}).get("lng")
-    ]
-    if poi_coords:
-        center_lat = sum(la for la, _ in poi_coords) / len(poi_coords)
-        center_lng = sum(ln for _, ln in poi_coords) / len(poi_coords)
-    else:
-        center_lat, center_lng = 22.27, 113.58
-
+def _find_best_food(food_proposals: list[dict], center_lat: float, center_lng: float) -> dict | None:
+    """找到最佳餐饮候选。"""
     best_food = None
-    best_score = -1
+    best_score = -1.0
+
     for fp in food_proposals:
         content = fp.get("content", {})
-        if not content.get("rating"):
-            continue
-        if content.get("category", "") in ("酒店", "住宿"):
+        if not content.get("rating") or content.get("category", "") in ("酒店", "住宿"):
             continue
         score = content.get("rating", 0)
         lat, lng = content.get("lat", 0), content.get("lng", 0)
@@ -840,8 +802,26 @@ def _ensure_min_food_in_route(route: dict, food_proposals: list[dict], intent: d
             best_score = score
             best_food = content
 
-    if not best_food:
-        best_food = food_proposals[0].get("content", {})
+    return best_food
+
+
+def _ensure_min_food_in_route(route: dict, food_proposals: list[dict], intent: dict) -> dict:
+    """安全网：确保路线至少含1个餐饮。"""
+    if not route or not route.get("route") or not food_proposals:
+        return route
+
+    steps = route["route"]
+    if _has_food_in_route(steps):
+        return route
+
+    poi_coords = [(s["poi"].get("lat", 0), s["poi"].get("lng", 0)) for s in steps if s.get("poi", {}).get("lat") and s.get("poi", {}).get("lng")]
+    if poi_coords:
+        center_lat = sum(la for la, _ in poi_coords) / len(poi_coords)
+        center_lng = sum(ln for _, ln in poi_coords) / len(poi_coords)
+    else:
+        center_lat, center_lng = 22.27, 113.58
+
+    best_food = _find_best_food(food_proposals, center_lat, center_lng) or food_proposals[0].get("content", {})
 
     insert_idx = min(2, len(steps))
     if insert_idx > 0 and insert_idx < len(steps):
