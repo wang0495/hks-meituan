@@ -302,7 +302,7 @@ async def _load_all_pois() -> list[dict]:
 
         return await fetch_pois()
     except Exception:
-        # API unavailable -- fall back to local JSON
+        logger.debug("meituan API unavailable, falling back to local JSON", exc_info=True)
         try:
             from backend.services.data_service import get_data
 

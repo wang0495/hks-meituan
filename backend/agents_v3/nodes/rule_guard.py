@@ -12,8 +12,11 @@ ADR-R5: 意图解析和POI加载并行执行（节省~3s）
 from __future__ import annotations
 
 import asyncio
+import logging
 
 from backend.agents_v3.state import AGENT_META, TravelState, sse_emit
+
+logger = logging.getLogger(__name__)
 
 
 async def rule_guard(state: TravelState) -> dict:
@@ -54,6 +57,7 @@ async def rule_guard(state: TravelState) -> dict:
 
             candidates = filter_candidates(all_pois, user_intent)
         except Exception:
+            logger.debug("filter_candidates failed, using raw POIs", exc_info=True)
             candidates = all_pois[:120]
 
         # ── 4. 规则补充关键景点（ADR-R2，不再调LLM） ──
@@ -71,7 +75,7 @@ async def rule_guard(state: TravelState) -> dict:
 
         pre_scene_type = _rule_precheck(user_input, user_intent)
     except Exception:
-        pass
+        logger.debug("_rule_precheck failed, skipping pre_scene_type", exc_info=True)
 
     await sse_emit(
         state,
