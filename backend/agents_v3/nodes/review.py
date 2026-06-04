@@ -44,7 +44,11 @@ def _get_area(lat, lng):
 
 
 _GEO_THRESHOLD_BY_SCENE: dict[str, float] = {
-    "目的地型": 8.0, "特种兵型": 12.0, "美食型": 10.0, "休闲型": 15.0, "观光型": 12.0,
+    "目的地型": 8.0,
+    "特种兵型": 12.0,
+    "美食型": 10.0,
+    "休闲型": 15.0,
+    "观光型": 12.0,
 }
 
 
@@ -66,7 +70,15 @@ def _extract_pois_with_coords(proposals: list[dict]) -> list[dict]:
         c = p.get("content", {})
         lat, lng = c.get("lat", 0), c.get("lng", 0)
         if lat and lng:
-            pois.append({"agent": p.get("agent", ""), "name": c.get("name", ""), "lat": lat, "lng": lng, "area": _get_area(lat, lng)})
+            pois.append(
+                {
+                    "agent": p.get("agent", ""),
+                    "name": c.get("name", ""),
+                    "lat": lat,
+                    "lng": lng,
+                    "area": _get_area(lat, lng),
+                }
+            )
     return pois
 
 
@@ -107,9 +119,7 @@ def _rule_geo_check(proposals: list[dict], scene_type: str) -> list[dict]:
         return []
 
     kept_names = [p["name"] for p in keep_pois[:5]]
-    bad_desc = ", ".join(
-        f"{p['name']}({p['area']})" for p in pois_with_coord if p["area"] != keep_area
-    )
+    bad_desc = ", ".join(f"{p['name']}({p['area']})" for p in pois if p["area"] != keep_area)
 
     feedback = []
     for agent in bad_agents:
@@ -163,7 +173,11 @@ async def review(state: TravelState) -> dict:
     """审查所有agent提案质量，生成反馈。"""
     meta = AGENT_META.get("review", {})
     await sse_emit(state, "agent_start", {"agent": "review", **meta})
-    await sse_emit(state, "agent_thinking", {"agent": "review", "text": f"审查 {len(state.get('proposals', []))} 个提案质量..."})
+    await sse_emit(
+        state,
+        "agent_thinking",
+        {"agent": "review", "text": f"审查 {len(state.get('proposals', []))} 个提案质量..."},
+    )
 
     proposals = list(state.get("reworked_proposals") or state.get("proposals", []))
     intent = state.get("user_intent", {})
@@ -177,11 +191,28 @@ async def review(state: TravelState) -> dict:
     # 规则化地理检查
     rule_feedback = _rule_geo_check(proposals, scene_type)
     if rule_feedback:
-        await sse_emit(state, "agent_result", {"agent": "review", "summary": f"地理检查发现{len(rule_feedback)}个跨区问题，触发rework"})
+        await sse_emit(
+            state,
+            "agent_result",
+            {
+                "agent": "review",
+                "summary": f"地理检查发现{len(rule_feedback)}个跨区问题，触发rework",
+            },
+        )
         return {"review_feedback": rule_feedback, "review_round": round_num + 1}
 
     # LLM语义审查
-    proposal_summary = [{"agent": p.get("agent", ""), "name": p.get("content", {}).get("name", ""), "category": p.get("content", {}).get("category", ""), "lat": p.get("content", {}).get("lat"), "lng": p.get("content", {}).get("lng"), "rating": p.get("content", {}).get("rating")} for p in proposals]
+    proposal_summary = [
+        {
+            "agent": p.get("agent", ""),
+            "name": p.get("content", {}).get("name", ""),
+            "category": p.get("content", {}).get("category", ""),
+            "lat": p.get("content", {}).get("lat"),
+            "lng": p.get("content", {}).get("lng"),
+            "rating": p.get("content", {}).get("rating"),
+        }
+        for p in proposals
+    ]
 
     scene_reqs = intent.get("scene_requirements", [])
     preferred_cats = intent.get("preferred_categories", [])
@@ -432,18 +463,53 @@ async def _rework_poi(
 
 
 _AGENT_POOL_FILTERS: dict[str, tuple[str, callable]] = {
-    "hotel": ("住宿", lambda c, old: c.get("category") in ("住宿", "酒店", "民宿") and c.get("name") not in old and c.get("rating") is not None),
-    "hotel_expert": ("住宿", lambda c, old: c.get("category") in ("住宿", "酒店", "民宿") and c.get("name") not in old and c.get("rating") is not None),
+    "hotel": (
+        "住宿",
+        lambda c, old: c.get("category") in ("住宿", "酒店", "民宿")
+        and c.get("name") not in old
+        and c.get("rating") is not None,
+    ),
+    "hotel_expert": (
+        "住宿",
+        lambda c, old: c.get("category") in ("住宿", "酒店", "民宿")
+        and c.get("name") not in old
+        and c.get("rating") is not None,
+    ),
     "traffic": ("交通", lambda c, old: c.get("rating") is not None and c.get("name") not in old),
-    "traffic_expert": ("交通", lambda c, old: c.get("rating") is not None and c.get("name") not in old),
-    "local_expert": ("本地特色", lambda c, old: c.get("rating", 4.0) >= 4.0 and c.get("name") not in old and c.get("category") not in ("住宿", "酒店", "民宿")),
-    "destination": ("目的地", lambda c, old: c.get("category") not in ("住宿", "酒店", "民宿", "餐饮") and c.get("name") not in old and c.get("rating") is not None),
-    "destination_expert": ("目的地", lambda c, old: c.get("category") not in ("住宿", "酒店", "民宿", "餐饮") and c.get("name") not in old and c.get("rating") is not None),
+    "traffic_expert": (
+        "交通",
+        lambda c, old: c.get("rating") is not None and c.get("name") not in old,
+    ),
+    "local_expert": (
+        "本地特色",
+        lambda c, old: c.get("rating", 4.0) >= 4.0
+        and c.get("name") not in old
+        and c.get("category") not in ("住宿", "酒店", "民宿"),
+    ),
+    "destination": (
+        "目的地",
+        lambda c, old: c.get("category") not in ("住宿", "酒店", "民宿", "餐饮")
+        and c.get("name") not in old
+        and c.get("rating") is not None,
+    ),
+    "destination_expert": (
+        "目的地",
+        lambda c, old: c.get("category") not in ("住宿", "酒店", "民宿", "餐饮")
+        and c.get("name") not in old
+        and c.get("rating") is not None,
+    ),
 }
-_DEFAULT_POOL_FILTER = ("省钱", lambda c, old: (c.get("avg_price", 9999) <= 50 or c.get("avg_price") == 0) and c.get("name") not in old and c.get("rating") is not None)
+_DEFAULT_POOL_FILTER = (
+    "省钱",
+    lambda c, old: (c.get("avg_price", 9999) <= 50 or c.get("avg_price") == 0)
+    and c.get("name") not in old
+    and c.get("rating") is not None,
+)
 
 
-def _get_rework_pool(agent_name: str, candidates: list[dict], old_names: set[str]) -> tuple[list[dict], str]:
+def _get_rework_pool(
+    agent_name: str, candidates: list[dict], old_names: set[str]
+) -> tuple[list[dict], str]:
     """根据agent类型筛选候选池。"""
     label, filter_fn = _AGENT_POOL_FILTERS.get(agent_name, _DEFAULT_POOL_FILTER)
     pool = [c for c in candidates if filter_fn(c, old_names)]

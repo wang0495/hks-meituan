@@ -24,16 +24,27 @@ _HOTEL_EXPERT_EXCLUDE_CATS = ["住宿", "酒店", "民宿", "餐饮", "美食"]
 
 async def _check_need_hotel_expert(user_input: str) -> bool:
     """判断是否需要住宿。"""
-    if any(kw in user_input for kw in ["晚", "两", "二", "三天", "住宿", "酒店", "民宿", "二日", "两日", "过夜"]):
+    if any(
+        kw in user_input
+        for kw in ["晚", "两", "二", "三天", "住宿", "酒店", "民宿", "二日", "两日", "过夜"]
+    ):
         return True
-    judge = await _llm_decide('判断用户是否需要住宿。输出JSON: {"need":true/false,"reason":"理由"}', f"用户输入: {_sanitize_for_prompt(user_input)}")
+    judge = await _llm_decide(
+        '判断用户是否需要住宿。输出JSON: {"need":true/false,"reason":"理由"}',
+        f"用户输入: {_sanitize_for_prompt(user_input)}",
+    )
     return bool(judge and judge.get("need"))
 
 
 def _filter_hotels_expert(all_pois: list[dict], candidates: list[dict]) -> list[dict]:
     """筛选住宿POI并去重。"""
     hotel_sources = all_pois + candidates
-    hotels = [c for c in hotel_sources if any(kw in c.get("category", "") for kw in _HOTEL_EXPERT_KEYWORDS) or any(kw in c.get("name", "") for kw in _HOTEL_EXPERT_NAME_KEYWORDS)]
+    hotels = [
+        c
+        for c in hotel_sources
+        if any(kw in c.get("category", "") for kw in _HOTEL_EXPERT_KEYWORDS)
+        or any(kw in c.get("name", "") for kw in _HOTEL_EXPERT_NAME_KEYWORDS)
+    ]
     seen: set[str] = set()
     unique = []
     for h in hotels:
@@ -46,12 +57,31 @@ def _filter_hotels_expert(all_pois: list[dict], candidates: list[dict]) -> list[
 
 def _build_hotel_expert_summaries(hotels: list[dict], max_count: int = 20) -> list[dict]:
     """构建住宿摘要。"""
-    return [{"name": h.get("name", ""), "price": h.get("avg_price", 0), "rating": h.get("rating", 0), "tags": h.get("tags", [])[:3], "area": h.get("tags", [""])[0] if h.get("tags") else "", "lat": round(h.get("lat", 0), 3) if h.get("lat") else None, "lng": round(h.get("lng", 0), 3) if h.get("lng") else None} for h in hotels[:max_count]]
+    return [
+        {
+            "name": h.get("name", ""),
+            "price": h.get("avg_price", 0),
+            "rating": h.get("rating", 0),
+            "tags": h.get("tags", [])[:3],
+            "area": h.get("tags", [""])[0] if h.get("tags") else "",
+            "lat": round(h.get("lat", 0), 3) if h.get("lat") else None,
+            "lng": round(h.get("lng", 0), 3) if h.get("lng") else None,
+        }
+        for h in hotels[:max_count]
+    ]
 
 
 def _extract_hotel_expert_poi_locs(candidates: list[dict], max_count: int = 15) -> list[dict]:
     """提取POI位置信息。"""
-    return [{"name": c.get("name", ""), "lat": round(c.get("lat", 0), 3), "lng": round(c.get("lng", 0), 3)} for c in candidates[:max_count] if c.get("category", "") not in _HOTEL_EXPERT_EXCLUDE_CATS and c.get("lat") and c.get("lng")]
+    return [
+        {
+            "name": c.get("name", ""),
+            "lat": round(c.get("lat", 0), 3),
+            "lng": round(c.get("lng", 0), 3),
+        }
+        for c in candidates[:max_count]
+        if c.get("category", "") not in _HOTEL_EXPERT_EXCLUDE_CATS and c.get("lat") and c.get("lng")
+    ]
 
 
 def _match_hotel_expert_picks(picks: list[dict], hotels: list[dict]) -> list[dict]:
@@ -67,7 +97,11 @@ def _match_hotel_expert_picks(picks: list[dict], hotels: list[dict]) -> list[dic
                     content = h
                     break
         if content:
-            proposals.append(_proposal("hotel", content, pick.get("confidence", 0.7), pick.get("reason", "LLM推荐")))
+            proposals.append(
+                _proposal(
+                    "hotel", content, pick.get("confidence", 0.7), pick.get("reason", "LLM推荐")
+                )
+            )
     return proposals
 
 
@@ -92,7 +126,9 @@ def _build_hotel_expert_system_prompt(group_hint: str) -> str:
 最多选2个。只输出JSON。"""
 
 
-def _build_hotel_expert_user_prompt(user_input: str, intent: dict, group_type: str, poi_locations: list[dict], summaries: list[dict]) -> str:
+def _build_hotel_expert_user_prompt(
+    user_input: str, intent: dict, group_type: str, poi_locations: list[dict], summaries: list[dict]
+) -> str:
     """构建用户提示。"""
     return f"""用户需求: {_sanitize_for_prompt(user_input)}
 预算: {intent.get('budget', {}).get('per_person', '不限')}元/人
@@ -136,7 +172,11 @@ async def hotel_expert(state: TravelState) -> dict:
     system = _build_hotel_expert_system_prompt(group_hint)
     user = _build_hotel_expert_user_prompt(user_input, intent, group_type, poi_locations, summaries)
     result = await _llm_decide(system, user)
-    proposals = _match_hotel_expert_picks(result.get("picks", []) if result else [], hotels) if result and "picks" in result else []
+    proposals = (
+        _match_hotel_expert_picks(result.get("picks", []) if result else [], hotels)
+        if result and "picks" in result
+        else []
+    )
 
     if not proposals and hotels:
         for h in sorted(hotels, key=lambda h: h.get("rating", 4.0), reverse=True)[:2]:

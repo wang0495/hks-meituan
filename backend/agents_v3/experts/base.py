@@ -395,7 +395,9 @@ def _validate_llm_result(result: dict) -> str | None:
     return "JSON结构问题: " + "; ".join(bad_keys) if bad_keys else None
 
 
-def _build_llm_kwargs(model: str, is_ds: bool, system_prompt: str, user_content: str, temperature: float) -> tuple[dict, bool]:
+def _build_llm_kwargs(
+    model: str, is_ds: bool, system_prompt: str, user_content: str, temperature: float
+) -> tuple[dict, bool]:
     """构建LLM调用参数。"""
     kwargs: dict = dict(
         model=model,
@@ -436,7 +438,12 @@ async def _llm_decide(
 
     is_safe, risk = _ml_injection_check(user_prompt)
     if not is_safe and risk > _ML_INJECTION_THRESHOLD:
-        logger.warning("LLM call blocked: ML injection check failed risk=%.2f prefix=%s prompt=%.100s", risk, prefix, user_prompt[:100])
+        logger.warning(
+            "LLM call blocked: ML injection check failed risk=%.2f prefix=%s prompt=%.100s",
+            risk,
+            prefix,
+            user_prompt[:100],
+        )
         return None
 
     client = _get_llm_client(prefix)
@@ -446,11 +453,21 @@ async def _llm_decide(
 
     for attempt in range(retries):
         try:
-            user_content = user_prompt + (f"\n\n【上次输出有误，请修正】\n{error_feedback}\n请重新输出正确的JSON。" if error_feedback else "")
-            kwargs, use_tools = _build_llm_kwargs(model, is_ds, system_prompt, user_content, temperature)
+            user_content = user_prompt + (
+                f"\n\n【上次输出有误，请修正】\n{error_feedback}\n请重新输出正确的JSON。"
+                if error_feedback
+                else ""
+            )
+            kwargs, use_tools = _build_llm_kwargs(
+                model, is_ds, system_prompt, user_content, temperature
+            )
             resp = await client.chat.completions.create(**kwargs)
             msg = resp.choices[0].message
-            text = (msg.tool_calls[0].function.arguments if use_tools and msg.tool_calls else msg.content) or ""
+            text = (
+                msg.tool_calls[0].function.arguments
+                if use_tools and msg.tool_calls
+                else msg.content
+            ) or ""
 
             result = _extract_json(text)
             validation_error = _validate_llm_result(result)
@@ -465,7 +482,9 @@ async def _llm_decide(
             if attempt < retries - 1:
                 await asyncio.sleep(2)
 
-    logger.warning("_llm_decide failed after %d retries: prefix=%s, error=%s", retries, prefix, error_feedback)
+    logger.warning(
+        "_llm_decide failed after %d retries: prefix=%s, error=%s", retries, prefix, error_feedback
+    )
     return None
 
 

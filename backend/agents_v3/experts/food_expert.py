@@ -247,7 +247,17 @@ def _build_food_expert_feedback_hints(state: dict) -> tuple[str, str]:
 
 def _filter_food_expert_pois(all_pois: list[dict]) -> list[dict]:
     """筛选餐饮POI。"""
-    return [c for c in all_pois if (any(kw in c.get("category", "") for kw in _FOOD_CATS) or any(kw in c.get("name", "") for kw in _FOOD_NAMES)) and c.get("category", "") not in _FOOD_EXPERT_EXCLUDE_CATS and not _is_likely_macau(c.get("name", "")) and c.get("rating") is not None]
+    return [
+        c
+        for c in all_pois
+        if (
+            any(kw in c.get("category", "") for kw in _FOOD_CATS)
+            or any(kw in c.get("name", "") for kw in _FOOD_NAMES)
+        )
+        and c.get("category", "") not in _FOOD_EXPERT_EXCLUDE_CATS
+        and not _is_likely_macau(c.get("name", ""))
+        and c.get("rating") is not None
+    ]
 
 
 def _merge_food_candidates(foods: list[dict], candidates_from_state: list[dict]) -> list[dict]:
@@ -267,7 +277,16 @@ _FOOD_EXPERT_EXCLUDE_CATS = ["住宿", "酒店", "民宿", "餐饮", "美食"]
 
 def _extract_food_expert_poi_locs(candidates: list[dict], max_count: int = 20) -> list[dict]:
     """提取POI位置信息。"""
-    return [{"name": c.get("name", ""), "lat": round(c.get("lat", 0), 3), "lng": round(c.get("lng", 0), 3), "category": c.get("category", "")} for c in candidates[:max_count] if c.get("category", "") not in _FOOD_EXPERT_EXCLUDE_CATS and c.get("lat") and c.get("lng")]
+    return [
+        {
+            "name": c.get("name", ""),
+            "lat": round(c.get("lat", 0), 3),
+            "lng": round(c.get("lng", 0), 3),
+            "category": c.get("category", ""),
+        }
+        for c in candidates[:max_count]
+        if c.get("category", "") not in _FOOD_EXPERT_EXCLUDE_CATS and c.get("lat") and c.get("lng")
+    ]
 
 
 def _stratified_sample_food(foods: list[dict], score_fn) -> tuple[list[dict], dict[str, str]]:
@@ -276,7 +295,12 @@ def _stratified_sample_food(foods: list[dict], score_fn) -> tuple[list[dict], di
     subcat_map: dict[str, str] = {}
     seen_names: set[str] = set()
     for sub_name, kws in _FOOD_SUBCATS.items():
-        bucket = [f for f in foods if any(kw in f.get("name", "") or kw in f.get("category", "") for kw in kws) and f.get("name", "") not in seen_names]
+        bucket = [
+            f
+            for f in foods
+            if any(kw in f.get("name", "") or kw in f.get("category", "") for kw in kws)
+            and f.get("name", "") not in seen_names
+        ]
         bucket.sort(key=score_fn, reverse=True)
         for f in bucket[:3]:
             stratified.append(f)
@@ -287,7 +311,20 @@ def _stratified_sample_food(foods: list[dict], score_fn) -> tuple[list[dict], di
 
 def _build_food_expert_summaries(stratified: list[dict], subcat_map: dict[str, str]) -> list[dict]:
     """构建LLM摘要。"""
-    return [{"name": f.get("name", ""), "subcat": subcat_map.get(f.get("name", ""), "其他"), "cat": f.get("category", ""), "price": f.get("avg_price", 0), "rating": f.get("rating", 0), "tags": f.get("tags", [])[:3], "lat": round(f.get("lat", 0), 3) if f.get("lat") else None, "lng": round(f.get("lng", 0), 3) if f.get("lng") else None, "reviews": f.get("_ugc_summary", "")} for f in stratified[:15]]
+    return [
+        {
+            "name": f.get("name", ""),
+            "subcat": subcat_map.get(f.get("name", ""), "其他"),
+            "cat": f.get("category", ""),
+            "price": f.get("avg_price", 0),
+            "rating": f.get("rating", 0),
+            "tags": f.get("tags", [])[:3],
+            "lat": round(f.get("lat", 0), 3) if f.get("lat") else None,
+            "lng": round(f.get("lng", 0), 3) if f.get("lng") else None,
+            "reviews": f.get("_ugc_summary", ""),
+        }
+        for f in stratified[:15]
+    ]
 
 
 def _get_food_expert_max_picks(scene_type: str, weight: float) -> int:
@@ -297,7 +334,9 @@ def _get_food_expert_max_picks(scene_type: str, weight: float) -> int:
     return 3 if weight >= 0.8 else (3 if weight >= 0.5 else 2)
 
 
-def _build_food_expert_system_prompt(scene_type: str, intent: dict, user_input: str, group_type: str, max_food: int) -> str:
+def _build_food_expert_system_prompt(
+    scene_type: str, intent: dict, user_input: str, group_type: str, max_food: int
+) -> str:
     """构建系统提示。"""
     if scene_type == "美食型":
         scene_reqs_text = " ".join(intent.get("scene_requirements", []))
@@ -333,7 +372,18 @@ def _build_food_expert_system_prompt(scene_type: str, intent: dict, user_input: 
 最多选{max_food}个。只输出JSON。"""
 
 
-def _build_food_expert_user_prompt(user_input: str, scene_type: str, intent: dict, group_type: str, poi_locations: list[dict], stratified: list[dict], avail_subcats: list[str], summaries: list[dict], feedback_hint: str, context_hint: str) -> str:
+def _build_food_expert_user_prompt(
+    user_input: str,
+    scene_type: str,
+    intent: dict,
+    group_type: str,
+    poi_locations: list[dict],
+    stratified: list[dict],
+    avail_subcats: list[str],
+    summaries: list[dict],
+    feedback_hint: str,
+    context_hint: str,
+) -> str:
     """构建用户提示。"""
     return f"""用户需求: {_sanitize_for_prompt(user_input)}
 场景类型: {scene_type}
@@ -349,28 +399,43 @@ def _build_food_expert_user_prompt(user_input: str, scene_type: str, intent: dic
 请根据餐厅与景点的坐标距离，推荐最方便的就餐选择。必须确保选出的餐厅覆盖不同的子类型(subcat字段)。"""
 
 
-async def _prepare_food_expert_data(state: dict) -> tuple[list[dict], list[dict], tuple[float, float] | None]:
+async def _prepare_food_expert_data(
+    state: dict,
+) -> tuple[list[dict], list[dict], tuple[float, float] | None]:
     """准备餐饮专家数据。"""
     all_pois = await _load_all_pois()
     target_city = state.get("user_intent", {}).get("city", "珠海")
     all_pois = [p for p in all_pois if p.get("city", "") == target_city or not p.get("city")]
-    foods = _merge_food_candidates(_filter_food_expert_pois(all_pois), state.get("expert_candidates", {}).get("food", []))
+    foods = _merge_food_candidates(
+        _filter_food_expert_pois(all_pois), state.get("expert_candidates", {}).get("food", [])
+    )
 
     if len(foods) < 3:
         existing_names = {f.get("name", "") for f in foods}
         for c in state.get("candidates", []):
-            if any(kw in c.get("name", "") for kw in _FOOD_NAMES) and c.get("name", "") not in existing_names:
+            if (
+                any(kw in c.get("name", "") for kw in _FOOD_NAMES)
+                and c.get("name", "") not in existing_names
+            ):
                 foods.append(c)
                 existing_names.add(c.get("name", ""))
 
     poi_locations = _extract_food_expert_poi_locs(state.get("candidates", []))
-    poi_center = (sum(p["lat"] for p in poi_locations) / len(poi_locations), sum(p["lng"] for p in poi_locations) / len(poi_locations)) if poi_locations else None
+    poi_center = (
+        (
+            sum(p["lat"] for p in poi_locations) / len(poi_locations),
+            sum(p["lng"] for p in poi_locations) / len(poi_locations),
+        )
+        if poi_locations
+        else None
+    )
 
     return foods, poi_locations, poi_center
 
 
 def _make_food_expert_rule_score(poi_center: tuple[float, float] | None):
     """创建餐饮专家规则评分函数。"""
+
     def _score(f: dict) -> float:
         s = f.get("rating", 0)
         if poi_center:
@@ -378,6 +443,7 @@ def _make_food_expert_rule_score(poi_center: tuple[float, float] | None):
             if lat and lng:
                 s -= _haversine_km(lat, lng, poi_center[0], poi_center[1]) * 0.05
         return s
+
     return _score
 
 
@@ -396,7 +462,9 @@ async def food_expert(state: TravelState) -> dict:
     feedback_hint, context_hint = _build_food_expert_feedback_hints(state)
     foods, poi_locations, poi_center = await _prepare_food_expert_data(state)
 
-    stratified, subcat_map = _stratified_sample_food(foods, _make_food_expert_rule_score(poi_center))
+    stratified, subcat_map = _stratified_sample_food(
+        foods, _make_food_expert_rule_score(poi_center)
+    )
     summaries = _build_food_expert_summaries(stratified, subcat_map)
     avail_subcats = sorted(set(s["subcat"] for s in summaries))
 
@@ -404,10 +472,23 @@ async def food_expert(state: TravelState) -> dict:
     max_food = _get_food_expert_max_picks(scene_type, weight)
 
     system = _build_food_expert_system_prompt(scene_type, intent, user_input, group_type, max_food)
-    user = _build_food_expert_user_prompt(user_input, scene_type, intent, group_type, poi_locations, stratified, avail_subcats, summaries, feedback_hint, context_hint)
+    user = _build_food_expert_user_prompt(
+        user_input,
+        scene_type,
+        intent,
+        group_type,
+        poi_locations,
+        stratified,
+        avail_subcats,
+        summaries,
+        feedback_hint,
+        context_hint,
+    )
 
     result = await _llm_decide(system, user)
-    proposals = _match_food_picks(result.get("picks", []), foods) if result and "picks" in result else []
+    proposals = (
+        _match_food_picks(result.get("picks", []), foods) if result and "picks" in result else []
+    )
 
     for _ in range(3):
         issues = _check_food_diversity_issues(proposals, _FOOD_SUBCATS, scene_type)

@@ -65,7 +65,9 @@ def _detect_destination(user_input: str) -> tuple[str | None, tuple[float, float
 _DEST_EXCLUDE_CATS = {"住宿", "酒店", "民宿", "餐饮", "美食"}
 
 
-def _find_core_destination(candidates: list[dict], dest_name: str, center_lat: float, center_lng: float) -> dict | None:
+def _find_core_destination(
+    candidates: list[dict], dest_name: str, center_lat: float, center_lng: float
+) -> dict | None:
     """查找核心目的地POI。"""
     for c in candidates:
         cname = c.get("name", "")
@@ -80,7 +82,9 @@ def _find_core_destination(candidates: list[dict], dest_name: str, center_lat: f
     return None
 
 
-def _filter_nearby_pois(candidates: list[dict], center_lat: float, center_lng: float, dest_name: str) -> list[dict]:
+def _filter_nearby_pois(
+    candidates: list[dict], center_lat: float, center_lng: float, dest_name: str
+) -> list[dict]:
     """渐进扩大半径筛选附近POI。"""
     is_island = any(kw in dest_name for kw in ("岛", "群岛"))
     radii = [5.0] if not is_island else [5.0, 10.0, 20.0]
@@ -104,7 +108,18 @@ def _filter_nearby_pois(candidates: list[dict], center_lat: float, center_lng: f
 
 def _build_dest_summaries(nearby: list[dict], max_count: int = 20) -> list[dict]:
     """构建摘要。"""
-    return [{"name": c.get("name", ""), "category": c.get("category", ""), "rating": c.get("rating", 0), "price": c.get("avg_price", 0), "tags": c.get("tags", [])[:3], "lat": round(c.get("lat", 0), 3), "lng": round(c.get("lng", 0), 3)} for c in nearby[:max_count]]
+    return [
+        {
+            "name": c.get("name", ""),
+            "category": c.get("category", ""),
+            "rating": c.get("rating", 0),
+            "price": c.get("avg_price", 0),
+            "tags": c.get("tags", [])[:3],
+            "lat": round(c.get("lat", 0), 3),
+            "lng": round(c.get("lng", 0), 3),
+        }
+        for c in nearby[:max_count]
+    ]
 
 
 def _match_dest_picks(picks: list[dict], nearby: list[dict], core_dest: dict | None) -> list[dict]:
@@ -120,9 +135,18 @@ def _match_dest_picks(picks: list[dict], nearby: list[dict], core_dest: dict | N
                     content = c
                     break
         if content:
-            proposals.append(_proposal("destination", content, pick.get("confidence", 0.7), pick.get("reason", "LLM推荐")))
+            proposals.append(
+                _proposal(
+                    "destination",
+                    content,
+                    pick.get("confidence", 0.7),
+                    pick.get("reason", "LLM推荐"),
+                )
+            )
 
-    if core_dest and not any(p.get("content", {}).get("name") == core_dest.get("name") for p in proposals):
+    if core_dest and not any(
+        p.get("content", {}).get("name") == core_dest.get("name") for p in proposals
+    ):
         proposals.insert(0, _proposal("destination", core_dest, 0.9, "核心目的地"))
 
     return proposals
@@ -131,7 +155,11 @@ def _match_dest_picks(picks: list[dict], nearby: list[dict], core_dest: dict | N
 def _build_dest_system_prompt(dest_name: str, is_island: bool, group_type: str) -> str:
     """构建系统提示。"""
     radius_desc = "15km" if is_island else "5km"
-    island_hint = "5. 海岛场景注意：渡轮单程至少60分钟，只选同一个岛或邻近岛的POI，不要选大陆上的" if is_island else ""
+    island_hint = (
+        "5. 海岛场景注意：渡轮单程至少60分钟，只选同一个岛或邻近岛的POI，不要选大陆上的"
+        if is_island
+        else ""
+    )
     group_hint = f"6. 群体适配：{group_type}群体的特殊需求" if group_type else ""
 
     return f"""你是珠海旅游规划专家。用户指定了大景区，需要在附近选择补充景点和餐厅。
@@ -148,7 +176,15 @@ def _build_dest_system_prompt(dest_name: str, is_island: bool, group_type: str) 
 最多选3个。只输出JSON。"""
 
 
-def _build_dest_user_prompt(user_input: str, dest_name: str, center_lat: float, center_lng: float, group_type: str, intent: dict, summaries: list[dict]) -> str:
+def _build_dest_user_prompt(
+    user_input: str,
+    dest_name: str,
+    center_lat: float,
+    center_lng: float,
+    group_type: str,
+    intent: dict,
+    summaries: list[dict],
+) -> str:
     """构建用户提示。"""
     return f"""用户需求: {_sanitize_for_prompt(user_input)}
 指定景区: {dest_name}（坐标: {center_lat}, {center_lng}）
@@ -193,9 +229,15 @@ async def destination_expert(state: TravelState) -> dict:
     is_island = any(kw in dest_name for kw in ("岛", "群岛"))
 
     system = _build_dest_system_prompt(dest_name, is_island, group_type)
-    user = _build_dest_user_prompt(user_input, dest_name, center_lat, center_lng, group_type, intent, summaries)
+    user = _build_dest_user_prompt(
+        user_input, dest_name, center_lat, center_lng, group_type, intent, summaries
+    )
     result = await _llm_decide(system, user)
-    proposals = _match_dest_picks(result.get("picks", []) if result else [], nearby, core_dest) if result and "picks" in result else []
+    proposals = (
+        _match_dest_picks(result.get("picks", []) if result else [], nearby, core_dest)
+        if result and "picks" in result
+        else []
+    )
 
     if not proposals:
         for c in sorted(nearby, key=lambda c: c.get("rating", 0), reverse=True)[:2]:

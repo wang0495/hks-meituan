@@ -67,7 +67,17 @@ _TRAFFIC_EXPERT_SCENE_HINTS: dict[str, str] = {
 
 def _extract_traffic_expert_poi_locs(candidates: list[dict], max_count: int = 30) -> list[dict]:
     """提取交通专家用的POI位置信息。"""
-    return [{"name": c.get("name", ""), "lat": c.get("lat", 0), "lng": c.get("lng", 0), "category": c.get("category", ""), "tags": c.get("tags", [])[:3]} for c in candidates[:max_count] if c.get("category", "") not in ["住宿", "酒店", "民宿"]]
+    return [
+        {
+            "name": c.get("name", ""),
+            "lat": c.get("lat", 0),
+            "lng": c.get("lng", 0),
+            "category": c.get("category", ""),
+            "tags": c.get("tags", [])[:3],
+        }
+        for c in candidates[:max_count]
+        if c.get("category", "") not in ["住宿", "酒店", "民宿"]
+    ]
 
 
 def _calc_traffic_expert_distances(poi_locs: list[dict], max_count: int = 12) -> list[dict]:
@@ -97,6 +107,8 @@ async def traffic_expert(state: TravelState) -> dict:
     distances = _calc_traffic_expert_distances(poi_locs)
 
     group_type = intent.get("group", {}).get("type", "")
+    pace = intent.get("pace", "平衡型")
+    scene_reqs = intent.get("scene_requirements", [])
     scene_hint = _TRAFFIC_EXPERT_SCENE_HINTS.get(group_type, "\n- 平衡地理效率和游览体验")
 
     system = f"""你是城市旅行路线规划专家。你需要设计一条高质量的一日游路线。

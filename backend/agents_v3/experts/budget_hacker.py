@@ -6,6 +6,7 @@ import json
 from typing import TYPE_CHECKING
 
 from backend.agents_v3.experts.base import (
+    _haversine_km,
     _is_likely_macau,
     _llm_decide,
     _proposal,
@@ -38,7 +39,9 @@ def _filter_budget_pois(candidates: list[dict]) -> list[dict]:
     return budget_pois
 
 
-def _geo_filter_budget_pois(budget_pois: list[dict], state: dict, max_dist: float = 10.0) -> list[dict]:
+def _geo_filter_budget_pois(
+    budget_pois: list[dict], state: dict, max_dist: float = 10.0
+) -> list[dict]:
     """按地理距离过滤预算POI。"""
     poi_pool = state.get("expert_candidates", {}).get("poi", [])
     if not poi_pool or len(poi_pool) < 2:
@@ -51,12 +54,30 @@ def _geo_filter_budget_pois(budget_pois: list[dict], state: dict, max_dist: floa
 
     center_lat = sum(lats) / len(lats)
     center_lng = sum(lngs) / len(lngs)
-    return [p for p in budget_pois if p.get("lat") and p.get("lng") and _haversine_km(center_lat, center_lng, p["lat"], p["lng"]) <= max_dist]
+    return [
+        p
+        for p in budget_pois
+        if p.get("lat")
+        and p.get("lng")
+        and _haversine_km(center_lat, center_lng, p["lat"], p["lng"]) <= max_dist
+    ]
 
 
 def _build_budget_summaries(budget_pois: list[dict], max_count: int = 30) -> list[dict]:
     """构建摘要。"""
-    return [{"name": c.get("name", ""), "category": c.get("category", ""), "rating": c.get("rating", 0), "price": c.get("avg_price", 0), "tags": c.get("tags", [])[:3], "scene_tags": c.get("_scene_tags", [])[:3], "lat": round(c.get("lat", 0), 3) if c.get("lat") else None, "lng": round(c.get("lng", 0), 3) if c.get("lng") else None} for c in budget_pois[:max_count]]
+    return [
+        {
+            "name": c.get("name", ""),
+            "category": c.get("category", ""),
+            "rating": c.get("rating", 0),
+            "price": c.get("avg_price", 0),
+            "tags": c.get("tags", [])[:3],
+            "scene_tags": c.get("_scene_tags", [])[:3],
+            "lat": round(c.get("lat", 0), 3) if c.get("lat") else None,
+            "lng": round(c.get("lng", 0), 3) if c.get("lng") else None,
+        }
+        for c in budget_pois[:max_count]
+    ]
 
 
 def _build_budget_system_prompt(group_type: str) -> str:
@@ -76,7 +97,9 @@ def _build_budget_system_prompt(group_type: str) -> str:
 选3-5个最佳性价比POI。只输出JSON。"""
 
 
-def _build_budget_user_prompt(user_input: str, budget: float, group_type: str, summaries: list[dict]) -> str:
+def _build_budget_user_prompt(
+    user_input: str, budget: float, group_type: str, summaries: list[dict]
+) -> str:
     """构建用户提示。"""
     return f"""用户需求: {user_input}
 预算: {budget if budget else '极低'}元/人
@@ -101,7 +124,14 @@ def _match_budget_picks(picks: list[dict], budget_pois: list[dict]) -> list[dict
                     content = c
                     break
         if content:
-            proposals.append(_proposal("budget_hacker", content, pick.get("confidence", 0.7), pick.get("reason", "LLM推荐")))
+            proposals.append(
+                _proposal(
+                    "budget_hacker",
+                    content,
+                    pick.get("confidence", 0.7),
+                    pick.get("reason", "LLM推荐"),
+                )
+            )
     return proposals
 
 
@@ -128,10 +158,18 @@ async def budget_hacker(state: TravelState) -> dict:
     system = _build_budget_system_prompt(group_type)
     user = _build_budget_user_prompt(user_input, budget, group_type, summaries)
     result = await _llm_decide(system, user)
-    proposals = _match_budget_picks(result.get("picks", []) if result else [], budget_pois) if result and "picks" in result else []
+    proposals = (
+        _match_budget_picks(result.get("picks", []) if result else [], budget_pois)
+        if result and "picks" in result
+        else []
+    )
 
     if not proposals:
-        free = sorted([c for c in budget_pois if c.get("avg_price", -1) == 0] or budget_pois, key=lambda c: c.get("rating", 0), reverse=True)
+        free = sorted(
+            [c for c in budget_pois if c.get("avg_price", -1) == 0] or budget_pois,
+            key=lambda c: c.get("rating", 0),
+            reverse=True,
+        )
         for c in free[:4]:
             proposals.append(_proposal("budget_hacker", c, 0.5, "规则引擎：免费高分"))
 

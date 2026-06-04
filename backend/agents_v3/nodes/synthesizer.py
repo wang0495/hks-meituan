@@ -67,6 +67,7 @@ ADR-S8: 不引入外部搜索API做"攻略专家"
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import json
 import math
 from datetime import datetime, timedelta
@@ -231,7 +232,9 @@ def _enforce_time_windows(steps: list[dict]) -> list[dict]:
 
     try:
         first_arrival = datetime.strptime(steps[0]["arrival_time"], "%H:%M")
-        if first_arrival >= datetime.strptime("22:00", "%H:%M") or first_arrival < datetime.strptime("06:00", "%H:%M"):
+        if first_arrival >= datetime.strptime(
+            "22:00", "%H:%M"
+        ) or first_arrival < datetime.strptime("06:00", "%H:%M"):
             return steps
     except (ValueError, KeyError, IndexError):
         pass
@@ -424,7 +427,11 @@ def _recalc_route_times(steps: list[dict]) -> list[dict]:
     for step in steps:
         poi = step.get("poi", {})
         lat, lng = poi.get("lat", 0), poi.get("lng", 0)
-        travel = max(5, min(60, int(_haversine_km(prev_lat, prev_lng, lat, lng) * 8))) if prev_lat and lat else 15
+        travel = (
+            max(5, min(60, int(_haversine_km(prev_lat, prev_lng, lat, lng) * 8)))
+            if prev_lat and lat
+            else 15
+        )
 
         t = t + timedelta(minutes=travel)
         stay = 50 if step.get("_type") in ("lunch", "dinner") else int(poi.get("avg_stay_min", 90))
@@ -454,10 +461,14 @@ def _dpp_rerank_route(route: dict, scene_type: str) -> dict:
         kernel[i, i] = quality
 
     for i in range(n):
-        cat_i = steps[i].get("poi", {}).get("_display_category") or steps[i].get("poi", {}).get("category", "")
+        cat_i = steps[i].get("poi", {}).get("_display_category") or steps[i].get("poi", {}).get(
+            "category", ""
+        )
         val_i = _build_category_vector(cat_i)
         for j in range(i + 1, n):
-            cat_j = steps[j].get("poi", {}).get("_display_category") or steps[j].get("poi", {}).get("category", "")
+            cat_j = steps[j].get("poi", {}).get("_display_category") or steps[j].get("poi", {}).get(
+                "category", ""
+            )
             val_j = _build_category_vector(cat_j)
             similarity = 0.9 if cat_i == cat_j else max(0, 1.0 - abs(val_i - val_j) * 2)
             quality_avg = (kernel[i, i] + kernel[j, j]) / 2
@@ -516,19 +527,27 @@ def _insert_poi_at_nearest(steps: list[dict], content: dict) -> None:
                 best_dist = d
                 best_idx = i + 1
 
-    prev_dep = steps[best_idx - 1].get("departure_time", "10:00") if steps and best_idx > 0 else "10:00"
+    prev_dep = (
+        steps[best_idx - 1].get("departure_time", "10:00") if steps and best_idx > 0 else "10:00"
+    )
     try:
         arr_t = datetime.strptime(prev_dep, "%H:%M") + timedelta(minutes=15)
     except ValueError:
         arr_t = datetime.strptime("10:15", "%H:%M")
 
-    steps.insert(best_idx, {
-        "poi": content,
-        "arrival_time": arr_t.strftime("%H:%M"),
-        "departure_time": (arr_t + timedelta(minutes=60)).strftime("%H:%M"),
-        "travel_from_prev": {"distance_m": int(best_dist * 1000) if best_dist < float("inf") else 2000, "time_min": 15},
-        "_type": "must_keep",
-    })
+    steps.insert(
+        best_idx,
+        {
+            "poi": content,
+            "arrival_time": arr_t.strftime("%H:%M"),
+            "departure_time": (arr_t + timedelta(minutes=60)).strftime("%H:%M"),
+            "travel_from_prev": {
+                "distance_m": int(best_dist * 1000) if best_dist < float("inf") else 2000,
+                "time_min": 15,
+            },
+            "_type": "must_keep",
+        },
+    )
 
 
 def _must_keep_core_pois(
@@ -586,7 +605,15 @@ def _ensure_poi_in_route(route: dict, poi_proposals: list[dict], intent: dict) -
     steps = route["route"]
     route_names = _get_route_name_set(steps)
 
-    missing = [pp for pp in poi_proposals if not any(pp.get("content", {}).get("name", "") in rn or rn in pp.get("content", {}).get("name", "") for rn in route_names)]
+    missing = [
+        pp
+        for pp in poi_proposals
+        if not any(
+            pp.get("content", {}).get("name", "") in rn
+            or rn in pp.get("content", {}).get("name", "")
+            for rn in route_names
+        )
+    ]
     if not missing:
         return route
 
@@ -606,12 +633,23 @@ def _ensure_poi_in_route(route: dict, poi_proposals: list[dict], intent: dict) -
         departure = t + timedelta(minutes=stay_min)
         if departure > end_dt or len(steps) >= 10:
             break
-        steps.append({"poi": content, "arrival_time": t.strftime("%H:%M"), "departure_time": departure.strftime("%H:%M"), "travel_from_prev": {"distance_m": 3000, "time_min": 20}, "_type": ""})
+        steps.append(
+            {
+                "poi": content,
+                "arrival_time": t.strftime("%H:%M"),
+                "departure_time": departure.strftime("%H:%M"),
+                "travel_from_prev": {"distance_m": 3000, "time_min": 20},
+                "_type": "",
+            }
+        )
         t = departure + timedelta(minutes=20)
 
     steps = _enforce_time_windows(_dedup_route(steps))
     route["route"] = steps
-    route["total_cost"] = {"time_min": route.get("total_cost", {}).get("time_min", 0), "budget_used": sum(s.get("poi", {}).get("avg_price", 0) for s in steps)}
+    route["total_cost"] = {
+        "time_min": route.get("total_cost", {}).get("time_min", 0),
+        "budget_used": sum(s.get("poi", {}).get("avg_price", 0) for s in steps),
+    }
     return route
 
 
@@ -657,12 +695,23 @@ def _ensure_food_in_route(route: dict, food_proposals: list[dict], intent: dict)
             break
 
         meal_type = "dinner" if t >= datetime.strptime("15:00", "%H:%M") else "lunch"
-        steps.append({"poi": content, "arrival_time": t.strftime("%H:%M"), "departure_time": departure.strftime("%H:%M"), "travel_from_prev": {"distance_m": 1800, "time_min": 15}, "_type": meal_type})
+        steps.append(
+            {
+                "poi": content,
+                "arrival_time": t.strftime("%H:%M"),
+                "departure_time": departure.strftime("%H:%M"),
+                "travel_from_prev": {"distance_m": 1800, "time_min": 15},
+                "_type": meal_type,
+            }
+        )
         t = departure + timedelta(minutes=15)
 
     steps = _dedup_route(steps)
     route["route"] = steps
-    route["total_cost"] = {"time_min": route.get("total_cost", {}).get("time_min", 0), "budget_used": sum(s.get("poi", {}).get("avg_price", 0) for s in steps)}
+    route["total_cost"] = {
+        "time_min": route.get("total_cost", {}).get("time_min", 0),
+        "budget_used": sum(s.get("poi", {}).get("avg_price", 0) for s in steps),
+    }
     return route
 
 
@@ -673,7 +722,21 @@ _FOOD_SCENE_SUBCATS: dict[str, list[str]] = {
     "茶餐厅/甜品": ["茶餐厅", "甜品", "奶茶", "冰", "柠檬", "饮品"],
     "综合美食街": ["夜市", "美食街", "海鲜街", "老街"],
 }
-_FOOD_STOP_KEYWORDS = ["餐厅", "海鲜", "粉", "面", "粥", "甜品", "茶餐厅", "烧烤", "火锅", "夜市", "小吃", "排档", "肠粉"]
+_FOOD_STOP_KEYWORDS = [
+    "餐厅",
+    "海鲜",
+    "粉",
+    "面",
+    "粥",
+    "甜品",
+    "茶餐厅",
+    "烧烤",
+    "火锅",
+    "夜市",
+    "小吃",
+    "排档",
+    "肠粉",
+]
 _FOOD_STOP_CATEGORIES = {"餐饮", "美食", "小吃", "海鲜", "夜市", "夜市小吃"}
 
 
@@ -693,7 +756,13 @@ def _get_food_subcat(name: str) -> str:
     return "其他"
 
 
-def _find_extra_food(food_proposals: list[dict], route_names: set[str], food_subcats: set[str], food_steps_count: int, max_total: int) -> list[dict]:
+def _find_extra_food(
+    food_proposals: list[dict],
+    route_names: set[str],
+    food_subcats: set[str],
+    food_steps_count: int,
+    max_total: int,
+) -> list[dict]:
     """找出需要补充的餐饮候选。"""
     extra = []
     for fp in food_proposals:
@@ -767,7 +836,20 @@ def _ensure_food_scene_food_count(
     return route
 
 
-_MIN_FOOD_KEYWORDS = ["餐厅", "海鲜", "烧", "煲", "粉", "面", "粥", "甜品", "奶茶", "茶餐厅", "排档", "咖啡"]
+_MIN_FOOD_KEYWORDS = [
+    "餐厅",
+    "海鲜",
+    "烧",
+    "煲",
+    "粉",
+    "面",
+    "粥",
+    "甜品",
+    "奶茶",
+    "茶餐厅",
+    "排档",
+    "咖啡",
+]
 _MIN_FOOD_CATEGORIES = {"餐饮", "美食", "小吃", "海鲜", "夜市", "夜市小吃"}
 
 
@@ -775,14 +857,19 @@ def _has_food_in_route(steps: list[dict]) -> bool:
     """检查路线中是否已有餐饮。"""
     for s in steps:
         poi = s.get("poi", {})
-        if s.get("_type", "") in ("lunch", "dinner") or poi.get("category", "") in _MIN_FOOD_CATEGORIES:
+        if (
+            s.get("_type", "") in ("lunch", "dinner")
+            or poi.get("category", "") in _MIN_FOOD_CATEGORIES
+        ):
             return True
         if any(kw in poi.get("name", "") for kw in _MIN_FOOD_KEYWORDS):
             return True
     return False
 
 
-def _find_best_food(food_proposals: list[dict], center_lat: float, center_lng: float) -> dict | None:
+def _find_best_food(
+    food_proposals: list[dict], center_lat: float, center_lng: float
+) -> dict | None:
     """找到最佳餐饮候选。"""
     best_food = None
     best_score = -1.0
@@ -814,14 +901,20 @@ def _ensure_min_food_in_route(route: dict, food_proposals: list[dict], intent: d
     if _has_food_in_route(steps):
         return route
 
-    poi_coords = [(s["poi"].get("lat", 0), s["poi"].get("lng", 0)) for s in steps if s.get("poi", {}).get("lat") and s.get("poi", {}).get("lng")]
+    poi_coords = [
+        (s["poi"].get("lat", 0), s["poi"].get("lng", 0))
+        for s in steps
+        if s.get("poi", {}).get("lat") and s.get("poi", {}).get("lng")
+    ]
     if poi_coords:
         center_lat = sum(la for la, _ in poi_coords) / len(poi_coords)
         center_lng = sum(ln for _, ln in poi_coords) / len(poi_coords)
     else:
         center_lat, center_lng = 22.27, 113.58
 
-    best_food = _find_best_food(food_proposals, center_lat, center_lng) or food_proposals[0].get("content", {})
+    best_food = _find_best_food(food_proposals, center_lat, center_lng) or food_proposals[0].get(
+        "content", {}
+    )
 
     insert_idx = min(2, len(steps))
     if insert_idx > 0 and insert_idx < len(steps):
@@ -860,17 +953,53 @@ def _ensure_min_food_in_route(route: dict, food_proposals: list[dict], intent: d
 
 def _build_poi_list_for_llm(poi_proposals: list[dict]) -> list[dict]:
     """构建POI列表供LLM使用。"""
-    return [{"name": p.get("content", {}).get("name", ""), "category": p.get("content", {}).get("category", ""), "lat": round(p.get("content", {}).get("lat", 0), 3), "lng": round(p.get("content", {}).get("lng", 0), 3), "price": p.get("content", {}).get("avg_price", 0), "stay_min": p.get("content", {}).get("avg_stay_min", 90), "tags": p.get("content", {}).get("tags", [])[:3], "confidence": p.get("confidence", 0.5), "expert": p.get("agent", "poi")} for p in poi_proposals]
+    return [
+        {
+            "name": p.get("content", {}).get("name", ""),
+            "category": p.get("content", {}).get("category", ""),
+            "lat": round(p.get("content", {}).get("lat", 0), 3),
+            "lng": round(p.get("content", {}).get("lng", 0), 3),
+            "price": p.get("content", {}).get("avg_price", 0),
+            "stay_min": p.get("content", {}).get("avg_stay_min", 90),
+            "tags": p.get("content", {}).get("tags", [])[:3],
+            "confidence": p.get("confidence", 0.5),
+            "expert": p.get("agent", "poi"),
+        }
+        for p in poi_proposals
+    ]
 
 
 def _build_food_list_for_llm(food_proposals: list[dict]) -> list[dict]:
     """构建餐饮列表供LLM使用。"""
-    return [{"name": p.get("content", {}).get("name", ""), "category": p.get("content", {}).get("category", ""), "price": p.get("content", {}).get("avg_price", 0), "rating": p.get("content", {}).get("rating", 0), "tags": p.get("content", {}).get("tags", [])[:3], "lat": round(p.get("content", {}).get("lat", 0), 3), "lng": round(p.get("content", {}).get("lng", 0), 3), "meal_time": p.get("content", {}).get("meal_time", ""), "business_hours": p.get("content", {}).get("business_hours", p.get("content", {}).get("opening_hours", "")), "reason": p.get("reasoning", "")} for p in food_proposals]
+    return [
+        {
+            "name": p.get("content", {}).get("name", ""),
+            "category": p.get("content", {}).get("category", ""),
+            "price": p.get("content", {}).get("avg_price", 0),
+            "rating": p.get("content", {}).get("rating", 0),
+            "tags": p.get("content", {}).get("tags", [])[:3],
+            "lat": round(p.get("content", {}).get("lat", 0), 3),
+            "lng": round(p.get("content", {}).get("lng", 0), 3),
+            "meal_time": p.get("content", {}).get("meal_time", ""),
+            "business_hours": p.get("content", {}).get(
+                "business_hours", p.get("content", {}).get("opening_hours", "")
+            ),
+            "reason": p.get("reasoning", ""),
+        }
+        for p in food_proposals
+    ]
 
 
 def _build_hotel_list_for_llm(hotel_proposals: list[dict]) -> list[dict]:
     """构建酒店列表供LLM使用。"""
-    return [{"name": p.get("content", {}).get("name", ""), "lat": round(p.get("content", {}).get("lat", 0), 3), "lng": round(p.get("content", {}).get("lng", 0), 3)} for p in hotel_proposals]
+    return [
+        {
+            "name": p.get("content", {}).get("name", ""),
+            "lat": round(p.get("content", {}).get("lat", 0), 3),
+            "lng": round(p.get("content", {}).get("lng", 0), 3),
+        }
+        for p in hotel_proposals
+    ]
 
 
 def _calc_distances_for_llm(poi_list: list[dict]) -> list[dict]:
@@ -888,17 +1017,27 @@ def _calc_distances_for_llm(poi_list: list[dict]) -> list[dict]:
 
 
 _LOCATION_COORDS: dict[str, tuple[float, float]] = {
-    "横琴": (22.12, 113.53), "金湾": (22.08, 113.38), "金湾机场": (22.05, 113.38),
-    "斗门": (22.22, 113.29), "唐家湾": (22.36, 113.58), "拱北": (22.23, 113.55),
-    "香洲": (22.27, 113.57), "吉大": (22.25, 113.57), "湾仔": (22.20, 113.53),
-    "华发": (22.24, 113.53), "井岸": (22.20, 113.30), "三灶": (22.08, 113.37),
+    "横琴": (22.12, 113.53),
+    "金湾": (22.08, 113.38),
+    "金湾机场": (22.05, 113.38),
+    "斗门": (22.22, 113.29),
+    "唐家湾": (22.36, 113.58),
+    "拱北": (22.23, 113.55),
+    "香洲": (22.27, 113.57),
+    "吉大": (22.25, 113.57),
+    "湾仔": (22.20, 113.53),
+    "华发": (22.24, 113.53),
+    "井岸": (22.20, 113.30),
+    "三灶": (22.08, 113.37),
 }
 
 
 def _calc_available_minutes(start_time: str, end_time: str) -> float:
     """计算可用时间（分钟）。"""
     try:
-        return (datetime.strptime(end_time, "%H:%M") - datetime.strptime(start_time, "%H:%M")).total_seconds() / 60
+        return (
+            datetime.strptime(end_time, "%H:%M") - datetime.strptime(start_time, "%H:%M")
+        ).total_seconds() / 60
     except ValueError:
         return 720
 
@@ -939,7 +1078,9 @@ async def _llm_assemble_route(
     poi_list = _build_poi_list_for_llm(poi_proposals)
     food_list = _build_food_list_for_llm(food_proposals)
     hotel_list = _build_hotel_list_for_llm(hotel_proposals)
-    traffic_order = traffic_proposal.get("content", {}).get("suggested_order", []) if traffic_proposal else []
+    traffic_order = (
+        traffic_proposal.get("content", {}).get("suggested_order", []) if traffic_proposal else []
+    )
     distances = _calc_distances_for_llm(poi_list)
 
     group_type = intent.get("group", {}).get("type", "")
@@ -949,16 +1090,12 @@ async def _llm_assemble_route(
     budget = intent.get("budget", {}).get("per_person", 0)
 
     avail_min = _calc_available_minutes(start_time, end_time)
-    max_stops_hint = _get_short_trip_hint(avail_min)
+    _max_stops_hint = _get_short_trip_hint(avail_min)
     location = intent.get("location") or ""
-    location_coords = _get_location_coords(location)
-    for loc_name, loc_coords in _LOCATION_COORDS.items():
-        if loc_name in _location:
-            _location_coords = loc_coords
-            break
+    _location_coords = _get_location_coords(location)
     _location_hint = ""
     if _location_coords:
-        _location_hint = f"\n10. 【区域约束】用户在{_location}附近（坐标{_location_coords[0]:.2f},{_location_coords[1]:.2f}），只选该区域5km内的POI，远距离的不要选"
+        _location_hint = f"\n10. 【区域约束】用户在{location}附近（坐标{_location_coords[0]:.2f},{_location_coords[1]:.2f}），只选该区域5km内的POI，远距离的不要选"
 
     # 场景规则
     if scene_type == "美食型":
@@ -1205,8 +1342,14 @@ def _rule_assign_times(
 
 
 _MAX_STAY_BY_CATEGORY: dict[str, int] = {
-    "景点": 120, "文化": 90, "公园": 90, "娱乐": 120,
-    "餐饮": 75, "夜市": 60, "小吃": 50, "美食": 75,
+    "景点": 120,
+    "文化": 90,
+    "公园": 90,
+    "娱乐": 120,
+    "餐饮": 75,
+    "夜市": 60,
+    "小吃": 50,
+    "美食": 75,
 }
 
 
@@ -1222,10 +1365,10 @@ def _compress_abnormal_stays(steps: list[dict]) -> None:
                 break
         if stay > cap:
             s["stay_min"] = cap
-            try:
-                s["departure_time"] = (datetime.strptime(s["arrival_time"], "%H:%M") + timedelta(minutes=cap)).strftime("%H:%M")
-            except (ValueError, KeyError):
-                pass
+            with contextlib.suppress(ValueError, KeyError):
+                s["departure_time"] = (
+                    datetime.strptime(s["arrival_time"], "%H:%M") + timedelta(minutes=cap)
+                ).strftime("%H:%M")
 
 
 def _fix_gaps_and_reversals(steps: list[dict]) -> None:
@@ -1243,7 +1386,11 @@ def _fix_gaps_and_reversals(steps: list[dict]) -> None:
             curr_poi = steps[i].get("poi", steps[i])
             lat1, lng1 = prev_poi.get("lat", 0), prev_poi.get("lng", 0)
             lat2, lng2 = curr_poi.get("lat", 0), curr_poi.get("lng", 0)
-            travel_min = max(5, min(45, int(_haversine_km(lat1, lng1, lat2, lng2) * 3 + 5))) if lat1 and lat2 else 15
+            travel_min = (
+                max(5, min(45, int(_haversine_km(lat1, lng1, lat2, lng2) * 3 + 5)))
+                if lat1 and lat2
+                else 15
+            )
 
             new_arr = prev_dep + timedelta(minutes=travel_min)
             steps[i]["arrival_time"] = new_arr.strftime("%H:%M")
@@ -1284,7 +1431,13 @@ def _compress_overflow(steps: list[dict], start_time: str, end_time: str) -> Non
             cur_poi = s.get("poi", s)
             lat1, lng1 = cur_poi.get("lat", 0), cur_poi.get("lng", 0)
             lat2, lng2 = next_poi.get("lat", 0), next_poi.get("lng", 0)
-            cursor += timedelta(minutes=max(5, min(30, int(_haversine_km(lat1, lng1, lat2, lng2) * 3 + 5)))) if lat1 and lat2 else timedelta(minutes=15)
+            cursor += (
+                timedelta(
+                    minutes=max(5, min(30, int(_haversine_km(lat1, lng1, lat2, lng2) * 3 + 5)))
+                )
+                if lat1 and lat2
+                else timedelta(minutes=15)
+            )
 
     try:
         if datetime.strptime(steps[-1]["departure_time"], "%H:%M") > end_limit:
@@ -1367,7 +1520,9 @@ def _build_route_from_llm_order(
     used_names: set[str] = set()
 
     for stop in ordered_stops:
-        step, t, prev_stop = _process_llm_stop(stop, name_map, used_names, t, prev_stop, stay_mult, travel_base)
+        step, t, prev_stop = _process_llm_stop(
+            stop, name_map, used_names, t, prev_stop, stay_mult, travel_base
+        )
         if step:
             steps.append(step)
 
@@ -1386,8 +1541,13 @@ def _build_route_from_llm_order(
 
 
 def _process_llm_stop(
-    stop: dict, name_map: dict, used_names: set[str],
-    t: datetime, prev_stop: dict | None, stay_mult: float, travel_base: int,
+    stop: dict,
+    name_map: dict,
+    used_names: set[str],
+    t: datetime,
+    prev_stop: dict | None,
+    stay_mult: float,
+    travel_base: int,
 ) -> tuple[dict | None, datetime, dict | None]:
     """处理单个LLM stop，返回 (step, new_time, new_prev_stop)。"""
     content = _fuzzy_match_name(stop.get("name", ""), name_map)
@@ -1402,33 +1562,26 @@ def _process_llm_stop(
     stop_type = stop.get("type", "poi")
     if stop_type == "hotel":
         return None, t, prev_stop
-    stay_min = 50 if stop_type in ("lunch", "dinner") else int(content.get("avg_stay_min", 90) * stay_mult)
+    stay_min = (
+        50 if stop_type in ("lunch", "dinner") else int(content.get("avg_stay_min", 90) * stay_mult)
+    )
 
     lat, lng = content.get("lat", 0), content.get("lng", 0)
     travel_min = travel_base
     if prev_stop and lat and lng and prev_stop.get("lat") and prev_stop.get("lng"):
-        travel_min = max(5, min(60, int(_haversine_km(lat, lng, prev_stop["lat"], prev_stop["lng"]) * 8)))
+        travel_min = max(
+            5, min(60, int(_haversine_km(lat, lng, prev_stop["lat"], prev_stop["lng"]) * 8))
+        )
 
     departure = t + timedelta(minutes=stay_min)
-    step = {"poi": content, "arrival_time": t.strftime("%H:%M"), "departure_time": departure.strftime("%H:%M"), "travel_from_prev": {"distance_m": int(travel_min * 120), "time_min": travel_min}, "_type": stop_type if stop_type != "poi" else ""}
-    return step, departure + timedelta(minutes=travel_min), content
-
-    total_time = 0
-    try:
-        end_t = datetime.strptime(steps[-1].get("departure_time", "18:00"), "%H:%M")
-        start_t = datetime.strptime(steps[0].get("arrival_time", "09:00"), "%H:%M")
-        total_time = int((end_t - start_t).total_seconds() / 60)
-    except ValueError:
-        total_time = len(steps) * 90
-
-    return {
-        "route": steps,
-        "total_cost": {
-            "time_min": total_time,
-            "budget_used": sum(s.get("poi", {}).get("avg_price", 0) for s in steps),
-        },
-        "emotion_curve": [],
+    step = {
+        "poi": content,
+        "arrival_time": t.strftime("%H:%M"),
+        "departure_time": departure.strftime("%H:%M"),
+        "travel_from_prev": {"distance_m": int(travel_min * 120), "time_min": travel_min},
+        "_type": stop_type if stop_type != "poi" else "",
     }
+    return step, departure + timedelta(minutes=travel_min), content
 
 
 # ═══════════════════════════════════════════════════════════
@@ -1477,12 +1630,15 @@ def _calc_geo_score(steps: list[dict]) -> float:
 
 def _calc_diversity_score(steps: list[dict]) -> float:
     """计算类别多样性分数 (0-25)。"""
-    categories = {s.get("poi", {}).get("category", "") for s in steps if s.get("poi", {}).get("category")}
+    categories = {
+        s.get("poi", {}).get("category", "") for s in steps if s.get("poi", {}).get("category")
+    }
     meal_types = {s.get("_type", "") for s in steps if s.get("_type")}
     score = min(25, (len(categories) + len(meal_types)) * 5)
 
     # 美食子类重复惩罚
     from collections import Counter as _Counter
+
     food_subcats = []
     for s in steps:
         name = s.get("poi", {}).get("name", "")
@@ -1504,10 +1660,19 @@ def _calc_diversity_score(steps: list[dict]) -> float:
     return score
 
 
-def _calc_coverage_score(steps: list[dict], poi_proposals: list[dict], food_proposals: list[dict]) -> float:
+def _calc_coverage_score(
+    steps: list[dict], poi_proposals: list[dict], food_proposals: list[dict]
+) -> float:
     """计算覆盖率分数 (0-20)。"""
     route_names = _get_route_name_set(steps)
-    covered = sum(1 for p in poi_proposals + food_proposals if any(p.get("content", {}).get("name", "") in rn or rn in p.get("content", {}).get("name", "") for rn in route_names))
+    covered = sum(
+        1
+        for p in poi_proposals + food_proposals
+        if any(
+            p.get("content", {}).get("name", "") in rn or rn in p.get("content", {}).get("name", "")
+            for rn in route_names
+        )
+    )
     total = len(poi_proposals) + len(food_proposals)
     return (covered / total * 20) if total > 0 else 0
 
@@ -1518,7 +1683,10 @@ def _calc_time_score(steps: list[dict], intent: dict) -> float:
         first = datetime.strptime(steps[0]["arrival_time"], "%H:%M")
         last = datetime.strptime(steps[-1]["departure_time"], "%H:%M")
         route_min = (last - first).total_seconds() / 60
-        available = (datetime.strptime(intent.get("time", {}).get("end", "21:00"), "%H:%M") - datetime.strptime(intent.get("time", {}).get("start", "09:00"), "%H:%M")).total_seconds() / 60
+        available = (
+            datetime.strptime(intent.get("time", {}).get("end", "21:00"), "%H:%M")
+            - datetime.strptime(intent.get("time", {}).get("start", "09:00"), "%H:%M")
+        ).total_seconds() / 60
         if available > 0:
             ratio = route_min / available
             if 0.8 <= ratio <= 1.0:
@@ -1666,7 +1834,13 @@ def _build_fallback_narrative(route: dict) -> dict:
 
 def _filter_fallback_proposals(proposals: list[dict], agent_types: tuple[str, ...]) -> list[dict]:
     """过滤兜底提案。"""
-    return [p for p in proposals if p.get("agent") in agent_types and p.get("content", {}).get("name") and not _is_likely_macau(p.get("content", {}).get("name", ""))]
+    return [
+        p
+        for p in proposals
+        if p.get("agent") in agent_types
+        and p.get("content", {}).get("name")
+        and not _is_likely_macau(p.get("content", {}).get("name", ""))
+    ]
 
 
 def _nearest_neighbor_sort(contents: list[dict]) -> list[dict]:
@@ -1681,7 +1855,11 @@ def _nearest_neighbor_sort(contents: list[dict]) -> list[dict]:
         best = None
         best_d = float("inf")
         for r in remaining:
-            d = _haversine_km(cur["lat"], cur["lng"], r["lat"], r["lng"]) if cur.get("lat") and r.get("lat") else 999
+            d = (
+                _haversine_km(cur["lat"], cur["lng"], r["lat"], r["lng"])
+                if cur.get("lat") and r.get("lat")
+                else 999
+            )
             if d < best_d:
                 best_d = d
                 best = r
@@ -1697,7 +1875,7 @@ def _nearest_neighbor_sort(contents: list[dict]) -> list[dict]:
 def _fallback_assemble(proposals: list[dict], intent: dict) -> dict | None:
     poi_proposals = _filter_fallback_proposals(proposals, ("poi", "poi_expert"))
     food_proposals = _filter_fallback_proposals(proposals, ("food", "food_expert"))
-    hotel_proposals = _filter_fallback_proposals(proposals, ("hotel", "hotel_expert"))
+    _filter_fallback_proposals(proposals, ("hotel", "hotel_expert"))
 
     if not poi_proposals and not food_proposals:
         return None
@@ -1719,7 +1897,11 @@ def _fallback_assemble(proposals: list[dict], intent: dict) -> dict | None:
     prev = None
     for c in all_contents:
         is_food = c.pop("_food_flag", False)
-        stay_min = 50 if is_food else int(c.get("avg_stay_min", 0)) or _category_stay_min(c.get("category", ""))
+        stay_min = (
+            50
+            if is_food
+            else int(c.get("avg_stay_min", 0)) or _category_stay_min(c.get("category", ""))
+        )
         travel_min = 15
         if prev and c.get("lat") and prev.get("lat"):
             dist = _haversine_km(c["lat"], c["lng"], prev["lat"], prev["lng"])
@@ -1886,19 +2068,49 @@ _FOOD_AGENTS = {"food", "food_expert"}
 _HOTEL_AGENTS = {"hotel", "hotel_expert"}
 
 
-def _classify_proposals(proposals: list[dict]) -> tuple[list[dict], list[dict], list[dict], dict | None]:
+def _classify_proposals(
+    proposals: list[dict],
+) -> tuple[list[dict], list[dict], list[dict], dict | None]:
     """按agent类型分类提案。"""
-    poi_proposals = [p for p in proposals if p.get("agent") in _POI_AGENTS and p.get("content", {}).get("name") and not _is_likely_macau(p.get("content", {}).get("name", ""))]
-    food_proposals = [p for p in proposals if p.get("agent") in _FOOD_AGENTS and p.get("content", {}).get("name") and not _is_likely_macau(p.get("content", {}).get("name", ""))]
-    hotel_proposals = [p for p in proposals if p.get("agent") in _HOTEL_AGENTS and p.get("content", {}).get("name") and not _is_likely_macau(p.get("content", {}).get("name", ""))]
-    traffic_proposal = next((p for p in proposals if p.get("agent") in ("traffic", "traffic_expert")), None)
+    poi_proposals = [
+        p
+        for p in proposals
+        if p.get("agent") in _POI_AGENTS
+        and p.get("content", {}).get("name")
+        and not _is_likely_macau(p.get("content", {}).get("name", ""))
+    ]
+    food_proposals = [
+        p
+        for p in proposals
+        if p.get("agent") in _FOOD_AGENTS
+        and p.get("content", {}).get("name")
+        and not _is_likely_macau(p.get("content", {}).get("name", ""))
+    ]
+    hotel_proposals = [
+        p
+        for p in proposals
+        if p.get("agent") in _HOTEL_AGENTS
+        and p.get("content", {}).get("name")
+        and not _is_likely_macau(p.get("content", {}).get("name", ""))
+    ]
+    traffic_proposal = next(
+        (p for p in proposals if p.get("agent") in ("traffic", "traffic_expert")), None
+    )
     return poi_proposals, food_proposals, hotel_proposals, traffic_proposal
 
 
 async def _build_multi_day_routes(
-    poi_proposals: list[dict], food_proposals: list[dict], hotel_proposals: list[dict],
-    traffic_proposal: dict | None, intent: dict, state: dict, scene_type: str,
-    expert_weights: dict, pace: str, errors: list[str], num_days: int,
+    poi_proposals: list[dict],
+    food_proposals: list[dict],
+    hotel_proposals: list[dict],
+    traffic_proposal: dict | None,
+    intent: dict,
+    state: dict,
+    scene_type: str,
+    expert_weights: dict,
+    pace: str,
+    errors: list[str],
+    num_days: int,
 ) -> tuple[list[dict], dict | None, bool]:
     """构建多日路线。"""
     day_pools = _split_pois_by_area(poi_proposals, food_proposals, num_days)
@@ -1909,11 +2121,29 @@ async def _build_multi_day_routes(
         if not day_poi and not day_food:
             return day_idx, None
         day_intent = dict(intent)
-        day_intent["time"] = {"period": "全天", "start": base_start if day_idx == 0 else "09:00", "end": base_end}
-        day_route = await _build_single_day_route(day_poi, day_food, hotel_proposals, traffic_proposal, day_intent, state.get("user_input", ""), scene_type, expert_weights, pace, errors)
+        day_intent["time"] = {
+            "period": "全天",
+            "start": base_start if day_idx == 0 else "09:00",
+            "end": base_end,
+        }
+        day_route = await _build_single_day_route(
+            day_poi,
+            day_food,
+            hotel_proposals,
+            traffic_proposal,
+            day_intent,
+            state.get("user_input", ""),
+            scene_type,
+            expert_weights,
+            pace,
+            errors,
+        )
         return day_idx, day_route
 
-    day_results = await asyncio.gather(*[_build_day(i, day_pools[i][0], day_pools[i][1]) for i in range(num_days)], return_exceptions=True)
+    day_results = await asyncio.gather(
+        *[_build_day(i, day_pools[i][0], day_pools[i][1]) for i in range(num_days)],
+        return_exceptions=True,
+    )
 
     multi_routes = []
     route = None
@@ -1929,7 +2159,9 @@ async def _build_multi_day_routes(
     return multi_routes, route, False
 
 
-def _post_process_single_day_route(route: dict, intent: dict, scene_type: str, pace: str, errors: list[str]) -> None:
+def _post_process_single_day_route(
+    route: dict, intent: dict, scene_type: str, pace: str, errors: list[str]
+) -> None:
     """单日路线后处理。"""
     geo_threshold = 10.0 if scene_type == "目的地型" else _MAX_LEG_KM
     route["route"] = _geo_reroute(route["route"], max_leg_km=geo_threshold)
@@ -1947,21 +2179,35 @@ def _post_process_single_day_route(route: dict, intent: dict, scene_type: str, p
         try:
             _s = datetime.strptime(steps[0].get("arrival_time", "09:00"), "%H:%M")
             _e = datetime.strptime(steps[-1].get("departure_time", "18:00"), "%H:%M")
-            route["total_cost"] = {"time_min": int((_e - _s).total_seconds() / 60), "budget_used": sum(s.get("poi", {}).get("avg_price", 0) for s in steps)}
+            route["total_cost"] = {
+                "time_min": int((_e - _s).total_seconds() / 60),
+                "budget_used": sum(s.get("poi", {}).get("avg_price", 0) for s in steps),
+            }
         except ValueError:
             pass
 
 
-def _apply_single_day_constraints(route: dict, proposals: list[dict], poi_proposals: list[dict], food_proposals: list[dict], intent: dict, scene_type: str, errors: list[str]) -> None:
+def _apply_single_day_constraints(
+    route: dict,
+    proposals: list[dict],
+    poi_proposals: list[dict],
+    food_proposals: list[dict],
+    intent: dict,
+    scene_type: str,
+    errors: list[str],
+    prev_round_context: dict | None = None,
+) -> None:
     """单日路线约束应用。"""
-    prev_ctx = state.get("prev_round_context", {}) if hasattr(state, 'get') else {}
-    if prev_ctx and route and route.get("route"):
-        route = _must_keep_core_pois(route, prev_ctx, proposals)
+    if prev_round_context and route and route.get("route"):
+        route = _must_keep_core_pois(route, prev_round_context, proposals)
 
     if route and route.get("route"):
         route = _cap_route_stops(route, scene_type, intent)
         try:
-            _avail = (datetime.strptime(intent.get("time", {}).get("end", "21:00"), "%H:%M") - datetime.strptime(intent.get("time", {}).get("start", "09:00"), "%H:%M")).total_seconds() / 60
+            _avail = (
+                datetime.strptime(intent.get("time", {}).get("end", "21:00"), "%H:%M")
+                - datetime.strptime(intent.get("time", {}).get("start", "09:00"), "%H:%M")
+            ).total_seconds() / 60
         except ValueError:
             _avail = 720
         if _avail < 240:
@@ -1984,7 +2230,11 @@ async def _stream_single_day_steps(state: TravelState, route: dict) -> bool:
         return False
 
     steps = route["route"]
-    await sse_emit(state, "agent_result", {"agent": "synthesizer", "summary": f"正在推送 {len(steps)} 站路线..."})
+    await sse_emit(
+        state,
+        "agent_result",
+        {"agent": "synthesizer", "summary": f"正在推送 {len(steps)} 站路线..."},
+    )
     for i, step in enumerate(steps):
         await sse_emit(
             state,
@@ -2016,15 +2266,23 @@ async def synthesizer(state: TravelState) -> dict:
     """MoE Synthesizer：按expert_weights组装路线。"""
     meta = AGENT_META.get("synthesizer", {})
     await sse_emit(state, "agent_start", {"agent": "synthesizer", **meta})
-    await sse_emit(state, "agent_thinking", {"agent": "synthesizer", "text": "收集提案，锦标赛并行3策略竞争..."})
+    await sse_emit(
+        state,
+        "agent_thinking",
+        {"agent": "synthesizer", "text": "收集提案，锦标赛并行3策略竞争..."},
+    )
 
     proposals = list(state.get("reworked_proposals") or state.get("proposals", []))
     intent, scene_type, expert_weights, errors = _init_synthesizer_state(state)
 
-    poi_proposals, food_proposals, hotel_proposals, traffic_proposal = _classify_proposals(proposals)
+    poi_proposals, food_proposals, hotel_proposals, traffic_proposal = _classify_proposals(
+        proposals
+    )
 
     if scene_type == "美食型" and len(poi_proposals) > 2:
-        poi_proposals = sorted(poi_proposals, key=lambda p: p.get("content", {}).get("rating", 0), reverse=True)[:2]
+        poi_proposals = sorted(
+            poi_proposals, key=lambda p: p.get("content", {}).get("rating", 0), reverse=True
+        )[:2]
 
     if not poi_proposals and not food_proposals:
         errors.append("无有效POI提案")
@@ -2037,19 +2295,56 @@ async def synthesizer(state: TravelState) -> dict:
     _steps_streamed = False
 
     if num_days > 1 and len(poi_proposals) + len(food_proposals) > num_days:
-        multi_routes, route, _steps_streamed = await _build_multi_day_routes(poi_proposals, food_proposals, hotel_proposals, traffic_proposal, intent, state, scene_type, expert_weights, pace, errors, num_days)
+        multi_routes, route, _steps_streamed = await _build_multi_day_routes(
+            poi_proposals,
+            food_proposals,
+            hotel_proposals,
+            traffic_proposal,
+            intent,
+            state,
+            scene_type,
+            expert_weights,
+            pace,
+            errors,
+            num_days,
+        )
         multi_routes.sort(key=lambda r: r.get("day", 0))
         total_steps = sum(len(dr.get("route", {}).get("route", [])) for dr in multi_routes)
-        await sse_emit(state, "agent_result", {"agent": "synthesizer", "summary": f"多日组装完成: {len(multi_routes)}天 {total_steps}站"})
+        await sse_emit(
+            state,
+            "agent_result",
+            {
+                "agent": "synthesizer",
+                "summary": f"多日组装完成: {len(multi_routes)}天 {total_steps}站",
+            },
+        )
     else:
-        route = await _tournament_assemble(poi_proposals, food_proposals, hotel_proposals, traffic_proposal, intent, state.get("user_input", ""), scene_type, expert_weights)
+        route = await _tournament_assemble(
+            poi_proposals,
+            food_proposals,
+            hotel_proposals,
+            traffic_proposal,
+            intent,
+            state.get("user_input", ""),
+            scene_type,
+            expert_weights,
+        )
         if not route or not route.get("route"):
             route = _fallback_assemble(proposals, intent)
 
         if route and route.get("route"):
             _post_process_single_day_route(route, intent, scene_type, pace, errors)
 
-        _apply_single_day_constraints(route, proposals, poi_proposals, food_proposals, intent, scene_type, errors)
+        _apply_single_day_constraints(
+            route,
+            proposals,
+            poi_proposals,
+            food_proposals,
+            intent,
+            scene_type,
+            errors,
+            state.get("prev_round_context"),
+        )
         _steps_streamed = await _stream_single_day_steps(state, route)
 
     # 文案
@@ -2057,7 +2352,10 @@ async def synthesizer(state: TravelState) -> dict:
     if route:
         try:
             from backend.services.narrator import generate_narrative
-            narrative = await generate_narrative(route, intent, city=intent.get("city", "珠海"), enable_llm_polish=False)
+
+            narrative = await generate_narrative(
+                route, intent, city=intent.get("city", "珠海"), enable_llm_polish=False
+            )
         except Exception as e:
             errors.append(f"文案生成失败: {e}")
             narrative = _build_fallback_narrative(route)

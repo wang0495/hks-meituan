@@ -333,10 +333,27 @@ def _is_food_poi(p: dict) -> bool:
     return cat in _FOOD_CATS or any(kw in name for kw in _FOOD_NAME_PARTS)
 
 
-_SCENIC_WORDS = {"温泉", "乐园", "沙滩", "大桥", "公园", "景区", "海洋", "王国", "岛屿", "古镇", "博物馆", "水城", "创新方", "海泉湾"}
+_SCENIC_WORDS = {
+    "温泉",
+    "乐园",
+    "沙滩",
+    "大桥",
+    "公园",
+    "景区",
+    "海洋",
+    "王国",
+    "岛屿",
+    "古镇",
+    "博物馆",
+    "水城",
+    "创新方",
+    "海泉湾",
+}
 
 
-def _fuzzy_match_destination(user_input: str, candidates: list[dict]) -> tuple[str | None, tuple[float, float] | None]:
+def _fuzzy_match_destination(
+    user_input: str, candidates: list[dict]
+) -> tuple[str | None, tuple[float, float] | None]:
     """从候选POI中模糊匹配目的地。"""
     best_match = None
     best_score = 0
@@ -380,12 +397,23 @@ async def _detect_destination_center(
     if match:
         return match
 
-    top_pois = [{"name": p.get("name", ""), "category": p.get("category", ""), "rating": p.get("rating", 0)} for p in candidates[:80] if p.get("lat") and p.get("lng") and p.get("rating", 0) >= 3.5]
+    top_pois = [
+        {"name": p.get("name", ""), "category": p.get("category", ""), "rating": p.get("rating", 0)}
+        for p in candidates[:80]
+        if p.get("lat") and p.get("lng") and p.get("rating", 0) >= 3.5
+    ]
     if not top_pois:
         return None, None
 
     from backend.agents_v3.experts.base import _llm_decide
-    result = await _llm_decide("你是旅行目的地检测器。从用户输入中识别想去的具体目的地名称。只输出JSON。", f"用户输入：{user_input}\n候选POI：{[p['name'] for p in top_pois[:20]]}\n输出JSON: {{\"destination\": \"目的地名称或null\"}}", prefix="LLM", temperature=0.05, retries=2)
+
+    result = await _llm_decide(
+        "你是旅行目的地检测器。从用户输入中识别想去的具体目的地名称。只输出JSON。",
+        f"用户输入：{user_input}\n候选POI：{[p['name'] for p in top_pois[:20]]}\n输出JSON: {{\"destination\": \"目的地名称或null\"}}",
+        prefix="LLM",
+        temperature=0.05,
+        retries=2,
+    )
 
     if not result or not result.get("destination"):
         return None, None
@@ -463,7 +491,11 @@ def _normalize_weights(result: dict, user_input: str) -> tuple[dict[str, float],
     """标准化专家权重和激活列表。"""
     weights = result.get("expert_weights", {})
     weights["poi"] = max(float(weights.get("poi", 0)), 0.3)
-    active = result.get("active_experts") or sorted([k for k, v in weights.items() if float(v) >= 0.3], key=lambda k: float(weights[k]), reverse=True)
+    active = result.get("active_experts") or sorted(
+        [k for k, v in weights.items() if float(v) >= 0.3],
+        key=lambda k: float(weights[k]),
+        reverse=True,
+    )
 
     if "poi" not in active:
         active.append("poi")
@@ -480,7 +512,11 @@ async def expert_router(state: TravelState) -> dict:
     """LLM-based expert router: classify scene, activate experts, compute pools."""
     meta = AGENT_META.get("expert_router", {})
     await sse_emit(state, "agent_start", {"agent": "expert_router", **meta})
-    await sse_emit(state, "agent_thinking", {"agent": "expert_router", "text": "LLM 分析场景类型，决定激活哪些专家..."})
+    await sse_emit(
+        state,
+        "agent_thinking",
+        {"agent": "expert_router", "text": "LLM 分析场景类型，决定激活哪些专家..."},
+    )
 
     user_input = state.get("user_input", "")
     user_intent = state.get("user_intent", {})
@@ -494,9 +530,17 @@ async def expert_router(state: TravelState) -> dict:
             logger.info("Using pre-computed scene type from rule_guard: %s", pre_scene_type)
             weights = _FALLBACK_WEIGHTS.get(pre_scene_type, _FALLBACK_WEIGHTS["观光型"]).copy()
             weights["poi"] = max(weights.get("poi", 0), 0.3)
-            return {"scene_type": pre_scene_type, "expert_weights": weights, "active_experts": sorted([k for k, v in weights.items() if v > 0], key=lambda k: weights[k], reverse=True)}
+            return {
+                "scene_type": pre_scene_type,
+                "expert_weights": weights,
+                "active_experts": sorted(
+                    [k for k, v in weights.items() if v > 0], key=lambda k: weights[k], reverse=True
+                ),
+            }
         try:
-            return await _llm_decide(_SYSTEM_PROMPT, f"用户输入：{user_input}", prefix="LLM", temperature=0.05)
+            return await _llm_decide(
+                _SYSTEM_PROMPT, f"用户输入：{user_input}", prefix="LLM", temperature=0.05
+            )
         except Exception:
             logger.warning("LLM intent enrichment failed, falling back to rules", exc_info=True)
             return None

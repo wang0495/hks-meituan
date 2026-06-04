@@ -65,7 +65,12 @@ def _normalize(poi: dict) -> dict:
     }
 
 
-async def _fetch_all_pages(client: httpx.AsyncClient, category: str | None, price_max: float | None, rating_min: float | None) -> list[dict]:
+async def _fetch_all_pages(
+    client: httpx.AsyncClient,
+    category: str | None,
+    price_max: float | None,
+    rating_min: float | None,
+) -> list[dict]:
     """分页获取全部POI。"""
     items: list[dict] = []
     page_size = 200
@@ -91,7 +96,9 @@ async def _fetch_all_pages(client: httpx.AsyncClient, category: str | None, pric
     return items
 
 
-async def _enrich_top_pois(client: httpx.AsyncClient, items: list[dict], top_n: int = 200) -> dict[str, dict]:
+async def _enrich_top_pois(
+    client: httpx.AsyncClient, items: list[dict], top_n: int = 200
+) -> dict[str, dict]:
     """批量获取top POI的详情。"""
     top_ids = [it["id"] for it in items[:top_n]]
     detail_map: dict[str, dict] = {}

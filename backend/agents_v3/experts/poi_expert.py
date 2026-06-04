@@ -63,7 +63,9 @@ _POI_EXPERT_GROUP_SCENE: dict[str, str] = {
 - 可以选有文化深度的场所（博物馆、历史遗迹）
 - 注意安全性（避开偏僻区域）""",
 }
-_POI_EXPERT_GROUP_SCENE["团建"] = _POI_EXPERT_GROUP_SCENE["团队"] = _POI_EXPERT_GROUP_SCENE["公司"] = """
+_POI_EXPERT_GROUP_SCENE["团建"] = _POI_EXPERT_GROUP_SCENE["团队"] = _POI_EXPERT_GROUP_SCENE[
+    "公司"
+] = """
 【团建/大团队场景特化】
 - 优先选适合团队互动的POI（拓展基地、沙滩、游乐园、卡丁车）
 - 选择能容纳大群体的场所（公园、广场、大型景区）
@@ -80,7 +82,11 @@ def _build_poi_prompt(intent: dict) -> str:
     budget = intent.get("budget", {}).get("per_person", 0)
 
     scene_extra = _POI_EXPERT_GROUP_SCENE.get(group_type, "")
-    pace_extra = "\n- 特种兵模式：多选地标性景点（6-8个），追求覆盖面，但地理仍需紧凑" if "特种兵" in pace else ("\n- 闲逛模式：少选精（3-4个），每个景点停留时间充裕" if "闲逛" in pace else "")
+    pace_extra = (
+        "\n- 特种兵模式：多选地标性景点（6-8个），追求覆盖面，但地理仍需紧凑"
+        if "特种兵" in pace
+        else ("\n- 闲逛模式：少选精（3-4个），每个景点停留时间充裕" if "闲逛" in pace else "")
+    )
 
     constraint_extra = ""
     if "late_night" in constraints:
@@ -90,7 +96,11 @@ def _build_poi_prompt(intent: dict) -> str:
     if "pet_friendly" in constraints:
         constraint_extra += "\n- 宠物友好：优先选允许宠物入内的公园、广场"
 
-    budget_extra = "\n- 穷游模式：优先选免费景点（公园、海滩、历史街区），付费景点仅选1-2个高价值" if budget and budget <= 200 else ""
+    budget_extra = (
+        "\n- 穷游模式：优先选免费景点（公园、海滩、历史街区），付费景点仅选1-2个高价值"
+        if budget and budget <= 200
+        else ""
+    )
 
     return f"""你是珠海旅游景点规划专家。根据用户需求从候选列表中挑选最合适的景点组合。
 
@@ -126,7 +136,9 @@ def _build_dist_matrix_expert(coords: list[tuple]) -> list[list[float]]:
     return matrix
 
 
-def _find_largest_cluster_expert(dist_matrix: list[list[float]], threshold: float = 10.0) -> set[int]:
+def _find_largest_cluster_expert(
+    dist_matrix: list[list[float]], threshold: float = 10.0
+) -> set[int]:
     """找到最大地理簇。"""
     n = len(dist_matrix)
     best: set[int] = set()
@@ -141,7 +153,13 @@ def _find_largest_cluster_expert(dist_matrix: list[list[float]], threshold: floa
 _EXCLUDE_CATS = {"住宿", "酒店", "民宿", "餐饮", "美食"}
 
 
-def _find_replacement_expert(outlier_name: str, selected_names: set[str], all_candidates: list[dict], center_lat: float, center_lng: float) -> dict | None:
+def _find_replacement_expert(
+    outlier_name: str,
+    selected_names: set[str],
+    all_candidates: list[dict],
+    center_lat: float,
+    center_lng: float,
+) -> dict | None:
     """为离群POI寻找替换。"""
     best_replacement = None
     best_score = -1.0
@@ -204,7 +222,9 @@ def _geo_cluster_filter(proposals: list[dict], all_candidates: list[dict]) -> li
         outlier_prop = poi_coords[idx][0]
         outlier_name = outlier_prop.get("content", {}).get("name", "")
 
-        best_replacement = _find_replacement_expert(outlier_name, selected_names, all_candidates, center_lat, center_lng)
+        best_replacement = _find_replacement_expert(
+            outlier_name, selected_names, all_candidates, center_lat, center_lng
+        )
 
         if best_replacement:
             for i, p in enumerate(result):
@@ -247,7 +267,9 @@ def _expand_expert_keywords(user_input: str, base_keywords: list[str]) -> list[s
     return keywords
 
 
-def _score_expert_poi(candidate: dict, keywords: list[str], budget: float, group_type: str) -> float:
+def _score_expert_poi(
+    candidate: dict, keywords: list[str], budget: float, group_type: str
+) -> float:
     """计算POI专家评分。"""
     score = 0.0
     rating = candidate.get("rating", 4.0)
@@ -287,7 +309,11 @@ def _smart_poi_selection(candidates: list[dict], intent: dict, user_input: str) 
     max_picks = 8 if "特种兵" in pace else (4 if "闲逛" in pace else 5)
     group_type = intent.get("group", {}).get("type", "")
 
-    scored = [(c, _score_expert_poi(c, keywords, budget, group_type)) for c in candidates if c.get("category", "") not in _EXPERT_EXCLUDE_CATS]
+    scored = [
+        (c, _score_expert_poi(c, keywords, budget, group_type))
+        for c in candidates
+        if c.get("category", "") not in _EXPERT_EXCLUDE_CATS
+    ]
     scored.sort(key=lambda x: x[1], reverse=True)
 
     selected = []
@@ -314,8 +340,18 @@ def _smart_poi_selection(candidates: list[dict], intent: dict, user_input: str) 
 
 
 _POI_EXPERT_EXCLUDE_CATS = {
-    "住宿", "酒店", "民宿", "餐饮", "美食", "小吃", "夜市小吃",
-    "海鲜", "茶餐厅", "甜品", "饮品", "酒吧",
+    "住宿",
+    "酒店",
+    "民宿",
+    "餐饮",
+    "美食",
+    "小吃",
+    "夜市小吃",
+    "海鲜",
+    "茶餐厅",
+    "甜品",
+    "饮品",
+    "酒吧",
 }
 
 
@@ -380,14 +416,27 @@ def _stratified_sample_expert(pool: list[dict], max_total: int = 250) -> list[di
 
 def _build_expert_summaries(sampled: list[dict]) -> list[dict]:
     """构建LLM摘要。"""
-    return [{"name": c.get("name", ""), "category": c.get("category", ""), "rating": c.get("rating", 0), "price": c.get("avg_price", 0), "tags": c.get("tags", [])[:5], "scene_tags": c.get("_scene_tags", [])[:3], "avg_stay_min": c.get("avg_stay_min", 60), "lat": c.get("lat", 0), "lng": c.get("lng", 0), "reviews": c.get("_ugc_summary", ""), "suitability": c.get("_suitability", {})} for c in sampled]
+    return [
+        {
+            "name": c.get("name", ""),
+            "category": c.get("category", ""),
+            "rating": c.get("rating", 0),
+            "price": c.get("avg_price", 0),
+            "tags": c.get("tags", [])[:5],
+            "scene_tags": c.get("_scene_tags", [])[:3],
+            "avg_stay_min": c.get("avg_stay_min", 60),
+            "lat": c.get("lat", 0),
+            "lng": c.get("lng", 0),
+            "reviews": c.get("_ugc_summary", ""),
+            "suitability": c.get("_suitability", {}),
+        }
+        for c in sampled
+    ]
 
 
 def _get_max_picks(scene_type: str, pace: str, weight: float) -> int:
     """获取最大选择数。"""
-    if scene_type == "美食型":
-        max_picks = 3
-    elif scene_type == "目的地型":
+    if scene_type == "美食型" or scene_type == "目的地型":
         max_picks = 3
     else:
         max_picks = 8 if "特种兵" in pace else (4 if "闲逛" in pace else 5)
@@ -402,9 +451,15 @@ def _get_max_picks(scene_type: str, pace: str, weight: float) -> int:
 def _build_expert_system_prompt(system: str, scene_type: str) -> str:
     """构建场景特化系统提示。"""
     if scene_type == "美食型":
-        return system + "\n\n【美食场景覆盖】用户主要目的是吃，但路线也需要穿插1-2个散步消食的轻松地点（公园、海边、文化街区），让行程不只是吃。选2-3个即可，不要选需要长时间游览的景点。"
+        return (
+            system
+            + "\n\n【美食场景覆盖】用户主要目的是吃，但路线也需要穿插1-2个散步消食的轻松地点（公园、海边、文化街区），让行程不只是吃。选2-3个即可，不要选需要长时间游览的景点。"
+        )
     if scene_type == "目的地型":
-        return system + "\n\n【目的地型覆盖】用户指定了大景区，会在那里待大半天。选1-2个附近的补充景点即可，不要远距离选点。"
+        return (
+            system
+            + "\n\n【目的地型覆盖】用户指定了大景区，会在那里待大半天。选1-2个附近的补充景点即可，不要远距离选点。"
+        )
     return system
 
 
@@ -421,11 +476,24 @@ def _match_expert_poi_picks(picks: list[dict], candidates: list[dict]) -> list[d
                     content = c
                     break
         if content:
-            proposals.append(_proposal("poi", content, pick.get("confidence", 0.7), pick.get("reason", "LLM推荐")))
+            proposals.append(
+                _proposal(
+                    "poi", content, pick.get("confidence", 0.7), pick.get("reason", "LLM推荐")
+                )
+            )
     return proposals
 
 
-def _build_expert_user_prompt(user_input: str, intent: dict, pace: str, sampled: list[dict], poi_summaries: list[dict], feedback_hint: str, context_hint: str, max_picks: int) -> str:
+def _build_expert_user_prompt(
+    user_input: str,
+    intent: dict,
+    pace: str,
+    sampled: list[dict],
+    poi_summaries: list[dict],
+    feedback_hint: str,
+    context_hint: str,
+    max_picks: int,
+) -> str:
     """构建用户提示。"""
     return f"""用户需求: {_sanitize_for_prompt(user_input)}
 意图分析:
@@ -465,9 +533,15 @@ async def poi_expert(state: TravelState) -> dict:
     pace = intent.get("pace", "平衡型")
     max_picks = _get_max_picks(scene_type, pace, weight)
 
-    user = _build_expert_user_prompt(user_input, intent, pace, sampled, poi_summaries, feedback_hint, context_hint, max_picks)
+    user = _build_expert_user_prompt(
+        user_input, intent, pace, sampled, poi_summaries, feedback_hint, context_hint, max_picks
+    )
     result = await _llm_decide(system, user)
-    proposals = _match_expert_poi_picks(result.get("picks", []) if result else [], candidates) if result and "picks" in result else []
+    proposals = (
+        _match_expert_poi_picks(result.get("picks", []) if result else [], candidates)
+        if result and "picks" in result
+        else []
+    )
 
     if not proposals:
         proposals = _smart_poi_selection(candidates, intent, user_input)

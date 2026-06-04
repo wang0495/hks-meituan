@@ -302,7 +302,11 @@ def _build_poi_prompt(intent: dict) -> str:
     budget = intent.get("budget", {}).get("per_person", 0)
 
     scene_extra = _GROUP_SCENE_EXTRA.get(group_type, "")
-    pace_extra = "\n- 特种兵模式：多选地标性景点（6-8个），追求覆盖面，但地理仍需紧凑" if "特种兵" in pace else ("\n- 闲逛模式：少选精（3-4个），每个景点停留时间充裕" if "闲逛" in pace else "")
+    pace_extra = (
+        "\n- 特种兵模式：多选地标性景点（6-8个），追求覆盖面，但地理仍需紧凑"
+        if "特种兵" in pace
+        else ("\n- 闲逛模式：少选精（3-4个），每个景点停留时间充裕" if "闲逛" in pace else "")
+    )
 
     constraint_extra = ""
     if "late_night" in constraints:
@@ -312,7 +316,11 @@ def _build_poi_prompt(intent: dict) -> str:
     if "pet_friendly" in constraints:
         constraint_extra += "\n- 宠物友好：优先选允许宠物入内的公园、广场"
 
-    budget_extra = "\n- 穷游模式：优先选免费景点（公园、海滩、历史街区），付费景点仅选1-2个高价值" if budget and budget <= 200 else ""
+    budget_extra = (
+        "\n- 穷游模式：优先选免费景点（公园、海滩、历史街区），付费景点仅选1-2个高价值"
+        if budget and budget <= 200
+        else ""
+    )
 
     return f"""你是珠海旅游景点规划专家。根据用户需求从候选列表中挑选最合适的景点组合。
 
@@ -377,7 +385,22 @@ def _stratified_sample_pois(pool: list[dict], max_total: int = 250) -> list[dict
 
 def _build_poi_summaries(sampled: list[dict]) -> list[dict]:
     """构建LLM摘要。"""
-    return [{"name": c.get("name", ""), "category": c.get("category", ""), "rating": c.get("rating", 0), "price": c.get("avg_price", 0), "tags": c.get("tags", [])[:5], "scene_tags": c.get("_scene_tags", [])[:3], "avg_stay_min": c.get("avg_stay_min", 60), "lat": c.get("lat", 0), "lng": c.get("lng", 0), "reviews": c.get("_ugc_summary", ""), "suitability": c.get("_suitability", {})} for c in sampled]
+    return [
+        {
+            "name": c.get("name", ""),
+            "category": c.get("category", ""),
+            "rating": c.get("rating", 0),
+            "price": c.get("avg_price", 0),
+            "tags": c.get("tags", [])[:5],
+            "scene_tags": c.get("_scene_tags", [])[:3],
+            "avg_stay_min": c.get("avg_stay_min", 60),
+            "lat": c.get("lat", 0),
+            "lng": c.get("lng", 0),
+            "reviews": c.get("_ugc_summary", ""),
+            "suitability": c.get("_suitability", {}),
+        }
+        for c in sampled
+    ]
 
 
 def _match_poi_picks(picks: list[dict], candidates: list[dict]) -> list[dict]:
@@ -393,7 +416,11 @@ def _match_poi_picks(picks: list[dict], candidates: list[dict]) -> list[dict]:
                     content = c
                     break
         if content:
-            proposals.append(_proposal("poi", content, pick.get("confidence", 0.7), pick.get("reason", "LLM推荐")))
+            proposals.append(
+                _proposal(
+                    "poi", content, pick.get("confidence", 0.7), pick.get("reason", "LLM推荐")
+                )
+            )
     return proposals
 
 
@@ -401,7 +428,9 @@ async def poi_agent(state: TravelState) -> dict:
     """景点Agent：LLM直接从候选池选景点，不做算法预排序。"""
     meta = AGENT_META.get("poi", {})
     await sse_emit(state, "agent_start", {"agent": "poi", **meta})
-    await sse_emit(state, "agent_thinking", {"agent": "poi", "text": "加载候选景点，按分类分层抽样..."})
+    await sse_emit(
+        state, "agent_thinking", {"agent": "poi", "text": "加载候选景点，按分类分层抽样..."}
+    )
 
     candidates = state.get("candidates", [])
     intent = state.get("user_intent", {})
@@ -447,7 +476,11 @@ async def poi_agent(state: TravelState) -> dict:
 请选出{max_picks}个最合适的景点。"""
 
     result = await _llm_decide(system, user)
-    proposals = _match_poi_picks(result.get("picks", []) if result else [], candidates) if result and "picks" in result else []
+    proposals = (
+        _match_poi_picks(result.get("picks", []) if result else [], candidates)
+        if result and "picks" in result
+        else []
+    )
 
     # ── 降级：智能规则引擎（非简单fallback） ──
     if not proposals:
@@ -480,7 +513,14 @@ def _find_largest_cluster(dist_matrix: list[list[float]], threshold: float = 10.
     return best_cluster
 
 
-def _find_replacement(outlier_name: str, selected_names: set[str], all_candidates: list[dict], center_lat: float, center_lng: float, max_dist: float = 10.0) -> dict | None:
+def _find_replacement(
+    outlier_name: str,
+    selected_names: set[str],
+    all_candidates: list[dict],
+    center_lat: float,
+    center_lng: float,
+    max_dist: float = 10.0,
+) -> dict | None:
     """为离群POI寻找替换。"""
     best_replacement = None
     best_score = -1.0
@@ -512,17 +552,32 @@ def _find_replacement(outlier_name: str, selected_names: set[str], all_candidate
     return best_replacement
 
 
-def _apply_replacements(result: list[dict], outlier_indices: set[int], poi_coords: list[tuple], selected_names: set[str], all_candidates: list[dict], center_lat: float, center_lng: float) -> list[dict]:
+def _apply_replacements(
+    result: list[dict],
+    outlier_indices: set[int],
+    poi_coords: list[tuple],
+    selected_names: set[str],
+    all_candidates: list[dict],
+    center_lat: float,
+    center_lng: float,
+) -> list[dict]:
     """应用离群POI替换。"""
     for idx in outlier_indices:
         outlier_prop = poi_coords[idx][0]
         outlier_name = outlier_prop.get("content", {}).get("name", "")
 
-        replacement = _find_replacement(outlier_name, selected_names, all_candidates, center_lat, center_lng)
+        replacement = _find_replacement(
+            outlier_name, selected_names, all_candidates, center_lat, center_lng
+        )
         if replacement:
             for i, p in enumerate(result):
                 if p.get("content", {}).get("name", "") == outlier_name:
-                    result[i] = _proposal("poi", replacement, 0.65, f"地理聚类替换（原{outlier_name}距簇中心过远，替换为{replacement.get('name', '')}）")
+                    result[i] = _proposal(
+                        "poi",
+                        replacement,
+                        0.65,
+                        f"地理聚类替换（原{outlier_name}距簇中心过远，替换为{replacement.get('name', '')}）",
+                    )
                     selected_names.discard(outlier_name)
                     selected_names.add(replacement.get("name", ""))
                     break
@@ -556,7 +611,15 @@ def _geo_cluster_filter(proposals: list[dict], all_candidates: list[dict]) -> li
     outlier_indices = set(range(len(poi_coords))) - best_cluster
     selected_names = {p.get("content", {}).get("name", "") for p in proposals}
 
-    return _apply_replacements(list(proposals), outlier_indices, poi_coords, selected_names, all_candidates, center_lat, center_lng)
+    return _apply_replacements(
+        list(proposals),
+        outlier_indices,
+        poi_coords,
+        selected_names,
+        all_candidates,
+        center_lat,
+        center_lng,
+    )
 
 
 _EXCLUDED_POI_CATEGORIES = ["住宿", "酒店", "民宿", "餐饮", "美食"]
@@ -579,7 +642,9 @@ def _expand_keywords(user_input: str, base_keywords: list[str]) -> list[str]:
     return keywords
 
 
-def _score_poi_candidate(candidate: dict, keywords: list[str], budget: float, group_type: str) -> float:
+def _score_poi_candidate(
+    candidate: dict, keywords: list[str], budget: float, group_type: str
+) -> float:
     """计算POI候选的综合评分。"""
     score = 0.0
     rating = candidate.get("rating", 4.0)
@@ -619,7 +684,11 @@ def _smart_poi_selection(candidates: list[dict], intent: dict, user_input: str) 
     max_picks = 8 if "特种兵" in pace else (4 if "闲逛" in pace else 5)
     group_type = intent.get("group", {}).get("type", "")
 
-    scored = [(c, _score_poi_candidate(c, keywords, budget, group_type)) for c in candidates if c.get("category", "") not in _EXCLUDED_POI_CATEGORIES]
+    scored = [
+        (c, _score_poi_candidate(c, keywords, budget, group_type))
+        for c in candidates
+        if c.get("category", "") not in _EXCLUDED_POI_CATEGORIES
+    ]
     scored.sort(key=lambda x: x[1], reverse=True)
 
     selected = []
@@ -646,7 +715,28 @@ def _smart_poi_selection(candidates: list[dict], intent: dict, user_input: str) 
 
 
 _FOOD_CATEGORIES = ["餐饮", "美食", "小吃", "海鲜", "餐厅", "夜市", "茶餐厅", "甜品", "饮品"]
-_FOOD_NAME_KEYWORDS = ["餐厅", "海鲜", "烧", "煲", "粉", "面", "火锅", "烧烤", "夜市", "粥", "蚝", "排档", "甜品", "奶茶", "冰", "茶餐厅", "柠檬", "美食街", "海鲜街", "老街"]
+_FOOD_NAME_KEYWORDS = [
+    "餐厅",
+    "海鲜",
+    "烧",
+    "煲",
+    "粉",
+    "面",
+    "火锅",
+    "烧烤",
+    "夜市",
+    "粥",
+    "蚝",
+    "排档",
+    "甜品",
+    "奶茶",
+    "冰",
+    "茶餐厅",
+    "柠檬",
+    "美食街",
+    "海鲜街",
+    "老街",
+]
 _EXCLUDED_CATEGORIES = ["购物", "酒店", "住宿"]
 
 
@@ -660,7 +750,9 @@ def _is_food_poi(poi: dict) -> bool:
         return False
     if poi.get("rating") is None:
         return False
-    return any(kw in cat for kw in _FOOD_CATEGORIES) or any(kw in name for kw in _FOOD_NAME_KEYWORDS)
+    return any(kw in cat for kw in _FOOD_CATEGORIES) or any(
+        kw in name for kw in _FOOD_NAME_KEYWORDS
+    )
 
 
 _FOOD_SUBCATS: dict[str, list[str]] = {
@@ -694,7 +786,12 @@ def _stratified_sample(foods: list[dict], score_fn) -> tuple[list[dict], dict[st
     seen_names: set[str] = set()
 
     for sub_name, kws in _FOOD_SUBCATS.items():
-        bucket = [f for f in foods if any(kw in f.get("name", "") or kw in f.get("category", "") for kw in kws) and f.get("name", "") not in seen_names]
+        bucket = [
+            f
+            for f in foods
+            if any(kw in f.get("name", "") or kw in f.get("category", "") for kw in kws)
+            and f.get("name", "") not in seen_names
+        ]
         bucket.sort(key=score_fn, reverse=True)
         for f in bucket[:3]:
             stratified.append(f)
@@ -706,10 +803,25 @@ def _stratified_sample(foods: list[dict], score_fn) -> tuple[list[dict], dict[st
 
 def _build_food_summaries(stratified: list[dict], subcat_map: dict[str, str]) -> list[dict]:
     """构建给LLM的餐饮摘要。"""
-    return [{"name": f.get("name", ""), "type": subcat_map.get(f.get("name", ""), "其他"), "cat": f.get("category", ""), "price": f.get("avg_price", 0), "rating": f.get("rating", 0), "tags": f.get("tags", [])[:3], "lat": round(f.get("lat", 0), 3) if f.get("lat") else None, "lng": round(f.get("lng", 0), 3) if f.get("lng") else None, "reviews": f.get("_ugc_summary", "")} for f in stratified[:15]]
+    return [
+        {
+            "name": f.get("name", ""),
+            "type": subcat_map.get(f.get("name", ""), "其他"),
+            "cat": f.get("category", ""),
+            "price": f.get("avg_price", 0),
+            "rating": f.get("rating", 0),
+            "tags": f.get("tags", [])[:3],
+            "lat": round(f.get("lat", 0), 3) if f.get("lat") else None,
+            "lng": round(f.get("lng", 0), 3) if f.get("lng") else None,
+            "reviews": f.get("_ugc_summary", ""),
+        }
+        for f in stratified[:15]
+    ]
 
 
-def _build_food_system_prompt(scene_type: str, intent: dict, user_input: str, group_type: str) -> str:
+def _build_food_system_prompt(
+    scene_type: str, intent: dict, user_input: str, group_type: str
+) -> str:
     """构建餐饮LLM系统提示。"""
     if scene_type == "美食型":
         scene_reqs_text = " ".join(intent.get("scene_requirements", []))
@@ -745,7 +857,16 @@ def _build_food_system_prompt(scene_type: str, intent: dict, user_input: str, gr
 最多选3个。只输出JSON。"""
 
 
-def _build_food_user_prompt(user_input: str, scene_type: str, intent: dict, group_type: str, poi_locations: list[dict], stratified: list[dict], summaries: list[dict], feedback_hint: str) -> str:
+def _build_food_user_prompt(
+    user_input: str,
+    scene_type: str,
+    intent: dict,
+    group_type: str,
+    poi_locations: list[dict],
+    stratified: list[dict],
+    summaries: list[dict],
+    feedback_hint: str,
+) -> str:
     """构建餐饮LLM用户提示。"""
     return f"""用户需求: {user_input}
 场景类型: {scene_type}
@@ -774,13 +895,23 @@ def _match_food_picks(picks_data: list[dict], foods: list[dict]) -> list[dict]:
                     content = f
                     break
         if content:
-            matched.append(_proposal("food", content, pick.get("confidence", 0.7), pick.get("reason", "LLM推荐")))
+            matched.append(
+                _proposal(
+                    "food", content, pick.get("confidence", 0.7), pick.get("reason", "LLM推荐")
+                )
+            )
     return matched
 
 
-async def _reselect_food(system: str, proposals: list[dict], issues: list[str], summaries: list[dict], foods: list[dict]) -> list[dict]:
+async def _reselect_food(
+    system: str, proposals: list[dict], issues: list[str], summaries: list[dict], foods: list[dict]
+) -> list[dict]:
     """带反馈重选餐饮。"""
-    current_info = [f"{p['content']['name']}({_get_food_subcat(p['content']['name'], _FOOD_SUBCATS)})" for p in proposals if p.get("content", {}).get("name")]
+    current_info = [
+        f"{p['content']['name']}({_get_food_subcat(p['content']['name'], _FOOD_SUBCATS)})"
+        for p in proposals
+        if p.get("content", {}).get("name")
+    ]
     feedback = "\n".join(f"❌ {i}" for i in issues)
     reselect_user = f"""你之前选了: {', '.join(current_info)}
 
@@ -808,12 +939,20 @@ def _extract_poi_locations(candidates: list[dict], max_count: int = 20) -> list[
         if c.get("category", "") not in ["住宿", "酒店", "民宿", "餐饮", "美食"]:
             lat, lng = c.get("lat", 0), c.get("lng", 0)
             if lat and lng:
-                locations.append({"name": c.get("name", ""), "lat": round(lat, 3), "lng": round(lng, 3), "category": c.get("category", "")})
+                locations.append(
+                    {
+                        "name": c.get("name", ""),
+                        "lat": round(lat, 3),
+                        "lng": round(lng, 3),
+                        "category": c.get("category", ""),
+                    }
+                )
     return locations
 
 
 def _make_food_rule_score(poi_center: tuple[float, float] | None):
     """创建餐饮规则评分函数。"""
+
     def _score(f: dict) -> float:
         s = f.get("rating", 0)
         if poi_center:
@@ -821,6 +960,7 @@ def _make_food_rule_score(poi_center: tuple[float, float] | None):
             if lat and lng:
                 s -= _haversine_km(lat, lng, poi_center[0], poi_center[1]) * 0.05
         return s
+
     return _score
 
 
@@ -828,7 +968,9 @@ async def food_agent(state: TravelState) -> dict:
     """餐饮Agent：独立加载全部餐饮数据 → LLM选餐厅 → 提案。"""
     meta = AGENT_META.get("food", {})
     await sse_emit(state, "agent_start", {"agent": "food", **meta})
-    await sse_emit(state, "agent_thinking", {"agent": "food", "text": "加载餐饮POI，5子类各取TOP3..."})
+    await sse_emit(
+        state, "agent_thinking", {"agent": "food", "text": "加载餐饮POI，5子类各取TOP3..."}
+    )
 
     intent = state.get("user_intent", {})
     user_input = state.get("user_input", "")
@@ -844,7 +986,11 @@ async def food_agent(state: TravelState) -> dict:
 
     all_pois = await _load_all_pois()
     target_city = intent.get("city", "珠海")
-    foods = [c for c in all_pois if (c.get("city", "") == target_city or not c.get("city")) and _is_food_poi(c)]
+    foods = [
+        c
+        for c in all_pois
+        if (c.get("city", "") == target_city or not c.get("city")) and _is_food_poi(c)
+    ]
 
     if len(foods) < 3:
         for c in candidates:
@@ -852,17 +998,35 @@ async def food_agent(state: TravelState) -> dict:
                 foods.append(c)
 
     poi_locations = _extract_poi_locations(candidates)
-    poi_center = (sum(p["lat"] for p in poi_locations) / len(poi_locations), sum(p["lng"] for p in poi_locations) / len(poi_locations)) if poi_locations else None
+    poi_center = (
+        (
+            sum(p["lat"] for p in poi_locations) / len(poi_locations),
+            sum(p["lng"] for p in poi_locations) / len(poi_locations),
+        )
+        if poi_locations
+        else None
+    )
 
     stratified, subcat_map = _stratified_sample(foods, _make_food_rule_score(poi_center))
     summaries = _build_food_summaries(stratified, subcat_map)
     group_type = intent.get("group", {}).get("type", "")
 
     system = _build_food_system_prompt(scene_type, intent, user_input, group_type)
-    user = _build_food_user_prompt(user_input, scene_type, intent, group_type, poi_locations, stratified, summaries, feedback_hint)
+    user = _build_food_user_prompt(
+        user_input,
+        scene_type,
+        intent,
+        group_type,
+        poi_locations,
+        stratified,
+        summaries,
+        feedback_hint,
+    )
 
     result = await _llm_decide(system, user)
-    proposals = _match_food_picks(result.get("picks", []), foods) if result and "picks" in result else []
+    proposals = (
+        _match_food_picks(result.get("picks", []), foods) if result and "picks" in result else []
+    )
 
     for _ in range(2):
         issues = _check_food_diversity_issues(proposals, _FOOD_SUBCATS, scene_type)
@@ -972,16 +1136,27 @@ _HOTEL_NAME_KEYWORDS = ["酒店", "民宿", "宾馆", "公寓"]
 
 async def _check_need_hotel(user_input: str) -> bool:
     """判断是否需要住宿。"""
-    if any(kw in user_input for kw in ["晚", "两", "二", "三天", "住宿", "酒店", "民宿", "二日", "两日", "过夜"]):
+    if any(
+        kw in user_input
+        for kw in ["晚", "两", "二", "三天", "住宿", "酒店", "民宿", "二日", "两日", "过夜"]
+    ):
         return True
-    judge = await _llm_decide('判断用户是否需要住宿。输出JSON: {"need":true/false,"reason":"理由"}', f"用户输入: {user_input}")
+    judge = await _llm_decide(
+        '判断用户是否需要住宿。输出JSON: {"need":true/false,"reason":"理由"}',
+        f"用户输入: {user_input}",
+    )
     return bool(judge and judge.get("need"))
 
 
 def _filter_hotels(all_pois: list[dict], candidates: list[dict]) -> list[dict]:
     """筛选住宿POI并去重。"""
     hotel_sources = all_pois + candidates
-    hotels = [c for c in hotel_sources if any(kw in c.get("category", "") for kw in _HOTEL_KEYWORDS) or any(kw in c.get("name", "") for kw in _HOTEL_NAME_KEYWORDS)]
+    hotels = [
+        c
+        for c in hotel_sources
+        if any(kw in c.get("category", "") for kw in _HOTEL_KEYWORDS)
+        or any(kw in c.get("name", "") for kw in _HOTEL_NAME_KEYWORDS)
+    ]
     seen: set[str] = set()
     unique = []
     for h in hotels:
@@ -994,7 +1169,18 @@ def _filter_hotels(all_pois: list[dict], candidates: list[dict]) -> list[dict]:
 
 def _build_hotel_summaries(hotels: list[dict], max_count: int = 20) -> list[dict]:
     """构建住宿摘要。"""
-    return [{"name": h.get("name", ""), "price": h.get("avg_price", 0), "rating": h.get("rating", 0), "tags": h.get("tags", [])[:3], "area": h.get("tags", [""])[0] if h.get("tags") else "", "lat": round(h.get("lat", 0), 3) if h.get("lat") else None, "lng": round(h.get("lng", 0), 3) if h.get("lng") else None} for h in hotels[:max_count]]
+    return [
+        {
+            "name": h.get("name", ""),
+            "price": h.get("avg_price", 0),
+            "rating": h.get("rating", 0),
+            "tags": h.get("tags", [])[:3],
+            "area": h.get("tags", [""])[0] if h.get("tags") else "",
+            "lat": round(h.get("lat", 0), 3) if h.get("lat") else None,
+            "lng": round(h.get("lng", 0), 3) if h.get("lng") else None,
+        }
+        for h in hotels[:max_count]
+    ]
 
 
 async def hotel_agent(state: TravelState) -> dict:
@@ -1051,7 +1237,11 @@ async def hotel_agent(state: TravelState) -> dict:
 请根据酒店与景点的坐标距离推荐。"""
 
     result = await _llm_decide(system, user)
-    proposals = _match_hotel_picks(result.get("picks", []) if result else [], hotels) if result and "picks" in result else []
+    proposals = (
+        _match_hotel_picks(result.get("picks", []) if result else [], hotels)
+        if result and "picks" in result
+        else []
+    )
 
     if not proposals and hotels:
         for h in sorted(hotels, key=lambda h: h.get("rating", 4.0), reverse=True)[:2]:
@@ -1073,7 +1263,11 @@ def _match_hotel_picks(picks: list[dict], hotels: list[dict]) -> list[dict]:
                     content = h
                     break
         if content:
-            proposals.append(_proposal("hotel", content, pick.get("confidence", 0.7), pick.get("reason", "LLM推荐")))
+            proposals.append(
+                _proposal(
+                    "hotel", content, pick.get("confidence", 0.7), pick.get("reason", "LLM推荐")
+                )
+            )
     return proposals
 
 
@@ -1105,7 +1299,17 @@ _TRAFFIC_SCENE_HINTS: dict[str, str] = {
 
 def _extract_traffic_poi_locs(candidates: list[dict], max_count: int = 30) -> list[dict]:
     """提取交通Agent用的POI位置信息。"""
-    return [{"name": c.get("name", ""), "lat": c.get("lat", 0), "lng": c.get("lng", 0), "category": c.get("category", ""), "tags": c.get("tags", [])[:3]} for c in candidates[:max_count] if c.get("category", "") not in ["住宿", "酒店", "民宿"]]
+    return [
+        {
+            "name": c.get("name", ""),
+            "lat": c.get("lat", 0),
+            "lng": c.get("lng", 0),
+            "category": c.get("category", ""),
+            "tags": c.get("tags", [])[:3],
+        }
+        for c in candidates[:max_count]
+        if c.get("category", "") not in ["住宿", "酒店", "民宿"]
+    ]
 
 
 def _calc_poi_distances(poi_locs: list[dict], max_count: int = 12) -> list[dict]:
@@ -1134,6 +1338,8 @@ async def traffic_agent(state: TravelState) -> dict:
     distances = _calc_poi_distances(poi_locs)
 
     group_type = intent.get("group", {}).get("type", "")
+    pace = intent.get("pace", "平衡型")
+    scene_reqs = intent.get("scene_requirements", [])
     scene_hint = _TRAFFIC_SCENE_HINTS.get(group_type, "\n- 平衡地理效率和游览体验")
 
     system = f"""你是城市旅行路线规划专家。你需要设计一条高质量的一日游路线。

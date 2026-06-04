@@ -46,7 +46,17 @@ def _check_theme_conflicts(proposals: list[dict], group_type: str) -> list[dict]
         name = p.get("content", {}).get("name", "")
         tags = str(p.get("content", {}).get("tags", []))
         if any(kw in name + tags for kw in _NIGHTLIFE_KEYWORDS):
-            conflicts.append({"type": "theme", "severity": "high", "challenger": "rule_guard", "defendant": p.get("agent", ""), "target_name": name, "issue": f"亲子行程包含不适合儿童的活动: {name}", "resolution": "remove"})
+            conflicts.append(
+                {
+                    "type": "theme",
+                    "severity": "high",
+                    "challenger": "rule_guard",
+                    "defendant": p.get("agent", ""),
+                    "target_name": name,
+                    "issue": f"亲子行程包含不适合儿童的活动: {name}",
+                    "resolution": "remove",
+                }
+            )
     return conflicts
 
 
@@ -54,19 +64,47 @@ def _check_budget_conflicts(proposals: list[dict], budget: float) -> list[dict]:
     """检查预算超支。"""
     if budget <= 0:
         return []
-    total = sum(p.get("content", {}).get("avg_price", 0) for p in proposals if p.get("agent") in ("poi", "food", "hotel"))
+    total = sum(
+        p.get("content", {}).get("avg_price", 0)
+        for p in proposals
+        if p.get("agent") in ("poi", "food", "hotel")
+    )
     if total <= budget * 1.5:
         return []
-    expensive = sorted([p for p in proposals if p.get("agent") in ("food", "hotel") and p.get("content", {}).get("avg_price", 0) > 0], key=lambda p: p.get("content", {}).get("avg_price", 0), reverse=True)
+    expensive = sorted(
+        [
+            p
+            for p in proposals
+            if p.get("agent") in ("food", "hotel") and p.get("content", {}).get("avg_price", 0) > 0
+        ],
+        key=lambda p: p.get("content", {}).get("avg_price", 0),
+        reverse=True,
+    )
     if not expensive:
         return []
     target = expensive[0]
-    return [{"type": "budget", "severity": "high" if total > budget * 2 else "medium", "challenger": "rule_guard", "defendant": target.get("agent", ""), "target_name": target.get("content", {}).get("name", ""), "issue": f"总花费{total}元超预算{budget}元{(total/budget-1)*100:.0f}%", "resolution": "suggest_cheaper"}]
+    return [
+        {
+            "type": "budget",
+            "severity": "high" if total > budget * 2 else "medium",
+            "challenger": "rule_guard",
+            "defendant": target.get("agent", ""),
+            "target_name": target.get("content", {}).get("name", ""),
+            "issue": f"总花费{total}元超预算{budget}元{(total/budget-1)*100:.0f}%",
+            "resolution": "suggest_cheaper",
+        }
+    ]
 
 
 def _check_geo_conflicts(proposals: list[dict]) -> list[dict]:
     """检查地理矛盾。"""
-    poi_coords = [(p.get("content", {}).get("lat", 0), p.get("content", {}).get("lng", 0)) for p in proposals if p.get("agent") == "poi" and p.get("content", {}).get("lat") and p.get("content", {}).get("lng")]
+    poi_coords = [
+        (p.get("content", {}).get("lat", 0), p.get("content", {}).get("lng", 0))
+        for p in proposals
+        if p.get("agent") == "poi"
+        and p.get("content", {}).get("lat")
+        and p.get("content", {}).get("lng")
+    ]
     if not poi_coords:
         return []
 
@@ -85,7 +123,17 @@ def _check_geo_conflicts(proposals: list[dict]) -> list[dict]:
             continue
         dist = _haversine_km(lat, lng, center_lat, center_lng)
         if dist > allowed:
-            conflicts.append({"type": "geo_food", "severity": "medium", "challenger": "poi_agent", "defendant": "food_agent", "target_name": content.get("name", ""), "issue": f"餐厅{content.get('name', '')}距景点中心{dist:.0f}km（允许{allowed:.0f}km）", "resolution": "remove_food"})
+            conflicts.append(
+                {
+                    "type": "geo_food",
+                    "severity": "medium",
+                    "challenger": "poi_agent",
+                    "defendant": "food_agent",
+                    "target_name": content.get("name", ""),
+                    "issue": f"餐厅{content.get('name', '')}距景点中心{dist:.0f}km（允许{allowed:.0f}km）",
+                    "resolution": "remove_food",
+                }
+            )
     return conflicts
 
 
@@ -165,7 +213,9 @@ async def _llm_debate_round(
     return []
 
 
-def _execute_rule_conflicts(proposals: list[dict], rule_conflicts: list[dict]) -> tuple[set[str], list[dict]]:
+def _execute_rule_conflicts(
+    proposals: list[dict], rule_conflicts: list[dict]
+) -> tuple[set[str], list[dict]]:
     """执行规则层决议，返回 (remove_names, negotiation_msgs)。"""
     remove_names: set[str] = set()
     msgs: list[dict] = []
@@ -176,18 +226,34 @@ def _execute_rule_conflicts(proposals: list[dict], rule_conflicts: list[dict]) -
 
         if resolution in ("remove", "remove_food"):
             remove_names.add(target)
-            msgs.append({"type": c["type"], "from": c.get("challenger", "rule"), "message": f"[规则驳回] {c['issue']} → 移除 {target}", "severity": c.get("severity", "medium")})
+            msgs.append(
+                {
+                    "type": c["type"],
+                    "from": c.get("challenger", "rule"),
+                    "message": f"[规则驳回] {c['issue']} → 移除 {target}",
+                    "severity": c.get("severity", "medium"),
+                }
+            )
         elif resolution == "suggest_cheaper":
             for p in proposals:
                 if p.get("content", {}).get("name", "") == target:
                     p["confidence"] = min(p.get("confidence", 0.5), 0.3)
                     p["reasoning"] = f"[预算警告] {p.get('reasoning', '')}"
-            msgs.append({"type": "budget", "from": "rule_guard", "message": f"[预算警告] {c['issue']} → 降低 {target} 优先级", "severity": "medium"})
+            msgs.append(
+                {
+                    "type": "budget",
+                    "from": "rule_guard",
+                    "message": f"[预算警告] {c['issue']} → 降低 {target} 优先级",
+                    "severity": "medium",
+                }
+            )
 
     return remove_names, msgs
 
 
-def _execute_debate_results(cleaned: list[dict], debate_results: list[dict], negotiation_msgs: list[dict]) -> list[dict]:
+def _execute_debate_results(
+    cleaned: list[dict], debate_results: list[dict], negotiation_msgs: list[dict]
+) -> list[dict]:
     """执行LLM反驳决议。"""
     for d in debate_results:
         resolution = d.get("resolution", "keep")
@@ -195,12 +261,26 @@ def _execute_debate_results(cleaned: list[dict], debate_results: list[dict], neg
 
         if resolution == "remove" and target:
             cleaned = [p for p in cleaned if p.get("content", {}).get("name", "") != target]
-            negotiation_msgs.append({"type": d.get("conflict_type", ""), "from": d.get("challenger", "debate"), "message": f"[反驳移除] {d.get('reason', '')} → 移除 {target}", "severity": "medium"})
+            negotiation_msgs.append(
+                {
+                    "type": d.get("conflict_type", ""),
+                    "from": d.get("challenger", "debate"),
+                    "message": f"[反驳移除] {d.get('reason', '')} → 移除 {target}",
+                    "severity": "medium",
+                }
+            )
         elif resolution == "swap" and target:
             for p in cleaned:
                 if p.get("content", {}).get("name", "") == target:
                     p["_needs_swap"] = True
-                    negotiation_msgs.append({"type": d.get("conflict_type", ""), "from": d.get("challenger", "debate"), "message": f"[反驳替换] {d.get('reason', '')} → 替换 {target}", "severity": "medium"})
+                    negotiation_msgs.append(
+                        {
+                            "type": d.get("conflict_type", ""),
+                            "from": d.get("challenger", "debate"),
+                            "message": f"[反驳替换] {d.get('reason', '')} → 替换 {target}",
+                            "severity": "medium",
+                        }
+                    )
                     break
     return cleaned
 
@@ -229,5 +309,15 @@ async def group_debate(state: TravelState) -> dict:
     return {
         "proposals": cleaned,
         "negotiation_msgs": negotiation_msgs,
-        "conflicts": rule_conflicts + [{"type": d.get("conflict_type", ""), "target_name": d.get("target_name", ""), "resolution": d.get("resolution", "keep"), "severity": "medium"} for d in debate_results if d.get("resolution") in ("remove", "swap")],
+        "conflicts": rule_conflicts
+        + [
+            {
+                "type": d.get("conflict_type", ""),
+                "target_name": d.get("target_name", ""),
+                "resolution": d.get("resolution", "keep"),
+                "severity": "medium",
+            }
+            for d in debate_results
+            if d.get("resolution") in ("remove", "swap")
+        ],
     }

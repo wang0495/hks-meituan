@@ -675,14 +675,27 @@ def _is_late_night_time(time_str: str) -> bool:
 
 
 _VALID_CONSTRAINTS = {
-    "queue_intolerant", "accessible", "pet_friendly", "indoor_only",
-    "outdoor_preferred", "late_night", "needs_entertainment", "free",
-    "低人流", "儿童友好", "排队容忍度<10min",
+    "queue_intolerant",
+    "accessible",
+    "pet_friendly",
+    "indoor_only",
+    "outdoor_preferred",
+    "late_night",
+    "needs_entertainment",
+    "free",
+    "低人流",
+    "儿童友好",
+    "排队容忍度<10min",
 }
 
 _DEFAULT_DEMAND_VECTOR = {
-    "efficiency_seeking": 0.5, "excitement_seeking": 0.5, "tranquility_seeking": 0.5,
-    "budget_sensitivity": 0.5, "novelty_seeking": 0.5, "social_desire": 0.5, "physical_energy": 0.5,
+    "efficiency_seeking": 0.5,
+    "excitement_seeking": 0.5,
+    "tranquility_seeking": 0.5,
+    "budget_sensitivity": 0.5,
+    "novelty_seeking": 0.5,
+    "social_desire": 0.5,
+    "physical_energy": 0.5,
 }
 
 
@@ -701,7 +714,9 @@ def _validate_budget(intent: dict) -> None:
 def _apply_post_processing(intent: dict, user_input: str) -> None:
     """对解析结果进行后处理。"""
     dv = intent.pop("demand_vector", None) if isinstance(intent, dict) else None
-    if dv and all(k in dv for k in ("efficiency_seeking", "excitement_seeking", "tranquility_seeking")):
+    if dv and all(
+        k in dv for k in ("efficiency_seeking", "excitement_seeking", "tranquility_seeking")
+    ):
         intent["_demand_vector"] = dv
     else:
         intent["_demand_vector"] = dict(_DEFAULT_DEMAND_VECTOR)
@@ -712,7 +727,9 @@ def _apply_post_processing(intent: dict, user_input: str) -> None:
             intent["emotion_need"] = need
 
     _validate_budget(intent)
-    intent["hard_constraints"] = list(set(c for c in intent.get("hard_constraints", []) if c in _VALID_CONSTRAINTS))
+    intent["hard_constraints"] = list(
+        set(c for c in intent.get("hard_constraints", []) if c in _VALID_CONSTRAINTS)
+    )
 
     cats = intent.get("preferred_categories", [])
     if len(cats) > 8:
@@ -749,7 +766,9 @@ def _apply_late_night_fix(intent: dict, user_input: str) -> None:
             intent["time"] = {"period": "深夜", "start": "22:00", "end": "06:00"}
             logger.debug("深夜时间修正: %s → 22:00-06:00", start)
     else:
-        intent["hard_constraints"] = [c for c in intent.get("hard_constraints", []) if c != "late_night"]
+        intent["hard_constraints"] = [
+            c for c in intent.get("hard_constraints", []) if c != "late_night"
+        ]
         logger.debug("移除late_night约束（无明确深夜关键词）")
 
 
@@ -774,7 +793,6 @@ async def parse_intent(user_input: str) -> dict:
 
 async def _try_llm_parse(user_input: str) -> tuple[dict | None, bool, str]:
     """尝试LLM解析，返回 (intent, llm_used, llm_error)。"""
-    llm_used = False
     llm_error = ""
 
     for attempt in range(3):
