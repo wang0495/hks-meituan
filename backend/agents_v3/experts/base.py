@@ -382,6 +382,43 @@ _GENERIC_TOOLS = [
 _GENERIC_TOOL_CHOICE = {"type": "function", "function": {"name": "submit_result"}}
 
 
+def _validate_llm_result(result: dict) -> str | None:
+    """验证LLM结果，返回错误信息或None。"""
+    bad_keys = []
+    for key in ("picks", "issues", "ordered_stops"):
+        items = result.get(key)
+        if isinstance(items, list):
+            before = len(items)
+            result[key] = [i for i in items if isinstance(i, dict)]
+            if len(result[key]) < before:
+                bad_keys.append(f"{key}: 列表中有{before - len(result[key])}个非dict元素被过滤")
+    return "JSON结构问题: " + "; ".join(bad_keys) if bad_keys else None
+
+
+def _build_llm_kwargs(model: str, is_ds: bool, system_prompt: str, user_content: str, temperature: float) -> tuple[dict, bool]:
+    """构建LLM调用参数。"""
+    kwargs: dict = dict(
+        model=model,
+        messages=[
+            {"role": "system", "content": system_prompt + "\n你必须输出合法JSON。"},
+            {"role": "user", "content": user_content},
+        ],
+        temperature=temperature,
+        max_tokens=2000,
+    )
+    use_tools = False
+    if is_ds:
+        kwargs["response_format"] = {"type": "json_object"}
+        kwargs["extra_body"] = {"thinking": {"type": "disabled"}}
+    elif "qwen" in model.lower():
+        use_tools = True
+        kwargs["tools"] = _GENERIC_TOOLS
+        kwargs["tool_choice"] = _GENERIC_TOOL_CHOICE
+    else:
+        kwargs["response_format"] = {"type": "json_object"}
+    return kwargs, use_tools
+
+
 async def _llm_decide(
     system_prompt: str,
     user_prompt: str,
@@ -390,84 +427,35 @@ async def _llm_decide(
     prefix: str = "EXPERT_LLM",
     temperature: float = 0.1,
 ) -> dict | None:
-    """Call LLM for a decision, returning structured JSON output.
-
-    prefix controls which env vars to read for model/client selection.
-    Uses Instructor-style error-informed retry: on failure, feeds the
-    specific error back to the LLM so it can correct its output.
-
-    Results are cached for 5 minutes (same model + prompts + temperature).
-    """
-    # Check cache first (skip for non-deterministic temperatures)
+    """Call LLM for a decision, returning structured JSON output."""
     cache_key = _llm_cache_key(system_prompt, user_prompt, prefix, temperature)
     if temperature <= 0.2:
         cached = _llm_cache_get(cache_key)
         if cached is not None:
-            return {**cached}  # shallow copy to prevent mutation
+            return {**cached}
 
-    # ML-based injection check on user_prompt (defense-in-depth)
     is_safe, risk = _ml_injection_check(user_prompt)
     if not is_safe and risk > _ML_INJECTION_THRESHOLD:
-        logger.warning(
-            "LLM call blocked: ML injection check failed risk=%.2f prefix=%s prompt=%.100s",
-            risk,
-            prefix,
-            user_prompt[:100],
-        )
+        logger.warning("LLM call blocked: ML injection check failed risk=%.2f prefix=%s prompt=%.100s", risk, prefix, user_prompt[:100])
         return None
 
     client = _get_llm_client(prefix)
     model = _llm_model(prefix)
     is_ds = _is_deepseek(prefix)
     error_feedback = ""
+
     for attempt in range(retries):
         try:
-            user_content = user_prompt
-            if error_feedback:
-                user_content += (
-                    f"\n\n【上次输出有误，请修正】\n{error_feedback}\n请重新输出正确的JSON。"
-                )
-            kwargs: dict = dict(
-                model=model,
-                messages=[
-                    {"role": "system", "content": system_prompt + "\n你必须输出合法JSON。"},
-                    {"role": "user", "content": user_content},
-                ],
-                temperature=temperature,
-                max_tokens=2000,
-            )
-            use_tools = False
-            if is_ds:
-                kwargs["response_format"] = {"type": "json_object"}
-                kwargs["extra_body"] = {"thinking": {"type": "disabled"}}
-            elif "qwen" in model.lower():
-                # Qwen: 用 tools 替代 response_format，避免 NotEnoughCvError
-                use_tools = True
-                kwargs["tools"] = _GENERIC_TOOLS
-                kwargs["tool_choice"] = _GENERIC_TOOL_CHOICE
-            else:
-                kwargs["response_format"] = {"type": "json_object"}
+            user_content = user_prompt + (f"\n\n【上次输出有误，请修正】\n{error_feedback}\n请重新输出正确的JSON。" if error_feedback else "")
+            kwargs, use_tools = _build_llm_kwargs(model, is_ds, system_prompt, user_content, temperature)
             resp = await client.chat.completions.create(**kwargs)
             msg = resp.choices[0].message
-            if use_tools and msg.tool_calls:
-                text = msg.tool_calls[0].function.arguments or ""
-            else:
-                text = msg.content or ""
+            text = (msg.tool_calls[0].function.arguments if use_tools and msg.tool_calls else msg.content) or ""
+
             result = _extract_json(text)
-            # Ensure list items are dicts (LLM sometimes returns
-            # {"picks": ["name"]} instead of {"picks": [{"name": "name"}]})
-            bad_keys = []
-            for key in ("picks", "issues", "ordered_stops"):
-                items = result.get(key)
-                if isinstance(items, list):
-                    before = len(items)
-                    result[key] = [i for i in items if isinstance(i, dict)]
-                    if len(result[key]) < before:
-                        bad_keys.append(
-                            f"{key}: 列表中有{before - len(result[key])}个非dict元素被过滤"
-                        )
-            if bad_keys:
-                error_feedback = "JSON结构问题: " + "; ".join(bad_keys)
+            validation_error = _validate_llm_result(result)
+            if validation_error:
+                error_feedback = validation_error
             else:
                 if temperature <= 0.2:
                     _llm_cache_set(cache_key, result)
@@ -476,9 +464,8 @@ async def _llm_decide(
             error_feedback = f"解析失败: {str(e)[:200]}"
             if attempt < retries - 1:
                 await asyncio.sleep(2)
-    logger.warning(
-        "_llm_decide failed after %d retries: prefix=%s, error=%s", retries, prefix, error_feedback
-    )
+
+    logger.warning("_llm_decide failed after %d retries: prefix=%s, error=%s", retries, prefix, error_feedback)
     return None
 
 
