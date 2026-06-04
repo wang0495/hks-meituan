@@ -227,11 +227,13 @@ def _geo_cluster_filter(proposals: list[dict], all_candidates: list[dict]) -> li
 # ---------------------------------------------------------------------------
 
 
-def _smart_poi_selection(candidates: list[dict], intent: dict, user_input: str) -> list[dict]:
-    """智能POI选择规则引擎：多维评分。"""
+_EXPERT_EXCLUDE_CATS = ["住宿", "酒店", "民宿", "餐饮", "美食"]
+
+
+def _expand_expert_keywords(user_input: str, base_keywords: list[str]) -> list[str]:
+    """扩展关键词。"""
+    keywords = list(base_keywords)
     text = user_input.lower()
-    keywords = intent.get("preferred_categories", [])
-    # 扩展关键词
     if "拍照" in text:
         keywords.extend(["拍照", "出片", "网红"])
     if "海鲜" in text or "美食" in text:
@@ -242,64 +244,54 @@ def _smart_poi_selection(candidates: list[dict], intent: dict, user_input: str) 
         keywords.extend(["海滨", "海", "沙滩", "海岛"])
     if "公园" in text:
         keywords.extend(["公园", "绿道"])
+    return keywords
 
+
+def _score_expert_poi(candidate: dict, keywords: list[str], budget: float, group_type: str) -> float:
+    """计算POI专家评分。"""
+    score = 0.0
+    rating = candidate.get("rating", 4.0)
+    score += (rating - 3.5) * 0.15
+    score += _tag_similarity(candidate, keywords) * 0.3
+
+    price = candidate.get("avg_price", 0)
+    if budget > 0 and price <= budget:
+        score += 0.1
+    elif budget > 0 and price > budget * 1.5:
+        score -= 0.2
+
+    llm_quality = candidate.get("_llm_quality", {})
+    if llm_quality.get("is_tourist"):
+        score += 0.15
+    score += llm_quality.get("score", 0) * 0.05
+
+    if candidate.get("_scene_tags"):
+        score += 0.05
+
+    suitability = candidate.get("_suitability", {})
+    if group_type == "亲子" and suitability.get("亲子友好"):
+        score += 0.15
+    if group_type == "情侣" and suitability.get("情侣友好"):
+        score += 0.15
+    if ("退休" in group_type or "养老" in group_type) and suitability.get("老年友好"):
+        score += 0.15
+
+    return score
+
+
+def _smart_poi_selection(candidates: list[dict], intent: dict, user_input: str) -> list[dict]:
+    """智能POI选择规则引擎：多维评分。"""
+    keywords = _expand_expert_keywords(user_input, intent.get("preferred_categories", []))
     budget = intent.get("budget", {}).get("per_person", 500)
     pace = intent.get("pace", "平衡型")
     max_picks = 8 if "特种兵" in pace else (4 if "闲逛" in pace else 5)
+    group_type = intent.get("group", {}).get("type", "")
 
-    scored = []
-    for c in candidates:
-        # 跳过住宿和餐饮类
-        cat = c.get("category", "")
-        if cat in ["住宿", "酒店", "民宿", "餐饮", "美食"]:
-            continue
-
-        score = 0.0
-        # 评分维度1: 基础质量
-        rating = c.get("rating", 4.0)
-        score += (rating - 3.5) * 0.15  # 4.0→0.075, 4.5→0.15
-
-        # 评分维度2: 标签相似度
-        tag_sim = _tag_similarity(c, keywords)
-        score += tag_sim * 0.3
-
-        # 评分维度3: 预算匹配
-        price = c.get("avg_price", 0)
-        if budget > 0 and price <= budget:
-            score += 0.1
-        elif budget > 0 and price > budget * 1.5:
-            score -= 0.2
-
-        # 评分维度4: 旅游质量
-        llm_quality = c.get("_llm_quality", {})
-        if llm_quality.get("is_tourist"):
-            score += 0.15
-        q_score = llm_quality.get("score", 0)
-        score += q_score * 0.05
-
-        # 评分维度5: 场景标签
-        scene_tags = c.get("_scene_tags", [])
-        if scene_tags:
-            score += 0.05
-
-        # 评分维度6: 适合度
-        suitability = c.get("_suitability", {})
-        group_type = intent.get("group", {}).get("type", "")
-        if group_type == "亲子" and suitability.get("亲子友好"):
-            score += 0.15
-        if group_type == "情侣" and suitability.get("情侣友好"):
-            score += 0.15
-        if ("退休" in group_type or "养老" in group_type) and suitability.get("老年友好"):
-            score += 0.15
-
-        scored.append((c, score))
-
-    # 排序+多样性筛选
+    scored = [(c, _score_expert_poi(c, keywords, budget, group_type)) for c in candidates if c.get("category", "") not in _EXPERT_EXCLUDE_CATS]
     scored.sort(key=lambda x: x[1], reverse=True)
 
-    # 确保类别多样性
     selected = []
-    seen_categories = set()
+    seen_categories: set[str] = set()
     for c, s in scored:
         cat = c.get("category", "未知")
         if len(selected) >= max_picks:
