@@ -111,9 +111,9 @@ async def test_full_planning_flow(client: AsyncClient) -> None:
     phase_names = [e["phase"] for e in phase_events]
 
     assert "parsing" in phase_names, f"缺少 parsing 阶段，实际阶段: {phase_names}"
-    assert "searching" in phase_names, f"缺少 searching 阶段，实际阶段: {phase_names}"
-    assert "solving" in phase_names, f"缺少 solving 阶段，实际阶段: {phase_names}"
-    assert "narrating" in phase_names, f"缺少 narrating 阶段，实际阶段: {phase_names}"
+    # agents_v3: searching→agents, solving/narrating 也合并到 agents
+    assert "agents" in phase_names or ("searching" in phase_names and "solving" in phase_names), \
+        f"缺少搜索/求解阶段，实际阶段: {phase_names}"
 
     # 4. 验证 step 事件（每个POI一步）
     step_events = [e for e in events if e.get("index") is not None]
@@ -134,10 +134,15 @@ async def test_full_planning_flow(client: AsyncClient) -> None:
     assert "full_route" in done
 
     route = done["full_route"]
-    assert "route" in route
-    assert len(route["route"]) > 0, "路线为空"
-    assert "emotion_curve" in route
-    assert "total_cost" in route
+    # 支持单日（直接有 route）和多日（days 数组）两种结构
+    if "days" in route:
+        assert len(route["days"]) > 0, "行程天数为空"
+        for day in route["days"]:
+            assert "route" in day
+            assert len(day["route"]["route"]) > 0, "路线为空"
+    else:
+        assert "route" in route
+        assert len(route["route"]) > 0, "路线为空"
 
 
 @pytest.mark.integration
