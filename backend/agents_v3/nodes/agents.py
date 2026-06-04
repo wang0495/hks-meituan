@@ -690,83 +690,58 @@ def _smart_poi_selection(candidates: list[dict], intent: dict, user_input: str) 
 # ═══════════════════════════════════════════════════════════
 
 
+_FOOD_CATEGORIES = ["餐饮", "美食", "小吃", "海鲜", "餐厅", "夜市", "茶餐厅", "甜品", "饮品"]
+_FOOD_NAME_KEYWORDS = ["餐厅", "海鲜", "烧", "煲", "粉", "面", "火锅", "烧烤", "夜市", "粥", "蚝", "排档", "甜品", "奶茶", "冰", "茶餐厅", "柠檬", "美食街", "海鲜街", "老街"]
+_EXCLUDED_CATEGORIES = ["购物", "酒店", "住宿"]
+
+
+def _is_food_poi(poi: dict) -> bool:
+    """判断POI是否为餐饮类。"""
+    cat = poi.get("category", "")
+    name = poi.get("name", "")
+    if cat in _EXCLUDED_CATEGORIES:
+        return False
+    if _is_likely_macau(name):
+        return False
+    if poi.get("rating") is None:
+        return False
+    return any(kw in cat for kw in _FOOD_CATEGORIES) or any(kw in name for kw in _FOOD_NAME_KEYWORDS)
+
+
 async def food_agent(state: TravelState) -> dict:
     """餐饮Agent：独立加载全部餐饮数据 → LLM选餐厅 → 提案。"""
     meta = AGENT_META.get("food", {})
     await sse_emit(state, "agent_start", {"agent": "food", **meta})
-    await sse_emit(
-        state, "agent_thinking", {"agent": "food", "text": "加载餐饮POI，5子类各取TOP3..."}
-    )
+    await sse_emit(state, "agent_thinking", {"agent": "food", "text": "加载餐饮POI，5子类各取TOP3..."})
 
-    # ── 感知 ──
     intent = state.get("user_intent", {})
     user_input = state.get("user_input", "")
     scene_type = state.get("scene_type", "观光型")
     candidates = state.get("candidates", [])
 
-    # ── 读取review反馈 ──
     feedback = state.get("review_feedback", [])
     food_feedback = [f for f in feedback if f.get("agent") == "food"]
     feedback_hint = ""
     if food_feedback:
         hints = "; ".join(f"{f['issue']} → {f['suggestion']}" for f in food_feedback)
         feedback_hint = f"\n\n【上一轮审查反馈，必须据此调整】\n{hints}"
-    candidates = state.get("candidates", [])
 
-    # 从美团API获取全部餐饮POI（不依赖candidates过滤）
     all_pois = await _load_all_pois()
-    # 只保留目标城市
     target_city = intent.get("city", "珠海")
     all_pois = [p for p in all_pois if p.get("city", "") == target_city or not p.get("city")]
-    food_cats = ["餐饮", "美食", "小吃", "海鲜", "餐厅", "夜市", "茶餐厅", "甜品", "饮品"]
-    food_names = [
-        "餐厅",
-        "海鲜",
-        "烧",
-        "煲",
-        "粉",
-        "面",
-        "火锅",
-        "烧烤",
-        "夜市",
-        "粥",
-        "蚝",
-        "排档",
-        "甜品",
-        "奶茶",
-        "冰",
-        "茶餐厅",
-        "柠檬",
-        "美食街",
-        "海鲜街",
-        "老街",
-    ]
-    foods = [
-        c
-        for c in all_pois
-        if (
-            any(kw in c.get("category", "") for kw in food_cats)
-            or any(kw in c.get("name", "") for kw in food_names)
-        )
-        and c.get("category", "") not in ["购物", "酒店", "住宿"]  # 排除非餐饮类
-        and not _is_likely_macau(c.get("name", ""))
-        and c.get("rating") is not None  # 过滤垃圾POI
-    ]
+    foods = [c for c in all_pois if _is_food_poi(c)]
 
-    # 如果太少，也从candidates里找
     if len(foods) < 3:
         for c in candidates:
-            if any(kw in c.get("name", "") for kw in food_names) and c not in foods:
+            if any(kw in c.get("name", "") for kw in _FOOD_NAME_KEYWORDS) and c not in foods:
                 foods.append(c)
 
-    # 提取主要景点位置（供LLM判断餐厅与景点的地理关系）
     poi_locations = []
     for c in candidates[:20]:
         if c.get("category", "") not in ["住宿", "酒店", "民宿", "餐饮", "美食"]:
             lat, lng = c.get("lat", 0), c.get("lng", 0)
             if lat and lng:
-                poi_locations.append(
-                    {
+                poi_locations.append({
                         "name": c.get("name", ""),
                         "lat": round(lat, 3),
                         "lng": round(lng, 3),
