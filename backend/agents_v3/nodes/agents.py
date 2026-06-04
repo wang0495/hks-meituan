@@ -708,6 +708,144 @@ def _is_food_poi(poi: dict) -> bool:
     return any(kw in cat for kw in _FOOD_CATEGORIES) or any(kw in name for kw in _FOOD_NAME_KEYWORDS)
 
 
+_FOOD_SUBCATS: dict[str, list[str]] = {
+    "海鲜": ["海鲜", "蚝", "鱼排", "渔港"],
+    "正餐": ["餐厅", "烧", "煲", "火锅", "烧烤"],
+    "小吃": ["粉", "面", "粥", "小吃", "排档"],
+    "茶餐厅/甜品": ["茶餐厅", "甜品", "奶茶", "冰", "柠檬", "饮品"],
+    "综合美食街": ["夜市", "美食街", "海鲜街", "老街"],
+}
+
+_FOOD_SYSTEM_PREFIX = """你是珠海美食推荐专家。根据用户需求从候选餐厅中挑选最合适的组合。
+
+核心要求（按优先级）：
+1. 【地理就近】午餐选上午游览景点附近（坐标相近的），晚餐选下午/傍晚景点附近
+2. 【时段匹配】
+   - 午餐(11:00-13:00)：用户通常在第2-3个景点后用餐，选该区域的特色餐厅
+   - 晚餐(17:00-19:00)：用户通常在最后1-2个景点附近，选评价好的正餐
+3. 【预算合理】人均不超预算，高评分优先
+4. 【类型搭配·硬约束】
+   - 夜市/美食街/海鲜街属于综合性美食场所，内部已有小吃+海鲜+甜品等多种，选1个就够了
+   - 搭配原则：1个正餐（如海鲜餐厅/茶餐厅）+ 1个休闲（咖啡/甜品）+ 最多1个夜市/美食街
+   - 禁止选2个以上夜市/美食街/海鲜街
+   - 禁止全选同类型（如全是海鲜排档）
+   - 参考UGC评价中提到的菜品和口碑来选择"""
+
+
+def _stratified_sample(foods: list[dict], score_fn) -> tuple[list[dict], dict[str, str]]:
+    """分层采样：按子类别分组，规则预排top3。"""
+    stratified = []
+    subcat_map: dict[str, str] = {}
+    seen_names: set[str] = set()
+
+    for sub_name, kws in _FOOD_SUBCATS.items():
+        bucket = [f for f in foods if any(kw in f.get("name", "") or kw in f.get("category", "") for kw in kws) and f.get("name", "") not in seen_names]
+        bucket.sort(key=score_fn, reverse=True)
+        for f in bucket[:3]:
+            stratified.append(f)
+            subcat_map[f.get("name", "")] = sub_name
+            seen_names.add(f.get("name", ""))
+
+    return stratified, subcat_map
+
+
+def _build_food_summaries(stratified: list[dict], subcat_map: dict[str, str]) -> list[dict]:
+    """构建给LLM的餐饮摘要。"""
+    return [{"name": f.get("name", ""), "type": subcat_map.get(f.get("name", ""), "其他"), "cat": f.get("category", ""), "price": f.get("avg_price", 0), "rating": f.get("rating", 0), "tags": f.get("tags", [])[:3], "lat": round(f.get("lat", 0), 3) if f.get("lat") else None, "lng": round(f.get("lng", 0), 3) if f.get("lng") else None, "reviews": f.get("_ugc_summary", "")} for f in stratified[:15]]
+
+
+def _build_food_system_prompt(scene_type: str, intent: dict, user_input: str, group_type: str) -> str:
+    """构建餐饮LLM系统提示。"""
+    if scene_type == "美食型":
+        scene_reqs_text = " ".join(intent.get("scene_requirements", []))
+        intent_hint = _food_intent_hint(scene_reqs_text, user_input)
+        return _FOOD_SYSTEM_PREFIX + f"""
+5. 【美食场景特化·重要】
+   - 用户就是为了吃来的！这是美食探索路线，餐饮是核心不是配角
+   - 选4-5家不同类型的餐厅/小吃，必须覆盖至少3种子类：
+     · 正餐（海鲜餐厅/粤菜餐厅）
+     · 小吃（粉面粥/排档）
+     · 甜品/饮品（茶餐厅/奶茶/甜品铺）
+     · 综合美食场所（夜市/美食街/海鲜街）——最多只选1个！这类场所内部已有多种
+   - 禁止选2个以上综合美食场所（夜市+美食街+海鲜街 都属于同一类）
+   - 禁止全是海鲜（排档+海鲜市场+海鲜夜市都算海鲜一类）
+   - 可以安排午餐+下午茶+晚餐的完整美食时间线
+   - 每家之间的地理位置可以稍远（美食探索本身就是目的）
+{intent_hint}
+输出JSON: {{"picks":[{{"name":"店名","reason":"推荐理由","confidence":0.8,"meal_time":"午餐/下午茶/晚餐"}}]}}
+选4-5个。只输出JSON。"""
+
+    group_hint = ""
+    if group_type == "亲子":
+        group_hint = "亲子：选环境好、有儿童餐的；"
+    elif group_type == "情侣":
+        group_hint = "情侣：选氛围好的特色餐厅；"
+    if "特种兵" in user_input:
+        group_hint += "特种兵：选快节奏、不用排队的。"
+
+    return _FOOD_SYSTEM_PREFIX + f"""
+5. 【群体适配】{group_hint}
+
+输出JSON: {{"picks":[{{"name":"店名","reason":"推荐理由（含与哪个景点就近）","confidence":0.8,"meal_time":"午餐/晚餐"}}]}}
+最多选3个。只输出JSON。"""
+
+
+def _build_food_user_prompt(user_input: str, scene_type: str, intent: dict, group_type: str, poi_locations: list[dict], stratified: list[dict], summaries: list[dict], feedback_hint: str) -> str:
+    """构建餐饮LLM用户提示。"""
+    return f"""用户需求: {user_input}
+场景类型: {scene_type}
+预算: {intent.get('budget', {}).get('per_person', '不限')}元/人
+群体: {group_type or '未知'}
+
+用户可能游览的景点位置:
+{json.dumps(poi_locations[:10], ensure_ascii=False)}
+
+候选餐厅（{len(stratified)}家，分层采样）:
+{json.dumps(summaries, ensure_ascii=False)}
+{feedback_hint}
+请根据餐厅与景点的坐标距离，推荐最方便的就餐选择。"""
+
+
+def _match_food_picks(picks_data: list[dict], foods: list[dict]) -> list[dict]:
+    """匹配LLM picks到food POI。"""
+    matched = []
+    name_map = {f.get("name", ""): f for f in foods}
+    for pick in picks_data:
+        name = pick.get("name", "")
+        content = name_map.get(name)
+        if not content:
+            for f in foods:
+                if name in f.get("name", "") or f.get("name", "") in name:
+                    content = f
+                    break
+        if content:
+            matched.append(_proposal("food", content, pick.get("confidence", 0.7), pick.get("reason", "LLM推荐")))
+    return matched
+
+
+async def _reselect_food(system: str, proposals: list[dict], issues: list[str], summaries: list[dict], foods: list[dict]) -> list[dict]:
+    """带反馈重选餐饮。"""
+    current_info = [f"{p['content']['name']}({_get_food_subcat(p['content']['name'], _FOOD_SUBCATS)})" for p in proposals if p.get("content", {}).get("name")]
+    feedback = "\n".join(f"❌ {i}" for i in issues)
+    reselect_user = f"""你之前选了: {', '.join(current_info)}
+
+存在的问题:
+{feedback}
+
+请从候选餐厅重新选择，确保子类型多样:
+{json.dumps(summaries, ensure_ascii=False)}
+
+输出JSON: {{"picks":[{{"name":"店名","reason":"理由","confidence":0.8,"meal_time":"午餐/下午茶/晚餐"}}]}}
+不要重复之前的错误。"""
+
+    new_result = await _llm_decide(system, reselect_user)
+    if new_result and "picks" in new_result:
+        new_proposals = _match_food_picks(new_result["picks"], foods)
+        if new_proposals:
+            return new_proposals
+    return proposals
+
+
 async def food_agent(state: TravelState) -> dict:
     """餐饮Agent：独立加载全部餐饮数据 → LLM选餐厅 → 提案。"""
     meta = AGENT_META.get("food", {})
@@ -766,162 +904,22 @@ async def food_agent(state: TravelState) -> dict:
                 s -= dist * 0.05
         return s
 
-    # 分层采样：按子类别分组，规则预排top3，确保多样性
-    _FOOD_SUBCATS = {
-        "海鲜": ["海鲜", "蚝", "鱼排", "渔港"],
-        "正餐": ["餐厅", "烧", "煲", "火锅", "烧烤"],
-        "小吃": ["粉", "面", "粥", "小吃", "排档"],
-        "茶餐厅/甜品": ["茶餐厅", "甜品", "奶茶", "冰", "柠檬", "饮品"],
-        "综合美食街": ["夜市", "美食街", "海鲜街", "老街"],
-    }
-    stratified = []
-    subcat_map = {}  # name -> subcat
-    seen_names = set()
-    for sub_name, kws in _FOOD_SUBCATS.items():
-        bucket = [
-            f
-            for f in foods
-            if any(kw in f.get("name", "") or kw in f.get("category", "") for kw in kws)
-            and f.get("name", "") not in seen_names
-        ]
-        bucket.sort(key=_food_rule_score, reverse=True)
-        for f in bucket[:3]:
-            stratified.append(f)
-            subcat_map[f.get("name", "")] = sub_name
-            seen_names.add(f.get("name", ""))
-
-    # 给LLM的摘要（含坐标+UGC评价）
-    summaries = [
-        {
-            "name": f.get("name", ""),
-            "type": subcat_map.get(f.get("name", ""), "其他"),
-            "cat": f.get("category", ""),
-            "price": f.get("avg_price", 0),
-            "rating": f.get("rating", 0),
-            "tags": f.get("tags", [])[:3],
-            "lat": round(f.get("lat", 0), 3) if f.get("lat") else None,
-            "lng": round(f.get("lng", 0), 3) if f.get("lng") else None,
-            "reviews": f.get("_ugc_summary", ""),
-        }
-        for f in stratified[:15]
-    ]
-
+    stratified, subcat_map = _stratified_sample(foods, _food_rule_score)
+    summaries = _build_food_summaries(stratified, subcat_map)
     group_type = intent.get("group", {}).get("type", "")
 
-    # ── 决策：LLM（按场景分化） ──
-    # 固定前缀（缓存命中）
-    _FOOD_SYSTEM_PREFIX = """你是珠海美食推荐专家。根据用户需求从候选餐厅中挑选最合适的组合。
-
-核心要求（按优先级）：
-1. 【地理就近】午餐选上午游览景点附近（坐标相近的），晚餐选下午/傍晚景点附近
-2. 【时段匹配】
-   - 午餐(11:00-13:00)：用户通常在第2-3个景点后用餐，选该区域的特色餐厅
-   - 晚餐(17:00-19:00)：用户通常在最后1-2个景点附近，选评价好的正餐
-3. 【预算合理】人均不超预算，高评分优先
-4. 【类型搭配·硬约束】
-   - 夜市/美食街/海鲜街属于综合性美食场所，内部已有小吃+海鲜+甜品等多种，选1个就够了
-   - 搭配原则：1个正餐（如海鲜餐厅/茶餐厅）+ 1个休闲（咖啡/甜品）+ 最多1个夜市/美食街
-   - 禁止选2个以上夜市/美食街/海鲜街
-   - 禁止全选同类型（如全是海鲜排档）
-   - 参考UGC评价中提到的菜品和口碑来选择"""
-
-    if scene_type == "美食型":
-        # ── 按用户子意图分化prompt ──
-        scene_reqs_text = " ".join(intent.get("scene_requirements", []))
-        intent_hint = _food_intent_hint(scene_reqs_text, user_input)
-
-        system = _FOOD_SYSTEM_PREFIX + f"""
-5. 【美食场景特化·重要】
-   - 用户就是为了吃来的！这是美食探索路线，餐饮是核心不是配角
-   - 选4-5家不同类型的餐厅/小吃，必须覆盖至少3种子类：
-     · 正餐（海鲜餐厅/粤菜餐厅）
-     · 小吃（粉面粥/排档）
-     · 甜品/饮品（茶餐厅/奶茶/甜品铺）
-     · 综合美食场所（夜市/美食街/海鲜街）——最多只选1个！这类场所内部已有多种
-   - 禁止选2个以上综合美食场所（夜市+美食街+海鲜街 都属于同一类）
-   - 禁止全是海鲜（排档+海鲜市场+海鲜夜市都算海鲜一类）
-   - 可以安排午餐+下午茶+晚餐的完整美食时间线
-   - 每家之间的地理位置可以稍远（美食探索本身就是目的）
-{intent_hint}
-输出JSON: {{"picks":[{{"name":"店名","reason":"推荐理由","confidence":0.8,"meal_time":"午餐/下午茶/晚餐"}}]}}
-选4-5个。只输出JSON。"""
-    else:
-        # 观光/目的地/特种兵/休闲：餐饮是配角，选2-3家
-        _GROUP_HINT = "亲子：选环境好、有儿童餐的；" if group_type == "亲子" else ""
-        _GROUP_HINT += "情侣：选氛围好的特色餐厅；" if group_type == "情侣" else ""
-        _GROUP_HINT += "特种兵：选快节奏、不用排队的。" if "特种兵" in user_input else ""
-        system = _FOOD_SYSTEM_PREFIX + f"""
-5. 【群体适配】{_GROUP_HINT}
-
-输出JSON: {{"picks":[{{"name":"店名","reason":"推荐理由（含与哪个景点就近）","confidence":0.8,"meal_time":"午餐/晚餐"}}]}}
-最多选3个。只输出JSON。"""
-
-    user = f"""用户需求: {user_input}
-场景类型: {scene_type}
-预算: {intent.get('budget', {}).get('per_person', '不限')}元/人
-群体: {group_type or '未知'}
-
-用户可能游览的景点位置:
-{json.dumps(poi_locations[:10], ensure_ascii=False)}
-
-候选餐厅（{len(stratified)}家，分层采样）:
-{json.dumps(summaries, ensure_ascii=False)}
-{feedback_hint}
-请根据餐厅与景点的坐标距离，推荐最方便的就餐选择。"""
+    system = _build_food_system_prompt(scene_type, intent, user_input, group_type)
+    user = _build_food_user_prompt(user_input, scene_type, intent, group_type, poi_locations, stratified, summaries, feedback_hint)
 
     result = await _llm_decide(system, user)
+    proposals = _match_food_picks(result.get("picks", []), foods) if result and "picks" in result else []
 
-    # 匹配LLM picks到food POI
-    def _match_food_picks(picks_data):
-        matched = []
-        name_map = {f.get("name", ""): f for f in foods}
-        for pick in picks_data:
-            name = pick.get("name", "")
-            content = name_map.get(name)
-            if not content:
-                for f in foods:
-                    if name in f.get("name", "") or f.get("name", "") in name:
-                        content = f
-                        break
-            if content:
-                matched.append(
-                    _proposal(
-                        "food", content, pick.get("confidence", 0.7), pick.get("reason", "LLM推荐")
-                    )
-                )
-        return matched
-
-    proposals = _match_food_picks(result.get("picks", [])) if result and "picks" in result else []
-
-    # LLM后验多样性检查 + 带反馈重选（最多2轮）
     for _ in range(2):
         issues = _check_food_diversity_issues(proposals, _FOOD_SUBCATS, scene_type)
         if not issues:
             break
-        current_info = [
-            f"{p['content']['name']}({_get_food_subcat(p['content']['name'], _FOOD_SUBCATS)})"
-            for p in proposals
-            if p.get("content", {}).get("name")
-        ]
-        feedback = "\n".join(f"❌ {i}" for i in issues)
-        reselect_user = f"""你之前选了: {', '.join(current_info)}
+        proposals = await _reselect_food(system, proposals, issues, summaries, foods)
 
-存在的问题:
-{feedback}
-
-请从候选餐厅重新选择，确保子类型多样:
-{json.dumps(summaries, ensure_ascii=False)}
-
-输出JSON: {{"picks":[{{"name":"店名","reason":"理由","confidence":0.8,"meal_time":"午餐/下午茶/晚餐"}}]}}
-不要重复之前的错误。"""
-
-        new_result = await _llm_decide(system, reselect_user)
-        if new_result and "picks" in new_result:
-            new_proposals = _match_food_picks(new_result["picks"])
-            if new_proposals:
-                proposals = new_proposals
-
-    # ── 降级：智能规则 ──
     if not proposals:
         proposals = _smart_food_selection(foods, intent, user_input)
 
