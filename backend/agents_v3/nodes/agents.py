@@ -982,76 +982,57 @@ def _smart_food_selection(foods: list[dict], intent: dict, user_input: str) -> l
 # ═══════════════════════════════════════════════════════════
 
 
+_HOTEL_KEYWORDS = ["住宿", "酒店", "民宿"]
+_HOTEL_NAME_KEYWORDS = ["酒店", "民宿", "宾馆", "公寓"]
+
+
+async def _check_need_hotel(user_input: str) -> bool:
+    """判断是否需要住宿。"""
+    if any(kw in user_input for kw in ["晚", "两", "二", "三天", "住宿", "酒店", "民宿", "二日", "两日", "过夜"]):
+        return True
+    judge = await _llm_decide('判断用户是否需要住宿。输出JSON: {"need":true/false,"reason":"理由"}', f"用户输入: {user_input}")
+    return bool(judge and judge.get("need"))
+
+
+def _filter_hotels(all_pois: list[dict], candidates: list[dict]) -> list[dict]:
+    """筛选住宿POI并去重。"""
+    hotel_sources = all_pois + candidates
+    hotels = [c for c in hotel_sources if any(kw in c.get("category", "") for kw in _HOTEL_KEYWORDS) or any(kw in c.get("name", "") for kw in _HOTEL_NAME_KEYWORDS)]
+    seen: set[str] = set()
+    unique = []
+    for h in hotels:
+        name = h.get("name", "")
+        if name not in seen:
+            seen.add(name)
+            unique.append(h)
+    return unique
+
+
+def _build_hotel_summaries(hotels: list[dict], max_count: int = 20) -> list[dict]:
+    """构建住宿摘要。"""
+    return [{"name": h.get("name", ""), "price": h.get("avg_price", 0), "rating": h.get("rating", 0), "tags": h.get("tags", [])[:3], "area": h.get("tags", [""])[0] if h.get("tags") else "", "lat": round(h.get("lat", 0), 3) if h.get("lat") else None, "lng": round(h.get("lng", 0), 3) if h.get("lng") else None} for h in hotels[:max_count]]
+
+
 async def hotel_agent(state: TravelState) -> dict:
     """住宿Agent：感知是否需要住宿 → LLM选酒店 → 提案。"""
     meta = AGENT_META.get("hotel", {})
     await sse_emit(state, "agent_start", {"agent": "hotel", **meta})
     await sse_emit(state, "agent_thinking", {"agent": "hotel", "text": "分析住宿需求..."})
-    # ── 感知 ──
+
     candidates = state.get("candidates", [])
     intent = state.get("user_intent", {})
     user_input = str(state.get("user_input", ""))
 
-    # 判断是否需要住宿
-    need_hotel = any(
-        kw in user_input
-        for kw in ["晚", "两", "二", "三天", "住宿", "酒店", "民宿", "二日", "两日", "过夜"]
-    )
-    if not need_hotel:
-        # LLM判断是否隐含需要住宿
-        judge = await _llm_decide(
-            '判断用户是否需要住宿。输出JSON: {"need":true/false,"reason":"理由"}',
-            f"用户输入: {user_input}",
-        )
-        if judge and judge.get("need"):
-            need_hotel = True
-
-    if not need_hotel:
+    if not await _check_need_hotel(user_input):
         return {"proposals": []}
 
-    # 从美团API获取全部POI中找住宿
     all_pois = await _load_all_pois()
     target_city = intent.get("city", "珠海")
     all_pois = [p for p in all_pois if p.get("city", "") == target_city or not p.get("city")]
-    hotel_sources = all_pois + candidates
-    hotels = [
-        c
-        for c in hotel_sources
-        if any(kw in c.get("category", "") for kw in ["住宿", "酒店", "民宿"])
-        or any(kw in c.get("name", "") for kw in ["酒店", "民宿", "宾馆", "公寓"])
-    ]
-    # 去重
-    seen_names = set()
-    unique_hotels = []
-    for h in hotels:
-        name = h.get("name", "")
-        if name not in seen_names:
-            seen_names.add(name)
-            unique_hotels.append(h)
-    hotels = unique_hotels
+    hotels = _filter_hotels(all_pois, candidates)
 
-    # 提取主要景点位置
-    poi_locations = []
-    for c in candidates[:15]:
-        if c.get("category", "") not in ["住宿", "酒店", "民宿", "餐饮", "美食"]:
-            lat, lng = c.get("lat", 0), c.get("lng", 0)
-            if lat and lng:
-                poi_locations.append(
-                    {"name": c.get("name", ""), "lat": round(lat, 3), "lng": round(lng, 3)}
-                )
-
-    summaries = [
-        {
-            "name": h.get("name", ""),
-            "price": h.get("avg_price", 0),
-            "rating": h.get("rating", 0),
-            "tags": h.get("tags", [])[:3],
-            "area": h.get("tags", [""])[0] if h.get("tags") else "",
-            "lat": round(h.get("lat", 0), 3) if h.get("lat") else None,
-            "lng": round(h.get("lng", 0), 3) if h.get("lng") else None,
-        }
-        for h in hotels[:20]
-    ]
+    poi_locations = _extract_poi_locations(candidates, max_count=15)
+    summaries = _build_hotel_summaries(hotels)
 
     group_type = intent.get("group", {}).get("type", "")
     group_hint = ""
