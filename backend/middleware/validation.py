@@ -91,6 +91,8 @@ class InputValidationMiddleware(BaseHTTPMiddleware):
                     return JSONResponse(status_code=400, content={"detail": "请求体包含无效内容"})
         except Exception as e:
             logger.warning("input validation parse error: %s", e)
+            # Fail-closed: if we cannot validate the body, reject the request
+            return JSONResponse(status_code=400, content={"detail": "请求体解析失败"})
 
         return None
 
