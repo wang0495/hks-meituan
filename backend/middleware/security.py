@@ -5,10 +5,11 @@
 
 from __future__ import annotations
 
-import os
 from typing import TYPE_CHECKING
 
 from starlette.middleware.base import BaseHTTPMiddleware
+
+from backend.config import settings
 
 if TYPE_CHECKING:
     from fastapi import Request
@@ -34,8 +35,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         response.headers["X-XSS-Protection"] = "1; mode=block"
 
         # 强制 HTTPS — 仅生产环境启用（避免开发环境localhost被锁死）
-        env = os.getenv("ENVIRONMENT", "development")
-        if env in ("production", "prod", "staging"):
+        if settings.environment == "prod":
             response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
 
         # 内容安全策略：限制资源加载来源
