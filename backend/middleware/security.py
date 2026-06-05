@@ -39,13 +39,16 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
             response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
 
         # 内容安全策略：限制资源加载来源
+        # script-src: 'unsafe-inline' 用于前端内联 <script> 和 onclick 事件处理程序
+        #   'unsafe-eval' 未使用但前端目前依赖 'unsafe-inline'
+        #   只允许 self + unpkg.com (Leaflet.js CDN)
         response.headers["Content-Security-Policy"] = (
             "default-src 'self'; "
-            "script-src 'self' 'unsafe-inline' 'unsafe-eval'; "
+            "script-src 'self' 'unsafe-inline' https://unpkg.com; "
             "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
             "font-src 'self' https://fonts.gstatic.com data:; "
-            "img-src 'self' data: https:; "
-            "connect-src 'self' https:; "
+            "img-src 'self' data: https://*.basemaps.cartocdn.com https://tile.openstreetmap.org; "
+            "connect-src 'self' https://*.basemaps.cartocdn.com; "
             "frame-ancestors 'none'"
         )
 
