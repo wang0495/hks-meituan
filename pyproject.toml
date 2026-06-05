@@ -129,6 +129,15 @@ no_implicit_optional = true
 
 [[tool.mypy.overrides]]
 module = [
+    "backend.config.settings",
+    "backend.config.__init__",
+    "backend.errors",
+    "backend.schemas",
+]
+disallow_untyped_defs = true
+
+[[tool.mypy.overrides]]
+module = [
     "backend.tools.*",
     "backend.benchmarks.*",
     "scripts.*",

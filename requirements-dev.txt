@@ -17,6 +17,9 @@ mypy>=1.8.0
 isort>=5.13.0
 bandit>=1.7.0
 
+# MyPy 类型存根
+types-PyYAML>=6.0.0
+
 # Pre-commit
 pre-commit>=3.6.0
 
