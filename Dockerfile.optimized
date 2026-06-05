@@ -59,7 +59,7 @@ USER cityflow
 
 # 健康检查（使用应用自身的 /health 端点）
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
-    CMD curl -sf http://localhost:8000/health || exit 1
+    CMD curl -sf http://localhost:8000/api/health || exit 1
 
 # 暴露端口
 EXPOSE 8000
