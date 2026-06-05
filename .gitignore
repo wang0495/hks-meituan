@@ -12,7 +12,9 @@ htmlcov/
 
 # Env
 .env
-.env.*
+.env.dev
+.env.test
+.env.prod
 
 # Node
 node_modules/
@@ -34,10 +36,6 @@ test_results.xml
 test_report.html
 
 # Temp/test artifacts
-=0.3.0
-=0.4.0
-amap-jsapi-skill/
-cache/
 backups/
 eval_data/
 
