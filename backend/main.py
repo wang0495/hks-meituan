@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import copy
 import logging
+import os
 import uuid
 from contextlib import asynccontextmanager, suppress
 from pathlib import Path
@@ -392,9 +393,7 @@ app.add_middleware(ShutdownMiddleware)
 app.add_middleware(PrometheusMiddleware)
 
 # 速率限制（测试时跳过）
-import os as _os
-
-if not _os.environ.get("TESTING"):
+if not os.environ.get("TESTING"):
     app.add_middleware(
         RateLimitMiddleware,
         requests_per_minute=settings.security.rate_limit_per_minute,
