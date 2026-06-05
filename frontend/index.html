@@ -435,26 +435,7 @@ body::before {
   gap: 8px;
 }
 
-.day-switch { display: flex; gap: 4px; }
 
-.day-btn {
-  width: 30px; height: 30px;
-  border-radius: 8px;
-  border: 1px solid var(--border);
-  background: transparent;
-  color: var(--text-dim);
-  font-size: 12px;
-  font-weight: 700;
-  font-family: var(--font-mono);
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.day-btn.active {
-  background: var(--ink);
-  border-color: var(--ink);
-  color: var(--gold);
-}
 
 .route-steps {
   flex: 1;
@@ -1094,7 +1075,7 @@ body::before {
     <div class="up-section up-left">
       <div class="route-header">
         <h2>📍 路线规划</h2>
-        <div class="day-switch" id="daySwitch"></div>
+
       </div>
       <div class="route-steps" id="routeSteps">
         <div class="empty-state">
@@ -1146,7 +1127,6 @@ body::before {
             <h1>CityFlow</h1>
             <div class="tagline">Intelligent Route Planning</div>
           </div>
-          <span class="badge">MoE v3</span>
         </div>
         <!-- 城市选择 -->
         <div class="city-pills" id="cityPills">
@@ -1155,7 +1135,6 @@ body::before {
           <button class="city-pill disabled" data-city="深圳" title="即将开放">深圳</button>
         </div>
         <div class="search-wrap">
-          <div class="location-tag" id="startTag" onclick="toggleStartInput()" title="设置起点">📍</div>
           <input type="text" id="userInput" placeholder="描述你的出行需求..." autocomplete="off">
           <button class="send-btn" id="sendBtn" onclick="submitPlan()">→</button>
           <button class="stop-btn" id="stopBtn" onclick="stopPlan()">■</button>
@@ -1210,8 +1189,7 @@ body::before {
 const API_BASE = window.location.origin;
 
 const state = {
-  steps: [], currentDay: 1, totalDays: 1,
-  multiRoutes: [], routeId: null, isPlanning: false,
+  steps: [], routeId: null, isPlanning: false,
   canvas: null, abortController: null,
 };
 
@@ -1253,21 +1231,65 @@ function confirmStart() {
 }
 
 // ── 路线调整 ──
-function adjustRoute(instruction) {
+async function adjustRoute(instruction) {
   if (!state.routeId) { addChatMsg('请先规划路线'); return; }
   addChatMsg(instruction, 'user');
   showTyping('正在调整路线...');
-  fetch(`${API_BASE}/api/route/${state.routeId}/adjust?instruction=${encodeURIComponent(instruction)}`)
-    .then(r => r.json())
-    .then(data => {
-      hideTyping();
-      if (data.reply) addChatMsg(data.reply);
-      if (data.route) {
-        state.steps = data.route.route || [];
-        renderRoute();
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 120000);
+
+  try {
+    const resp = await fetch(
+      `${API_BASE}/api/route/${state.routeId}/adjust?instruction=${encodeURIComponent(instruction)}`,
+      { signal: controller.signal }
+    );
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+
+    const reader = resp.body.getReader();
+    const decoder = new TextDecoder();
+    let buf = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += decoder.decode(value, { stream: true });
+      const lines = buf.split('\n');
+      buf = lines.pop() || '';
+      let evtType = '';
+      for (const line of lines) {
+        if (line === '' || line === '\r') { evtType = ''; continue; }
+        const trimmed = line.replace(/\r$/, '');
+        if (trimmed.startsWith('event: ')) evtType = trimmed.slice(7).trim();
+        else if (trimmed.startsWith('data: ')) {
+          try {
+            const data = JSON.parse(trimmed.slice(6));
+            if (evtType === 'phase') {
+              updateTyping(data.message || '处理中...');
+            } else if (evtType === 'result') {
+              hideTyping();
+              if (data.reply) addChatMsg(data.reply);
+              if (data.route) {
+                state.steps = data.route.route || [];
+                renderAllSteps(state.steps);
+                renderRouteOnMap(state.steps);
+                renderStats(state.steps);
+              }
+            } else if (evtType === 'error') {
+              hideTyping();
+              addChatMsg('❌ ' + (data.error || '调整失败'));
+            }
+          } catch (_) {}
+        }
       }
-    })
-    .catch(e => { hideTyping(); addChatMsg('调整失败: ' + e.message); });
+    }
+    hideTyping();
+  } catch (e) {
+    hideTyping();
+    addChatMsg('调整失败: ' + (e.name === 'AbortError' ? '请求超时，请重试' : e.message));
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 function submitAdjust() {
   const val = document.getElementById('adjustInput').value.trim();
@@ -1491,42 +1513,18 @@ function renderSteps(steps, planVersion) {
 }
 
 // Force-render all steps from scratch (used by done handler)
-function renderAllSteps(steps, dayFilter) {
+function renderAllSteps(steps) {
   const c = document.getElementById('routeSteps');
   if (!steps.length) { c.innerHTML = ''; return; }
-  if (dayFilter !== undefined) {
-    const daySteps = steps.filter(s => (s.day || 1) === dayFilter);
-    c.innerHTML = daySteps.map((step, i) => {
-      const poi = step.poi || {};
-      return '<div class="step-card"><div class="step-num">' + (i+1) + '</div><div class="step-content"><div class="step-name">' + esc(poi.name || '站点 ' + (i+1)) + '</div><div class="step-meta">' +
-        (step.arrival_time ? '<span class="step-time">' + step.arrival_time + '</span>' : '') +
-        (poi.category ? '<span class="step-category">' + esc(poi.category) + '</span>' : '') +
-        '</div>' +
-        (step.narrative ? '<div class="step-narrative">' + esc(step.narrative) + '</div>' : '') +
-        '</div></div>';
-    }).join('');
-    lastRenderedStep = daySteps.length - 1;
-    c.scrollTop = c.scrollTop;
-    return;
-  }
-  const days = [...new Set(steps.map(s => s.day || 1))].sort((a,b) => a-b);
-  let html = '';
-  for (const day of days) {
-    const daySteps = steps.filter(s => (s.day || 1) === day);
-    if (days.length > 1) {
-      html += '<div class="day-header">Day ' + day + '</div>';
-    }
-    daySteps.forEach((step, i) => {
-      const poi = step.poi || {};
-      html += '<div class="step-card"><div class="step-num">' + (i+1) + '</div><div class="step-content"><div class="step-name">' + esc(poi.name || '站点 ' + (i+1)) + '</div><div class="step-meta">' +
-        (step.arrival_time ? '<span class="step-time">' + step.arrival_time + '</span>' : '') +
-        (poi.category ? '<span class="step-category">' + esc(poi.category) + '</span>' : '') +
-        '</div>' +
-        (step.narrative ? '<div class="step-narrative">' + esc(step.narrative) + '</div>' : '') +
-        '</div></div>';
-    });
-  }
-  c.innerHTML = html;
+  c.innerHTML = steps.map((step, i) => {
+    const poi = step.poi || {};
+    return '<div class="step-card"><div class="step-num">' + (i+1) + '</div><div class="step-content"><div class="step-name">' + esc(poi.name || '站点 ' + (i+1)) + '</div><div class="step-meta">' +
+      (step.arrival_time ? '<span class="step-time">' + step.arrival_time + '</span>' : '') +
+      (poi.category ? '<span class="step-category">' + esc(poi.category) + '</span>' : '') +
+      '</div>' +
+      (step.narrative ? '<div class="step-narrative">' + esc(step.narrative) + '</div>' : '') +
+      '</div></div>';
+  }).join('');
   lastRenderedStep = steps.length - 1;
   c.scrollTop = c.scrollTop;
 }
@@ -1537,27 +1535,6 @@ function focusStep(i) {
 }
 
 // ── Day Switch ──
-function renderDaySwitch(total, cur) {
-  const c = document.getElementById('daySwitch');
-  if (total <= 1) { c.innerHTML = ''; return; }
-  c.innerHTML = Array.from({length: total}, (_, i) =>
-    `<button class="day-btn ${i+1===cur?'active':''}" onclick="switchDay(${i+1})">${i+1}</button>`
-  ).join('');
-}
-
-function switchDay(d) {
-  state.currentDay = d;
-  const r = state.multiRoutes[d-1];
-  if (r) {
-    const route = r.route || r;
-    const steps = route.route || route.steps || [];
-    state.steps = steps;
-    renderAllSteps(steps, d);
-    renderRouteOnMap(steps);
-    renderDaySwitch(state.totalDays, d);
-  }
-}
-
 // ── Stats ──
 function renderStats(steps) {
   const bar = document.getElementById('statsBar');
@@ -1825,65 +1802,25 @@ case 'step':
       state.steps.push(data);
       renderSteps(state.steps, currentPlanVersion);
       if (data.poi?.lng) renderRouteOnMap(state.steps);
-      if (state.steps.length === 1) console.log('[CityFlow] first step received, day:', data.day);
-      break;
-    case 'day_start':
-      console.log('[CityFlow] day_start:', data, 'current steps:', state.steps.length);
-      // Save current day's steps into multiRoutes before resetting
-      if (state.steps.length > 0) {
-        while (state.multiRoutes.length < state.currentDay) {
-          state.multiRoutes.push({day: state.multiRoutes.length + 1, route: {route: []}});
-        }
-        state.multiRoutes[state.currentDay - 1] = {day: state.currentDay, route: {route: [...state.steps]}};
-      }
-      state.currentDay = data.day;
-      state.steps = [];
-      lastRenderedStep = -1;
-      state.totalDays = data.total_days || state.totalDays;
-      break;
-    case 'day_end':
-      // Save current day's steps into multiRoutes
-      if (state.steps.length > 0) {
-        while (state.multiRoutes.length < state.currentDay) {
-          state.multiRoutes.push({day: state.multiRoutes.length + 1, route: {route: []}});
-        }
-        state.multiRoutes[state.currentDay - 1] = {day: state.currentDay, route: {route: [...state.steps]}};
-      }
+      if (state.steps.length === 1) console.log('[CityFlow] first step received');
       break;
     case 'done':
       hideTyping();
       state.routeId = data.route_id;
       document.getElementById('adjustBar').classList.remove('hidden');
-      console.log('[CityFlow] done event:', data);
       if (data.full_route) {
-        if (data.full_route.days && data.full_route.days.length > 0) {
-          // Multi-day
-          state.multiRoutes = data.full_route.days;
-          state.totalDays = data.full_route.days.length;
-          renderDaySwitch(state.totalDays, 1);
-          const fd = state.multiRoutes[0];
-          if (fd) {
-            const route = fd.route || fd;
-            state.steps = route.route || route.steps || [];
-            console.log('[CityFlow] day 1 steps:', state.steps.length);
-            renderAllSteps(state.steps);
-            renderRouteOnMap(state.steps);
-          }
-        } else {
-          // Single day
-          state.steps = data.full_route.route || [];
-          renderAllSteps(state.steps);
-          renderRouteOnMap(state.steps);
-          renderNarrative(data.full_route.narrative);
-          renderEmotionCurve(data.full_route.emotion_curve);
-        }
+        state.steps = data.full_route.route || [];
+        renderAllSteps(state.steps);
+        renderRouteOnMap(state.steps);
+        renderNarrative(data.full_route.narrative);
+        renderEmotionCurve(data.full_route.emotion_curve);
+        addChatMsg(`✅ 路线规划完成！共 ${state.steps.length} 站`);
       }
       renderStats(state.steps);
       state.isPlanning = false;
       document.getElementById('sendBtn').style.display = 'flex';
       document.getElementById('sendBtn').disabled = false;
       document.getElementById('stopBtn').style.display = 'none';
-      addChatMsg(`✅ 路线规划完成！共 ${state.steps.length} 站`);
       break;
     case 'error':
       hideTyping();
@@ -1919,7 +1856,7 @@ async function submitPlan() {
   state.isPlanning = true;
   document.getElementById('sendBtn').style.display = 'none';
   document.getElementById('stopBtn').style.display = 'flex';
-  state.steps=[]; state.multiRoutes=[]; state.currentDay=1; state.totalDays=1;
+  state.steps=[];
   lastRenderedStep = -1;
   currentPlanVersion++;
   resetAgents(); clearRoute();
@@ -1928,7 +1865,6 @@ async function submitPlan() {
   document.getElementById('narrativeSection').classList.add('hidden');
   document.getElementById('emotionSection').classList.add('hidden');
   document.getElementById('adjustBar').classList.add('hidden');
-  document.getElementById('daySwitch').innerHTML='';
 
   addChatMsg(text, 'user');
   showTyping('正在连接智能体...');
