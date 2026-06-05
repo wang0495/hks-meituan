@@ -260,26 +260,24 @@ async def resolve_plan_route(user_input: str) -> Route:
 
 
 async def resolve_adjust_route(route_id: str, instruction: str) -> DialogueResponse:
-    """调整路线 -- 调用 dialogue engine。"""
-    from backend.services.dialogue import dialogue_engine
+    """调整路线 -- 调用 feedback graph。"""
+    from backend.services.cache import feedback_state_cache
+    from backend.services.feedback_adjust import run_feedback_adjust, rebuild_minimal_state
 
     # 检查路线是否存在
     route_data = route_cache.get(route_id)
     if route_data is None:
         raise ValueError(f"路线 {route_id} 不存在")
 
-    user_intent = route_data.get("user_intent", {})
+    cached_state = feedback_state_cache.get(route_id)
+    if cached_state is None:
+        cached_state = await rebuild_minimal_state(route_data)
 
-    # 确保有对话会话
-    session = dialogue_engine.get_session(route_id)
-    if not session:
-        dialogue_engine.create_session(route_id, route_data, user_intent)
+    result = await run_feedback_adjust(
+        route_id, instruction, route_data, cached_state,
+    )
 
-    result = await dialogue_engine.process_instruction(route_id, instruction)
-
-    # 更新缓存
     updated_route = result.get("route", route_data)
-    route_cache.set(route_id, updated_route)
 
     # 构造响应
     changes = [

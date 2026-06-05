@@ -1072,119 +1072,6 @@ def _fallback_assemble(proposals: list[dict], intent: dict) -> dict | None:
 # ═══════════════════════════════════════════════════════════
 
 
-def _split_pois_by_area(
-    poi_props: list[dict], food_props: list[dict], num_days: int
-) -> list[tuple[list[dict], list[dict]]]:
-    """按地理坐标分桶，把POI分成N组（每天一组）。"""
-    if num_days <= 1:
-        return [(poi_props, food_props)]
-
-    coords_poi = []
-    for p in poi_props:
-        c = p.get("content", {})
-        lat, lng = c.get("lat", 0), c.get("lng", 0)
-        if lat and lng:
-            coords_poi.append((lat, lng, p))
-    coords_food = []
-    for p in food_props:
-        c = p.get("content", {})
-        lat, lng = c.get("lat", 0), c.get("lng", 0)
-        if lat and lng:
-            coords_food.append((lat, lng, p))
-
-    if len(coords_poi) < num_days:
-        return [(poi_props, food_props)] + [([], []) for _ in range(num_days - 1)]
-
-    sorted_poi = sorted(coords_poi, key=lambda x: x[0])
-    step = len(sorted_poi) // num_days
-    centers = [
-        (
-            sorted_poi[min(i * step, len(sorted_poi) - 1)][0],
-            sorted_poi[min(i * step, len(sorted_poi) - 1)][1],
-        )
-        for i in range(num_days)
-    ]
-
-    poi_clusters: list[list[dict]] = [[] for _ in range(num_days)]
-    for lat, lng, p in coords_poi:
-        best = min(
-            range(num_days), key=lambda d: (lat - centers[d][0]) ** 2 + (lng - centers[d][1]) ** 2
-        )
-        poi_clusters[best].append(p)
-
-    food_clusters: list[list[dict]] = [[] for _ in range(num_days)]
-    for lat, lng, p in coords_food:
-        best = min(
-            range(num_days), key=lambda d: (lat - centers[d][0]) ** 2 + (lng - centers[d][1]) ** 2
-        )
-        food_clusters[best].append(p)
-
-    return list(zip(poi_clusters, food_clusters, strict=False))
-
-
-async def _build_single_day_route(
-    day_poi: list[dict],
-    day_food: list[dict],
-    hotel_props: list[dict],
-    traffic_prop: dict | None,
-    intent: dict,
-    user_input: str,
-    scene_type: str,
-    expert_weights: dict,
-    pace: str,
-    errors: list[str],
-) -> dict | None:
-    """为一天构建路线。"""
-    route = await _tournament_assemble(
-        day_poi,
-        day_food,
-        hotel_props,
-        traffic_prop,
-        intent,
-        user_input,
-        scene_type,
-        expert_weights,
-    )
-    if not route or not route.get("route"):
-        combined = day_poi + day_food
-        if combined:
-            route = _fallback_assemble(combined, intent)
-        else:
-            return None
-
-    if route and route.get("route"):
-        geo_threshold = 10.0 if scene_type == "目的地型" else _MAX_LEG_KM
-        route["route"] = _geo_reroute(route["route"], max_leg_km=geo_threshold)
-        new_steps, dropped = _rule_assign_times(route["route"], intent, scene_type, pace)
-        route["route"] = new_steps
-        if dropped:
-            errors.append(f"规则时间分配砍站: {dropped}")
-        start_time_str = intent.get("time", {}).get("start", "09:00")
-        end_time_str = intent.get("time", {}).get("end", "21:00")
-        route["route"] = _smooth_times(route["route"], start_time_str, end_time_str)
-        steps = route.get("route", [])
-        if steps:
-            try:
-                _s = datetime.strptime(steps[0].get("arrival_time", "09:00"), "%H:%M")
-                _e = datetime.strptime(steps[-1].get("departure_time", "18:00"), "%H:%M")
-                route["total_cost"] = {
-                    "time_min": int((_e - _s).total_seconds() / 60),
-                    "budget_used": sum(s.get("poi", {}).get("avg_price", 0) for s in steps),
-                }
-            except ValueError:
-                pass
-
-    if route and route.get("route"):
-        route = _cap_route_stops(route, scene_type, intent)
-        route = _ensure_food_in_route(route, day_food, intent)
-        route = _ensure_poi_in_route(route, day_poi, intent)
-        if day_food:
-            route = _ensure_min_food_in_route(route, day_food, intent)
-            route = _ensure_food_scene_food_count(route, day_food, scene_type)
-
-    return route
-
-
 _POI_AGENTS = {"poi", "poi_expert", "budget_hacker", "destination", "local_expert"}
 _FOOD_AGENTS = {"food", "food_expert"}
 _HOTEL_AGENTS = {"hotel", "hotel_expert"}
@@ -1219,66 +1106,6 @@ def _classify_proposals(
         (p for p in proposals if p.get("agent") in ("traffic", "traffic_expert")), None
     )
     return poi_proposals, food_proposals, hotel_proposals, traffic_proposal
-
-
-async def _build_multi_day_routes(
-    poi_proposals: list[dict],
-    food_proposals: list[dict],
-    hotel_proposals: list[dict],
-    traffic_proposal: dict | None,
-    intent: dict,
-    state: dict,
-    scene_type: str,
-    expert_weights: dict,
-    pace: str,
-    errors: list[str],
-    num_days: int,
-) -> tuple[list[dict], dict | None, bool]:
-    """构建多日路线。"""
-    day_pools = _split_pois_by_area(poi_proposals, food_proposals, num_days)
-    base_start = intent.get("time", {}).get("start", "09:00")
-    base_end = intent.get("time", {}).get("end", "21:00")
-
-    async def _build_day(day_idx: int, day_poi: list, day_food: list):
-        if not day_poi and not day_food:
-            return day_idx, None
-        day_intent = dict(intent)
-        day_intent["time"] = {
-            "period": "全天",
-            "start": base_start if day_idx == 0 else "09:00",
-            "end": base_end,
-        }
-        day_route = await _build_single_day_route(
-            day_poi,
-            day_food,
-            hotel_proposals,
-            traffic_proposal,
-            day_intent,
-            state.get("user_input", ""),
-            scene_type,
-            expert_weights,
-            pace,
-            errors,
-        )
-        return day_idx, day_route
-
-    day_results = await asyncio.gather(
-        *[_build_day(i, day_pools[i][0], day_pools[i][1]) for i in range(num_days)],
-        return_exceptions=True,
-    )
-
-    multi_routes = []
-    route = None
-    for result in day_results:
-        if isinstance(result, Exception):
-            continue
-        day_idx, day_route = result
-        if day_route and day_route.get("route"):
-            multi_routes.append({"day": day_idx + 1, "route": day_route})
-            if route is None:
-                route = day_route
-
-    return multi_routes, route, False
 
 
 def _post_process_single_day_route(
@@ -1410,64 +1237,37 @@ async def synthesizer(state: TravelState) -> dict:
         errors.append("无有效POI提案")
         return {"route": None, "narrative": None, "errors": errors}
 
-    num_days = intent.get("num_days", 1) or 1
     pace = intent.get("pace", "平衡型")
-    multi_routes: list[dict] = []
     route: dict | None = None
     _steps_streamed = False
 
-    if num_days > 1 and len(poi_proposals) + len(food_proposals) > num_days:
-        multi_routes, route, _steps_streamed = await _build_multi_day_routes(
-            poi_proposals,
-            food_proposals,
-            hotel_proposals,
-            traffic_proposal,
-            intent,
-            state,
-            scene_type,
-            expert_weights,
-            pace,
-            errors,
-            num_days,
-        )
-        multi_routes.sort(key=lambda r: r.get("day", 0))
-        total_steps = sum(len(dr.get("route", {}).get("route", [])) for dr in multi_routes)
-        await sse_emit(
-            state,
-            "agent_result",
-            {
-                "agent": "synthesizer",
-                "summary": f"多日组装完成: {len(multi_routes)}天 {total_steps}站",
-            },
-        )
-    else:
-        route = await _tournament_assemble(
-            poi_proposals,
-            food_proposals,
-            hotel_proposals,
-            traffic_proposal,
-            intent,
-            state.get("user_input", ""),
-            scene_type,
-            expert_weights,
-        )
-        if not route or not route.get("route"):
-            route = _fallback_assemble(proposals, intent)
+    route = await _tournament_assemble(
+        poi_proposals,
+        food_proposals,
+        hotel_proposals,
+        traffic_proposal,
+        intent,
+        state.get("user_input", ""),
+        scene_type,
+        expert_weights,
+    )
+    if not route or not route.get("route"):
+        route = _fallback_assemble(proposals, intent)
 
-        if route and route.get("route"):
-            _post_process_single_day_route(route, intent, scene_type, pace, errors)
+    if route and route.get("route"):
+        _post_process_single_day_route(route, intent, scene_type, pace, errors)
 
-        _apply_single_day_constraints(
-            route,
-            proposals,
-            poi_proposals,
-            food_proposals,
-            intent,
-            scene_type,
-            errors,
-            state.get("prev_round_context"),
-        )
-        _steps_streamed = await _stream_single_day_steps(state, route)
+    _apply_single_day_constraints(
+        route,
+        proposals,
+        poi_proposals,
+        food_proposals,
+        intent,
+        scene_type,
+        errors,
+        state.get("prev_round_context"),
+    )
+    _steps_streamed = await _stream_single_day_steps(state, route)
 
     narrative = None
     if route:
@@ -1484,7 +1284,4 @@ async def synthesizer(state: TravelState) -> dict:
     ret: dict = {"route": route, "narrative": narrative, "errors": errors}
     if _steps_streamed:
         ret["_steps_streamed"] = True
-    if multi_routes:
-        ret["routes"] = multi_routes
-        ret["num_days"] = num_days
     return ret

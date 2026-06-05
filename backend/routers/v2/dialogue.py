@@ -1,4 +1,4 @@
-"""V2 对话式路线调整接口（复用V1逻辑）。"""
+"""V2 对话式路线调整接口（基于 feedback graph）。"""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ import logging
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
-from backend.services.cache import route_cache
+from backend.services.cache import feedback_state_cache, route_cache
 
 logger = logging.getLogger(__name__)
 
@@ -37,21 +37,24 @@ class DialogueResultV2(BaseModel):
 @router.post(
     "/dialogue/{session_id}",
     summary="[V2] 对话式路线调整",
-    description="V2版本的对话式路线调整接口。",
+    description="V2版本的对话式路线调整接口（基于 feedback graph）。",
     tags=["v2-dialogue"],
 )
 async def dialogue_v2(session_id: str, request: AdjustRequestV2) -> dict:
     """V2 版本的对话式路线调整。"""
-    from backend.services.dialogue import dialogue_engine
+    from backend.services.feedback_adjust import run_feedback_adjust, rebuild_minimal_state
 
-    result = await dialogue_engine.process_instruction(session_id, request.instruction)
+    route = route_cache.get(session_id)
+    if route is None:
+        raise HTTPException(status_code=404, detail="Session route not found")
 
-    if "error" in result:
-        raise HTTPException(status_code=result.get("code", 400), detail=result["error"])
+    cached_state = feedback_state_cache.get(session_id)
+    if cached_state is None:
+        cached_state = await rebuild_minimal_state(route)
 
-    if "route" in result:
-        route_cache.set(session_id, result["route"])
-
+    result = await run_feedback_adjust(
+        session_id, request.instruction, route, cached_state,
+    )
     return result
 
 

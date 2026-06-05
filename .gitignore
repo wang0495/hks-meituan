@@ -49,6 +49,9 @@ test_results_*.json
 eval_result.json
 optuna_result.json
 
+# E2E browser test screenshots (artifacts)
+scripts/test_screenshots/
+
 # Dev reports (ad-hoc, not source)
 架构审计报告.txt
 ClaudeCode-*.md

@@ -51,6 +51,7 @@ from backend.schemas import AdjustRequest, HealthResponse, PlanRequest
 from backend.services.cache import (
     close_multilevel_cache,
     distance_cache,
+    feedback_state_cache,
     general_cache,
     get_multilevel_cache,
     init_multilevel_cache,
@@ -551,42 +552,6 @@ async def _drain_sse_queue(
             pass
 
 
-async def _stream_multi_day_routes(multi_routes: list[dict], user_intent: dict, num_days: int):
-    """流式输出多日路线。"""
-    for day_info in multi_routes:
-        day_num = day_info.get("day", 1)
-        day_route = day_info.get("route", {})
-        day_steps = day_route.get("route", []) if day_route else []
-        yield _sse("day_start", {"day": day_num, "total_days": len(multi_routes)})
-        for i, step in enumerate(day_steps):
-            yield _sse(
-                "step",
-                {
-                    "index": i + 1,
-                    "day": day_num,
-                    "poi": step.get("poi", {}),
-                    "arrival_time": step.get("arrival_time"),
-                    "departure_time": step.get("departure_time"),
-                    "narrative": "",
-                    "emotion_design": "",
-                },
-            )
-            await asyncio.sleep(0.05)
-        yield _sse("day_end", {"day": day_num})
-
-    route_id = uuid.uuid4().hex[:8]
-    yield _sse(
-        "done",
-        {
-            "route_id": route_id,
-            "full_route": {"days": multi_routes},
-            "num_days": num_days,
-            "version": "C-分布式智能体",
-        },
-    )
-    route_cache.set(route_id, {"days": multi_routes, "user_intent": user_intent})
-
-
 async def _stream_single_day_route(
     c_route: dict, c_narrative: dict, c_steps: list, user_intent: dict, c_result: dict
 ):
@@ -626,6 +591,18 @@ async def _stream_single_day_route(
     c_route["narrative"] = c_narrative
     c_route["user_intent"] = user_intent
     route_cache.set(route_id, c_route)
+    # 缓存 graph 中间状态供 feedback graph 重入
+    feedback_state_cache.set(route_id, {
+        "proposals": c_result.get("proposals", []),
+        "expert_weights": c_result.get("expert_weights", {}),
+        "active_experts": c_result.get("active_experts", []),
+        "candidates": c_result.get("candidates", []),
+        "scene_type": c_result.get("scene_type", "观光型"),
+        "destination_name": c_result.get("destination_name", ""),
+        "destination_center": c_result.get("destination_center", ()),
+        "user_intent": user_intent,
+        "user_input": c_result.get("user_input", ""),
+    })
 
 
 async def _run_agent_graph(user_input: str, sse_queue: asyncio.Queue):
@@ -689,36 +666,29 @@ async def _handle_graph_result(c_result: dict):
     c_route = c_result.get("route", {})
     c_narrative = c_result.get("narrative", {})
     c_steps = c_route.get("route", []) if c_route else []
-    multi_routes = c_result.get("routes", [])
-    num_days = c_result.get("num_days", 1)
 
     if c_result.get("_steps_streamed"):
         route_id = uuid.uuid4().hex[:8]
-        if multi_routes and len(multi_routes) > 1:
-            yield _sse(
-                "done",
-                {
-                    "route_id": route_id,
-                    "full_route": {"days": multi_routes},
-                    "num_days": num_days,
-                    "version": "C-分布式智能体",
-                },
-            )
-            route_cache.set(route_id, {"days": multi_routes, "user_intent": user_intent})
-        else:
-            if not c_steps:
-                raise RuntimeError("C版本空路线")
-            yield _sse(
-                "done", {"route_id": route_id, "full_route": c_route, "version": "C-分布式智能体"}
-            )
-            c_route["narrative"] = c_narrative
-            c_route["user_intent"] = user_intent
-            route_cache.set(route_id, c_route)
-        return
-
-    if multi_routes and len(multi_routes) > 1:
-        async for event in _stream_multi_day_routes(multi_routes, user_intent, num_days):
-            yield event
+        if not c_steps:
+            raise RuntimeError("C版本空路线")
+        yield _sse(
+            "done", {"route_id": route_id, "full_route": c_route, "version": "C-分布式智能体"}
+        )
+        c_route["narrative"] = c_narrative
+        c_route["user_intent"] = user_intent
+        route_cache.set(route_id, c_route)
+        # 缓存 graph 中间状态供 feedback graph 重入
+        feedback_state_cache.set(route_id, {
+            "proposals": c_result.get("proposals", []),
+            "expert_weights": c_result.get("expert_weights", {}),
+            "active_experts": c_result.get("active_experts", []),
+            "candidates": c_result.get("candidates", []),
+            "scene_type": c_result.get("scene_type", "观光型"),
+            "destination_name": c_result.get("destination_name", ""),
+            "destination_center": c_result.get("destination_center", ()),
+            "user_intent": user_intent,
+            "user_input": c_result.get("user_input", ""),
+        })
         return
 
     if not c_steps:
@@ -956,12 +926,22 @@ def _generate_changes_summary(previous_route: dict, new_route: dict, changes_mad
     return "；".join(summaries) if summaries else "路线已调整"
 
 
+def _get_all_steps_from_route(route: dict) -> list:
+    """从路线中提取所有步骤（兼容单日/多日）。"""
+    if "days" in route:
+        steps = []
+        for day in route["days"]:
+            steps.extend(day.get("route", {}).get("route", []))
+        return steps
+    return route.get("route", [])
+
+
 @app.get(
     "/api/route/{route_id}/adjust",
-    summary="通过指令调整路线（快捷方式）",
+    summary="通过指令调整路线（SSE 流式）",
     description=(
         "通过GET请求的query参数传入指令来调整已规划的路线。\n\n"
-        "这是 `/api/dialogue/{session_id}` 的快捷方式，session_id 即 route_id。\n\n"
+        "以 SSE 流式返回调整进度和结果，避免长时阻塞导致连接超时。\n\n"
         "## 支持的指令\n\n"
         "| 类型 | 示例 |\n"
         "|------|------|\n"
@@ -971,18 +951,15 @@ def _generate_changes_summary(previous_route: dict, new_route: dict, changes_mad
         '| 调整时间 | "早一点"、"5点前结束" |\n'
         '| 重新规划 | "重新来"、"再来一次" |'
     ),
-    response_description="调整结果，包含系统回复、更新后的路线和变更记录",
+    response_description="SSE 事件流，包含 phase/result/done/error 事件",
     responses={
         200: {
-            "description": "调整成功",
+            "description": "SSE事件流",
             "content": {
-                "application/json": {
-                    "schema": {"$ref": "#/components/schemas/DialogueResult"},
+                "text/event-stream": {
+                    "schema": {"type": "string"},
                 }
             },
-        },
-        400: {
-            "description": "指令无法识别或对话轮次超限",
         },
         404: {
             "description": "路线不存在",
@@ -992,9 +969,9 @@ def _generate_changes_summary(previous_route: dict, new_route: dict, changes_mad
 )
 async def adjust_route(route_id: str, instruction: str):
     """
-    通过对话指令调整路线（GET快捷方式）。
+    通过对话指令调整路线（SSE 流式）。
 
-    自动创建对话会话（如果不存在），然后处理用户的调整指令。
+    使用 feedback graph 选择性重跑 MoE expert，以 SSE 流式返回进度和结果。
     """
     route = route_cache.get(route_id)
     if route is None:
@@ -1005,48 +982,87 @@ async def adjust_route(route_id: str, instruction: str):
         )
     user_intent = route.get("user_intent", {})
 
-    from backend.services.dialogue import dialogue_engine
+    # 获取中间状态（无则降级重建）
+    from backend.services.feedback_adjust import run_feedback_adjust, rebuild_minimal_state
 
-    # 确保有会话
-    session = await dialogue_engine.get_session(route_id)
-    if not session:
-        session = await dialogue_engine.create_session(route_id, route, user_intent)
+    cached_state = feedback_state_cache.get(route_id)
+    if cached_state is None:
+        logger.warning("[adjust] route %s 无中间状态，降级重建", route_id)
+        cached_state = await rebuild_minimal_state(route)
 
-    # 保存调整前的路线快照
     previous_route = _deep_copy_route(route)
 
-    result = await dialogue_engine.process_instruction(route_id, instruction)
+    async def adjust_stream():
+        # 立即发送阶段事件，让客户端知道连接已建立
+        yield _sse("phase", {"message": "正在分析调整指令..."})
 
-    # 更新缓存
-    if "route" in result:
-        route_cache.set(route_id, result["route"])
+        # 在后台任务中运行 feedback adjust，同时发送心跳保活
+        result_holder: dict = {}
+        error_holder: dict = {}
 
-    # 添加调整对比信息
-    if result.get("changes_made"):
-        result["previous_route"] = previous_route
-        result["route_id"] = route_id
-        # 生成变更摘要
-        result["changes_summary"] = _generate_changes_summary(
-            previous_route, result.get("route", {}), result["changes_made"]
-        )
+        async def _run_adjust():
+            try:
+                result_holder["result"] = await run_feedback_adjust(
+                    route_id, instruction, route, cached_state,
+                )
+            except Exception as exc:
+                error_holder["error"] = exc
 
-    # 记录反馈到 LTM
-    if result.get("changes_made") and user_intent.get("_user_id"):
-        try:
-            from backend.services.preference_manager import PreferenceManager
+        adjust_task = asyncio.create_task(_run_adjust())
 
-            pref_mgr = PreferenceManager.from_user_id(user_intent["_user_id"])
-            await pref_mgr._ensure_init()
-            await pref_mgr.record_feedback(
-                demand_vector=user_intent.get("_demand_vector", {}),
-                applied_weights=user_intent.get("_dynamic_weights", {}),
-                feedback="modified",
-                modification_hint=instruction,
+        # 每 5 秒发送心跳，防止 nginx/浏览器超时断连
+        elapsed = 0
+        while not adjust_task.done():
+            await asyncio.sleep(5)
+            elapsed += 5
+            yield _sse("phase", {"message": f"正在重新规划路线...（已耗时 {elapsed}s）"})
+
+        await adjust_task  # 确保异常被捕获
+
+        if "error" in error_holder:
+            logger.error("[adjust] feedback graph 失败: %s", error_holder["error"])
+            yield _sse("error", {"error": "路线调整失败，请重试"})
+            return
+
+        result = result_holder["result"]
+
+        # 添加调整对比信息
+        if result.get("changes_made"):
+            result["previous_route"] = previous_route
+            result["route_id"] = route_id
+            result["changes_summary"] = _generate_changes_summary(
+                previous_route, result.get("route", {}), result["changes_made"]
             )
-        except Exception as fb_err:
-            logger.warning("反馈记录失败（不影响主流程）: %s", fb_err)
 
-    return result
+        # 记录反馈到 LTM（非阻塞）
+        if result.get("changes_made") and user_intent.get("_user_id"):
+            try:
+                from backend.services.preference_manager import PreferenceManager
+
+                pref_mgr = PreferenceManager.from_user_id(user_intent["_user_id"])
+                await pref_mgr._ensure_init()
+                await pref_mgr.record_feedback(
+                    demand_vector=user_intent.get("_demand_vector", {}),
+                    applied_weights=user_intent.get("_dynamic_weights", {}),
+                    feedback="modified",
+                    modification_hint=instruction,
+                )
+            except Exception as fb_err:
+                logger.warning("反馈记录失败（不影响主流程）: %s", fb_err)
+
+        # 发送结果
+        yield _sse("result", result)
+        yield _sse("done", {})
+
+    return StreamingResponse(
+        adjust_stream(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -1160,31 +1176,40 @@ async def dialogue(session_id: str, request: AdjustRequest):
     """
     对话式路线调整。
 
-    通过POST请求发送调整指令，系统自动分类指令类型并执行相应调整。
+    通过POST请求发送调整指令，使用 feedback graph 重新规划路线。
     """
-    from backend.services.dialogue import dialogue_engine
+    route = route_cache.get(session_id)
+    if route is None:
+        raise CityFlowException(
+            code=ErrorCode.NOT_FOUND,
+            message="Session route not found",
+            details={"session_id": session_id},
+        )
+    user_intent = route.get("user_intent", {})
 
-    result = await dialogue_engine.process_instruction(session_id, request.instruction)
+    from backend.services.feedback_adjust import run_feedback_adjust, rebuild_minimal_state
 
-    # 同步更新路线缓存
-    if "route" in result:
-        route_cache.set(session_id, result["route"])
+    cached_state = feedback_state_cache.get(session_id)
+    if cached_state is None:
+        cached_state = await rebuild_minimal_state(route)
+
+    result = await run_feedback_adjust(
+        session_id, request.instruction, route, cached_state,
+    )
 
     # 记录反馈到 LTM
-    if result.get("changes_made"):
+    if result.get("changes_made") and user_intent.get("_user_id"):
         try:
-            session = await dialogue_engine.get_session(session_id)
-            if session and session.user_intent.get("_user_id"):
-                from backend.services.preference_manager import PreferenceManager
+            from backend.services.preference_manager import PreferenceManager
 
-                pref_mgr = PreferenceManager.from_user_id(session.user_intent["_user_id"])
-                await pref_mgr._ensure_init()
-                await pref_mgr.record_feedback(
-                    demand_vector=session.user_intent.get("_demand_vector", {}),
-                    applied_weights=session.user_intent.get("_dynamic_weights", {}),
-                    feedback="modified",
-                    modification_hint=request.instruction,
-                )
+            pref_mgr = PreferenceManager.from_user_id(user_intent["_user_id"])
+            await pref_mgr._ensure_init()
+            await pref_mgr.record_feedback(
+                demand_vector=user_intent.get("_demand_vector", {}),
+                applied_weights=user_intent.get("_dynamic_weights", {}),
+                feedback="modified",
+                modification_hint=request.instruction,
+            )
         except Exception as fb_err:
             logger.warning("反馈记录失败（不影响主流程）: %s", fb_err)
 

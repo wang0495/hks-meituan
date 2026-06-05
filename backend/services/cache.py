@@ -302,6 +302,9 @@ distance_cache = MemoryCache(max_size=10000, ttl_seconds=3600)
 # 路线结果缓存：50 条，30 分钟过期
 route_cache = MemoryCache(max_size=50, ttl_seconds=1800)
 
+# 路线中间状态缓存（proposals/expert_weights 等），供 feedback graph 重入用
+feedback_state_cache = MemoryCache(max_size=30, ttl_seconds=1800)
+
 # 用户画像匹配缓存：500 条，15 分钟过期
 profile_cache = MemoryCache(max_size=500, ttl_seconds=900)
 
