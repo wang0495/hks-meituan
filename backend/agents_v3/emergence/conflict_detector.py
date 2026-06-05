@@ -91,7 +91,7 @@ def _detect_geo_conflicts(proposals: list[dict]) -> list[dict]:
         p_lng = poi_content.get("lng", 0)
         if p_lat and p_lng:
             # Haversine距离
-            R = 6371
+            earth_radius_km = 6371
             dlat = math.radians(p_lat - h_lat)
             dlng = math.radians(p_lng - h_lng)
             a = (
@@ -100,7 +100,7 @@ def _detect_geo_conflicts(proposals: list[dict]) -> list[dict]:
                 * math.cos(math.radians(p_lat))
                 * math.sin(dlng / 2) ** 2
             )
-            dist = R * 2 * math.asin(math.sqrt(a))
+            dist = earth_radius_km * 2 * math.asin(math.sqrt(a))
 
             if dist > 20:  # 超过20km标记冲突
                 conflicts.append(

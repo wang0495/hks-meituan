@@ -31,7 +31,7 @@ def _calc_tourist_relevance(poi: dict) -> float:
     if category == "酒店":
         return 0.0
 
-    _MEANINGFUL_TAGS = {
+    meaningful_tags = {
         "海滨",
         "山景",
         "公园",
@@ -48,7 +48,7 @@ def _calc_tourist_relevance(poi: dict) -> float:
         "网红店",
         "老字号",
     }
-    _WEAK_TAGS = {
+    weak_tags = {
         "餐饮",
         "购物",
         "美食",
@@ -76,8 +76,8 @@ def _calc_tourist_relevance(poi: dict) -> float:
         "分量足",
     }
 
-    has_meaningful_tag = any(t in scene_tags for t in _MEANINGFUL_TAGS)
-    only_weak_tags = scene_tags and all(t in _WEAK_TAGS for t in scene_tags)
+    has_meaningful_tag = any(t in scene_tags for t in meaningful_tags)
+    only_weak_tags = scene_tags and all(t in weak_tags for t in scene_tags)
 
     score = 0.5
     if has_meaningful_tag:

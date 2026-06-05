@@ -43,7 +43,7 @@ def custom_openapi(app: FastAPI) -> dict:
     )
 
     # ---- 过滤管理端点，不对外暴露 ----
-    _ADMIN_PREFIXES = (
+    admin_prefixes = (
         "/metrics",
         "/pool",
         "/tasks",
@@ -53,7 +53,7 @@ def custom_openapi(app: FastAPI) -> dict:
         "/health/pool",
     )
     paths = openapi_schema.get("paths", {})
-    admin_paths = [p for p in paths if any(p.startswith(pre) for pre in _ADMIN_PREFIXES)]
+    admin_paths = [p for p in paths if any(p.startswith(pre) for pre in admin_prefixes)]
     for p in admin_paths:
         del paths[p]
     if admin_paths:

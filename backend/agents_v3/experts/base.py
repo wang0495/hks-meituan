@@ -373,8 +373,8 @@ def _extract_json(text: str) -> dict:
     if not isinstance(result, dict):
         raise ValueError(f"Expected JSON dict, got {type(result).__name__}: {str(result)[:80]}")
     # Strip injected fields that LLM may have added from user prompt
-    _DANGEROUS_KEYS = {"admin", "role", "superuser", "password", "secret", "token", "api_key"}
-    for key in _DANGEROUS_KEYS:
+    dangerous_keys = {"admin", "role", "superuser", "password", "secret", "token", "api_key"}
+    for key in dangerous_keys:
         result.pop(key, None)
     return result
 
@@ -508,14 +508,14 @@ async def _llm_decide(
 
 def _haversine_km(lat1: float, lng1: float, lat2: float, lng2: float) -> float:
     """Calculate the Haversine distance between two points in kilometres."""
-    R = 6371
+    earth_radius_km = 6371
     dlat = math.radians(lat2 - lat1)
     dlng = math.radians(lng2 - lng1)
     a = (
         math.sin(dlat / 2) ** 2
         + math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) * math.sin(dlng / 2) ** 2
     )
-    return R * 2 * math.asin(math.sqrt(a))
+    return earth_radius_km * 2 * math.asin(math.sqrt(a))
 
 
 def _is_likely_macau(name: str) -> bool:

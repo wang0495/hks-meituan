@@ -96,7 +96,7 @@ class LocaleMiddleware(BaseHTTPMiddleware):
         candidates.sort(key=lambda x: x[1], reverse=True)
 
         # 映射表
-        _LOCALE_MAP: dict[str, str] = {
+        locale_map: dict[str, str] = {
             "zh": "zh_CN",
             "zh-cn": "zh_CN",
             "zh_cn": "zh_CN",
@@ -114,11 +114,11 @@ class LocaleMiddleware(BaseHTTPMiddleware):
         for lang, _q in candidates:
             normalized = lang.lower().replace("-", "_")
             # 精确匹配
-            if normalized in _LOCALE_MAP:
-                return _LOCALE_MAP[normalized]
+            if normalized in locale_map:
+                return locale_map[normalized]
             # 前缀匹配（如 "en-US;q=0.9,en;q=0.8" 中取 en）
             prefix = normalized.split("_")[0]
-            if prefix in _LOCALE_MAP:
-                return _LOCALE_MAP[prefix]
+            if prefix in locale_map:
+                return locale_map[prefix]
 
         return "zh_CN"

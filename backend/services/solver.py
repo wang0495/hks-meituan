@@ -1395,7 +1395,7 @@ def _recalculate_times(
     current_time = parse_time(start_time)
     prev_poi: dict[str, Any] | None = None
     new_route: list[dict[str, Any]] = []
-    _OUTDOOR_CATS_TW = {"运动", "景点"}
+    outdoor_cats_tw = {"运动", "景点"}
 
     for step in route:
         poi = step["poi"]
@@ -1403,7 +1403,7 @@ def _recalculate_times(
         arrival = current_time + timedelta(minutes=travel)
 
         # 深夜+户外类POI不等待开门
-        if not (is_late_night and poi.get("category", "") in _OUTDOOR_CATS_TW):
+        if not (is_late_night and poi.get("category", "") in outdoor_cats_tw):
             open_t, _ = get_poi_opening_hours(poi)
             arrival_dt = parse_time(format_time(arrival))
             if arrival_dt < open_t:

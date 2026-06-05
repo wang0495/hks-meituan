@@ -51,13 +51,13 @@ def get_vibe_style_adjectives(vibe: str) -> list[str]:
     Returns:
         风格形容词列表
     """
-    STYLE_MAP: dict[str, list[str]] = {
+    style_map: dict[str, list[str]] = {
         "relaxed": ["悠闲", "惬意", "慢节奏", "舒适", "自在"],
         "lively": ["热闹", "精彩", "丰富", "活力", "繁华"],
         "rustic": ["质朴", "原生态", "地道", "隐世", "纯粹"],
         "energetic": ["炫酷", "前沿", "动感", "时尚", "新潮"],
     }
-    return STYLE_MAP.get(vibe, ["舒适", "愉快"])
+    return style_map.get(vibe, ["舒适", "愉快"])
 
 
 def get_city_based_opening(city: str, user_name: str = "你") -> str:
@@ -74,14 +74,14 @@ def get_city_based_opening(city: str, user_name: str = "你") -> str:
     keywords = personality.get("keywords", [])
     kw = keywords[0] if keywords else ""
 
-    OPENINGS: dict[str, str] = {
+    openings: dict[str, str] = {
         "relaxed": f"{user_name}好，今天让我们一起在{city}放慢脚步，"
         f"感受这座{kw}城市的悠闲气息。",
         "lively": f"准备好开启{city}之旅了吗？这座{kw}的城市" f"有太多精彩等着{user_name}去发现！",
-        "rustic": f"欢迎来到{city}，{user_name}。" f"这座{kw}的城市藏着最地道的味道和故事。",
+        "rustic": f"欢迎来到{city}，{user_name}." f"这座{kw}的城市藏着最地道的味道和故事。",
         "energetic": f"{user_name}，今天的目标是玩转{city}！" f"这座{kw}的城市到处都是惊喜和活力。",
     }
-    return OPENINGS.get(vibe, f"开启{city}之旅！")
+    return openings.get(vibe, f"开启{city}之旅！")
 
 
 # ---------------------------------------------------------------------------

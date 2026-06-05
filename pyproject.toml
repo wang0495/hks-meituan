@@ -95,9 +95,6 @@ ignore = [
     "E501",    # line too long (handled by black)
     "B008",    # function call in default argument (FastAPI Depends)
     "SIM108",  # ternary operator (readability preference)
-    "N802",    # function name should be lowercase (some existing names)
-    "N803",    # argument name should be lowercase
-    "N806",    # variable in function should be lowercase
     "UP007",   # use X | Y for union types (already using in most places)
     "RUF001",  # ambiguous Unicode char (中文项目必须忽略)
     "RUF002",  # ambiguous Unicode char (中文项目必须忽略)

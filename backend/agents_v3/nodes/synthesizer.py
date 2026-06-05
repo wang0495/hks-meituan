@@ -265,7 +265,7 @@ def _dpp_select(kernel_matrix: np.ndarray, max_length: int, epsilon: float = 1e-
 
 def _build_category_vector(cat: str) -> float:
     """把category映射成数值，同类型=相似值。"""
-    _GROUPS = {
+    cat_groups = {
         "自然风光": 0.0,
         "海滨景点": 0.05,
         "水上运动场所": 0.1,
@@ -288,7 +288,7 @@ def _build_category_vector(cat: str) -> float:
         "密室逃脱": 0.95,
         "攀岩": 0.95,
     }
-    return _GROUPS.get(cat, 0.5)
+    return cat_groups.get(cat, 0.5)
 
 
 def _dpp_rerank_route(route: dict, scene_type: str) -> dict:
