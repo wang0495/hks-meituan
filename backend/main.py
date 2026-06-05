@@ -69,10 +69,9 @@ from backend.utils.sse_helpers import (
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
-# SSE 并发连接限制（防止连接耗尽攻击）
+# SSE 并发连接限制（Semaphore，线程安全、asyncio-safe）
 # ---------------------------------------------------------------------------
-_plan_concurrent = 0
-_PLAN_MAX_CONCURRENT = 20
+_plan_semaphore = asyncio.Semaphore(20)
 
 # ---------------------------------------------------------------------------
 # Tags 元数据（OpenAPI 文档分组说明）
@@ -784,45 +783,48 @@ async def plan_route(request: PlanRequest):
     """
 
     async def event_stream():
-        global _plan_concurrent
-        if _plan_concurrent >= _PLAN_MAX_CONCURRENT:
-            yield _sse("error", {"error": "服务繁忙，请稍后再试"})
-            return
-        _plan_concurrent += 1
+        acquired = False
         try:
-            greeting = await _generate_greeting(request.user_input)
-            yield _sse("chat", {"text": greeting})
-            yield _sse("phase", {"phase": "parsing", "message": "正在理解你的需求..."})
+            # 尝试非阻塞获取，避免客户端长时间等待
+            acquired = _plan_semaphore.locked() is False
+            if not acquired:
+                # 快速检查：如果信号量已满，立即返回错误
+                if _plan_semaphore._value <= 0:  # type: ignore[attr-defined]
+                    yield _sse("error", {"error": "服务繁忙，请稍后再试"})
+                    return
+            async with _plan_semaphore:
+                acquired = True
+                greeting = await _generate_greeting(request.user_input)
+                yield _sse("chat", {"text": greeting})
+                yield _sse("phase", {"phase": "parsing", "message": "正在理解你的需求..."})
 
-            try:
-                yield _sse("phase", {"phase": "agents", "message": "7个智能体正在并行规划..."})
+                try:
+                    yield _sse("phase", {"phase": "agents", "message": "7个智能体正在并行规划..."})
 
-                # 把 start_location 合并到用户输入
-                user_input = request.user_input
-                if request.start_location:
-                    user_input = f"从{request.start_location}出发，{user_input}"
+                    # 把 start_location 合并到用户输入
+                    user_input = request.user_input
+                    if request.start_location:
+                        user_input = f"从{request.start_location}出发，{user_input}"
 
-                sse_queue: asyncio.Queue = asyncio.Queue()
-                graph_task = asyncio.create_task(_run_agent_graph(user_input, sse_queue))
-                _agent_summary_ref = [""]
+                    sse_queue: asyncio.Queue = asyncio.Queue()
+                    graph_task = asyncio.create_task(_run_agent_graph(user_input, sse_queue))
+                    _agent_summary_ref = [""]
 
-                async for event in _run_and_drain_graph(sse_queue, graph_task, _agent_summary_ref):
-                    yield event
+                    async for event in _run_and_drain_graph(sse_queue, graph_task, _agent_summary_ref):
+                        yield event
 
-                c_result = await graph_task
-                async for event in _handle_graph_result(c_result):
-                    yield event
+                    c_result = await graph_task
+                    async for event in _handle_graph_result(c_result):
+                        yield event
 
-            except Exception as c_err:
-                logger.error("C版本执行失败: %s", c_err)
-                yield _sse("error", {"error": "路线规划失败，请重试"})
-                return
+                except Exception as c_err:
+                    logger.error("C版本执行失败: %s", c_err)
+                    yield _sse("error", {"error": "路线规划失败，请重试"})
+                    return
 
         except Exception:
             logger.exception("规划路线时出错")
             yield _sse("error", {"error": "服务器内部错误，请稍后重试"})
-        finally:
-            _plan_concurrent -= 1
 
     return StreamingResponse(
         event_stream(),
