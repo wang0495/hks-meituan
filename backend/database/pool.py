@@ -1,12 +1,11 @@
 """CityFlow 数据库连接池管理。
 
-基于 SQLAlchemy 异步引擎的连接池，提供：
-- 连接池生命周期管理（启动 / 关闭）
-- 连接健康检查
+复用 backend.database.base 的全局共享引擎，提供：
+- 连接池监控（统计、健康检查）
+- 会话管理（兼容接口）
 - 连接池统计信息
 
-与 backend.database.base 互补：base 负责引擎和会话工厂，
-本模块负责池的生命周期与监控。
+注意：本模块不再创建独立的 AsyncEngine，避免重复连接池。
 """
 
 from __future__ import annotations
@@ -16,15 +15,14 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import text
-from sqlalchemy.ext.asyncio import (
-    AsyncEngine,
-    AsyncSession,
-    async_sessionmaker,
-    create_async_engine,
-)
+from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
+
+# no longer creates its own engine — uses shared engine from base.py
 
 from backend.config import settings
 from backend.config.pool_config import pool_settings
+from backend.database.base import engine as _shared_engine
+from backend.database.base import async_session_factory as _shared_session_factory
 
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator
@@ -88,26 +86,19 @@ class DatabasePool:
     # ------------------------------------------------------------------
 
     async def start(self) -> None:
-        """初始化引擎与会话工厂。幂等，重复调用无副作用。"""
+        """关联共享引擎与会话工厂。幂等，重复调用无副作用。
+
+        使用 backend.database.base 中已创建的全局引擎，
+        避免创建重复连接池。
+        """
         if self._started:
             return
 
-        self.engine = create_async_engine(
-            self.database_url,
-            pool_size=self.pool_size,
-            max_overflow=self.max_overflow,
-            pool_pre_ping=True,
-            pool_recycle=self.pool_recycle,
-            echo=settings.debug,
-        )
-        self.session_factory = async_sessionmaker(
-            self.engine,
-            class_=AsyncSession,
-            expire_on_commit=False,
-        )
+        self.engine = _shared_engine
+        self.session_factory = _shared_session_factory
         self._started = True
         logger.info(
-            "数据库连接池已启动 | pool_size=%d, max_overflow=%d",
+            "数据库连接池已关联 | pool_size=%d, max_overflow=%d (shared engine)",
             self.pool_size,
             self.max_overflow,
         )
