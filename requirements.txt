@@ -23,14 +23,14 @@ jsonschema==4.21.1
 # 模板引擎
 Jinja2==3.1.6
 
-# 测试
-pytest==7.4.4
-pytest-asyncio==0.23.3
-pytest-cov==4.1.0
-pytest-xdist==3.5.0
-pytest-timeout==2.2.0
-aiosqlite==0.20.0
-fakeredis==2.21.3
+# 测试 (生产不需要，使用 requirements-dev.txt)
+# pytest==7.4.4
+# pytest-asyncio==0.23.3
+# pytest-cov==4.1.0
+# pytest-xdist==3.5.0
+# pytest-timeout==2.2.0
+# aiosqlite==0.20.0
+# fakeredis==2.21.3
 
 # 缓存
 redis[hiredis]==5.0.1
@@ -59,6 +59,6 @@ pyyaml==6.0.1
 # GraphQL
 strawberry-graphql[fastapi]==0.312.3
 
-# LLM安全 (可选 — 需预下载模型)
-# 首次使用: python -c "from llm_guard.input_scanners import PromptInjection; PromptInjection()"
-llm-guard>=0.3.14
+# LLM安全 (可选 — 仅 dev 环境)
+# pip install -r requirements-dev.txt
+# llm-guard>=0.3.14
