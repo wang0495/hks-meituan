@@ -52,7 +52,7 @@ class DialogueResultV1(BaseModel):
 )
 async def dialogue_v1(session_id: str, request: AdjustRequestV1) -> dict:
     """V1 版本的对话式路线调整。"""
-    from backend.services.feedback_adjust import run_feedback_adjust, rebuild_minimal_state
+    from backend.services.feedback_adjust import rebuild_minimal_state, run_feedback_adjust
 
     route = route_cache.get(session_id)
     if route is None:

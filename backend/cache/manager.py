@@ -29,7 +29,8 @@
 from __future__ import annotations
 
 import logging
-from typing import Any, Callable, Coroutine
+from collections.abc import Callable, Coroutine
+from typing import Any
 
 from backend.optimizations.cache import CacheHealthReport, CacheOptimizer
 from backend.services.cache import MultiLevelCache, get_multilevel_cache

@@ -29,18 +29,15 @@ from backend.cache.warmup import (
 )
 
 __all__ = [
-    # 管理器
     "CacheManager",
-    "get_cache_manager",
-    "reset_cache_manager",
-    # 预热器
     "CacheWarmup",
     "WarmupReport",
     "WarmupResult",
+    "get_cache_manager",
     "get_cache_warmup",
+    "reset_cache_manager",
     "reset_cache_warmup",
-    # 预热任务
-    "warmup_poi_cache",
     "warmup_city_category_cache",
     "warmup_other_datasets",
+    "warmup_poi_cache",
 ]

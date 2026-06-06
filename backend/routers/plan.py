@@ -19,13 +19,13 @@ from backend.config import settings
 from backend.errors import CityFlowException, ErrorCode
 from backend.schemas import AdjustRequest, HealthResponse, PlanRequest
 from backend.services.cache import (
+    distance_cache,
     feedback_state_cache,
     general_cache,
     get_multilevel_cache,
     poi_cache,
     profile_cache,
     route_cache,
-    distance_cache,
 )
 from backend.utils.sse_helpers import sse as _sse
 
@@ -363,10 +363,9 @@ async def plan_route(request: PlanRequest):
         acquired = False
         try:
             acquired = _plan_semaphore.locked() is False
-            if not acquired:
-                if _plan_semaphore._value <= 0:  # type: ignore[attr-defined]
-                    yield _sse("error", {"error": "服务繁忙，请稍后再试"})
-                    return
+            if not acquired and _plan_semaphore._value <= 0:  # type: ignore[attr-defined]
+                yield _sse("error", {"error": "服务繁忙，请稍后再试"})
+                return
             async with _plan_semaphore:
                 acquired = True
                 greeting = await _generate_greeting(request.user_input)
@@ -459,7 +458,7 @@ async def adjust_route(route_id: str, instruction: str):
         )
     user_intent = route.get("user_intent", {})
 
-    from backend.services.feedback_adjust import run_feedback_adjust, rebuild_minimal_state
+    from backend.services.feedback_adjust import rebuild_minimal_state, run_feedback_adjust
 
     cached_state = feedback_state_cache.get(route_id)
     if cached_state is None:
@@ -557,7 +556,7 @@ async def dialogue(session_id: str, request: AdjustRequest):
         )
     user_intent = route.get("user_intent", {})
 
-    from backend.services.feedback_adjust import run_feedback_adjust, rebuild_minimal_state
+    from backend.services.feedback_adjust import rebuild_minimal_state, run_feedback_adjust
 
     cached_state = feedback_state_cache.get(session_id)
     if cached_state is None:

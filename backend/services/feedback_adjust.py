@@ -6,7 +6,6 @@
 from __future__ import annotations
 
 import asyncio
-import copy
 import logging
 from typing import Any
 
@@ -33,7 +32,6 @@ async def run_feedback_adjust(
         {"reply": str, "route": dict, "changes_made": list}
     """
     from backend.agents_v3 import get_feedback_graph_c
-    from backend.agents_v3.state import TravelState
     from backend.services.feedback_classifier import classify_feedback
 
     # 1. 分类指令 → rerun_experts + weight_adjust
@@ -70,7 +68,7 @@ async def run_feedback_adjust(
         for step in cached_route.get("route", [])
     ]
 
-    fb_state: TravelState = {
+    fb_state = {
         "user_input": combined_input,
         "proposals": [],
         "negotiation_msgs": [],
@@ -109,7 +107,7 @@ async def run_feedback_adjust(
 
     # 7. 更新缓存
     new_route["user_intent"] = user_intent
-    from backend.services.cache import route_cache, feedback_state_cache
+    from backend.services.cache import feedback_state_cache, route_cache
 
     route_cache.set(route_id, new_route)
     feedback_state_cache.set(route_id, {

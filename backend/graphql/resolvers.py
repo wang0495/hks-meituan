@@ -262,7 +262,7 @@ async def resolve_plan_route(user_input: str) -> Route:
 async def resolve_adjust_route(route_id: str, instruction: str) -> DialogueResponse:
     """调整路线 -- 调用 feedback graph。"""
     from backend.services.cache import feedback_state_cache
-    from backend.services.feedback_adjust import run_feedback_adjust, rebuild_minimal_state
+    from backend.services.feedback_adjust import rebuild_minimal_state, run_feedback_adjust
 
     # 检查路线是否存在
     route_data = route_cache.get(route_id)

@@ -15,18 +15,17 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import text
-from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 
 # no longer creates its own engine — uses shared engine from base.py
-
 from backend.config import settings
 from backend.config.pool_config import pool_settings
-from backend.database.base import engine as _shared_engine
 from backend.database.base import async_session_factory as _shared_session_factory
+from backend.database.base import engine as _shared_engine
 
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator
 
+    from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
     from sqlalchemy.pool import Pool
 
 logger = logging.getLogger(__name__)
