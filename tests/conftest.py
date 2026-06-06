@@ -9,9 +9,6 @@ import os
 
 os.environ.setdefault("TESTING", "1")
 
-# 导入 conftest_db 中的 fixtures，使其对所有测试可用
-from tests.conftest_db import *  # noqa: F403, F401
-
 import json
 import sys
 from pathlib import Path
@@ -20,6 +17,9 @@ from unittest.mock import AsyncMock
 
 import pytest
 from httpx import ASGITransport, AsyncClient
+
+# 导入 conftest_db 中的 fixtures，使其对所有测试可用
+from tests.conftest_db import *  # noqa: F403
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator
