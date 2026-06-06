@@ -74,4 +74,4 @@ CMD ["python", "-m", "uvicorn", "backend.main:app", \
      "--workers", "4", \
      "--access-log", \
      "--proxy-headers", \
-     "--forwarded-allow-ips", "*"]
+     "--forwarded-allow-ips", "10.0.0.0/8,172.16.0.0/12"]
