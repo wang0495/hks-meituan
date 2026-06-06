@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CityFlow · 珠海路线助手</title>
+  <link rel="stylesheet" href="./styles/app.css">
+</head>
+<body data-mobile-view="plan">
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">C</div>
+        <div>
+          <h1>CityFlow</h1>
+          <p>珠海个性化路线助手</p>
+        </div>
+      </div>
+
+      <div class="topbar-center">
+        <span class="city-pill"><i data-lucide="map-pin"></i> 珠海</span>
+        <span class="source-pill" id="sourcePill">本地预览</span>
+      </div>
+
+      <div class="topbar-actions">
+        <label class="api-field">
+          <span>API</span>
+          <input id="apiBaseInput" type="text" value="http://127.0.0.1:8000" spellcheck="false">
+        </label>
+        <button class="icon-button" id="checkApiBtn" type="button" title="检查后端连接" aria-label="检查后端连接">
+          <i data-lucide="refresh-cw"></i>
+        </button>
+        <span class="status-pill" id="apiStatus"><span></span>检查中</span>
+      </div>
+    </header>
+
+    <main class="workspace">
+      <aside class="planner-panel app-panel" data-mobile-panel="plan" aria-label="路线规划">
+        <div class="panel-head">
+          <div>
+            <p class="eyebrow">Plan</p>
+            <h2>告诉我你想怎么玩</h2>
+          </div>
+          <button class="ghost-button" id="clearBtn" type="button">清空</button>
+        </div>
+
+        <section class="panel-section input-section">
+          <textarea id="intentInput" maxlength="500">周末想在珠海安静走走，看看海边和文化景点，预算300元以内，节奏不要太赶</textarea>
+          <div class="scene-grid" id="sceneGrid" aria-label="出行场景"></div>
+        </section>
+
+        <section class="panel-section">
+          <div class="section-title">基础偏好</div>
+          <div class="field-grid">
+            <label>
+              <span>出发地</span>
+              <input id="startLocationInput" type="text" value="香洲">
+            </label>
+            <label>
+              <span>出发时间</span>
+              <input id="startTimeInput" type="time" value="09:30">
+            </label>
+            <label>
+              <span>游玩时长</span>
+              <select id="durationSelect">
+                <option value="半天">半天</option>
+                <option value="一日" selected>一日</option>
+                <option value="两日">两日</option>
+              </select>
+            </label>
+            <label>
+              <span>人均预算</span>
+              <select id="budgetSelect">
+                <option value="150">150 元内</option>
+                <option value="300" selected>300 元内</option>
+                <option value="600">600 元内</option>
+                <option value="1000">1000 元内</option>
+              </select>
+            </label>
+          </div>
+        </section>
+
+        <section class="panel-section">
+          <div class="section-title">游览节奏</div>
+          <div class="segmented" id="paceControl" aria-label="游览节奏"></div>
+        </section>
+
+        <section class="panel-section">
+          <div class="section-title">约束条件</div>
+          <div class="toggle-grid" id="constraintGrid"></div>
+        </section>
+
+        <section class="panel-section progress-section">
+          <div class="section-title">生成过程</div>
+          <div class="phase-list" id="phaseList"></div>
+        </section>
+
+        <div class="planner-footer">
+          <button class="primary-button" id="planBtn" type="button">
+            <i data-lucide="sparkles"></i>
+            <span>生成路线</span>
+          </button>
+        </div>
+      </aside>
+
+      <section class="map-panel app-panel" data-mobile-panel="map" aria-label="路线地图">
+        <div class="map-head">
+          <div>
+            <p class="eyebrow">Route Canvas</p>
+            <h2 id="routeTitle">珠海舒适一日路线</h2>
+          </div>
+          <div class="metric-strip">
+            <span><strong id="metricStops">0</strong>站点</span>
+            <span><strong id="metricTime">0h</strong>时长</span>
+            <span><strong id="metricCost">0元</strong>预算</span>
+            <span><strong id="metricDistance">0km</strong>距离</span>
+          </div>
+        </div>
+
+        <div class="map-stage">
+          <div id="amapContainer" class="amap-container" aria-label="高德地图"></div>
+          <div class="map-config" id="mapConfig">
+            <div>
+              <strong>高德真实地图</strong>
+              <p>填入 Web 端 JS API Key 后，路线会显示在高德地图上。</p>
+            </div>
+            <div class="map-key-grid">
+              <label>
+                <span>Key</span>
+                <input id="amapKeyInput" type="text" placeholder="高德 JS API Key" spellcheck="false">
+              </label>
+              <label>
+                <span>安全码</span>
+                <input id="amapSecurityInput" type="password" placeholder="securityJsCode" spellcheck="false">
+              </label>
+              <button class="ghost-button map-load-button" id="loadAmapBtn" type="button">
+                <i data-lucide="map"></i>
+                <span>加载地图</span>
+              </button>
+            </div>
+          </div>
+          <div class="map-caption">
+            <span id="mapHint">路线点位会随生成过程逐步出现</span>
+          </div>
+        </div>
+
+        <div class="experience-band">
+          <div>
+            <p class="eyebrow">Why This Route</p>
+            <p id="routeReason">路线会结合节奏、预算、场景和情绪标签解释推荐原因。</p>
+          </div>
+          <div class="emotion-bars" id="emotionBars" aria-label="路线情绪标签"></div>
+        </div>
+
+        <div class="timeline-band" id="timelineBand" aria-label="路线时间轴"></div>
+      </section>
+
+      <aside class="route-panel app-panel" data-mobile-panel="route" aria-label="路线结果">
+        <div class="panel-head route-head">
+          <div>
+            <p class="eyebrow">Itinerary</p>
+            <h2>路线结果</h2>
+          </div>
+          <button class="icon-button" id="exportBtn" type="button" title="复制路线摘要" aria-label="复制路线摘要">
+            <i data-lucide="copy"></i>
+          </button>
+        </div>
+
+        <section class="route-list-wrap">
+          <div class="route-list" id="routeList"></div>
+        </section>
+
+        <section class="adjust-section">
+          <div class="quick-adjust" id="quickAdjust"></div>
+          <form class="adjust-form" id="adjustForm">
+            <input id="adjustInput" type="text" placeholder="例如：太赶了，换一个轻松点的版本" autocomplete="off">
+            <button class="icon-button send-button" type="submit" title="发送调整" aria-label="发送调整">
+              <i data-lucide="send"></i>
+            </button>
+          </form>
+          <div class="chat-log" id="chatLog"></div>
+        </section>
+      </aside>
+    </main>
+  </div>
+
+  <nav class="mobile-tabs" aria-label="移动端导航">
+    <button class="mobile-tab active" type="button" data-view="plan">
+      <i data-lucide="sliders-horizontal"></i>
+      <span>规划</span>
+    </button>
+    <button class="mobile-tab" type="button" data-view="map">
+      <i data-lucide="map"></i>
+      <span>地图</span>
+    </button>
+    <button class="mobile-tab" type="button" data-view="route">
+      <i data-lucide="list-checks"></i>
+      <span>路线</span>
+    </button>
+  </nav>
+
+  <dialog class="poi-dialog" id="poiDialog">
+    <button class="icon-button dialog-close" id="dialogCloseBtn" type="button" title="关闭" aria-label="关闭">
+      <i data-lucide="x"></i>
+    </button>
+    <div class="dialog-body" id="poiDialogBody"></div>
+  </dialog>
+
+  <div class="toast" id="toast" hidden></div>
+
+  <script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.js"></script>
+  <script src="./scripts/api.js"></script>
+  <script src="./scripts/app.js"></script>
+</body>
+</html>

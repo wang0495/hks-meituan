@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CityFlow 前端交付说明</title>
+  <style>
+    :root {
+      --bg: #eef3f1;
+      --paper: #ffffff;
+      --ink: #1d2b2a;
+      --muted: #617875;
+      --line: #d9e5e2;
+      --teal: #117c76;
+      --amber: #c98719;
+      --soft: #f7faf9;
+      --radius: 8px;
+      font-family: Inter, "Noto Sans SC", "Microsoft YaHei", "PingFang SC", system-ui, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--ink);
+      letter-spacing: 0;
+    }
+    header {
+      padding: 36px 22px 22px;
+      background: #fff;
+      border-bottom: 1px solid var(--line);
+    }
+    main {
+      width: min(1120px, calc(100vw - 32px));
+      margin: 0 auto;
+      padding: 22px 0 40px;
+    }
+    .hero {
+      width: min(1120px, calc(100vw - 32px));
+      margin: 0 auto;
+    }
+    h1 {
+      margin: 0;
+      font-size: clamp(26px, 5vw, 42px);
+      line-height: 1.15;
+    }
+    h2 {
+      margin: 0 0 12px;
+      font-size: 20px;
+    }
+    p {
+      color: var(--muted);
+      line-height: 1.7;
+    }
+    .subtitle {
+      max-width: 760px;
+      margin: 12px 0 0;
+      font-size: 15px;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+    }
+    .card {
+      padding: 18px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--paper);
+    }
+    .full {
+      grid-column: 1 / -1;
+    }
+    .pill-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 12px;
+    }
+    .pill {
+      padding: 6px 9px;
+      border-radius: var(--radius);
+      background: #e2f3f1;
+      color: var(--teal);
+      font-size: 12px;
+      font-weight: 800;
+    }
+    .pill.amber {
+      background: #fff1d2;
+      color: var(--amber);
+    }
+    ol, ul {
+      margin: 0;
+      padding-left: 20px;
+      color: var(--muted);
+      line-height: 1.8;
+    }
+    code {
+      padding: 2px 5px;
+      border-radius: 5px;
+      background: var(--soft);
+      color: var(--ink);
+    }
+    pre {
+      overflow: auto;
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--soft);
+    }
+    img {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fff;
+      display: block;
+    }
+    .screens {
+      display: grid;
+      grid-template-columns: minmax(0, 1.7fr) minmax(220px, 0.8fr);
+      gap: 14px;
+      align-items: start;
+    }
+    .note {
+      padding: 12px;
+      border-left: 4px solid var(--teal);
+      background: var(--soft);
+      color: var(--muted);
+      line-height: 1.7;
+    }
+    @media (max-width: 760px) {
+      .grid,
+      .screens {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="hero">
+      <h1>CityFlow 珠海路线助手前端交付包</h1>
+      <p class="subtitle">这是一个独立于原仓库的新版前端界面，包含高德真实地图接入、真实 V2 后端联调入口、本地 POI 兜底预览、网页端和移动端自适应布局。</p>
+      <div class="pill-row">
+        <span class="pill">高德 JS API 2.0</span>
+        <span class="pill">真实 V2 后端路由</span>
+        <span class="pill">路线 SSE</span>
+        <span class="pill amber">本地数据兜底</span>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <section class="grid">
+      <div class="card">
+        <h2>包里有什么</h2>
+        <ul>
+          <li><code>frontend/</code>：可运行的新前端。</li>
+          <li><code>frontend/dev_backend.py</code>：本地联调真实 V2 后端路由的启动入口。</li>
+          <li><code>starter/</code>：Windows 一键启动脚本。</li>
+          <li><code>docs/assets/</code>：桌面端和移动端截图。</li>
+          <li><code>SEND_TO_PARTNER.txt</code>：可以直接发给伙伴的说明文字。</li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <h2>对方需要准备</h2>
+        <ul>
+          <li>Python 3.12 或可运行 FastAPI/uvicorn 的 Python 环境。</li>
+          <li>如果要联调真实后端，需要把 <code>hks-meituan-master</code> 放在本包同级或上一级目录。</li>
+          <li>高德 Web 端 JS API Key 和 <code>securityJsCode</code>。</li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <h2>只看前端</h2>
+        <ol>
+          <li>进入 <code>frontend/</code>。</li>
+          <li>启动静态服务。</li>
+        </ol>
+        <pre><code>python -m http.server 5174 --bind 127.0.0.1</code></pre>
+        <p>打开 <code>http://127.0.0.1:5174/</code>。如果后端没启动，页面会用本地 POI 数据生成预览路线。</p>
+      </div>
+
+      <div class="card">
+        <h2>联调真实后端</h2>
+        <ol>
+          <li>确认 <code>hks-meituan-master</code> 与本包在相邻目录。</li>
+          <li>进入 <code>frontend/</code>。</li>
+          <li>启动 V2 开发后端。</li>
+        </ol>
+        <pre><code>python -m uvicorn dev_backend:app --host 127.0.0.1 --port 8000</code></pre>
+        <p>前端默认连接 <code>http://127.0.0.1:8000</code>，页面顶部会显示“后端在线”。</p>
+      </div>
+
+      <div class="card full">
+        <h2>高德地图使用方式</h2>
+        <p>打开页面后，中间地图区会出现“高德真实地图”配置框。填入高德 Web 端 JS API Key 和 securityJsCode 后点击“加载地图”，路线点位会渲染为真实高德地图上的折线和编号站点。</p>
+        <div class="note">Key 和安全码不会写死在项目文件里，只保存在当前浏览器 localStorage，便于演示和联调。</div>
+      </div>
+
+      <div class="card full">
+        <h2>界面截图</h2>
+        <div class="screens">
+          <div>
+            <p>网页版</p>
+            <img src="./assets/desktop-amap-backend.png" alt="CityFlow 网页版截图">
+          </div>
+          <div>
+            <p>移动端</p>
+            <img src="./assets/mobile-amap-backend.png" alt="CityFlow 移动端截图">
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+</body>
+</html>
