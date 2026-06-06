@@ -30,8 +30,11 @@ if config.config_file_name is not None:
 # 目标 metadata（用于 autogenerate）
 target_metadata = Base.metadata
 
-# 覆盖 sqlalchemy.url（从应用配置读取）
+# 覆盖 sqlalchemy.url（从应用配置读取，隐藏密码）
 _db = settings.database
+_safe_url = (
+    f"postgresql+asyncpg://{_db.user}:***@{_db.host}:{_db.port}/{_db.database}"
+)
 _ASYNC_URL = (
     f"postgresql+asyncpg://{_db.user}:{_db.password}"
     f"@{_db.host}:{_db.port}/{_db.database}"

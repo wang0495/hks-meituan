@@ -1,6 +1,6 @@
 """CityFlow API 测试运行器 + 报告生成。
 
-接收 ``TestCaseGenerator`` 生成的用例列表，逐条执行并输出结构化报告。
+接收 ``CaseGenerator`` 生成的用例列表，逐条执行并输出结构化报告。
 
 用法::
 

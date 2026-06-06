@@ -362,42 +362,45 @@ async def plan_route(request: PlanRequest):
     async def event_stream():
         acquired = False
         try:
-            acquired = _plan_semaphore.locked() is False
-            if not acquired and _plan_semaphore._value <= 0:  # type: ignore[attr-defined]
+            # Non-blocking check: if semaphore is exhausted, reject immediately
+            if not _plan_semaphore.acquire_nowait():
                 yield _sse("error", {"error": "服务繁忙，请稍后再试"})
                 return
-            async with _plan_semaphore:
-                acquired = True
-                greeting = await _generate_greeting(request.user_input)
-                yield _sse("chat", {"text": greeting})
-                yield _sse("phase", {"phase": "parsing", "message": "正在理解你的需求..."})
+            acquired = True
 
-                try:
-                    yield _sse("phase", {"phase": "agents", "message": "7个智能体正在并行规划..."})
+            greeting = await _generate_greeting(request.user_input)
+            yield _sse("chat", {"text": greeting})
+            yield _sse("phase", {"phase": "parsing", "message": "正在理解你的需求..."})
 
-                    user_input = request.user_input
-                    if request.start_location:
-                        user_input = f"从{request.start_location}出发，{user_input}"
+            try:
+                yield _sse("phase", {"phase": "agents", "message": "7个智能体正在并行规划..."})
 
-                    sse_queue: asyncio.Queue = asyncio.Queue()
-                    graph_task = asyncio.create_task(_run_agent_graph(user_input, sse_queue))
-                    _agent_summary_ref = [""]
+                user_input = request.user_input
+                if request.start_location:
+                    user_input = f"从{request.start_location}出发，{user_input}"
 
-                    async for event in _run_and_drain_graph(sse_queue, graph_task, _agent_summary_ref):
-                        yield event
+                sse_queue: asyncio.Queue = asyncio.Queue()
+                graph_task = asyncio.create_task(_run_agent_graph(user_input, sse_queue))
+                _agent_summary_ref = [""]
 
-                    c_result = await graph_task
-                    async for event in _handle_graph_result(c_result):
-                        yield event
+                async for event in _run_and_drain_graph(sse_queue, graph_task, _agent_summary_ref):
+                    yield event
 
-                except Exception as c_err:
-                    logger.error("C版本执行失败: %s", c_err)
-                    yield _sse("error", {"error": "路线规划失败，请重试"})
-                    return
+                c_result = await graph_task
+                async for event in _handle_graph_result(c_result):
+                    yield event
+
+            except Exception as c_err:
+                logger.error("C版本执行失败: %s", c_err)
+                yield _sse("error", {"error": "路线规划失败，请重试"})
+                return
 
         except Exception:
             logger.exception("规划路线时出错")
             yield _sse("error", {"error": "服务器内部错误，请稍后重试"})
+        finally:
+            if acquired:
+                _plan_semaphore.release()
 
     return StreamingResponse(
         event_stream(),

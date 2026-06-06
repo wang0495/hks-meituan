@@ -232,7 +232,7 @@ CITYFLOW_ENDPOINTS: list[dict[str, Any]] = [
 # ---------------------------------------------------------------------------
 
 
-class TestCaseGenerator:
+class CaseGenerator:
     """测试用例生成器。
 
     支持三种用例来源:

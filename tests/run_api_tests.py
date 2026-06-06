@@ -27,7 +27,7 @@ import sys
 from pathlib import Path
 
 from tests.api_test_runner import APITestRunner
-from tests.test_generator import TestCaseGenerator
+from tests.test_generator import CaseGenerator
 
 SPEC_PATH = Path(__file__).parent.parent / "backend" / "api_spec.yaml"
 
@@ -72,7 +72,7 @@ def parse_args() -> argparse.Namespace:
 
 def build_tests(suite: str) -> list[dict]:
     """根据 suite 参数选择用例。"""
-    gen = TestCaseGenerator(SPEC_PATH if SPEC_PATH.exists() else None)
+    gen = CaseGenerator(SPEC_PATH if SPEC_PATH.exists() else None)
 
     if suite == "functional":
         return gen.generate_cityflow_tests()
