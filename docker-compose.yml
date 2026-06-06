@@ -33,6 +33,16 @@ x-backend-common: &backend-common
         cpus: "0.25"
         memory: 128M
 
+x-backend-env: &backend-env
+  ENVIRONMENT: prod
+  LLM_API_KEY: ${LLM_API_KEY}
+  LLM_BASE_URL: ${LLM_BASE_URL:-https://api.openai.com/v1}
+  REDIS_HOST: redis
+  LOG_LEVEL: ${LOG_LEVEL:-INFO}
+  SECURITY_API_KEY: ${SECURITY_API_KEY:-}
+  SECURITY_ENCRYPTION_KEY: ${SECURITY_ENCRYPTION_KEY:-}
+  SENTRY_DSN: ${SENTRY_DSN:-}
+
 services:
   # -------------------------------------------------------------------
   # Nginx 负载均衡器
@@ -78,13 +88,8 @@ services:
     <<: *backend-common
     container_name: cityflow-backend1
     environment:
-      - INSTANCE_ID=1
-      - LLM_API_KEY=${LLM_API_KEY}
-      - LLM_BASE_URL=${LLM_BASE_URL:-https://api.openai.com/v1}
-      - REDIS_HOST=redis
-      - LOG_LEVEL=${LOG_LEVEL:-INFO}
-      - SECURITY_ENCRYPTION_KEY=${SECURITY_ENCRYPTION_KEY:-}
-      - SENTRY_DSN=${SENTRY_DSN:-}
+      <<: *backend-env
+      INSTANCE_ID: "1"
 
   # -------------------------------------------------------------------
   # 后端实例 2
@@ -93,13 +98,8 @@ services:
     <<: *backend-common
     container_name: cityflow-backend2
     environment:
-      - INSTANCE_ID=2
-      - LLM_API_KEY=${LLM_API_KEY}
-      - LLM_BASE_URL=${LLM_BASE_URL:-https://api.openai.com/v1}
-      - REDIS_HOST=redis
-      - LOG_LEVEL=${LOG_LEVEL:-INFO}
-      - SECURITY_ENCRYPTION_KEY=${SECURITY_ENCRYPTION_KEY:-}
-      - SENTRY_DSN=${SENTRY_DSN:-}
+      <<: *backend-env
+      INSTANCE_ID: "2"
 
   # -------------------------------------------------------------------
   # 后端实例 3
@@ -108,13 +108,8 @@ services:
     <<: *backend-common
     container_name: cityflow-backend3
     environment:
-      - INSTANCE_ID=3
-      - LLM_API_KEY=${LLM_API_KEY}
-      - LLM_BASE_URL=${LLM_BASE_URL:-https://api.openai.com/v1}
-      - REDIS_HOST=redis
-      - LOG_LEVEL=${LOG_LEVEL:-INFO}
-      - SECURITY_ENCRYPTION_KEY=${SECURITY_ENCRYPTION_KEY:-}
-      - SENTRY_DSN=${SENTRY_DSN:-}
+      <<: *backend-env
+      INSTANCE_ID: "3"
 
   # -------------------------------------------------------------------
   # Redis（会话共享 + 缓存）
