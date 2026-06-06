@@ -13,13 +13,13 @@
 from __future__ import annotations
 
 import logging
-import os
 from typing import Any
 
 import sentry_sdk
 from sentry_sdk.integrations.fastapi import FastApiIntegration
 from sentry_sdk.integrations.sqlalchemy import SqlalchemyIntegration
 
+from backend.config import settings
 from backend.monitoring.error_filter import before_send, before_send_transaction
 
 logger = logging.getLogger(__name__)
@@ -31,13 +31,13 @@ def init_sentry() -> bool:
     Returns:
         True 表示初始化成功，False 表示未配置 DSN 而跳过。
     """
-    dsn = os.getenv("SENTRY_DSN", "").strip()
+    dsn = settings.sentry_dsn.strip()
     if not dsn:
         logger.info("SENTRY_DSN 未配置，跳过 Sentry 初始化")
         return False
 
-    environment = os.getenv("ENVIRONMENT", "development")
-    release = os.getenv("APP_VERSION", "1.0.0")
+    environment = settings.environment.value
+    release = settings.app_version
 
     # 根据环境调整采样率：生产环境低采样，开发/测试全采样
     traces_sample_rate = _get_traces_sample_rate(environment)

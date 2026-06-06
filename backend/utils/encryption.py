@@ -9,7 +9,7 @@ from __future__ import annotations
 import base64
 import json
 import logging
-import os
+from pathlib import Path
 from typing import Any
 
 from cryptography.fernet import Fernet, InvalidToken
@@ -88,9 +88,19 @@ class DataEncryptor:
 
     @staticmethod
     def _resolve_key(key: str | None) -> str:
-        """按优先级解析密钥：参数 > 环境变量 > 密钥文件。"""
+        """按优先级解析密钥：参数 > Settings > ENCRYPTION_KEY 环境变量 > 密钥文件。"""
         if key:
             return key
+
+        # 从 Pydantic settings 读取（覆盖了 SECURITY_ENCRYPTION_KEY 和 ENCRYPTION_KEY）
+        from backend.config import settings
+
+        settings_key = settings.security.encryption_key
+        if settings_key:
+            return settings_key
+
+        # 兜底：直接读环境变量（ENCRYPTION_KEY / ENCRYPTION_KEY_FILE）
+        import os
 
         env_key = os.getenv("ENCRYPTION_KEY")
         if env_key:
@@ -98,15 +108,13 @@ class DataEncryptor:
 
         key_file = os.getenv("ENCRYPTION_KEY_FILE")
         if key_file:
-            from pathlib import Path
-
             path = Path(key_file).resolve()
             if path.is_file():
                 return path.read_text(encoding="utf-8").strip()
 
         raise EncryptionError(
-            "未配置加密密钥。请设置 ENCRYPTION_KEY 环境变量，"
-            "或在 Settings.encryption_key 中提供。"
+            "未配置加密密钥。请设置 SECURITY_ENCRYPTION_KEY 环境变量，"
+            "或在 Settings.security.encryption_key 中提供。"
         )
 
     @staticmethod

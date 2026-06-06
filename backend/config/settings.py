@@ -161,6 +161,13 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
     log_file: str | None = None
 
+    # ---- 部署标识 ----
+    instance_id: str = ""  # 多实例部署时唯一标识，如 docker-compose 中的 1/2/3
+    app_version: str = "1.0.0"
+
+    # ---- 监控 ----
+    sentry_dsn: str = ""  # 留空则不初始化 Sentry
+
     # ---- 数据 ----
     data_dir: str = "backend/data"
     cache_ttl: int = 300

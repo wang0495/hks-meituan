@@ -9,13 +9,14 @@
 
 from __future__ import annotations
 
-import os
 import time
 from datetime import UTC, datetime
 from typing import Any
 
 from fastapi import APIRouter, Query
 from pydantic import BaseModel, Field
+
+from backend.config import settings
 
 router = APIRouter(tags=["系统"])
 
@@ -110,7 +111,7 @@ async def health_check() -> dict:
     return {
         "status": "healthy",
         "timestamp": datetime.now(UTC).isoformat(),
-        "instance_id": os.getenv("INSTANCE_ID", "unknown"),
+        "instance_id": settings.instance_id or "unknown",
         "uptime_seconds": round(time.monotonic() - _start_time, 2),
     }
 
@@ -146,7 +147,7 @@ async def detailed_health() -> dict:
     return {
         "status": overall,
         "timestamp": datetime.now(UTC).isoformat(),
-        "instance_id": os.getenv("INSTANCE_ID", "unknown"),
+        "instance_id": settings.instance_id or "unknown",
         "uptime_seconds": round(time.monotonic() - _start_time, 2),
         "system": system_info,
         "services": service_status,
@@ -187,7 +188,7 @@ async def deep_health_check(
     return {
         "status": result["status"],
         "timestamp": result["timestamp"],
-        "instance_id": os.getenv("INSTANCE_ID", "unknown"),
+        "instance_id": settings.instance_id or "unknown",
         "uptime_seconds": round(time.monotonic() - _start_time, 2),
         "duration_ms": result["duration_ms"],
         "total": result["total"],

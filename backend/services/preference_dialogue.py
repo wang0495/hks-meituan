@@ -15,7 +15,6 @@ from __future__ import annotations
 
 import json
 import logging
-import os
 import re
 
 from openai import AsyncOpenAI
@@ -150,7 +149,9 @@ async def _call_llm(system: str, user: str, max_tokens: int = 300) -> dict | Non
     client = _get_client()
     import asyncio as _aio
 
-    model = os.getenv("LLM_MODEL", "deepseek-chat")
+    from backend.config.settings import get_settings
+
+    model = get_settings().llm.model
     kwargs: dict = dict(
         model=model,
         messages=[
