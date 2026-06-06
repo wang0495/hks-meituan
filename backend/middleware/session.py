@@ -10,12 +10,13 @@
 from __future__ import annotations
 
 import logging
-import os
 import uuid
 from typing import TYPE_CHECKING
 
 from starlette.middleware.base import BaseHTTPMiddleware
 
+from backend.config import settings
+from backend.config.settings import Environment
 from backend.services.session import get_session_manager
 
 if TYPE_CHECKING:
@@ -52,7 +53,7 @@ class SessionMiddleware(BaseHTTPMiddleware):
         response = await call_next(request)
 
         # 设置 session cookie（HttpOnly 防 XSS，SameSite=Lax 防 CSRF）
-        is_prod = os.getenv("ENVIRONMENT", "development") in ("production", "prod", "staging")
+        is_prod = settings.environment == Environment.PROD
         response.set_cookie(
             key="session_id",
             value=session_id,

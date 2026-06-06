@@ -7,7 +7,6 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import os
 from contextlib import asynccontextmanager, suppress
 from pathlib import Path
 
@@ -16,6 +15,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from backend.config import settings
+from backend.config.settings import Environment
 from backend.docs import custom_openapi, register_docs_endpoints
 from backend.middleware import (
     APIVersionMiddleware,
@@ -375,8 +375,8 @@ app.add_middleware(ShutdownMiddleware)
 # Prometheus 指标采集
 app.add_middleware(PrometheusMiddleware)
 
-# 速率限制（测试时跳过）
-if not os.environ.get("TESTING"):
+# 速率限制（测试环境跳过）
+if settings.environment != Environment.TEST:
     app.add_middleware(
         RateLimitMiddleware,
         requests_per_minute=settings.security.rate_limit_per_minute,
