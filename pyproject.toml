@@ -105,6 +105,7 @@ ignore = [
 "tests/*" = ["B", "SIM", "N"]
 "scripts/*" = ["B", "SIM", "N"]
 "backend/tools/*" = ["B", "SIM", "N"]
+"alembic/versions/*" = ["TC003"]  # auto-generated migrations use typing at runtime
 
 # ---------------------------------------------------------------------------
 # isort

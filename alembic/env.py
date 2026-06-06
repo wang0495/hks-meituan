@@ -10,11 +10,11 @@ import asyncio
 from logging.config import fileConfig
 from typing import TYPE_CHECKING
 
-import backend.database.models  # noqa: F401 — register models for autogenerate
-from alembic import context
 from sqlalchemy import pool
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
+import backend.database.models  # noqa: F401 — register models for autogenerate
+from alembic import context
 from backend.config import settings
 from backend.database.base import Base
 

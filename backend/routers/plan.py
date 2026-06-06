@@ -363,9 +363,12 @@ async def plan_route(request: PlanRequest):
         acquired = False
         try:
             # Non-blocking check: if semaphore is exhausted, reject immediately
-            if not _plan_semaphore.acquire_nowait():
+            # asyncio.Semaphore has no public non-blocking acquire on Python <3.13;
+            # checking _value is the standard pattern.
+            if _plan_semaphore._value <= 0:
                 yield _sse("error", {"error": "服务繁忙，请稍后再试"})
                 return
+            await _plan_semaphore.acquire()
             acquired = True
 
             greeting = await _generate_greeting(request.user_input)
