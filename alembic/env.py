@@ -8,17 +8,18 @@ from __future__ import annotations
 
 import asyncio
 from logging.config import fileConfig
+from typing import TYPE_CHECKING
 
+import backend.database.models  # noqa: F401 — register models for autogenerate
 from alembic import context
 from sqlalchemy import pool
-from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
 from backend.config import settings
 from backend.database.base import Base
 
-# 导入所有模型，确保 Alembic 能发现它们
-import backend.database.models  # noqa: F401
+if TYPE_CHECKING:
+    from sqlalchemy.engine import Connection
 
 # Alembic Config 对象
 config = context.config
@@ -30,11 +31,8 @@ if config.config_file_name is not None:
 # 目标 metadata（用于 autogenerate）
 target_metadata = Base.metadata
 
-# 覆盖 sqlalchemy.url（从应用配置读取，隐藏密码）
+# 覆盖 sqlalchemy.url（从应用配置读取）
 _db = settings.database
-_safe_url = (
-    f"postgresql+asyncpg://{_db.user}:***@{_db.host}:{_db.port}/{_db.database}"
-)
 _ASYNC_URL = (
     f"postgresql+asyncpg://{_db.user}:{_db.password}"
     f"@{_db.host}:{_db.port}/{_db.database}"
