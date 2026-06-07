@@ -21,8 +21,8 @@
 
 ```bash
 # 克隆项目
-git clone https://github.com/yourusername/cityflow.git
-cd cityflow
+git clone https://github.com/wang0495/hks-meituan.git
+cd hks-meituan
 
 # 配置环境变量
 cp .env.example .env
