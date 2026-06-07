@@ -51,7 +51,7 @@ class RedisSettings(BaseSettings):
 class LLMSettings(BaseSettings):
     """LLM 服务配置。"""
 
-    model_config = SettingsConfigDict(env_prefix="LLM_", env_file=".env", env_file_encoding="utf-8")
+    model_config = SettingsConfigDict(env_prefix="LLM_", env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
     api_key: str = ""
     base_url: str = "https://api.openai.com/v1"
@@ -93,7 +93,7 @@ class _LLMDefaults(BaseSettings):
     同时支持 OPENAI_API_KEY 作为 api_key 的最终兜底。
     """
 
-    model_config = SettingsConfigDict(env_prefix="LLM_", env_file=".env", env_file_encoding="utf-8")
+    model_config = SettingsConfigDict(env_prefix="LLM_", env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
     api_key: str = ""
     base_url: str = "https://api.deepseek.com"
@@ -110,10 +110,12 @@ class SecuritySettings(BaseSettings):
     allowed_origins: list[str] = [
         "http://localhost:3000",
         "http://localhost:3001",
+        "http://localhost:5500",
         "http://localhost:8000",
         "http://localhost:8001",
         "http://localhost:8002",
         "http://127.0.0.1:3000",
+        "http://127.0.0.1:5500",
         "http://127.0.0.1:8000",
         "http://127.0.0.1:8001",
         "http://127.0.0.1:8002",
@@ -146,6 +148,7 @@ class Settings(BaseSettings):
         env_file=".env",
         env_file_encoding="utf-8",
         case_sensitive=False,
+        extra="ignore",
     )
 
     # ---- 环境 ----

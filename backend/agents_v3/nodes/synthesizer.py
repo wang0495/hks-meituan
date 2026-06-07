@@ -879,6 +879,115 @@ def _process_llm_stop(
 # ── 锦标赛：并行3策略竞争，启发式评分选最优 ──
 
 
+async def _single_llm_tournament(
+    poi_proposals: list[dict],
+    food_proposals: list[dict],
+    hotel_proposals: list[dict],
+    traffic_proposal: dict | None,
+    intent: dict,
+    user_input: str,
+    scene_type: str,
+    expert_weights: dict,
+) -> dict | None:
+    """单次LLM调用输出3种策略，节省2-5秒。"""
+    poi_list = _build_poi_list_for_llm(poi_proposals)
+    food_list = _build_food_list_for_llm(food_proposals)
+    hotel_list = _build_hotel_list_for_llm(hotel_proposals)
+    traffic_order = (
+        traffic_proposal.get("content", {}).get("suggested_order", []) if traffic_proposal else []
+    )
+    distances = _calc_distances_for_llm(poi_list)
+
+    group_type = intent.get("group", {}).get("type", "")
+    pace = intent.get("pace", "平衡型")
+    start_time = intent.get("time", {}).get("start", "09:00")
+    end_time = intent.get("time", {}).get("end", "21:00")
+    budget = intent.get("budget", {}).get("per_person", 0)
+
+    avail_min = _calc_available_minutes(start_time, end_time)
+    _max_stops_hint = _get_short_trip_hint(avail_min)
+    location = intent.get("location") or ""
+    _location_coords = _get_location_coords(location)
+    _location_hint = ""
+    if _location_coords:
+        _location_hint = f"\n10. 【区域约束】用户在{location}附近（坐标{_location_coords[0]:.2f},{_location_coords[1]:.2f}），只选该区域5km内的POI，远距离的不要选"
+
+    weight_desc = ", ".join(
+        f"{k}={v:.1f}" for k, v in sorted(expert_weights.items(), key=lambda x: -x[1]) if v >= 0.3
+    )
+
+    system = f"""你是旅行路线编排专家。请为同一用户需求生成3条不同策略的路线，以JSON数组返回。
+
+【3种策略】
+1. 地理优先：最小化总路程，同区域景点连走，绝不折返
+2. 类型优先：最大化类别多样性，覆盖至少4种不同类型
+3. 体验优先：只选高评分POI(rating>=4.0)，宁缺毋滥
+
+【核心规则】
+- 地理连贯：同区域景点连走，禁止折返
+- 时间节奏：上午主力景点，午餐就近，下午轻松，晚餐就近
+- 餐饮就近：餐厅必须插在距它最近的景点旁边
+- 时间硬约束：总行程必须在{start_time}-{end_time}内完成
+- 住宿尾置：如有住宿，放路线最后
+{_max_stops_hint}{_location_hint}
+
+专家权重: {weight_desc}
+
+输出JSON格式：
+[{{"strategy":"地理优先","ordered_stops":[{{"name":"景点名","type":"poi/lunch/dinner/hotel","reason":"为什么排这里"}}],"route_design":"路线设计思路"}},
+{{"strategy":"类型优先","ordered_stops":[...],"route_design":"..."}},
+{{"strategy":"体验优先","ordered_stops":[...],"route_design":"..."}}]
+只输出JSON数组。"""
+
+    user = f"""用户需求: {user_input}
+场景类型: {scene_type}
+群体: {group_type or '未知'}
+节奏: {pace}
+时间: {start_time}-{end_time}
+预算: {'¥'+str(budget) if budget else '不限'}
+
+景点精选（{len(poi_list)}个）:
+{json.dumps(poi_list, ensure_ascii=False)}
+
+餐厅精选（{len(food_list)}个）:
+{json.dumps(food_list, ensure_ascii=False)}
+
+{'住宿精选: ' + json.dumps(hotel_list, ensure_ascii=False) if hotel_list else '无需住宿'}
+
+景点间距离:
+{json.dumps(distances, ensure_ascii=False)}
+
+交通建议顺序: {json.dumps(traffic_order, ensure_ascii=False) if traffic_order else '无'}
+
+请生成3条不同策略的路线。"""
+
+    result = await _llm_decide(system, user, temperature=0.2)
+    if not result:
+        return None
+
+    # Handle both array and object responses
+    strategies_data = result if isinstance(result, list) else result.get("strategies", [])
+    if not strategies_data or not isinstance(strategies_data, list):
+        return None
+
+    scored: list[tuple[float, dict]] = []
+    for strategy in strategies_data:
+        if not isinstance(strategy, dict) or "ordered_stops" not in strategy:
+            continue
+        route = _build_route_from_llm_order(
+            strategy["ordered_stops"], poi_proposals, food_proposals, hotel_proposals, intent
+        )
+        if route and route.get("route"):
+            score = _score_route_heuristic(route, poi_proposals, food_proposals, intent)
+            scored.append((score, route))
+
+    if not scored:
+        return None
+
+    scored.sort(key=lambda x: x[0], reverse=True)
+    return scored[0][1]
+
+
 async def _tournament_assemble(
     poi_proposals: list[dict],
     food_proposals: list[dict],
@@ -889,7 +998,19 @@ async def _tournament_assemble(
     scene_type: str,
     expert_weights: dict,
 ) -> dict | None:
-    """并行跑3种策略，锦标赛选最优。"""
+    """并行跑3种策略，锦标赛选最优。优先使用单次LLM调用。"""
+    # 尝试单次LLM调用（节省2-5秒）
+    try:
+        result = await _single_llm_tournament(
+            poi_proposals, food_proposals, hotel_proposals,
+            traffic_proposal, intent, user_input, scene_type, expert_weights
+        )
+        if result:
+            return result
+    except Exception:
+        logger.warning("单次LLM锦标赛失败，回退到3次并行调用", exc_info=True)
+
+    # 回退到原有3次并行调用
     strategies = [
         (
             "🏆 地理优先策略：最小化总路程，同区域景点连走，绝不折返。距离>10km的不要排在同一条路线。",

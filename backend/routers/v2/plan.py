@@ -177,19 +177,6 @@ def _build_metadata(route_result: dict, request: PlanRequestV2) -> dict:
 # ---------------------------------------------------------------------------
 
 
-@router.post(
-    "/plan",
-    summary="[V2] 流式规划路线（增强版）",
-    description=(
-        "V2版本的路线规划接口，增加了约束条件、节奏模式和情绪曲线支持。\n\n"
-        "相比V1新增功能：\n"
-        "- **constraints** - 支持传入约束条件（如'文化深度'、'无障碍通行'）\n"
-        "- **pace** - 支持指定节奏模式（闲逛型/平衡型/特种兵型）\n"
-        "- **emotion_curve** - 返回完整的情绪曲线数据\n"
-        "- **metadata** - 返回路线元数据（总距离、时长、预算等）"
-    ),
-    tags=["v2-plan"],
-)
 def _merge_v2_request_params(user_intent: dict, request: PlanRequestV2) -> None:
     """合并V2请求参数到user_intent。"""
     if request.constraints:
@@ -299,6 +286,19 @@ async def _v2_event_stream(request: PlanRequestV2):
         yield _sse("error", {"error": "服务器内部错误，请稍后重试"})
 
 
+@router.post(
+    "/plan",
+    summary="[V2] 流式规划路线（增强版）",
+    description=(
+        "V2版本的路线规划接口，增加了约束条件、节奏模式和情绪曲线支持。\n\n"
+        "相比V1新增功能：\n"
+        "- **constraints** - 支持传入约束条件（如'文化深度'、'无障碍通行'）\n"
+        "- **pace** - 支持指定节奏模式（闲逛型/平衡型/特种兵型）\n"
+        "- **emotion_curve** - 返回完整的情绪曲线数据\n"
+        "- **metadata** - 返回路线元数据（总距离、时长、预算等）"
+    ),
+    tags=["v2-plan"],
+)
 async def plan_route_v2(request: PlanRequestV2) -> StreamingResponse:
     """V2版本的路线规划（SSE流式响应，增强版）。"""
     return StreamingResponse(

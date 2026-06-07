@@ -192,6 +192,18 @@ async def review(state: TravelState) -> dict:
         )
         return {"review_feedback": rule_feedback, "review_round": round_num + 1}
 
+    # 快速通道：规则geo检查通过 + 首轮 + 提案≥3个 → 跳过LLM review
+    if round_num == 0 and len(proposals) >= 3:
+        await sse_emit(
+            state,
+            "agent_result",
+            {
+                "agent": "review",
+                "summary": f"快速通道：{len(proposals)}个提案通过地理检查，跳过LLM审查",
+            },
+        )
+        return {"review_feedback": [], "review_round": round_num + 1}
+
     # LLM语义审查
     proposal_summary = [
         {
